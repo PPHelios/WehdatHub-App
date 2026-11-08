@@ -27,5 +27,13 @@ target 'WehdatHub' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # With dynamic frameworks (needed by Firebase) a pod must link what it uses itself: the image picker uses the UTType functions.
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'react-native-image-picker'
+      target.build_configurations.each do |config|
+        config.build_settings['OTHER_LDFLAGS'] = '$(inherited) -framework MobileCoreServices'
+      end
+    end
   end
 end
