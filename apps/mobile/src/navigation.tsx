@@ -7,13 +7,14 @@ import { Loading } from './components/StateViews';
 import { LoginScreen } from './screens/LoginScreen';
 import { MoreScreen } from './screens/MoreScreen';
 import { UnitScreen } from './screens/UnitScreen';
+import { SearchScreen } from './screens/SearchScreen';
 import { TodayScreen } from './screens/TodayScreen';
 import { UnitsScreen } from './screens/UnitsScreen';
 import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type RootStackParams = { Tabs: undefined; Unit: { code: string } };
-type TabParams = { Today: undefined; Units: undefined; More: undefined };
+type TabParams = { Today: undefined; Search: undefined; Units: undefined; More: undefined };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tabs = createBottomTabNavigator<TabParams>();
@@ -23,6 +24,7 @@ function TabsScreen() {
   return (
     <Tabs.Navigator>
       <Tabs.Screen name="Today" component={TodayScreen} options={{ title: t(lang, 'today') }} />
+      <Tabs.Screen name="Search" component={SearchScreen} options={{ title: t(lang, 'searchTab') }} />
       <Tabs.Screen name="Units" component={UnitsScreen} options={{ title: t(lang, 'units') }} />
       <Tabs.Screen name="More" component={MoreScreen} options={{ title: t(lang, 'more') }} />
     </Tabs.Navigator>
