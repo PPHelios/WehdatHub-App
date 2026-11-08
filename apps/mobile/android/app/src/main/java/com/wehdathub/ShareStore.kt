@@ -19,6 +19,15 @@ object ShareStore {
   }
 
   @Suppress("DEPRECATION")
+  private fun displayName(context: Context, uri: Uri): String? =
+    try {
+      context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+        if (c.moveToFirst()) c.getString(0) else null
+      }
+    } catch (_: Exception) {
+      null
+    }
+
   fun handle(context: Context, intent: Intent?) {
     if (intent == null) return
     val action = intent.action
