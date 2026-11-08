@@ -80,6 +80,49 @@ export interface SearchResult {
 }
 export interface VoiceFile { uri: string; name: string; type: string }
 export interface UnitsPage { total: number; limit: number; offset: number; items: ApiUnitListItem[] }
+export interface MapPin {
+  id: string;
+  n: number;
+  name: string;
+  name_ar: string | null;
+  name_en: string | null;
+  developer: string | null;
+  district: string | null;
+  lat: number;
+  lng: number;
+}
+export interface MapFilters {
+  type?: 'sale' | 'rent';
+  rooms?: number;
+  ptype?: string;
+  fin?: string;
+  furn?: string;
+  pmin?: number;
+  pmax?: number;
+}
+export interface MapData {
+  tilesUrl: string | null;
+  pins: MapPin[];
+  total: number;
+  unmapped: number;
+  facets: { types?: string[]; rooms?: number[] };
+}
+export interface MapUnit {
+  code: string;
+  title: string | null;
+  propertyType: string | null;
+  listingType: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  area: number | null;
+  price: number | null;
+  priceText: string | null;
+}
+export interface MapUnits {
+  place: { id: string; name_en: string | null; name_ar: string | null };
+  items: MapUnit[];
+}
+
 export interface UnitsQuery {
   status?: 'active' | 'sold' | 'archived';
   q?: string;
@@ -152,6 +195,8 @@ export function createApiClient(opts: ApiClientOptions) {
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
     me: () => request<{ broker: ApiBroker; agency: ApiAgency; expiresAt: string }>('GET', '/me'),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
+    map: (f: MapFilters = {}) => request<MapData>('GET', '/map', undefined, { ...f }),
+    mapUnits: (placeId: string, f: MapFilters = {}) => request<MapUnits>('GET', `/map/places/${encodeURIComponent(placeId)}/units`, undefined, { ...f }),
     search: (q: string, o: { ai?: boolean; drop?: boolean } = {}) => request<SearchResult>('GET', '/search', undefined, { q, ai: o.ai, drop: o.drop }),
     /** Sends a recorded note; the server writes it down and answers the text to search. */
     voiceToText: (file: VoiceFile) => {

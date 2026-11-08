@@ -9,6 +9,7 @@ import { AddUnitScreen } from './screens/AddUnitScreen';
 import { LeadScreen } from './screens/LeadScreen';
 import { LeadsScreen } from './screens/LeadsScreen';
 import { NewLeadScreen } from './screens/NewLeadScreen';
+import { MapScreen } from './screens/MapScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { MoreScreen } from './screens/MoreScreen';
 import { UnitScreen } from './screens/UnitScreen';
@@ -21,7 +22,7 @@ import { useTheme } from './theme';
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile };
 export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
-type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Units: undefined; More: undefined };
+type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Map: undefined; Units: undefined; More: undefined };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tabs = createBottomTabNavigator<TabParams>();
@@ -33,6 +34,7 @@ function TabsScreen() {
       <Tabs.Screen name="Today" component={TodayScreen} options={{ title: t(lang, 'today') }} />
       <Tabs.Screen name="Search" component={SearchScreen} options={{ title: t(lang, 'searchTab') }} />
       <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab') }} />
+      <Tabs.Screen name="Map" component={MapScreen} options={{ title: t(lang, 'mapTab') }} />
       <Tabs.Screen name="Units" component={UnitsScreen} options={{ title: t(lang, 'units') }} />
       <Tabs.Screen name="More" component={MoreScreen} options={{ title: t(lang, 'more') }} />
     </Tabs.Navigator>

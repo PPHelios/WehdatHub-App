@@ -20,3 +20,8 @@ jest.mock('@react-native-async-storage/async-storage', () => {
 });
 jest.mock('react-native-image-picker', () => ({ launchImageLibrary: jest.fn().mockResolvedValue({ assets: [] }), launchCamera: jest.fn().mockResolvedValue({ assets: [] }) }));
 jest.mock('react-native-audio-recorder-player', () => ({ __esModule: true, default: { startRecorder: jest.fn(), stopRecorder: jest.fn() } }));
+jest.mock('react-native-webview', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { WebView: React.forwardRef((props, ref) => { React.useImperativeHandle(ref, () => ({ injectJavaScript: jest.fn() })); return React.createElement(View, { testID: props.testID, onMessage: props.onMessage }); }) };
+});
