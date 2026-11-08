@@ -40,6 +40,17 @@ export interface ApiUnitDetail extends ApiUnit {
 export type TodayTaskKind = 'late' | 'viewing' | 'hot' | 'call' | 'matches';
 export interface TodayTask { ref: string; name: string | null; kind: TodayTaskKind; at: string | null; unitCode: string | null; phone: string | null; matches: number | null }
 export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number }
+export interface SearchAsk { terms: string[]; numbers?: unknown[]; aiDown?: boolean; withoutTotal: number }
+export interface SearchResult {
+  status: 'results' | 'none' | 'ask' | 'small_talk' | 'listing' | 'other';
+  source: string;
+  total: number;
+  items: ApiUnitListItem[];
+  relaxed?: boolean;
+  ignoredTerms?: string[];
+  ask?: SearchAsk;
+}
+export interface VoiceFile { uri: string; name: string; type: string }
 export interface UnitsPage { total: number; limit: number; offset: number; items: ApiUnitListItem[] }
 export interface UnitsQuery {
   status?: 'active' | 'sold' | 'archived';
@@ -86,11 +97,12 @@ export function createApiClient(opts: ApiClientOptions) {
       : '';
     const token = opts.getToken();
     const headers: Record<string, string> = { Accept: 'application/json' };
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+    if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
     if (token) headers.Authorization = `Bearer ${token}`;
     let res: Response;
     try {
-      res = await doFetch(`${opts.baseUrl}/api/v1${path}${qs ? `?${qs}` : ''}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+      res = await doFetch(`${opts.baseUrl}/api/v1${path}${qs ? `?${qs}` : ''}`, { method, headers, body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body) });
     } catch {
       throw new ApiClientError(0, 'network');
     }
@@ -112,6 +124,13 @@ export function createApiClient(opts: ApiClientOptions) {
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
     me: () => request<{ broker: ApiBroker; agency: ApiAgency; expiresAt: string }>('GET', '/me'),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
+    search: (q: string, o: { ai?: boolean; drop?: boolean } = {}) => request<SearchResult>('GET', '/search', undefined, { q, ai: o.ai, drop: o.drop }),
+    /** Sends a recorded note; the server writes it down and answers the text to search. */
+    voiceToText: (file: VoiceFile) => {
+      const form = new FormData();
+      form.append('voice', file as unknown as Blob);
+      return request<{ q: string }>('POST', '/search/voice', form);
+    },
     today: () => request<TodayData>('GET', '/today'),
     unit: (code: string) => request<ApiUnitDetail>('GET', `/units/${encodeURIComponent(code)}`),
   };
