@@ -7,6 +7,7 @@ import { Button } from '../components/Button';
 import { clearDraft } from '../draft';
 import { t } from '../i18n';
 import { useLock } from '../lock';
+import { stopPush } from '../push';
 import { spacing, useTheme } from '../theme';
 
 export function MoreScreen() {
@@ -25,6 +26,7 @@ export function MoreScreen() {
   const out = async () => {
     setBusy(true);
     try {
+      await stopPush(); // while the session still works
       await api.logout().catch(() => {}); // the phone signs out even when the server can't be reached
       queries.clear();
       await clearDraft();

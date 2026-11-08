@@ -11,6 +11,7 @@ import { UpdateScreen } from './src/components/UpdateScreen';
 import { APP_VERSION } from './src/config';
 import { LOCK_AFTER_MS, useLock } from './src/lock';
 import { RootNavigation, navigationRef } from './src/navigation';
+import { startCrashReports, startFirebase, startPush } from './src/push';
 import { watchShares } from './src/share';
 
 I18nManager.allowRTL(true);
@@ -52,6 +53,32 @@ export default function App() {
       if (navigationRef.isReady()) go();
       else setTimeout(go, 800);
     });
+  }, [status]);
+
+  // Alerts and crash reports start once signed in, if the server has the phone's Firebase identifiers.
+  useEffect(() => {
+    if (status !== 'signedIn') return;
+    let stop = () => undefined as void;
+    let gone = false;
+    api
+      .config()
+      .then(async (c) => {
+        if (gone || !(await startFirebase(c.firebase))) return;
+        const id = useAuth.getState().broker?.id;
+        if (id) startCrashReports(String(id)).catch(() => undefined);
+        const off = await startPush((s) => {
+          const go = () => navigationRef.navigate(s.name, s.params as never);
+          if (navigationRef.isReady()) go();
+          else setTimeout(go, 800);
+        });
+        if (gone) off();
+        else stop = off;
+      })
+      .catch(() => undefined);
+    return () => {
+      gone = true;
+      stop();
+    };
   }, [status]);
 
   return (

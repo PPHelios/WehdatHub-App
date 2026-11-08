@@ -6,3 +6,5 @@ autoInstallPeers: true
 allowBuilds:
   esbuild: true
   react-native-nitro-modules: false
+  "@firebase/util": false
+  protobufjs: false
