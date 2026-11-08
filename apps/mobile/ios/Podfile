@@ -32,7 +32,7 @@ target 'WehdatHub' do
     installer.pods_project.targets.each do |target|
       next unless target.name == 'react-native-image-picker'
       target.build_configurations.each do |config|
-        config.build_settings['OTHER_LDFLAGS'] = '$(inherited) -framework MobileCoreServices'
+        config.build_settings['OTHER_LDFLAGS'] = '$(inherited) -framework UniformTypeIdentifiers -framework MobileCoreServices'
       end
     end
   end
