@@ -14,6 +14,7 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
+import { useDebounced } from '../useDebounced';
 
 const PAGE = 20;
 const STATUSES = ['active', 'sold', 'archived'] as const;
@@ -24,7 +25,7 @@ export function UnitsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [status, setStatus] = useState<(typeof STATUSES)[number]>('active');
   const [text, setText] = useState('');
-  const q = text.trim();
+  const q = useDebounced(text.trim());
 
   const list = useInfiniteQuery({
     queryKey: ['units', status, q],
@@ -37,6 +38,7 @@ export function UnitsScreen() {
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
       <TextInput testID="units-search" style={[styles.search, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'search')} placeholderTextColor={colors.muted} autoCapitalize="characters" autoCorrect={false} returnKeyType="search" />
+      {text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching) ? <ActivityIndicator style={styles.searching} color={colors.primary} /> : null}
       <View style={styles.chips}>
         {STATUSES.map((s) => (
           <Pressable key={s} accessibilityRole="button" accessibilityState={{ selected: s === status }} onPress={() => setStatus(s)} style={[styles.chip, { borderColor: s === status ? colors.primary : colors.border, backgroundColor: s === status ? colors.primary : 'transparent' }]}>
@@ -68,6 +70,7 @@ export function UnitsScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  searching: { position: 'absolute', top: spacing.lg + 14, end: spacing.lg + 14 },
   search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
   chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },

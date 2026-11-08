@@ -13,6 +13,7 @@ import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
+import { useDebounced } from '../useDebounced';
 
 const TABS: [LeadTab, StringKey][] = [['all', 'tabAll'], ['due_today', 'tabDue'], ['overdue', 'tabOverdue'], ['new', 'st_new'], ['interested', 'st_interested'], ['viewing', 'st_viewing'], ['negotiation', 'st_negotiation'], ['no_next_step', 'tabNoStep']];
 
@@ -22,7 +23,7 @@ export function LeadsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [tab, setTab] = useState<LeadTab>('all');
   const [text, setText] = useState('');
-  const q = text.trim();
+  const q = useDebounced(text.trim());
   const list = useInfiniteQuery({
     queryKey: ['leads', tab, q],
     initialPageParam: 0,
@@ -34,6 +35,7 @@ export function LeadsScreen() {
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
       <TextInput testID="leads-search" style={[styles.search, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'searchLeads')} placeholderTextColor={colors.muted} autoCorrect={false} returnKeyType="search" />
+      {text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching) ? <ActivityIndicator style={styles.searching} color={colors.primary} /> : null}
       <View style={styles.chipsBox}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           {TABS.map(([v, k]) => (
@@ -86,6 +88,7 @@ function LeadRow({ lead, onPress }: { lead: ApiLead; onPress: () => void }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  searching: { position: 'absolute', top: spacing.lg + 14, end: spacing.lg + 14 },
   search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
   chipsBox: { height: 48 },
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg },
