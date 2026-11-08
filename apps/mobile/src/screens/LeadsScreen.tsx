@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ApiLead, LeadTab, LeadsPage } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { tick } from '../haptics';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
@@ -31,6 +32,17 @@ export function LeadsScreen() {
     getNextPageParam: (last: LeadsPage) => (last.more ? last.offset + last.limit : undefined),
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
+  const queries = useQueryClient();
+  // Press and hold a lead: call it, or mark it as called, without opening it.
+  const quick = (l: ApiLead) => {
+    tick();
+    const buttons = [
+      ...(l.phones[0] ? [{ text: t(lang, 'quickCall'), onPress: () => { Linking.openURL(`tel:${l.phones[0]}`).catch(() => undefined); } }] : []),
+      { text: t(lang, 'markCalled'), onPress: () => { api.leadCalled(l.ref, l.version).then(() => { tick(); return queries.invalidateQueries({ queryKey: ['leads'] }); }).catch((e) => Alert.alert(errorText(e, lang))); } },
+      { text: t(lang, 'cancel'), style: 'cancel' as const },
+    ];
+    Alert.alert(l.name || l.ref, undefined, buttons);
+  };
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
@@ -54,7 +66,7 @@ export function LeadsScreen() {
           <FlashList
             data={items}
             keyExtractor={(l) => l.ref}
-            renderItem={({ item }) => <LeadRow lead={item} onPress={() => nav.navigate('Lead', { ref: item.ref })} />}
+            renderItem={({ item }) => <LeadRow lead={item} onPress={() => nav.navigate('Lead', { ref: item.ref })} onQuick={() => quick(item)} />}
             onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
             onEndReachedThreshold={0.6}
             refreshing={list.isRefetching && !list.isFetchingNextPage}
@@ -69,13 +81,13 @@ export function LeadsScreen() {
   );
 }
 
-function LeadRow({ lead, onPress }: { lead: ApiLead; onPress: () => void }) {
+function LeadRow({ lead, onPress, onQuick }: { lead: ApiLead; onPress: () => void; onQuick: () => void }) {
   const { colors } = useTheme();
   const lang = currentLang();
   const due = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
   const late = due !== null && due.getTime() < Date.now();
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <Pressable accessibilityRole="button" onPress={onPress} onLongPress={onQuick} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.cardTop}>
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{lead.name || lead.ref}</Text>
         <Text style={{ color: colors.primary, fontWeight: '700' }}>{t(lang, `st_${lead.stage}` as StringKey)}</Text>

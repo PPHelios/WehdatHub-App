@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { DAY, KEPT, listsStore } from './src/lists';
+import { OfflineBanner } from './src/offline';
 import { isOutdated } from '@wehdathub/shared';
 import type { AppConfig } from '@wehdathub/shared';
 import { api } from './src/api';
@@ -16,7 +19,7 @@ import { watchShares } from './src/share';
 
 I18nManager.allowRTL(true);
 
-const queries = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
+const queries = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000, gcTime: DAY } } });
 
 export default function App() {
   const restore = useAuth((s) => s.restore);
@@ -87,10 +90,11 @@ export default function App() {
       {tooOld ? (
         <UpdateScreen config={tooOld} />
       ) : (
-        <QueryClientProvider client={queries}>
+        <PersistQueryClientProvider client={queries} persistOptions={{ persister: listsStore, maxAge: DAY, buster: 'v1', dehydrateOptions: { shouldDehydrateQuery: (q) => q.state.status === 'success' && KEPT.includes(String(q.queryKey[0])) } }}>
           <RootNavigation />
           {locked && status === 'signedIn' ? <LockScreen /> : null}
-        </QueryClientProvider>
+          <OfflineBanner />
+        </PersistQueryClientProvider>
       )}
     </SafeAreaProvider>
   );

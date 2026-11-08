@@ -1,11 +1,13 @@
 import React from 'react';
-import { FlatList, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { formatEgp } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
+import { Button } from '../components/Button';
+import { PhotoGallery } from '../components/PhotoGallery';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
@@ -32,9 +34,7 @@ export function UnitScreen() {
   ];
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.body}>
-      {u.images.length ? (
-        <FlatList horizontal data={u.images} keyExtractor={(i) => i.id} showsHorizontalScrollIndicator={false} renderItem={({ item }) => <Image source={{ uri: item.url }} style={styles.image} resizeMode="cover" />} />
-      ) : null}
+      <PhotoGallery photos={u.images} closeLabel={t(lang, 'closePanel')} />
       <View style={styles.info}>
         <Text style={[styles.code, { color: colors.primary }]}>{u.code}</Text>
         {u.compound ? <Text style={[styles.title, { color: colors.text }]}>{u.compound}</Text> : null}
@@ -42,6 +42,7 @@ export function UnitScreen() {
         {rows.filter(([, v]) => v).map(([k, v], i) => (
           <Text key={i} style={[styles.row, { color: colors.muted }]}>{k ? `${k}: ` : ''}{v}</Text>
         ))}
+        <Button testID="share-unit" variant="secondary" label={t(lang, 'shareUnit')} onPress={() => { Share.share({ message: [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n') }).catch(() => undefined); }} />
         {u.features.length ? <Text style={[styles.row, { color: colors.text }]}>{t(lang, 'features')}: {u.features.join(' · ')}</Text> : null}
       </View>
     </ScrollView>
@@ -50,7 +51,6 @@ export function UnitScreen() {
 
 const styles = StyleSheet.create({
   body: { paddingBottom: spacing.xl },
-  image: { width: 320, height: 240, marginEnd: spacing.sm },
   info: { padding: spacing.lg, gap: spacing.sm },
   code: { fontSize: 16, fontWeight: '800' },
   title: { fontSize: 22, fontWeight: '700' },

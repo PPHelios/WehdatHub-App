@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
+import { listsStore } from '../lists';
 import { clearDraft } from '../draft';
 import { t } from '../i18n';
 import { useLock } from '../lock';
@@ -29,6 +30,7 @@ export function MoreScreen() {
       await stopPush(); // while the session still works
       await api.logout().catch(() => {}); // the phone signs out even when the server can't be reached
       queries.clear();
+      await listsStore.removeClient();
       await clearDraft();
       await useLock.getState().disable();
       await signOut();
