@@ -1,0 +1,47 @@
+require 'xcodeproj'
+proj = Xcodeproj::Project.open('WehdatHub.xcodeproj')
+app = proj.targets.find { |t| t.name == 'WehdatHub' }
+raise 'no app target' unless app
+
+# Main app: real bundle id, entitlements, the native module file.
+app.build_configurations.each do |c|
+  c.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.wehdathub'
+  c.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'WehdatHub/WehdatHub.entitlements'
+end
+main_group = proj.main_group['WehdatHub']
+m_ref = main_group.new_reference('ShareIntent.m')
+app.source_build_phase.add_file_reference(m_ref)
+main_group.new_reference('WehdatHub.entitlements')
+
+# Share extension target.
+ext = proj.new_target(:app_extension, 'ShareExt', :ios, '15.1')
+group = proj.main_group.new_group('ShareExt', 'ShareExt')
+swift = group.new_reference('ShareViewController.swift')
+group.new_reference('Info.plist')
+group.new_reference('ShareExt.entitlements')
+ext.source_build_phase.add_file_reference(swift)
+ext.build_configurations.each do |c|
+  s = c.build_settings
+  s['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.wehdathub.ShareExt'
+  s['PRODUCT_NAME'] = '$(TARGET_NAME)'
+  s['INFOPLIST_FILE'] = 'ShareExt/Info.plist'
+  s['CODE_SIGN_ENTITLEMENTS'] = 'ShareExt/ShareExt.entitlements'
+  s['SWIFT_VERSION'] = '5.0'
+  s['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+  s['TARGETED_DEVICE_FAMILY'] = '1,2'
+  s['SKIP_INSTALL'] = 'YES'
+  s['MARKETING_VERSION'] = '1.0'
+  s['CURRENT_PROJECT_VERSION'] = '1'
+  s['GENERATE_INFOPLIST_FILE'] = 'NO'
+  s['LD_RUNPATH_SEARCH_PATHS'] = ['$(inherited)', '@executable_path/Frameworks', '@executable_path/../../Frameworks']
+  s['CODE_SIGN_STYLE'] = 'Automatic'
+end
+
+# Embed the extension in the app and build it first.
+app.add_dependency(ext)
+embed = app.new_copy_files_build_phase('Embed Foundation Extensions')
+embed.symbol_dst_subfolder_spec = :plug_ins
+bf = embed.add_file_reference(ext.product_reference)
+bf.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
+proj.save
+puts 'saved'

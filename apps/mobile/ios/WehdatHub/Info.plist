@@ -34,6 +34,17 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.wehdathub</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>wehdathub</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Used only when you tap Take photo to add a photo to a unit.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
