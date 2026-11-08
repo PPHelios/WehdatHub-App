@@ -66,7 +66,13 @@ export interface NewLead { phone1: string; phone2?: string; name?: string; kind?
 /** The fields of the add-unit form use the website form's names (strings, features as an array). */
 export type UnitFields = Record<string, string | string[] | boolean | undefined>;
 export interface ReviewResult { ok: boolean; blockers: { field: string; label: string }[]; warnings: { field: string; text: string }[]; duplicate: string | null }
-export interface AppConfig { minAppVersion: string; storeUrl: { android: string | null; ios: string | null } }
+export interface FirebaseClientConfig { apiKey: string; appId: string; projectId: string; messagingSenderId: string }
+export interface AppConfig {
+  minAppVersion: string;
+  storeUrl: { android: string | null; ios: string | null };
+  /** The phone's public Firebase identifiers; null until the server has them. Alerts and crash reports stay off without them. */
+  firebase?: { android?: FirebaseClientConfig; ios?: FirebaseClientConfig } | null;
+}
 export interface UploadFile { uri: string; name: string; type: string }
 export interface SearchAsk { terms: string[]; numbers?: unknown[]; aiDown?: boolean; withoutTotal: number }
 export interface SearchResult {
@@ -205,6 +211,8 @@ export function createApiClient(opts: ApiClientOptions) {
       return request<{ q: string }>('POST', '/search/voice', form);
     },
     config: () => request<AppConfig>('GET', '/config'),
+    registerDevice: (token: string, platform: 'android' | 'ios') => request<{ ok: true }>('POST', '/devices', { token, platform }),
+    removeDevice: (token: string) => request<{ ok: true }>('POST', '/devices/remove', { token }),
     leads: (o: { tab?: LeadTab; q?: string; offset?: number } = {}) => request<LeadsPage>('GET', '/leads', undefined, { tab: o.tab && o.tab !== 'all' ? o.tab : undefined, q: o.q, offset: o.offset || undefined }),
     lead: (ref: string) => request<LeadDetail>('GET', `/leads/${encodeURIComponent(ref)}`),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
