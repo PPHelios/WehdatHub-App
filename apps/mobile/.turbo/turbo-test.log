@@ -1,9 +1,0 @@
-$ jest
-PASS __tests__/App.test.tsx
-  ✓ renders the brand name and a shared-formatted price (403 ms)
-
-Test Suites: 1 passed, 1 total
-Tests:       1 passed, 1 total
-Snapshots:   0 total
-Time:        1.339 s
-Ran all test suites.
