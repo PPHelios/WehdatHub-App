@@ -13,6 +13,7 @@ import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
+import { useColumns } from '../layout';
 import { radius, spacing, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 
@@ -24,6 +25,7 @@ export function LeadsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [tab, setTab] = useState<LeadTab>('all');
   const [text, setText] = useState('');
+  const columns = useColumns();
   const q = useDebounced(text.trim());
   const list = useInfiniteQuery({
     queryKey: ['leads', tab, q],
@@ -64,6 +66,8 @@ export function LeadsScreen() {
           <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} />
         ) : (
           <FlashList
+          key={`cols-${columns}`}
+          numColumns={columns}
             data={items}
             keyExtractor={(l) => l.ref}
             renderItem={({ item }) => <LeadRow lead={item} onPress={() => nav.navigate('Lead', { ref: item.ref })} onQuick={() => quick(item)} />}

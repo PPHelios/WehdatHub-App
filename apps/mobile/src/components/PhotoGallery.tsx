@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { MAX_WIDTH } from '../layout';
 import { spacing } from '../theme';
 
 interface Photo { id: string; url: string }
 
 /** One photo you can swipe; the count shows below, and a tap opens it full screen. */
 export function PhotoGallery({ photos, closeLabel }: { photos: Photo[]; closeLabel: string }) {
-  const { width } = useWindowDimensions();
-  const h = Math.round(Math.min(width, 640) * 0.72);
+  const width = Math.min(useWindowDimensions().width, MAX_WIDTH);
+  const h = Math.round(width * 0.72);
   const [index, setIndex] = useState(0);
   const [full, setFull] = useState<number | null>(null);
   if (!photos.length) return null;
