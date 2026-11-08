@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, lint, tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - run: pnpm typecheck --output-logs=errors-only
+      - run: pnpm lint --output-logs=errors-only
+      - run: pnpm test --output-logs=errors-only
+
+  android:
+    name: Android debug build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - name: Build debug APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleDebug --quiet
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wehdathub-debug-apk
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+  ios:
+    name: iOS simulator build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile --reporter=silent
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: apps/mobile
+      - name: Install pods
+        working-directory: apps/mobile/ios
+        run: bundle exec pod install
+      - name: Build for simulator
+        working-directory: apps/mobile/ios
+        run: >
+          xcodebuild -workspace WehdatHub.xcworkspace -scheme WehdatHub
+          -configuration Debug -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO -quiet build
