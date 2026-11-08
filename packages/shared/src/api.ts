@@ -37,6 +37,9 @@ export interface ApiUnitDetail extends ApiUnit {
   features: string[];
   images: { id: string; url: string; position: number }[];
 }
+export type TodayTaskKind = 'late' | 'viewing' | 'hot' | 'call' | 'matches';
+export interface TodayTask { ref: string; name: string | null; kind: TodayTaskKind; at: string | null; unitCode: string | null; phone: string | null; matches: number | null }
+export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number }
 export interface UnitsPage { total: number; limit: number; offset: number; items: ApiUnitListItem[] }
 export interface UnitsQuery {
   status?: 'active' | 'sold' | 'archived';
@@ -109,6 +112,7 @@ export function createApiClient(opts: ApiClientOptions) {
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
     me: () => request<{ broker: ApiBroker; agency: ApiAgency; expiresAt: string }>('GET', '/me'),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
+    today: () => request<TodayData>('GET', '/today'),
     unit: (code: string) => request<ApiUnitDetail>('GET', `/units/${encodeURIComponent(code)}`),
   };
 }
