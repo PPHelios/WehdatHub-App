@@ -4,9 +4,9 @@ import { StyleSheet, View, useWindowDimensions } from 'react-native';
 export const MAX_WIDTH = 640;
 
 /** How many cards fit side by side: 1 on phones, 2 on small tablets, 3 on big ones. */
+export const columnsFor = (width: number) => (width >= 1000 ? 3 : width >= 700 ? 2 : 1);
 export function useColumns(): number {
-  const { width } = useWindowDimensions();
-  return width >= 1000 ? 3 : width >= 700 ? 2 : 1;
+  return columnsFor(useWindowDimensions().width);
 }
 
 /** Keeps a form or detail screen a readable width, centred, on tablets and iPads. Phones are unchanged. */
