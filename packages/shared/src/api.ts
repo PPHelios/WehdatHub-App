@@ -40,6 +40,34 @@ export interface ApiUnitDetail extends ApiUnit {
 export type TodayTaskKind = 'late' | 'viewing' | 'hot' | 'call' | 'matches';
 export interface TodayTask { ref: string; name: string | null; kind: TodayTaskKind; at: string | null; unitCode: string | null; phone: string | null; matches: number | null }
 export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number }
+export type LeadStage = 'new' | 'contacted' | 'interested' | 'viewing' | 'negotiation' | 'won' | 'lost';
+export const LEAD_STAGES: LeadStage[] = ['new', 'contacted', 'interested', 'viewing', 'negotiation', 'won', 'lost'];
+export type LeadTab = 'all' | LeadStage | 'due_today' | 'overdue' | 'no_next_step';
+export interface ApiLead {
+  ref: string;
+  name: string | null;
+  phones: string[];
+  kind: 'buyer' | 'tenant' | 'seller' | 'landlord';
+  stage: LeadStage;
+  lostReason: string | null;
+  source: string | null;
+  notes: string | null;
+  nextFollowUpAt: string | null;
+  followUpKind: 'call' | 'viewing' | null;
+  followUpNote: string | null;
+  lastContactAt: string | null;
+  assignee: string | null;
+  version: number;
+}
+export interface LeadsPage { items: ApiLead[]; more: boolean; offset: number; limit: number }
+export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
+export interface LeadDetail { lead: ApiLead; timeline: LeadEvent[] }
+export interface NewLead { phone1: string; phone2?: string; name?: string; kind?: ApiLead['kind']; notes?: string; lawfulBasis?: 'client_request' | 'consent' | 'existing_client' }
+/** The fields of the add-unit form use the website form's names (strings, features as an array). */
+export type UnitFields = Record<string, string | string[] | boolean | undefined>;
+export interface ReviewResult { ok: boolean; blockers: { field: string; label: string }[]; warnings: { field: string; text: string }[]; duplicate: string | null }
+export interface AppConfig { minAppVersion: string; storeUrl: { android: string | null; ios: string | null } }
+export interface UploadFile { uri: string; name: string; type: string }
 export interface SearchAsk { terms: string[]; numbers?: unknown[]; aiDown?: boolean; withoutTotal: number }
 export interface SearchResult {
   status: 'results' | 'none' | 'ask' | 'small_talk' | 'listing' | 'other';
@@ -130,6 +158,30 @@ export function createApiClient(opts: ApiClientOptions) {
       const form = new FormData();
       form.append('voice', file as unknown as Blob);
       return request<{ q: string }>('POST', '/search/voice', form);
+    },
+    config: () => request<AppConfig>('GET', '/config'),
+    leads: (o: { tab?: LeadTab; q?: string; offset?: number } = {}) => request<LeadsPage>('GET', '/leads', undefined, { tab: o.tab && o.tab !== 'all' ? o.tab : undefined, q: o.q, offset: o.offset || undefined }),
+    lead: (ref: string) => request<LeadDetail>('GET', `/leads/${encodeURIComponent(ref)}`),
+    createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
+    leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
+    leadStage: (ref: string, version: number, stage: LeadStage, lostReason?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/stage`, { version, stage, lostReason }),
+    leadFollowUp: (ref: string, version: number, at: string, kind: 'call' | 'viewing', note?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/follow-up`, { version, at, kind, note }),
+    leadNote: (ref: string, version: number, text: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/note`, { version, text }),
+    /** Reads a pasted/shared message and/or a voice note into the add-unit fields. Nothing is saved. */
+    extractUnit: (o: { describe?: string; voice?: UploadFile; fields?: UnitFields }) => {
+      const form = new FormData();
+      if (o.describe) form.append('describe', o.describe);
+      if (o.voice) form.append('voice', o.voice as unknown as Blob);
+      if (o.fields) form.append('fields', JSON.stringify(o.fields));
+      return request<{ fields: UnitFields }>('POST', '/units/extract', form);
+    },
+    reviewUnit: (fields: UnitFields, photoCount: number) => request<ReviewResult>('POST', '/units/review', { fields, photoCount }),
+    /** Saves the unit; photos are sent in the broker's order. */
+    createUnit: (fields: UnitFields, photos: UploadFile[]) => {
+      const form = new FormData();
+      form.append('fields', JSON.stringify(fields));
+      for (const p of photos) form.append('photos', p as unknown as Blob);
+      return request<{ code: string; photos: number; photosFailed: number }>('POST', '/units', form);
     },
     today: () => request<TodayData>('GET', '/today'),
     unit: (code: string) => request<ApiUnitDetail>('GET', `/units/${encodeURIComponent(code)}`),
