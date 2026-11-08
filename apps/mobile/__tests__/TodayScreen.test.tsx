@@ -25,5 +25,5 @@ test('an empty day still offers an action', async () => {
 test('a failure shows retry', async () => {
   mocked.today.mockRejectedValue(new Error('x'));
   await wrap();
-  await waitFor(() => expect(screen.getByText(/Try again|حاول تاني/)).toBeTruthy());
+  await waitFor(() => expect(screen.getAllByText(/Try again|حاول تاني/).length).toBeGreaterThan(0));
 });
