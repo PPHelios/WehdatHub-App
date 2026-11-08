@@ -34,6 +34,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Used only when you tap Take photo to add a photo to a unit.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Used only to choose unit photos you pick.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Used to unlock the app with Face ID.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Used only when you tap the mic to speak a search.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

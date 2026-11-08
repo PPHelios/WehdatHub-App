@@ -8,6 +8,7 @@ import type { UnitsPage } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
+import { Button } from '../components/Button';
 import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
@@ -60,6 +61,7 @@ export function UnitsScreen() {
           ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primary} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => list.fetchNextPage()} /> : null}
         />
       )}
+      <View style={styles.add}><Button testID="add-unit" label={`＋ ${t(lang, 'addUnit')}`} onPress={() => nav.navigate('AddUnit')} /></View>
     </View>
   );
 }
@@ -70,4 +72,5 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   footer: { padding: spacing.lg },
+  add: { padding: spacing.lg },
 });
