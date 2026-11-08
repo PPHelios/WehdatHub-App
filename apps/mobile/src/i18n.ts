@@ -9,7 +9,7 @@ const strings = {
     retry: 'حاول تاني', loading: 'بنحمّل…', units: 'الوحدات', more: 'المزيد', search: 'ابحث بكود الوحدة', active: 'نشطة', sold: 'مباعة', archived: 'مؤرشفة',
     noUnits: 'مفيش وحدات هنا', noUnitsHint: 'جرّب فلتر تاني أو امسح البحث.', clearSearch: 'امسح البحث', egp: 'جنيه', beds: 'غرف', baths: 'حمامات', sqm: 'م²',
     unit: 'الوحدة', unitMissing: 'الوحدة دي مش موجودة أو مش متاحة ليك.', backToUnits: 'ارجع للوحدات', photos: 'صور', features: 'المميزات', mine: 'وحدتك',
-    signOut: 'تسجيل الخروج', agency: 'الشركة', loadMore: 'بنحمّل أكتر…',
+    today: 'النهارده', followUps: 'متابعات', viewings: 'معاينات', newLeads: 'عملاء جدد', call: 'اتصل', allClear: 'مفيش حاجة مستعجلة النهارده', allClearHint: 'شوف الوحدات أو ارجع بعدين.', openUnits: 'افتح الوحدات', moreTasks: 'مهام تانية:', late: 'متأخر', viewing: 'معاينة', hot: 'عميل ساخن', callTask: 'مكالمة', matches: 'وحدات مناسبة', noPhone: 'مفيش رقم', signOut: 'تسجيل الخروج', agency: 'الشركة', loadMore: 'بنحمّل أكتر…',
   },
   en: {
     signIn: 'Sign in', phoneLabel: 'Your registered mobile', phoneHint: 'A code reaches you through the bot (Telegram or WhatsApp).', sendCode: 'Send me the code',
@@ -19,7 +19,7 @@ const strings = {
     retry: 'Try again', loading: 'Loading…', units: 'Units', more: 'More', search: 'Search by unit code', active: 'Active', sold: 'Sold', archived: 'Archived',
     noUnits: 'No units here', noUnitsHint: 'Try another filter or clear the search.', clearSearch: 'Clear search', egp: 'EGP', beds: 'beds', baths: 'baths', sqm: 'm²',
     unit: 'Unit', unitMissing: "This unit doesn't exist or isn't available to you.", backToUnits: 'Back to units', photos: 'Photos', features: 'Features', mine: 'Your unit',
-    signOut: 'Sign out', agency: 'Agency', loadMore: 'Loading more…',
+    today: 'Today', followUps: 'Follow-ups', viewings: 'Viewings', newLeads: 'New leads', call: 'Call', allClear: 'Nothing urgent today', allClearHint: 'Check the units or come back later.', openUnits: 'Open units', moreTasks: 'More tasks:', late: 'Overdue', viewing: 'Viewing', hot: 'Hot lead', callTask: 'Call', matches: 'Matching units', noPhone: 'No number', signOut: 'Sign out', agency: 'Agency', loadMore: 'Loading more…',
   },
 } as const;
 
