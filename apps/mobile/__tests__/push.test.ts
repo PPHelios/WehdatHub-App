@@ -12,5 +12,6 @@ test('an alert opens the lead or the unit it names, and nothing else', () => {
 test('Firebase stays off when the server has no identifiers', async () => {
   expect(await startFirebase(null)).toBe(false);
   expect(await startFirebase(undefined)).toBe(false);
-  expect(await startFirebase({ android: { apiKey: 'k', appId: 'a', projectId: 'p', messagingSenderId: 's' } })).toBe(true);
+  const one = { apiKey: 'k', appId: 'a', projectId: 'p', messagingSenderId: 's' };
+  expect(await startFirebase({ android: one, ios: one })).toBe(true);
 });
