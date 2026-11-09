@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { SearchResult } from '@wehdathub/shared';
+import type { ApiUnitListItem, SearchResult, UnitStatus } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
@@ -23,13 +23,35 @@ export function SearchScreen() {
   const [text, setText] = useState('');
   const [recording, setRecording] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const search = useMutation<SearchResult, Error, { q: string; drop?: boolean }>({ mutationFn: ({ q, drop }) => api.search(q, { drop }) });
+  const search = useMutation<SearchResult, Error, { q: string; drop?: boolean; status?: UnitStatus }>({ mutationFn: ({ q, drop, status }) => api.search(q, { drop, status }) });
+  // Active units first; Sold and Archived are one tap away, with their counts from the start. More results load on demand.
+  const [last, setLast] = useState<{ q: string; drop: boolean; status: UnitStatus } | null>(null);
+  const [extra, setExtra] = useState<ApiUnitListItem[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [done, setDone] = useState(false);
 
-  const run = async (q: string, drop = false) => {
+  const run = async (q: string, drop = false, status: UnitStatus = 'active') => {
     const clean = q.trim();
     if (!clean) return;
     setVoiceError(null);
-    await search.mutateAsync({ q: clean, drop }).catch(() => undefined);
+    setExtra([]);
+    setDone(false);
+    setLast({ q: clean, drop, status });
+    await search.mutateAsync({ q: clean, drop, status }).catch(() => undefined);
+  };
+  const loadMore = async () => {
+    if (!last || !search.data || loadingMore || done) return;
+    setLoadingMore(true);
+    try {
+      const r = await api.search(last.q, { drop: last.drop, status: last.status, offset: search.data.items.length + extra.length });
+      if (!r.items.length) setDone(true);
+      setExtra((e) => [...e, ...r.items]);
+    } catch (e) {
+      setDone(true);
+      setVoiceError(errorText(e, lang));
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   const toggleMic = async () => {
@@ -73,10 +95,13 @@ export function SearchScreen() {
     <EmptyView title={t(lang, 'noResults')} hint={t(lang, 'noResultsHint')} actionLabel={t(lang, 'clearSearch')} onAction={() => { setText(''); search.reset(); }} />
   ) : (
     <FlashList
-      data={data.items}
+      data={[...data.items, ...extra]}
       keyExtractor={(u) => u.id}
       ListHeaderComponent={<Text style={[styles.count, { color: colors.muted }]}>{data.total} {t(lang, 'results')}{data.relaxed ? ` · ${t(lang, 'relaxedNote')}` : ''}</Text>}
       renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => nav.navigate('Unit', { code: item.code })} />}
+      onEndReached={() => { if (data.items.length + extra.length < data.total) loadMore(); }}
+      onEndReachedThreshold={0.6}
+      ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.count} color={colors.primary} /> : null}
     />
   );
 
@@ -88,6 +113,15 @@ export function SearchScreen() {
         <View style={styles.flex}><Button testID="search-mic" label={recording ? t(lang, 'micStop') : t(lang, 'mic')} variant="secondary" onPress={toggleMic} /></View>
       </View>
       {voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{voiceError}</Text> : null}
+      {data?.counts && last ? (
+        <View style={styles.chips}>
+          {(['active', 'sold', 'archived'] as const).map((st) => (
+            <Pressable key={st} accessibilityRole="button" accessibilityState={{ selected: st === last.status }} onPress={() => run(last.q, last.drop, st)} style={[styles.chip, { borderColor: st === last.status ? colors.primary : colors.border }, st === last.status && { backgroundColor: colors.primary }]}>
+              <Text style={{ color: st === last.status ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, st)} ({data.counts?.[st] ?? 0})</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <View style={styles.flex}>{body}</View>
     </View>
   );
@@ -101,4 +135,6 @@ const styles = StyleSheet.create({
   ask: { padding: spacing.xl, gap: spacing.md },
   askTitle: { fontSize: 18, fontWeight: '700' },
   count: { padding: spacing.lg },
+  chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, height: 40, justifyContent: 'center' },
 });
