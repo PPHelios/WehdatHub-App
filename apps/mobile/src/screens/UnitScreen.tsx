@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Alert, Linking, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { formatEgp } from '@wehdathub/shared';
+import { ApiClientError, formatEgp } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { ClientLinkModal } from '../components/ClientLinkModal';
 import { PhotoGallery } from '../components/PhotoGallery';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
@@ -23,14 +24,37 @@ export function UnitScreen({ code }: { code?: string } = {}) {
   const unit = useQuery({ queryKey: ['unit', unitCode], queryFn: () => api.unit(unitCode) });
   // The owner's number comes only when the agency's privacy rules let this broker see it; otherwise the buttons stay hidden.
   const contact = useQuery({ queryKey: ['unit', unitCode, 'contact'], queryFn: () => api.unitContact(unitCode), retry: false, enabled: unit.isSuccess });
+  const [asking, setAsking] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const shareLink = async () => {
-    setSharing(true);
+  const [clientErr, setClientErr] = useState<string | null>(null);
+  const [pickClient, setPickClient] = useState(false);
+  const qc = useQueryClient();
+  // 403 "hidden" says whether the person can ask for access, or has already asked.
+  const hidden = contact.error instanceof ApiClientError && contact.error.code === 'hidden' ? String(contact.error.extra.access ?? 'ask') : null;
+  const requestAccess = async () => {
+    setAsking(true);
     try {
-      const { url } = await api.unitShareLink(unitCode, lang);
-      await Share.share({ message: url });
+      await api.unitAccessRequest(unitCode);
+      await qc.invalidateQueries({ queryKey: ['unit', unitCode, 'contact'] });
     } catch {
-      Alert.alert(t(lang, 'linkFailed'));
+      Alert.alert(t(lang, 'serverError'));
+    } finally {
+      setAsking(false);
+    }
+  };
+  const shareLink = async (to: string) => {
+    setSharing(true);
+    setClientErr(null);
+    try {
+      const { url } = await api.unitShareLink(unitCode, lang, to || undefined);
+      setPickClient(false);
+      await Share.share({ message: url });
+    } catch (e) {
+      if (e instanceof ApiClientError && e.status === 422) setClientErr(t(lang, 'badRecipient'));
+      else {
+        setPickClient(false);
+        Alert.alert(t(lang, 'linkFailed'));
+      }
     } finally {
       setSharing(false);
     }
@@ -63,7 +87,11 @@ export function UnitScreen({ code }: { code?: string } = {}) {
             <View style={styles.flex}><Button testID="whatsapp-owner" variant="secondary" label={`💬 ${t(lang, 'whatsappOwner')}`} onPress={() => { Linking.openURL(`https://wa.me/${waNumber(contact.data?.phone ?? '')}`).catch(() => undefined); }} /></View>
           </View>
         ) : null}
-        {u.status === 'active' ? <Button testID="share-link" label={t(lang, 'shareLink')} loading={sharing} onPress={shareLink} /> : null}
+        {hidden === 'pending' ? <Text testID="access-pending" style={{ color: colors.muted }}>{t(lang, 'accessPending')}</Text> : null}
+        {hidden === 'ask' ? <Button testID="request-access" variant="secondary" label={t(lang, 'requestAccess')} loading={asking} onPress={requestAccess} /> : null}
+        {u.canEdit ? <Button testID="edit-unit" variant="secondary" label={`✎ ${t(lang, 'editUnit')}`} onPress={() => nav.navigate('AddUnit', { edit: u.code })} /> : null}
+        {u.status === 'active' ? <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} /> : null}
+        <ClientLinkModal visible={pickClient} busy={sharing} error={clientErr} onSubmit={shareLink} onCancel={() => setPickClient(false)} />
         <Button testID="share-unit" variant="secondary" label={t(lang, 'shareUnit')} onPress={() => { Share.share({ message: [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n') }).catch(() => undefined); }} />
         {u.features.length ? <Text style={[styles.row, { color: colors.text }]}>{t(lang, 'features')}: {u.features.join(' · ')}</Text> : null}
       </View>

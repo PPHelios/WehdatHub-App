@@ -5,7 +5,7 @@ import type { ApiUnitListItem, Lang } from '@wehdathub/shared';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
 
-export function UnitCard({ unit, lang, onPress }: { unit: ApiUnitListItem; lang: Lang; onPress: () => void }) {
+export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListItem; lang: Lang; onPress: () => void; onEdit?: () => void }) {
   const { colors } = useTheme();
   const facts = [unit.bedrooms !== null ? `${unit.bedrooms} ${t(lang, 'beds')}` : null, unit.bathrooms !== null ? `${unit.bathrooms} ${t(lang, 'baths')}` : null, unit.area !== null ? `${Math.round(unit.area)} ${t(lang, 'sqm')}` : null].filter(Boolean);
   return (
@@ -15,6 +15,7 @@ export function UnitCard({ unit, lang, onPress }: { unit: ApiUnitListItem; lang:
         <View style={styles.row}>
           <Text style={[styles.code, { color: colors.primary }]}>{unit.code}</Text>
           {unit.mine ? <Text style={[styles.badge, { color: colors.accent }]}>{t(lang, 'mine')}</Text> : null}
+          {onEdit ? <Pressable testID={`edit-${unit.code}`} accessibilityRole="button" accessibilityLabel={t(lang, 'editUnit')} hitSlop={12} onPress={onEdit}><Text style={[styles.badge, { color: colors.primary }]}>✎ {t(lang, 'editUnit')}</Text></Pressable> : null}
         </View>
         {unit.compound ? <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{unit.compound}</Text> : null}
         {unit.price !== null ? <Text style={[styles.price, { color: colors.text }]}>{formatEgp(unit.price)} {t(lang, 'egp')}</Text> : null}

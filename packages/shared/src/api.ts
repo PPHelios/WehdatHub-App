@@ -38,8 +38,9 @@ export interface ApiUnit {
 }
 export interface ApiUnitListItem extends ApiUnit { photo: string | null }
 export interface ApiUnitDetail extends ApiUnit {
+  canEdit?: boolean;
   features: string[];
-  images: { id: string; url: string; position: number }[];
+  images:{ id: string; url: string; position: number }[];
 }
 export type TodayTaskKind = 'late' | 'viewing' | 'hot' | 'call' | 'matches';
 export interface TodayTask { ref: string; name: string | null; kind: TodayTaskKind; at: string | null; unitCode: string | null; phone: string | null; matches: number | null }
@@ -144,6 +145,10 @@ export interface UnitsQuery {
   type?: string;
   deal?: string;
   mine?: boolean;
+  staleDays?: number;
+  bedrooms?: number;
+  furnishing?: string;
+  finishing?: string;
   limit?: number;
   offset?: number;
 }
@@ -153,12 +158,15 @@ export class ApiClientError extends Error {
   status: number;
   code: string;
   retryAfterSec: number | null;
-  constructor(status: number, code: string, retryAfterSec: number | null = null) {
+  /** The rest of the error body (e.g. `access` on a hidden contact, `blockers` on an incomplete save). */
+  extra: Record<string, unknown>;
+  constructor(status: number, code: string, retryAfterSec: number | null = null, extra: Record<string, unknown> = {}) {
     super(`${status} ${code}`);
     this.name = 'ApiClientError';
     this.status = status;
     this.code = code;
     this.retryAfterSec = retryAfterSec;
+    this.extra = extra;
   }
 }
 
@@ -193,14 +201,16 @@ export function createApiClient(opts: ApiClientOptions) {
     }
     if (res.ok) return (await res.json()) as T;
     let code = 'error';
+    let extra: Record<string, unknown> = {};
     try {
-      code = ((await res.json()) as { error?: string }).error || code;
+      extra = (await res.json()) as Record<string, unknown>;
+      code = (typeof extra.error === 'string' && extra.error) || code;
     } catch {
       /* not JSON */
     }
     if (res.status === 401 && token) opts.onUnauthorized?.();
     const retry = Number(res.headers.get('retry-after'));
-    throw new ApiClientError(res.status, code, Number.isFinite(retry) && retry > 0 ? retry : null);
+    throw new ApiClientError(res.status, code, Number.isFinite(retry) && retry > 0 ? retry : null, extra);
   }
 
   return {
@@ -248,7 +258,12 @@ export function createApiClient(opts: ApiClientOptions) {
     today: () => request<TodayData>('GET', '/today'),
     unit: (code: string) => request<ApiUnitDetail>('GET', `/units/${encodeURIComponent(code)}`),
     unitContact: (code: string) => request<{ name: string | null; phone: string | null }>('GET', `/units/${encodeURIComponent(code)}/contact`),
-    unitShareLink: (code: string, lang: Lang) => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/share-link`, { lang }),
+    /** `to` is a lead ref (L-0042) or a mobile number; leave it out to share without a client. */
+    unitShareLink: (code: string, lang: Lang, to?: string) => request<{ url: string; recipientPhone: string | null; leadLinked: boolean }>('POST', `/units/${encodeURIComponent(code)}/share-link`, { lang, ...(to ? { to } : {}) }),
+    unitEditFields: (code: string) => request<{ code: string; version: number; fields: UnitFields }>('GET', `/units/${encodeURIComponent(code)}/edit`),
+    saveUnitEdit: (code: string, version: number, fields: UnitFields) => request<{ code: string; version: number }>('POST', `/units/${encodeURIComponent(code)}/edit`, { version, fields }),
+    unitCompounds: (q: string) => request<{ items: { name: string; n: number }[] }>('GET', '/units/compounds', undefined, { q }),
+    unitAccessRequest: (code: string) => request<{ ok: true; already: boolean; access: 'granted' | 'pending' }>('POST', `/units/${encodeURIComponent(code)}/access-request`, {}),
   };
 }
 export type ApiClient = ReturnType<typeof createApiClient>;

@@ -42,6 +42,8 @@ export function AddUnitScreen() {
   const [duplicate, setDuplicate] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const shared = useRef(route.params);
+  const editCode = route.params?.edit;
+  const [version, setVersion] = useState(0);
 
   const set = (k: string, v: UnitFields[string]) => setFields((f) => ({ ...f, [k]: v }));
   const field = (k: string, label: string, extra: object = {}) => <Field key={k} testID={`f-${k}`} label={label} value={str(fields[k])} onChangeText={(v) => set(k, v)} {...extra} />;
@@ -62,6 +64,17 @@ export function AddUnitScreen() {
   // Start: restore a saved draft, then apply anything shared in from another app.
   useEffect(() => {
     (async () => {
+      if (editCode) {
+        try {
+          const r = await api.unitEditFields(editCode);
+          setFields(r.fields);
+          setVersion(r.version);
+        } catch (e) {
+          setError(errorText(e, lang));
+        }
+        setReady(true);
+        return;
+      }
       const d = await loadDraft();
       if (d && !isEmptyDraft(d)) {
         setFields(d.fields);
@@ -84,10 +97,10 @@ export function AddUnitScreen() {
 
   // Save the draft as the broker types (after a short pause).
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || editCode) return;
     const h = setTimeout(() => saveDraft({ fields, photos, describe, photoAi }), 600);
     return () => clearTimeout(h);
-  }, [fields, photos, describe, photoAi, ready]);
+  }, [fields, photos, describe, photoAi, ready, editCode]);
 
   const toggleMic = async () => {
     setError(null);
@@ -119,6 +132,12 @@ export function AddUnitScreen() {
     setBlockers([]);
     setDuplicate(null);
     try {
+      if (editCode) {
+        await api.saveUnitEdit(editCode, version, fields);
+        tick();
+        await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] })]);
+        return nav.goBack();
+      }
       const sent = { ...fields, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
       const r = await api.createUnit(sent, photos);
       tick();
@@ -127,6 +146,8 @@ export function AddUnitScreen() {
       nav.replace('Unit', { code: r.code });
     } catch (e) {
       if (!(e instanceof ApiClientError)) return setError(errorText(e, lang));
+      if (editCode && e.code === 'conflict') return setError(t(lang, 'changedElsewhere'));
+      if (editCode && e.code === 'incomplete') return setBlockers((e.extra.blockers as { field: string; label: string }[]) ?? []);
       if (e.code === 'incomplete') {
         const rv = await api.reviewUnit(fields, photos.length).catch(() => null);
         return setBlockers(rv?.blockers ?? []);
@@ -153,12 +174,16 @@ export function AddUnitScreen() {
   const resale = fields.market !== 'primary';
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" scrollEnabled={!dragging}>
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fillFrom')}</Text>
-      <Field testID="describe" label={t(lang, 'describePlaceholder')} value={describe} onChangeText={setDescribe} multiline />
-      <View style={styles.row}>
-        <View style={styles.flex}><Button testID="fill" label={t(lang, 'fillBtn')} onPress={() => fill({ describe })} disabled={!describe.trim()} /></View>
-        <View style={styles.flex}><Button testID="unit-mic" label={recording ? t(lang, 'micStop') : t(lang, 'mic')} variant="secondary" onPress={toggleMic} /></View>
-      </View>
+      {editCode ? null : (
+        <>
+          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fillFrom')}</Text>
+          <Field testID="describe" label={t(lang, 'describePlaceholder')} value={describe} onChangeText={setDescribe} multiline />
+          <View style={styles.row}>
+            <View style={styles.flex}><Button testID="fill" label={t(lang, 'fillBtn')} onPress={() => fill({ describe })} disabled={!describe.trim()} /></View>
+            <View style={styles.flex}><Button testID="unit-mic" label={recording ? t(lang, 'micStop') : t(lang, 'mic')} variant="secondary" onPress={toggleMic} /></View>
+          </View>
+        </>
+      )}
       {notice ? <Text testID="unit-notice" style={{ color: colors.accent }}>{notice}</Text> : null}
 
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fDeal')}</Text>
@@ -185,14 +210,18 @@ export function AddUnitScreen() {
       <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'compoundNew')}</Text><Switch value={fields.compound_new === '1'} onValueChange={(v) => set('compound_new', v ? '1' : '')} /></View>
       {field('notes', t(lang, 'fNotes'), { multiline: true })}
 
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'photosTitle')} ({photos.length}/{MAX_PHOTOS})</Text>
-      <View style={styles.row}>
-        <View style={styles.flex}><Button testID="add-photos" label={t(lang, 'addPhotos')} variant="secondary" onPress={() => addPhotos(() => pickPhotos(MAX_PHOTOS - photos.length))} /></View>
-        <View style={styles.flex}><Button testID="take-photo" label={t(lang, 'takePhoto')} variant="secondary" onPress={() => addPhotos(takePhoto)} disabled={photos.length >= MAX_PHOTOS} /></View>
-      </View>
-      {photos.length > 1 ? <Text style={{ color: colors.muted }}>{t(lang, 'dragHint')}</Text> : null}
-      <SortablePhotos photos={photos} onChange={setPhotos} onDragging={setDragging} removeLabel={t(lang, 'removePhoto')} />
-      <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'aiOrder')}</Text><Switch value={photoAi} onValueChange={setPhotoAi} /></View>
+      {editCode ? null : (
+        <>
+          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'photosTitle')} ({photos.length}/{MAX_PHOTOS})</Text>
+          <View style={styles.row}>
+            <View style={styles.flex}><Button testID="add-photos" label={t(lang, 'addPhotos')} variant="secondary" onPress={() => addPhotos(() => pickPhotos(MAX_PHOTOS - photos.length))} /></View>
+            <View style={styles.flex}><Button testID="take-photo" label={t(lang, 'takePhoto')} variant="secondary" onPress={() => addPhotos(takePhoto)} disabled={photos.length >= MAX_PHOTOS} /></View>
+          </View>
+          {photos.length > 1 ? <Text style={{ color: colors.muted }}>{t(lang, 'dragHint')}</Text> : null}
+          <SortablePhotos photos={photos} onChange={setPhotos} onDragging={setDragging} removeLabel={t(lang, 'removePhoto')} />
+          <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'aiOrder')}</Text><Switch value={photoAi} onValueChange={setPhotoAi} /></View>
+        </>
+      )}
 
       {blockers.length ? (
         <View testID="blockers" style={[styles.box, { borderColor: colors.danger }]}>
@@ -209,7 +238,7 @@ export function AddUnitScreen() {
       ) : null}
       {error ? <Text testID="unit-error" style={{ color: colors.danger }}>{error}</Text> : null}
       <Button testID="save-unit" label={t(lang, 'saveUnit')} onPress={() => save(false)} />
-      <Button label={t(lang, 'discardDraft')} variant="secondary" onPress={discard} />
+      {editCode ? null : <Button label={t(lang, 'discardDraft')} variant="secondary" onPress={discard} />}
     </ScrollView>
   );
 }
