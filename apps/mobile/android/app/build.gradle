@@ -55,8 +55,8 @@ react {
 
     /* Hermes Commands */
     //   The hermes compiler command to run. By default it is 'hermesc'
-    // Hoisted monorepo install: hermesc lives in the root node_modules, not ../../node_modules
-    hermesCommand = new File(nodeResolve('react-native'), "sdks/hermesc/%OS-BIN%/hermesc").absolutePath
+    // React Native 0.88 ships hermesc in the hermes-compiler package, not in react-native
+    hermesCommand = new File(nodeResolve('hermes-compiler'), "hermesc/%OS-BIN%/hermesc").absolutePath
     //
     //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
     // hermesFlags = ["-O", "-output-source-map"]
