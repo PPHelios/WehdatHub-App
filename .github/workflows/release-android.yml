@@ -1,6 +1,9 @@
 name: Release Android
 # Manual: builds the signed app bundle (.aab) for Google Play. Needs the secrets UPLOAD_KEYSTORE_B64, UPLOAD_STORE_PASSWORD, UPLOAD_KEY_ALIAS, UPLOAD_KEY_PASSWORD.
 on:
+  push:
+    branches: [main]
+    paths: ["apps/mobile/android/**", "apps/mobile/src/**", "packages/shared/**", ".github/workflows/release-android.yml"]
   workflow_dispatch:
     inputs:
       version_code:
@@ -39,9 +42,22 @@ jobs:
           UPLOAD_STORE_PASSWORD: ${{ secrets.UPLOAD_STORE_PASSWORD }}
           UPLOAD_KEY_ALIAS: ${{ secrets.UPLOAD_KEY_ALIAS }}
           UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
-          VERSION_CODE: ${{ inputs.version_code }}
-          VERSION_NAME: ${{ inputs.version_name }}
+          VERSION_CODE: ${{ inputs.version_code || github.run_number }}
+          VERSION_NAME: ${{ inputs.version_name || '1.0.0' }}
         run: ./gradlew bundleRelease --quiet
+      - name: Check Play key is set
+        env:
+          PLAY_KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: echo "HAS_PLAY_KEY=${{ env.PLAY_KEY != '' }}" >> "$GITHUB_ENV"
+      - name: Upload to Play internal testing
+        if: env.HAS_PLAY_KEY == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.wehdathub
+          releaseFiles: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
       - uses: actions/upload-artifact@v4
         with:
           name: wehdathub-release-aab
