@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ApiLead, LeadTab, LeadsPage } from '@wehdathub/shared';
@@ -45,6 +45,8 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
     getNextPageParam: (last: LeadsPage) => (last.more ? last.offset + last.limit : undefined),
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
+  // The number on every tab, from the start.
+  const tabCounts = useQuery({ queryKey: ['leads', 'counts', q], queryFn: () => api.leadCounts(q || undefined), select: (d) => d.counts }).data;
   const queries = useQueryClient();
   // Press and hold a lead: call it, or mark it as called, without opening it.
   const callLead = (l: ApiLead) => {
@@ -73,7 +75,7 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           {TABS.map(([v, k]) => (
             <Pressable key={v} accessibilityRole="button" accessibilityState={{ selected: v === tab }} onPress={() => setTab(v)} style={[styles.chip, { borderColor: v === tab ? colors.primary : colors.border }, v === tab && { backgroundColor: colors.primary }]}>
-              <Text style={[styles.chipText, { color: v === tab ? colors.onPrimary : colors.text }]}>{t(lang, k)}</Text>
+              <Text style={[styles.chipText, { color: v === tab ? colors.onPrimary : colors.text }]}>{t(lang, k)}{tabCounts && tabCounts[v] !== undefined ? ` (${tabCounts[v]})` : ''}</Text>
             </Pressable>
           ))}
         </ScrollView>

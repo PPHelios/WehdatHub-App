@@ -18,6 +18,7 @@ import { TodayScreen } from './screens/TodayScreen';
 import { UnitsScreen } from './screens/UnitsScreen';
 import { ContactsScreen } from './screens/ContactsScreen';
 import { narrow } from './layout';
+import { useRights } from './rights';
 
 const TodayNarrow = narrow(TodayScreen);
 const SearchNarrow = narrow(SearchScreen);
@@ -39,11 +40,12 @@ const Tabs = createBottomTabNavigator<TabParams>();
 
 function TabsScreen() {
   const lang = currentLang();
+  const rights = useRights();
   return (
     <Tabs.Navigator>
-      <Tabs.Screen name="Today" component={TodayNarrow} options={{ title: t(lang, 'today') }} />
-      <Tabs.Screen name="Search" component={SearchNarrow} options={{ title: t(lang, 'searchTab') }} />
-      <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab') }} />
+      {rights.leads ? <Tabs.Screen name="Today" component={TodayNarrow} options={{ title: t(lang, 'today') }} /> : null}
+      {rights.search ? <Tabs.Screen name="Search" component={SearchNarrow} options={{ title: t(lang, 'searchTab') }} /> : null}
+      {rights.leads ? <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab') }} /> : null}
       <Tabs.Screen name="Map" component={MapScreen} options={{ title: t(lang, 'mapTab') }} />
       <Tabs.Screen name="Units" component={UnitsScreen} options={{ title: t(lang, 'units') }} />
       <Tabs.Screen name="More" component={MoreNarrow} options={{ title: t(lang, 'more') }} />

@@ -1,6 +1,10 @@
 // The app's JSON API (backend /api/v1): types and a small typed client, shared by the mobile app and the future website.
 
 export type Lang = 'ar' | 'en';
+export type UnitStatus = 'active' | 'sold' | 'archived';
+export type StatusCounts = Record<UnitStatus, number>;
+/** What this person may do. The server decides; the app hides what is not allowed. */
+export interface Rights { addUnits: boolean; editUnits: boolean; leads: boolean; search: boolean; team: boolean; owners: boolean; manager: boolean; agencyOwner: boolean; dataEntry: boolean; teamLead: boolean }
 export interface ApiBroker { id: string; name: string; role: string; lang: Lang }
 export interface ApiAgency { id: string; name: string; slug: string; logoUrl: string | null }
 export interface LoginResult { token: string; expiresAt: string; broker: ApiBroker; agency: ApiAgency }
@@ -59,7 +63,7 @@ export interface ApiLead {
   assignee: string | null;
   version: number;
 }
-export interface LeadsPage { items: ApiLead[]; more: boolean; offset: number; limit: number }
+export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; offset: number; limit: number }
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
 export interface LeadDetail { lead: ApiLead; timeline: LeadEvent[] }
 export interface NewLead { phone1: string; phone2?: string; name?: string; kind?: ApiLead['kind']; notes?: string; lawfulBasis?: 'client_request' | 'consent' | 'existing_client' }
@@ -80,12 +84,16 @@ export interface SearchResult {
   source: string;
   total: number;
   items: ApiUnitListItem[];
+  unitStatus?: UnitStatus;
+  counts?: StatusCounts;
+  offset?: number;
+  limit?: number;
   relaxed?: boolean;
   ignoredTerms?: string[];
   ask?: SearchAsk;
 }
 export interface VoiceFile { uri: string; name: string; type: string }
-export interface UnitsPage { total: number; limit: number; offset: number; items: ApiUnitListItem[] }
+export interface UnitsPage { total: number; counts: StatusCounts; limit: number; offset: number; items: ApiUnitListItem[] }
 export interface MapPin {
   id: string;
   n: number;
@@ -199,11 +207,12 @@ export function createApiClient(opts: ApiClientOptions) {
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
-    me: () => request<{ broker: ApiBroker; agency: ApiAgency; expiresAt: string }>('GET', '/me'),
+    me: () => request<{ broker: ApiBroker; agency: ApiAgency; rights: Rights; expiresAt: string }>('GET', '/me'),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
     map: (f: MapFilters = {}) => request<MapData>('GET', '/map', undefined, { ...f }),
     mapUnits: (placeId: string, f: MapFilters = {}) => request<MapUnits>('GET', `/map/places/${encodeURIComponent(placeId)}/units`, undefined, { ...f }),
-    search: (q: string, o: { ai?: boolean; drop?: boolean } = {}) => request<SearchResult>('GET', '/search', undefined, { q, ai: o.ai, drop: o.drop }),
+    search: (q: string, o: { ai?: boolean; drop?: boolean; status?: UnitStatus; offset?: number } = {}) => request<SearchResult>('GET', '/search', undefined, { q, ai: o.ai, drop: o.drop, status: o.status, offset: o.offset }),
+    leadCounts: (q?: string) => request<{ counts: Record<string, number> }>('GET', '/leads/counts', undefined, { q }),
     /** Sends a recorded note; the server writes it down and answers the text to search. */
     voiceToText: (file: VoiceFile) => {
       const form = new FormData();

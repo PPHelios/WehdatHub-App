@@ -17,6 +17,7 @@ import { Split, useColumns, useWide } from '../layout';
 import { UnitScreen } from './UnitScreen';
 import { radius, spacing, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
+import { useRights } from '../rights';
 
 const PAGE = 20;
 const STATUSES = ['active', 'sold', 'archived'] as const;
@@ -46,6 +47,8 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
     getNextPageParam: (last: UnitsPage) => (last.offset + last.items.length < last.total ? last.offset + last.items.length : undefined),
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
+  const counts = list.data?.pages[0]?.counts;
+  const rights = useRights();
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
@@ -54,7 +57,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
       <View style={styles.chips}>
         {STATUSES.map((s) => (
           <Pressable key={s} accessibilityRole="button" accessibilityState={{ selected: s === status }} onPress={() => setStatus(s)} style={[styles.chip, { borderColor: s === status ? colors.primary : colors.border, backgroundColor: s === status ? colors.primary : 'transparent' }]}>
-            <Text style={{ color: s === status ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, s)}</Text>
+            <Text style={{ color: s === status ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, s)}{counts ? ` (${counts[s]})` : ''}</Text>
           </Pressable>
         ))}
       </View>
@@ -77,7 +80,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
           ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primary} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => list.fetchNextPage()} /> : null}
         />
       )}
-      <View style={styles.add}><Button testID="add-unit" label={`＋ ${t(lang, 'addUnit')}`} onPress={() => nav.navigate('AddUnit')} /></View>
+      {rights.addUnits ? <View style={styles.add}><Button testID="add-unit" label={`＋ ${t(lang, 'addUnit')}`} onPress={() => nav.navigate('AddUnit')} /></View> : null}
     </View>
   );
 }

@@ -21,7 +21,7 @@ test('typed search shows the no-results state with a way forward', async () => {
   await fireEvent.changeText(screen.getByTestId('search-input'), 'villa');
   await fireEvent.press(screen.getByTestId('search-go'));
   await waitFor(() => expect(screen.getByText(/No results|مفيش نتايج/)).toBeTruthy());
-  expect(mocked.search).toHaveBeenCalledWith('villa', { drop: false });
+  expect(mocked.search).toHaveBeenCalledWith('villa', { drop: false, status: 'active' });
 });
 
 test('an ask lets the broker search without the unknown words', async () => {
@@ -32,7 +32,7 @@ test('an ask lets the broker search without the unknown words', async () => {
   await fireEvent.press(screen.getByTestId('search-go'));
   await waitFor(() => expect(screen.getByText('xyz')).toBeTruthy());
   await fireEvent.press(screen.getByText(/Search without them|ابحث من غيرها/));
-  await waitFor(() => expect(mocked.search).toHaveBeenLastCalledWith('villa xyz', { drop: true }));
+  await waitFor(() => expect(mocked.search).toHaveBeenLastCalledWith('villa xyz', { drop: true, status: 'active' }));
 });
 
 test('a denied microphone explains and does not record', async () => {
@@ -53,5 +53,17 @@ test('record, stop, then the heard text is searched', async () => {
   await fireEvent.press(screen.getByTestId('search-mic'));
   await waitFor(() => expect(v.startRecording).toHaveBeenCalled());
   await fireEvent.press(screen.getByTestId('search-mic'));
-  await waitFor(() => expect(mocked.search).toHaveBeenCalledWith('شقة في التجمع', { drop: false }));
+  await waitFor(() => expect(mocked.search).toHaveBeenCalledWith('شقة في التجمع', { drop: false, status: 'active' }));
+});
+
+test('Sold and Archived show their counts from the start and one tap searches them', async () => {
+  const counts = { active: 3, sold: 2, archived: 0 };
+  mocked.search.mockResolvedValueOnce({ status: 'results', source: 'parser', total: 3, items: [], unitStatus: 'active', counts });
+  mocked.search.mockResolvedValueOnce({ status: 'none', source: 'parser', total: 2, items: [], unitStatus: 'sold', counts });
+  await wrap();
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'villa');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(screen.getByText(/Sold \(2\)|مباعة \(2\)/)).toBeTruthy());
+  await fireEvent.press(screen.getByText(/Sold \(2\)|مباعة \(2\)/));
+  await waitFor(() => expect(mocked.search).toHaveBeenLastCalledWith('villa', { drop: false, status: 'sold' }));
 });
