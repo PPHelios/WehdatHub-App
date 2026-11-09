@@ -55,6 +55,8 @@
 	<string>Used only to choose unit photos you pick.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Used to unlock the app with Face ID.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Used only when you pick a contact to start a new lead.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Used only when you tap the mic to speak a search.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

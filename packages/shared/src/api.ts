@@ -238,6 +238,8 @@ export function createApiClient(opts: ApiClientOptions) {
     },
     today: () => request<TodayData>('GET', '/today'),
     unit: (code: string) => request<ApiUnitDetail>('GET', `/units/${encodeURIComponent(code)}`),
+    unitContact: (code: string) => request<{ name: string | null; phone: string | null }>('GET', `/units/${encodeURIComponent(code)}/contact`),
+    unitShareLink: (code: string, lang: Lang) => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/share-link`, { lang }),
   };
 }
 export type ApiClient = ReturnType<typeof createApiClient>;

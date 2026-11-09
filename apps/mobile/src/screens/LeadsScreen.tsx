@@ -8,24 +8,35 @@ import type { ApiLead, LeadTab, LeadsPage } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { SwipeRow } from '../components/SwipeRow';
 import { tick } from '../haptics';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { useColumns } from '../layout';
+import { Split, useColumns, useWide } from '../layout';
+import { LeadScreen } from './LeadScreen';
 import { radius, spacing, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 
 const TABS: [LeadTab, StringKey][] = [['all', 'tabAll'], ['due_today', 'tabDue'], ['overdue', 'tabOverdue'], ['new', 'st_new'], ['interested', 'st_interested'], ['viewing', 'st_viewing'], ['negotiation', 'st_negotiation'], ['no_next_step', 'tabNoStep']];
 
 export function LeadsScreen() {
+  const wide = useWide();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const [picked, setPicked] = useState<string | null>(null);
+  if (!wide) return <LeadsList onOpen={(r) => nav.navigate('Lead', { ref: r })} />;
+  return <Split list={<LeadsList onOpen={setPicked} single />} detail={picked ? <LeadScreen leadRef={picked} key={picked} /> : <View style={styles.flex} />} />;
+}
+
+function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; single?: boolean }) {
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [tab, setTab] = useState<LeadTab>('all');
   const [text, setText] = useState('');
-  const columns = useColumns();
+  const wideColumns = useColumns();
+  const columns = single ? 1 : wideColumns;
   const q = useDebounced(text.trim());
   const list = useInfiniteQuery({
     queryKey: ['leads', tab, q],
@@ -36,6 +47,14 @@ export function LeadsScreen() {
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   const queries = useQueryClient();
   // Press and hold a lead: call it, or mark it as called, without opening it.
+  const callLead = (l: ApiLead) => {
+    tick();
+    if (l.phones[0]) Linking.openURL(`tel:${l.phones[0]}`).catch(() => undefined);
+  };
+  const markLead = (l: ApiLead) => {
+    tick();
+    api.leadCalled(l.ref, l.version).then(() => { tick(); return queries.invalidateQueries({ queryKey: ['leads'] }); }).catch((e) => Alert.alert(errorText(e, lang)));
+  };
   const quick = (l: ApiLead) => {
     tick();
     const buttons = [
@@ -70,7 +89,11 @@ export function LeadsScreen() {
           numColumns={columns}
             data={items}
             keyExtractor={(l) => l.ref}
-            renderItem={({ item }) => <LeadRow lead={item} onPress={() => nav.navigate('Lead', { ref: item.ref })} onQuick={() => quick(item)} />}
+            renderItem={({ item }) => (
+              <SwipeRow rightLabel={`📞 ${t(lang, 'quickCall')}`} leftLabel={`✓ ${t(lang, 'markCalled')}`} onSwipeRight={() => callLead(item)} onSwipeLeft={() => markLead(item)}>
+                <LeadRow lead={item} onPress={() => onOpen(item.ref)} onQuick={() => quick(item)} />
+              </SwipeRow>
+            )}
             onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
             onEndReachedThreshold={0.6}
             refreshing={list.isRefetching && !list.isFetchingNextPage}

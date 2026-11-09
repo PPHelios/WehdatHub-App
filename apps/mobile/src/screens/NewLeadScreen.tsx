@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError, phoneSchema } from '@wehdathub/shared';
 import type { ApiLead } from '@wehdathub/shared';
@@ -23,8 +24,9 @@ export function NewLeadScreen() {
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const qc = useQueryClient();
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const picked = useRoute<RouteProp<RootStackParams, 'NewLead'>>().params;
+  const [name, setName] = useState(picked?.name ?? '');
+  const [phone, setPhone] = useState(picked?.phone ?? '');
   const [kind, setKind] = useState<ApiLead['kind']>('buyer');
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -45,6 +47,7 @@ export function NewLeadScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <Button testID="from-contacts" variant="secondary" label={`📇 ${t(lang, 'fromContacts')}`} onPress={() => nav.navigate('Contacts')} />
       <Field label={t(lang, 'leadName')} value={name} onChangeText={setName} testID="lead-name" />
       <Field label={t(lang, 'leadPhone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="lead-phone" />
       <Chips<ApiLead['kind']> options={KINDS.map((k) => ({ value: k, label: KIND_LABEL[k][lang === 'ar' ? 0 : 1] }))} value={kind} onChange={setKind} />
