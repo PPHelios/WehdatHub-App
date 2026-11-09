@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { UnitsPage } from '@wehdathub/shared';
@@ -39,11 +39,17 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const wideColumns = useColumns();
   const columns = single ? 1 : wideColumns;
   const q = useDebounced(text.trim());
+  const [showFilters, setShowFilters] = useState(false);
+  const [compound, setCompound] = useState('');
+  const [compoundText, setCompoundText] = useState('');
+  const [staleDays, setStaleDays] = useState(0);
+  const typed = useDebounced(compoundText.trim());
+  const suggest = useQuery({ queryKey: ['compounds', typed], queryFn: () => api.unitCompounds(typed), enabled: showFilters && !compound });
 
   const list = useInfiniteQuery({
-    queryKey: ['units', status, q],
+    queryKey: ['units', status, q, compound, staleDays],
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api.units({ status, q, limit: PAGE, offset: pageParam }),
+    queryFn: ({ pageParam }) => api.units({ status, q, compound: compound || undefined, staleDays: staleDays || undefined, limit: PAGE, offset: pageParam }),
     getNextPageParam: (last: UnitsPage) => (last.offset + last.items.length < last.total ? last.offset + last.items.length : undefined),
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
@@ -55,12 +61,41 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
       <TextInput testID="units-search" style={[styles.search, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'search')} placeholderTextColor={colors.muted} autoCapitalize="characters" autoCorrect={false} returnKeyType="search" />
       {text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching) ? <ActivityIndicator style={styles.searching} color={colors.primary} /> : null}
       <View style={styles.chips}>
+        <Pressable testID="units-filters" accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((v) => !v)} style={[styles.chip, { borderColor: compound || staleDays ? colors.primary : colors.border }]}>
+          <Text style={{ color: colors.text, fontWeight: '600' }}>{t(lang, 'filters')}{compound || staleDays ? ' •' : ''}</Text>
+        </Pressable>
         {STATUSES.map((s) => (
           <Pressable key={s} accessibilityRole="button" accessibilityState={{ selected: s === status }} onPress={() => setStatus(s)} style={[styles.chip, { borderColor: s === status ? colors.primary : colors.border, backgroundColor: s === status ? colors.primary : 'transparent' }]}>
             <Text style={{ color: s === status ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, s)}{counts ? ` (${counts[s]})` : ''}</Text>
           </Pressable>
         ))}
       </View>
+      {showFilters ? (
+        <View style={styles.panel}>
+          {compound ? (
+            <Pressable testID="compound-clear" accessibilityRole="button" onPress={() => { setCompound(''); setCompoundText(''); }} style={[styles.chip, { borderColor: colors.primary }]}>
+              <Text style={{ color: colors.text, fontWeight: '600' }}>{compound} ✕</Text>
+            </Pressable>
+          ) : (
+            <>
+              <TextInput testID="compound-input" style={[styles.search2, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={compoundText} onChangeText={setCompoundText} placeholder={t(lang, 'typeCompound')} placeholderTextColor={colors.muted} autoCorrect={false} />
+              {(suggest.data?.items ?? []).map((c) => (
+                <Pressable key={c.name} accessibilityRole="button" onPress={() => { setCompound(c.name); setCompoundText(c.name); }} style={[styles.suggest, { borderColor: colors.border }]}>
+                  <Text style={{ color: colors.text }}>{c.name} ({c.n})</Text>
+                </Pressable>
+              ))}
+            </>
+          )}
+          <Text style={{ color: colors.muted }}>{t(lang, 'staleDays')}</Text>
+          <View style={styles.chipsRow}>
+            {[0, 30, 60, 90].map((d) => (
+              <Pressable key={d} testID={`stale-${d}`} accessibilityRole="button" accessibilityState={{ selected: d === staleDays }} onPress={() => setStaleDays(d)} style={[styles.chip, { borderColor: d === staleDays ? colors.primary : colors.border, backgroundColor: d === staleDays ? colors.primary : 'transparent' }]}>
+                <Text style={{ color: d === staleDays ? colors.onPrimary : colors.text, fontWeight: '600' }}>{d === 0 ? '—' : d}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
       {list.isPending ? (
         <Loading label={t(lang, 'loading')} />
       ) : list.isError && !items.length ? (
@@ -71,7 +106,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
           numColumns={columns}
           data={items}
           keyExtractor={(u) => u.id}
-          renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => onOpen(item.code)} />}
+          renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => onOpen(item.code)} onEdit={rights.editUnits && (item.mine || rights.dataEntry || rights.manager || rights.agencyOwner) ? () => nav.navigate('AddUnit', { edit: item.code }) : undefined} />}
           onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
           onEndReachedThreshold={0.6}
           refreshing={list.isRefetching && !list.isFetchingNextPage}
@@ -91,6 +126,10 @@ const styles = StyleSheet.create({
   search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
   chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+  panel: { paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.md },
+  chipsRow: { flexDirection: 'row', gap: spacing.sm },
+  search2: { minHeight: 44, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  suggest: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md },
   footer: { padding: spacing.lg },
   add: { padding: spacing.lg },
 });

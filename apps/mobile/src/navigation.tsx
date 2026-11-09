@@ -30,7 +30,7 @@ const AddUnitNarrow = narrow(AddUnitScreen);
 import { t } from './i18n';
 import { useTheme } from './theme';
 
-export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile };
+export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
 export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Map: undefined; Units: undefined; More: undefined };
