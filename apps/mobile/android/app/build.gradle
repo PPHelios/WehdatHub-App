@@ -92,8 +92,8 @@ android {
         applicationId "com.wehdathub"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode (System.getenv("VERSION_CODE") ?: "1").toInteger()
+        versionName (System.getenv("VERSION_NAME") ?: "1.0")
     }
     signingConfigs {
         debug {
@@ -102,15 +102,22 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // The Play upload key: only present when the release workflow passes it in; local and CI builds fall back to debug.
+        if (System.getenv("UPLOAD_KEYSTORE")) {
+            release {
+                storeFile file(System.getenv("UPLOAD_KEYSTORE"))
+                storePassword System.getenv("UPLOAD_STORE_PASSWORD")
+                keyAlias System.getenv("UPLOAD_KEY_ALIAS")
+                keyPassword System.getenv("UPLOAD_KEY_PASSWORD")
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig System.getenv("UPLOAD_KEYSTORE") ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
