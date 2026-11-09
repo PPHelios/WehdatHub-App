@@ -5,12 +5,13 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError } from '@wehdathub/shared';
-import type { UnitFields, UploadFile } from '@wehdathub/shared';
+import type { PlaceSuggestion, UnitFields, UploadFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
+import { PlaceInput } from '../components/PlaceInput';
 import { SortablePhotos } from '../components/SortablePhotos';
 import { clearDraft, isEmptyDraft, loadDraft, saveDraft } from '../draft';
 import { errorText } from '../errors';
@@ -57,6 +58,15 @@ export function AddUnitScreen() {
   const [toUnit, setToUnit] = useState('');
 
   const set = (k: string, v: UnitFields[string]) => setFields((f) => ({ ...f, [k]: v }));
+  // A compound picked from the list brings its own area; an area or sub-zone fills the area and leaves the compound empty.
+  const pickPlace = (p: PlaceSuggestion) =>
+    setFields((f) => ({
+      ...f,
+      compound: p.kind === 'compound' ? (p.name_ar || p.name_en || '') : '',
+      area_id: p.area_id ?? '',
+      subzone_id: p.subzone_id ?? '',
+      area_path: p.kind === 'compound' ? p.path : [p.path, p.name_ar || p.name_en].filter(Boolean).join(' › '),
+    }));
   const field = (k: string, label: string, extra: object = {}) => <Field key={k} testID={`f-${k}`} label={label} value={str(fields[k])} onChangeText={(v) => set(k, v)} {...extra} />;
 
   // Fill from a message and/or a voice note. What the form already says is sent along and kept.
@@ -172,7 +182,10 @@ export function AddUnitScreen() {
         return setDuplicate(rv?.duplicate ?? '');
       }
       if (e.code === 'owner_name_required') return setError(t(lang, 'ownerNameNeeded'));
-      if (e.code === 'compound_unknown') return setError(t(lang, 'compoundUnknown'));
+      if (e.code === 'compound_unknown') {
+        const like = ((e.extra.suggestions as { name: string }[]) ?? []).map((x) => x.name).filter(Boolean);
+        return setError(like.length ? `${t(lang, 'compoundUnknown')} ${t(lang, 'didYouMean')} ${like.join(' / ')}` : t(lang, 'compoundUnknown'));
+      }
       if (e.code === 'plan_limit') return setError(t(lang, 'planLimit'));
       setError(errorText(e, lang));
     }
@@ -221,7 +234,14 @@ export function AddUnitScreen() {
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fType')}</Text>
       <Chips options={options(PROPERTY_TYPES, lang)} value={str(fields.property_type)} onChange={(v) => set('property_type', v)} />
 
-      {field('compound', t(lang, 'fCompound'))}
+      <Text style={{ color: colors.muted }}>{t(lang, 'placeRule')}</Text>
+      <PlaceInput testID="f-compound" label={t(lang, 'fCompound')} value={str(fields.compound)} onChangeText={(v) => set('compound', v)} onPick={pickPlace} />
+      {fields.area_id ? (
+        <View style={styles.switchRow}>
+          <Text testID="picked-area" style={[styles.flex, { color: colors.text }]}>{t(lang, 'fPlaceArea')}: {str(fields.area_path)}</Text>
+          <Button testID="clear-area" label={t(lang, 'clear')} variant="secondary" onPress={() => setFields((f) => ({ ...f, area_id: '', subzone_id: '', area_path: '' }))} />
+        </View>
+      ) : null}
       <View style={styles.row}><View style={styles.flex}>{field('city', t(lang, 'fCity'))}</View><View style={styles.flex}>{field('district', t(lang, 'fDistrict'))}</View></View>
       {field('price_value', t(lang, 'fPrice'), { keyboardType: 'numbers-and-punctuation' })}
       <View style={styles.row}><View style={styles.flex}>{field('area_value', t(lang, 'fArea'), { keyboardType: 'decimal-pad' })}</View><View style={styles.flex}>{field('floor_level', t(lang, 'fFloor'), { keyboardType: 'number-pad' })}</View></View>
