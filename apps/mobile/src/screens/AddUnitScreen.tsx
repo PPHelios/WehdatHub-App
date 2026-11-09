@@ -19,6 +19,7 @@ import type { RootStackParams } from '../navigation';
 import { MAX_PHOTOS, pickPhotos, takePhoto } from '../photos';
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { radius, spacing, useTheme } from '../theme';
+import { tick } from '../haptics';
 import { ensureMic, startRecording, stopRecording } from '../voice';
 
 const str = (v: UnitFields[string]): string => (typeof v === 'string' ? v : '');
@@ -120,6 +121,7 @@ export function AddUnitScreen() {
     try {
       const sent = { ...fields, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
       const r = await api.createUnit(sent, photos);
+      tick();
       await clearDraft();
       await qc.invalidateQueries({ queryKey: ['units'] });
       nav.replace('Unit', { code: r.code });

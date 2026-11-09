@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { tick } from '../haptics';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { ApiClientError, LEAD_STAGES } from '@wehdathub/shared';
@@ -43,6 +44,7 @@ export function LeadScreen() {
       return run(cur);
     },
     onSuccess: async () => {
+      tick();
       setMessage(null);
       await qc.invalidateQueries({ queryKey: ['lead', ref] });
       await qc.invalidateQueries({ queryKey: ['leads'] });

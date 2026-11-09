@@ -13,6 +13,7 @@ import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
+import { useColumns } from '../layout';
 import { radius, spacing, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 
@@ -25,6 +26,7 @@ export function UnitsScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [status, setStatus] = useState<(typeof STATUSES)[number]>('active');
   const [text, setText] = useState('');
+  const columns = useColumns();
   const q = useDebounced(text.trim());
 
   const list = useInfiniteQuery({
@@ -52,6 +54,8 @@ export function UnitsScreen() {
         <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => list.refetch()} />
       ) : (
         <FlashList
+          key={`cols-${columns}`}
+          numColumns={columns}
           data={items}
           keyExtractor={(u) => u.id}
           renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => nav.navigate('Unit', { code: item.code })} />}

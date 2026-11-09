@@ -27,4 +27,5 @@ jest.mock('react-native-webview', () => {
 });
 jest.mock('@react-native-firebase/app', () => ({ getApps: jest.fn(() => []), initializeApp: jest.fn().mockResolvedValue({}) }));
 jest.mock('@react-native-firebase/crashlytics', () => ({ getCrashlytics: jest.fn(() => ({})), recordError: jest.fn(), setUserId: jest.fn().mockResolvedValue(null), setCrashlyticsCollectionEnabled: jest.fn().mockResolvedValue(null) }));
+jest.mock('@react-native-community/netinfo', () => ({ __esModule: true, default: { addEventListener: jest.fn(() => () => undefined) } }));
 jest.mock('@react-native-firebase/messaging', () => ({ getMessaging: jest.fn(() => ({})), getToken: jest.fn().mockResolvedValue('t'.repeat(30)), requestPermission: jest.fn().mockResolvedValue(1), onMessage: jest.fn(() => () => undefined), onNotificationOpenedApp: jest.fn(() => () => undefined), onTokenRefresh: jest.fn(() => () => undefined), getInitialNotification: jest.fn().mockResolvedValue(null) }));

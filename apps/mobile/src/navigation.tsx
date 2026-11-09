@@ -16,6 +16,15 @@ import { UnitScreen } from './screens/UnitScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { TodayScreen } from './screens/TodayScreen';
 import { UnitsScreen } from './screens/UnitsScreen';
+import { narrow } from './layout';
+
+const TodayNarrow = narrow(TodayScreen);
+const SearchNarrow = narrow(SearchScreen);
+const MoreNarrow = narrow(MoreScreen);
+const UnitNarrow = narrow(UnitScreen);
+const LeadNarrow = narrow(LeadScreen);
+const NewLeadNarrow = narrow(NewLeadScreen);
+const AddUnitNarrow = narrow(AddUnitScreen);
 import { t } from './i18n';
 import { useTheme } from './theme';
 
@@ -31,12 +40,12 @@ function TabsScreen() {
   const lang = currentLang();
   return (
     <Tabs.Navigator>
-      <Tabs.Screen name="Today" component={TodayScreen} options={{ title: t(lang, 'today') }} />
-      <Tabs.Screen name="Search" component={SearchScreen} options={{ title: t(lang, 'searchTab') }} />
+      <Tabs.Screen name="Today" component={TodayNarrow} options={{ title: t(lang, 'today') }} />
+      <Tabs.Screen name="Search" component={SearchNarrow} options={{ title: t(lang, 'searchTab') }} />
       <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab') }} />
       <Tabs.Screen name="Map" component={MapScreen} options={{ title: t(lang, 'mapTab') }} />
       <Tabs.Screen name="Units" component={UnitsScreen} options={{ title: t(lang, 'units') }} />
-      <Tabs.Screen name="More" component={MoreScreen} options={{ title: t(lang, 'more') }} />
+      <Tabs.Screen name="More" component={MoreNarrow} options={{ title: t(lang, 'more') }} />
     </Tabs.Navigator>
   );
 }
@@ -56,10 +65,10 @@ export function RootNavigation() {
       ) : (
         <Stack.Navigator>
           <Stack.Screen name="Tabs" component={TabsScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Unit" component={UnitScreen} options={{ title: t(currentLang(), 'unit') }} />
-          <Stack.Screen name="Lead" component={LeadScreen} options={{ title: t(currentLang(), 'leadsTab') }} />
-          <Stack.Screen name="NewLead" component={NewLeadScreen} options={{ title: t(currentLang(), 'newLead') }} />
-          <Stack.Screen name="AddUnit" component={AddUnitScreen} options={{ title: t(currentLang(), 'addUnit') }} />
+          <Stack.Screen name="Unit" component={UnitNarrow} options={{ title: t(currentLang(), 'unit') }} />
+          <Stack.Screen name="Lead" component={LeadNarrow} options={{ title: t(currentLang(), 'leadsTab') }} />
+          <Stack.Screen name="NewLead" component={NewLeadNarrow} options={{ title: t(currentLang(), 'newLead') }} />
+          <Stack.Screen name="AddUnit" component={AddUnitNarrow} options={{ title: t(currentLang(), 'addUnit') }} />
         </Stack.Navigator>
       )}
     </NavigationContainer>
