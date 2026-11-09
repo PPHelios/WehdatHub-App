@@ -23,6 +23,9 @@ jobs:
       - run: pnpm typecheck --output-logs=errors-only
       - run: pnpm lint --output-logs=errors-only
       - run: pnpm test --output-logs=errors-only
+      - name: JS bundle (what the release build packs)
+        working-directory: apps/mobile
+        run: npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output "$RUNNER_TEMP/index.android.bundle" > /dev/null
 
   android:
     name: Android debug build
