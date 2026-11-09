@@ -11,6 +11,8 @@ import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
+import { Section } from '../components/Section';
+import { ViewingForm } from '../components/ViewingForm';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
@@ -84,7 +86,10 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
         </View>
       ) : null}
 
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'followUp')}</Text>
+      <Field label={t(lang, 'addNote')} value={note} onChangeText={setNote} multiline />
+      <Button testID="lead-note" label={t(lang, 'save')} onPress={async () => { await run((l) => api.leadNote(l.ref, l.version, note)); setNote(''); }} />
+
+      <Section testID="sec-followup" title={t(lang, 'followUp')}>
       {lead.nextFollowUpAt ? <Text style={{ color: colors.accent, fontWeight: '600' }}>{lead.followUpKind === 'viewing' ? t(lang, 'fuViewing') : t(lang, 'fuCall')} · {new Date(lead.nextFollowUpAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</Text> : null}
       <View style={styles.row}>
         <View style={styles.flex}><Button label={t(lang, 'fuTomorrow')} variant="secondary" onPress={() => followUp({ at: at10(1), kind: 'call' })} /></View>
@@ -94,17 +99,19 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
         <View style={styles.flex}><Button label={t(lang, 'fuWeek')} variant="secondary" onPress={() => followUp({ at: at10(7), kind: 'call' })} /></View>
         <View style={styles.flex}><Button label={`${t(lang, 'fuViewing')} · ${t(lang, 'fuTomorrow')}`} variant="secondary" onPress={() => followUp({ at: at10(1), kind: 'viewing' })} /></View>
       </View>
+      </Section>
+      <Section testID="sec-viewing" title={t(lang, 'addViewing')}>
+        <ViewingForm lead={lead} />
+      </Section>
 
-      <Field label={t(lang, 'addNote')} value={note} onChangeText={setNote} multiline />
-      <Button testID="lead-note" label={t(lang, 'save')} onPress={async () => { await run((l) => api.leadNote(l.ref, l.version, note)); setNote(''); }} />
-
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'history')}</Text>
+      <Section testID="sec-history" title={t(lang, 'history')}>
       {timeline.map((e) => (
         <View key={e.id} style={[styles.event, { borderColor: colors.border }]}>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{new Date(e.at).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}{e.by ? ` · ${e.by}` : ''}</Text>
           <Text style={{ color: colors.text }}>{e.text || (e.stage ? t(lang, `st_${e.stage}` as StringKey) : e.kind)}</Text>
         </View>
       ))}
+      </Section>
     </ScrollView>
   );
 }

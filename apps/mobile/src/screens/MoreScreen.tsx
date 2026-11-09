@@ -11,7 +11,7 @@ import { useLock } from '../lock';
 import { stopPush } from '../push';
 import { spacing, useTheme } from '../theme';
 
-export function MoreScreen() {
+export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks') => void } = {}) {
   const { colors } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
@@ -42,6 +42,8 @@ export function MoreScreen() {
     <View style={[styles.body, { backgroundColor: colors.bg }]}>
       <Text style={[styles.name, { color: colors.text }]}>{broker?.name}</Text>
       {agencyName ? <Text style={[styles.agency, { color: colors.muted }]}>{t(lang, 'agency')}: {agencyName}</Text> : null}
+      {onOpen ? <Button testID="open-calendar" label={`🗓 ${t(lang, 'calendar')}`} variant="secondary" onPress={() => onOpen('Calendar')} /> : null}
+      {onOpen ? <Button testID="open-links" label={`🔗 ${t(lang, 'sentLinks')}`} variant="secondary" onPress={() => onOpen('SentLinks')} /> : null}
       <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'lockSetting')}</Text><Switch testID="lock-switch" value={enabled} onValueChange={toggleLock} /></View>
       {lockMsg ? <Text style={{ color: colors.danger }}>{lockMsg}</Text> : null}
       <Button testID="sign-out" label={t(lang, 'signOut')} onPress={out} loading={busy} variant="secondary" />
