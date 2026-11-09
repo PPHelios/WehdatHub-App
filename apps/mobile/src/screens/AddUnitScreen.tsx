@@ -23,6 +23,15 @@ import { tick } from '../haptics';
 import { ensureMic, startRecording, stopRecording } from '../voice';
 
 const str = (v: UnitFields[string]): string => (typeof v === 'string' ? v : '');
+/** In edit mode a photo already on the unit is listed with this type and its image id as name. */
+export const EXISTING = 'existing';
+export const photoChanges = (original: string[], list: UploadFile[]) => {
+  const kept = list.filter((p) => p.type === EXISTING).map((p) => p.name);
+  const add = list.filter((p) => p.type !== EXISTING);
+  const remove = original.filter((id) => !kept.includes(id));
+  const reordered = kept.join() !== original.filter((id) => kept.includes(id)).join();
+  return { add, remove, order: kept, changed: add.length > 0 || remove.length > 0 || reordered };
+};
 
 export function AddUnitScreen() {
   const { colors } = useTheme();
@@ -44,6 +53,8 @@ export function AddUnitScreen() {
   const shared = useRef(route.params);
   const editCode = route.params?.edit;
   const [version, setVersion] = useState(0);
+  const originalIds = useRef<string[]>([]);
+  const [toUnit, setToUnit] = useState('');
 
   const set = (k: string, v: UnitFields[string]) => setFields((f) => ({ ...f, [k]: v }));
   const field = (k: string, label: string, extra: object = {}) => <Field key={k} testID={`f-${k}`} label={label} value={str(fields[k])} onChangeText={(v) => set(k, v)} {...extra} />;
@@ -66,9 +77,11 @@ export function AddUnitScreen() {
     (async () => {
       if (editCode) {
         try {
-          const r = await api.unitEditFields(editCode);
+          const [r, u] = await Promise.all([api.unitEditFields(editCode), api.unit(editCode)]);
           setFields(r.fields);
           setVersion(r.version);
+          setPhotos(u.images.map((i) => ({ uri: i.url, name: i.id, type: EXISTING })));
+          originalIds.current = u.images.map((i) => i.id);
         } catch (e) {
           setError(errorText(e, lang));
         }
@@ -134,6 +147,8 @@ export function AddUnitScreen() {
     try {
       if (editCode) {
         await api.saveUnitEdit(editCode, version, fields);
+        const ph = photoChanges(originalIds.current, photos);
+        if (ph.changed) await api.unitPhotos(editCode, { add: ph.add, remove: ph.remove, order: ph.order });
         tick();
         await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] })]);
         return nav.goBack();
@@ -163,6 +178,20 @@ export function AddUnitScreen() {
     }
   };
 
+  // Photos shared in (or picked) can go to a unit that already exists instead of a new one.
+  const addToExisting = async () => {
+    setError(null);
+    try {
+      const code = toUnit.trim();
+      await api.unitPhotos(code, { add: photos });
+      await clearDraft();
+      await qc.invalidateQueries({ queryKey: ['unit', code] });
+      nav.replace('Unit', { code });
+    } catch (e) {
+      setError(e instanceof ApiClientError && e.status === 404 ? t(lang, 'unitMissing') : e instanceof ApiClientError && e.code === 'too_many_photos' ? t(lang, 'tooManyPhotos') : errorText(e, lang));
+    }
+  };
+
   const discard = async () => {
     await clearDraft();
     setFields({ listing_type: 'sale', market: 'resale' });
@@ -174,7 +203,7 @@ export function AddUnitScreen() {
   const resale = fields.market !== 'primary';
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" scrollEnabled={!dragging}>
-      {editCode ? null : (
+      {(
         <>
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fillFrom')}</Text>
           <Field testID="describe" label={t(lang, 'describePlaceholder')} value={describe} onChangeText={setDescribe} multiline />
@@ -210,7 +239,7 @@ export function AddUnitScreen() {
       <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'compoundNew')}</Text><Switch value={fields.compound_new === '1'} onValueChange={(v) => set('compound_new', v ? '1' : '')} /></View>
       {field('notes', t(lang, 'fNotes'), { multiline: true })}
 
-      {editCode ? null : (
+      {(
         <>
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'photosTitle')} ({photos.length}/{MAX_PHOTOS})</Text>
           <View style={styles.row}>
@@ -219,7 +248,13 @@ export function AddUnitScreen() {
           </View>
           {photos.length > 1 ? <Text style={{ color: colors.muted }}>{t(lang, 'dragHint')}</Text> : null}
           <SortablePhotos photos={photos} onChange={setPhotos} onDragging={setDragging} removeLabel={t(lang, 'removePhoto')} />
-          <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'aiOrder')}</Text><Switch value={photoAi} onValueChange={setPhotoAi} /></View>
+          {editCode ? null : <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'aiOrder')}</Text><Switch value={photoAi} onValueChange={setPhotoAi} /></View>}
+          {!editCode && photos.length ? (
+            <View style={[styles.box, { borderColor: colors.border }]}>
+              <Field testID="to-unit" label={t(lang, 'addToExisting')} value={toUnit} onChangeText={setToUnit} autoCapitalize="characters" autoCorrect={false} />
+              <Button testID="to-unit-go" variant="secondary" label={t(lang, 'addPhotosToUnit')} disabled={!toUnit.trim()} onPress={addToExisting} />
+            </View>
+          ) : null}
         </>
       )}
 

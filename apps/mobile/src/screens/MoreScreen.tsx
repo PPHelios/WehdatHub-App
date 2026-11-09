@@ -8,15 +8,17 @@ import { listsStore } from '../lists';
 import { clearDraft } from '../draft';
 import { t } from '../i18n';
 import { useLock } from '../lock';
+import { useRights } from '../rights';
 import { stopPush } from '../push';
 import { spacing, useTheme } from '../theme';
 
-export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks') => void } = {}) {
+export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask') => void } = {}) {
   const { colors } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
   const [busy, setBusy] = useState(false);
   const lang = broker?.lang ?? 'ar';
+  const rights = useRights();
   const { enabled, enable, disable } = useLock();
   const [lockMsg, setLockMsg] = useState<string | null>(null);
   const toggleLock = async (on: boolean) => {
@@ -43,6 +45,8 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLin
       <Text style={[styles.name, { color: colors.text }]}>{broker?.name}</Text>
       {agencyName ? <Text style={[styles.agency, { color: colors.muted }]}>{t(lang, 'agency')}: {agencyName}</Text> : null}
       {onOpen ? <Button testID="open-calendar" label={`🗓 ${t(lang, 'calendar')}`} variant="secondary" onPress={() => onOpen('Calendar')} /> : null}
+      {onOpen ? <Button testID="open-ask" label={`💬 ${t(lang, 'ask')}`} variant="secondary" onPress={() => onOpen('Ask')} /> : null}
+      {onOpen && rights.team ? <Button testID="open-team" label={`👥 ${t(lang, 'team')}`} variant="secondary" onPress={() => onOpen('Team')} /> : null}
       {onOpen ? <Button testID="open-links" label={`🔗 ${t(lang, 'sentLinks')}`} variant="secondary" onPress={() => onOpen('SentLinks')} /> : null}
       <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'lockSetting')}</Text><Switch testID="lock-switch" value={enabled} onValueChange={toggleLock} /></View>
       {lockMsg ? <Text style={{ color: colors.danger }}>{lockMsg}</Text> : null}

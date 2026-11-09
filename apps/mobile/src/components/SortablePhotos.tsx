@@ -75,7 +75,7 @@ export function SortablePhotos({ photos, onChange, onDragging, removeLabel }: Pr
             </View>
             <Image source={{ uri: p.uri }} style={styles.thumb} />
             <Text style={[styles.pos, { color: colors.text }]}>{i === 0 ? '★ 1' : String(i + 1)}</Text>
-            <Pressable accessibilityRole="button" onPress={() => onChange(photos.filter((_x, j) => j !== i))} style={styles.remove}>
+            <Pressable testID={`photo-remove-${i}`} accessibilityRole="button" onPress={() => onChange(photos.filter((_x, j) => j !== i))} style={styles.remove}>
               <Text style={{ color: colors.danger, fontWeight: '700' }}>{removeLabel}</Text>
             </Pressable>
           </Animated.View>

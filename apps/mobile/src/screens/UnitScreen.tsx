@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Linking, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -24,6 +24,18 @@ export function UnitScreen({ code }: { code?: string } = {}) {
   const unit = useQuery({ queryKey: ['unit', unitCode], queryFn: () => api.unit(unitCode) });
   // The owner's number comes only when the agency's privacy rules let this broker see it; otherwise the buttons stay hidden.
   const contact = useQuery({ queryKey: ['unit', unitCode, 'contact'], queryFn: () => api.unitContact(unitCode), retry: false, enabled: unit.isSuccess });
+  const [flyer, setFlyer] = useState<string | null>(null);
+  const [flyerBusy, setFlyerBusy] = useState(false);
+  const makeFlyer = async () => {
+    setFlyerBusy(true);
+    try {
+      setFlyer((await api.unitFlyer(unitCode)).url);
+    } catch (e) {
+      Alert.alert(e instanceof ApiClientError && e.status === 503 ? t(lang, 'flyerBusy') : t(lang, 'flyerFailed'));
+    } finally {
+      setFlyerBusy(false);
+    }
+  };
   const [asking, setAsking] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [clientErr, setClientErr] = useState<string | null>(null);
@@ -89,6 +101,16 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         ) : null}
         {hidden === 'pending' ? <Text testID="access-pending" style={{ color: colors.muted }}>{t(lang, 'accessPending')}</Text> : null}
         {hidden === 'ask' ? <Button testID="request-access" variant="secondary" label={t(lang, 'requestAccess')} loading={asking} onPress={requestAccess} /> : null}
+        <Button testID="flyer" variant="secondary" label={`🖼 ${t(lang, 'flyer')}`} loading={flyerBusy} onPress={makeFlyer} />
+        {flyer ? (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setFlyer(null)}>
+            <View style={styles.flyerBack}>
+              <Image testID="flyer-image" source={{ uri: flyer }} style={styles.flyerImg} resizeMode="contain" />
+              <Button testID="flyer-share" label={t(lang, 'shareFlyer')} onPress={() => { Share.share({ message: flyer }).catch(() => undefined); }} />
+              <Button label={t(lang, 'closePanel')} variant="secondary" onPress={() => setFlyer(null)} />
+            </View>
+          </Modal>
+        ) : null}
         {u.canEdit ? <Button testID="edit-unit" variant="secondary" label={`✎ ${t(lang, 'editUnit')}`} onPress={() => nav.navigate('AddUnit', { edit: u.code })} /> : null}
         {u.status === 'active' ? <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} /> : null}
         <ClientLinkModal visible={pickClient} busy={sharing} error={clientErr} onSubmit={shareLink} onCancel={() => setPickClient(false)} />
@@ -109,6 +131,8 @@ export function waNumber(phone: string): string {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  flyerBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: spacing.lg, gap: spacing.sm },
+  flyerImg: { flex: 1, width: '100%' },
   actions: { flexDirection: 'row', gap: spacing.sm },
   body: { paddingBottom: spacing.xl },
   info: { padding: spacing.lg, gap: spacing.sm },

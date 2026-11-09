@@ -17,6 +17,7 @@ import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
+import { useRights } from '../rights';
 import { radius, spacing, useTheme } from '../theme';
 
 type FollowUp = { at: Date; kind: 'call' | 'viewing' };
@@ -38,6 +39,8 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
   const [lostReason, setLostReason] = useState('');
   const [askLost, setAskLost] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const rights = useRights();
+  const team = useQuery({ queryKey: ['team'], queryFn: () => api.team(), enabled: rights.team });
 
   /** Every quick action: send it with the version the screen shows; a 409 means it changed elsewhere, so show the latest. */
   const act = useMutation<unknown, Error, (lead: ApiLead) => Promise<{ lead: ApiLead }>>({
@@ -100,6 +103,15 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
         <View style={styles.flex}><Button label={`${t(lang, 'fuViewing')} · ${t(lang, 'fuTomorrow')}`} variant="secondary" onPress={() => followUp({ at: at10(1), kind: 'viewing' })} /></View>
       </View>
       </Section>
+      {rights.team ? (
+        <Section testID="sec-assign" title={t(lang, 'reassign')}>
+          <Chips<string>
+            options={[...(team.data?.items ?? []).map((m) => ({ value: m.id, label: m.name })), { value: '', label: t(lang, 'noOne') }]}
+            value={lead.assigneeId ?? ''}
+            onChange={(id) => run((l) => api.assignLead(l.ref, l.version, id || null))}
+          />
+        </Section>
+      ) : null}
       <Section testID="sec-viewing" title={t(lang, 'addViewing')}>
         <ViewingForm lead={lead} />
       </Section>

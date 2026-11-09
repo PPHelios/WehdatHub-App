@@ -62,10 +62,14 @@ export interface ApiLead {
   followUpNote: string | null;
   lastContactAt: string | null;
   assignee: string | null;
+  assigneeId?: string | null;
   version: number;
 }
 export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; offset: number; limit: number }
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
+export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
+export interface AskAnswer { answer: string; found: boolean; lang: Lang; dataDates: string | null }
+export interface UnitImage { id: string; url: string; position: number }
 export interface ApiViewing { id: string; startsAt: string; place: string | null; status: string; proposedAt: string | null; clientNote: string | null; leadRef: string; leadName: string | null; unitCode: string | null }
 export interface SentLink { createdAt: string; unitCode: string; compound: string | null; opens: number; lastOpenedAt: string | null; recipientPhone: string | null; leadRef: string | null; leadName: string | null; note: string | null }
 export interface ViewingSet { lead: ApiLead; viewing: { id: string; startsAt: string; place: string | null; status: string }; url: string; message: string; wa: string | null }
@@ -235,7 +239,7 @@ export function createApiClient(opts: ApiClientOptions) {
     config: () => request<AppConfig>('GET', '/config'),
     registerDevice: (token: string, platform: 'android' | 'ios') => request<{ ok: true }>('POST', '/devices', { token, platform }),
     removeDevice: (token: string) => request<{ ok: true }>('POST', '/devices/remove', { token }),
-    leads: (o: { tab?: LeadTab; q?: string; offset?: number } = {}) => request<LeadsPage>('GET', '/leads', undefined, { tab: o.tab && o.tab !== 'all' ? o.tab : undefined, q: o.q, offset: o.offset || undefined }),
+    leads: (o: { tab?: LeadTab; q?: string; offset?: number; broker?: string } = {}) => request<LeadsPage>('GET', '/leads', undefined, { tab: o.tab && o.tab !== 'all' ? o.tab : undefined, q: o.q, offset: o.offset || undefined, broker: o.broker }),
     lead: (ref: string) => request<LeadDetail>('GET', `/leads/${encodeURIComponent(ref)}`),
     /** Sets a viewing. Nothing is sent: the answer carries the client's message and link for the broker to send or not. */
     setViewing: (ref: string, o: { version: number; at: string; unitCode?: string; place?: string; lang: Lang }) => request<ViewingSet>('POST', `/leads/${encodeURIComponent(ref)}/viewing`, o),
@@ -267,6 +271,19 @@ export function createApiClient(opts: ApiClientOptions) {
     unitContact: (code: string) => request<{ name: string | null; phone: string | null }>('GET', `/units/${encodeURIComponent(code)}/contact`),
     /** `to` is a lead ref (L-0042) or a mobile number; leave it out to share without a client. */
     unitShareLink: (code: string, lang: Lang, to?: string) => request<{ url: string; recipientPhone: string | null; leadLinked: boolean }>('POST', `/units/${encodeURIComponent(code)}/share-link`, { lang, ...(to ? { to } : {}) }),
+    team: () => request<{ items: TeamMember[] }>('GET', '/team'),
+    /** Moves a lead to a broker of the team, or back to the managers with null. */
+    assignLead: (ref: string, version: number, brokerId: string | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/assign`, { version, brokerId }),
+    ask: (question: string) => request<AskAnswer>('POST', '/ask', { question }),
+    unitFlyer: (code: string, theme: 'dark' | 'light' = 'dark') => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/flyer`, { theme }),
+    /** Photos of an existing unit: new files to add, ids to remove, and the order of the kept ones (first is the cover). */
+    unitPhotos: (code: string, o: { add?: UploadFile[]; remove?: string[]; order?: string[] }) => {
+      const form = new FormData();
+      for (const p of o.add ?? []) form.append('photos', p as unknown as Blob);
+      if (o.remove?.length) form.append('remove', JSON.stringify(o.remove));
+      if (o.order?.length) form.append('order', JSON.stringify(o.order));
+      return request<{ images: UnitImage[]; failed: number }>('POST', `/units/${encodeURIComponent(code)}/photos`, form);
+    },
     unitEditFields: (code: string) => request<{ code: string; version: number; fields: UnitFields }>('GET', `/units/${encodeURIComponent(code)}/edit`),
     saveUnitEdit: (code: string, version: number, fields: UnitFields) => request<{ code: string; version: number }>('POST', `/units/${encodeURIComponent(code)}/edit`, { version, fields }),
     unitCompounds: (q: string) => request<{ items: { name: string; n: number }[] }>('GET', '/units/compounds', undefined, { q }),

@@ -23,11 +23,12 @@ beforeEach(() => {
 });
 
 test('edit mode loads the unit, saves with its version and goes back', async () => {
+  m.unit.mockResolvedValue({ images: [] });
   m.unitEditFields.mockResolvedValue({ code: 'A-1', version: 4, fields: { compound: 'Mivida', price_value: '9000000' } });
   m.saveUnitEdit.mockResolvedValue({ code: 'A-1', version: 5 });
   await render(<QueryClientProvider client={client()}><AddUnitScreen /></QueryClientProvider>);
   await waitFor(() => expect(screen.getByTestId('f-compound').props.value).toBe('Mivida'));
-  expect(screen.queryByTestId('add-photos')).toBeNull();
+  expect(screen.getByTestId('add-photos')).toBeTruthy();
   await fireEvent.changeText(screen.getByTestId('f-price_value'), '8500000');
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(m.saveUnitEdit).toHaveBeenCalledWith('A-1', 4, expect.objectContaining({ price_value: '8500000' })));
@@ -35,6 +36,7 @@ test('edit mode loads the unit, saves with its version and goes back', async () 
 });
 
 test('a stale version says the unit changed elsewhere', async () => {
+  m.unit.mockResolvedValue({ images: [] });
   m.unitEditFields.mockResolvedValue({ code: 'A-1', version: 4, fields: { compound: 'Mivida' } });
   m.saveUnitEdit.mockRejectedValue(new ApiClientError(409, 'conflict'));
   await render(<QueryClientProvider client={client()}><AddUnitScreen /></QueryClientProvider>);
