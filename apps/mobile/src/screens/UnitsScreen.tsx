@@ -13,7 +13,8 @@ import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { useColumns } from '../layout';
+import { Split, useColumns, useWide } from '../layout';
+import { UnitScreen } from './UnitScreen';
 import { radius, spacing, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 
@@ -21,12 +22,21 @@ const PAGE = 20;
 const STATUSES = ['active', 'sold', 'archived'] as const;
 
 export function UnitsScreen() {
+  const wide = useWide();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const [picked, setPicked] = useState<string | null>(null);
+  if (!wide) return <UnitsList onOpen={(code) => nav.navigate('Unit', { code })} />;
+  return <Split list={<UnitsList onOpen={setPicked} single />} detail={picked ? <UnitScreen code={picked} key={picked} /> : <View style={styles.flex} />} />;
+}
+
+function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void; single?: boolean }) {
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [status, setStatus] = useState<(typeof STATUSES)[number]>('active');
   const [text, setText] = useState('');
-  const columns = useColumns();
+  const wideColumns = useColumns();
+  const columns = single ? 1 : wideColumns;
   const q = useDebounced(text.trim());
 
   const list = useInfiniteQuery({
@@ -58,7 +68,7 @@ export function UnitsScreen() {
           numColumns={columns}
           data={items}
           keyExtractor={(u) => u.id}
-          renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => nav.navigate('Unit', { code: item.code })} />}
+          renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => onOpen(item.code)} />}
           onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
           onEndReachedThreshold={0.6}
           refreshing={list.isRefetching && !list.isFetchingNextPage}

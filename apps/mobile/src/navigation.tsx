@@ -16,6 +16,7 @@ import { UnitScreen } from './screens/UnitScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { TodayScreen } from './screens/TodayScreen';
 import { UnitsScreen } from './screens/UnitsScreen';
+import { ContactsScreen } from './screens/ContactsScreen';
 import { narrow } from './layout';
 
 const TodayNarrow = narrow(TodayScreen);
@@ -29,7 +30,7 @@ import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile };
-export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: undefined; AddUnit: AddUnitParams | undefined };
+export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Map: undefined; Units: undefined; More: undefined };
 
@@ -67,6 +68,7 @@ export function RootNavigation() {
           <Stack.Screen name="Tabs" component={TabsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Unit" component={UnitNarrow} options={{ title: t(currentLang(), 'unit') }} />
           <Stack.Screen name="Lead" component={LeadNarrow} options={{ title: t(currentLang(), 'leadsTab') }} />
+          <Stack.Screen name="Contacts" component={ContactsScreen} options={{ title: t(currentLang(), 'fromContacts') }} />
           <Stack.Screen name="NewLead" component={NewLeadNarrow} options={{ title: t(currentLang(), 'newLead') }} />
           <Stack.Screen name="AddUnit" component={AddUnitNarrow} options={{ title: t(currentLang(), 'addUnit') }} />
         </Stack.Navigator>

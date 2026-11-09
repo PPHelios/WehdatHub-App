@@ -25,10 +25,11 @@ const at10 = (days: number): Date => {
   return d;
 };
 
-export function LeadScreen() {
+export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
   const { colors } = useTheme();
   const lang = currentLang();
-  const { ref } = useRoute<RouteProp<RootStackParams, 'Lead'>>().params;
+  const routeRef = useRoute<RouteProp<RootStackParams, 'Lead'>>().params?.ref;
+  const ref = leadRef ?? routeRef ?? '';
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['lead', ref], queryFn: () => api.lead(ref) });
   const [note, setNote] = useState('');
