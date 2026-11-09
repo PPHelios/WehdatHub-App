@@ -92,8 +92,8 @@ android {
         applicationId "com.wehdathub"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (System.getenv("VERSION_CODE") ?: "1").toInteger()
-        versionName (System.getenv("VERSION_NAME") ?: "1.0")
+        versionCode Integer.parseInt(System.getenv("VERSION_CODE") ?: "1")
+        versionName System.getenv("VERSION_NAME") ?: "1.0"
     }
     signingConfigs {
         debug {
