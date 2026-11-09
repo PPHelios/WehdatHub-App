@@ -1,9 +1,6 @@
 name: Release Android
 # Manual: builds the signed app bundle (.aab) for Google Play. Needs the secrets UPLOAD_KEYSTORE_B64, UPLOAD_STORE_PASSWORD, UPLOAD_KEY_ALIAS, UPLOAD_KEY_PASSWORD.
 on:
-  push:
-    branches: [main]
-    paths: ["apps/mobile/android/**", "apps/mobile/src/**", "packages/shared/**", ".github/workflows/release-android.yml"]
   workflow_dispatch:
     inputs:
       version_code:
