@@ -1,8 +1,9 @@
 import React from 'react';
 import type { UploadFile } from '@wehdathub/shared';
-import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, currentLang } from './auth';
 import { Loading } from './components/StateViews';
 import { AddUnitScreen } from './screens/AddUnitScreen';
@@ -12,6 +13,8 @@ import { NewLeadScreen } from './screens/NewLeadScreen';
 import { MapScreen } from './screens/MapScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { MoreScreen } from './screens/MoreScreen';
+import { CalendarScreen } from './screens/CalendarScreen';
+import { SentLinksScreen } from './screens/SentLinksScreen';
 import { UnitScreen } from './screens/UnitScreen';
 import { SearchScreen } from './screens/SearchScreen';
 import { TodayScreen } from './screens/TodayScreen';
@@ -22,7 +25,13 @@ import { useRights } from './rights';
 
 const TodayNarrow = narrow(TodayScreen);
 const SearchNarrow = narrow(SearchScreen);
-const MoreNarrow = narrow(MoreScreen);
+function MoreTab() {
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  return <MoreScreen onOpen={(s) => nav.navigate(s)} />;
+}
+const MoreNarrow = narrow(MoreTab);
+const CalendarNarrow = narrow(CalendarScreen);
+const SentLinksNarrow = narrow(SentLinksScreen);
 const UnitNarrow = narrow(UnitScreen);
 const LeadNarrow = narrow(LeadScreen);
 const NewLeadNarrow = narrow(NewLeadScreen);
@@ -31,7 +40,7 @@ import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
-export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; AddUnit: AddUnitParams | undefined };
+export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Map: undefined; Units: undefined; More: undefined };
 
@@ -72,6 +81,8 @@ export function RootNavigation() {
           <Stack.Screen name="Lead" component={LeadNarrow} options={{ title: t(currentLang(), 'leadsTab') }} />
           <Stack.Screen name="Contacts" component={ContactsScreen} options={{ title: t(currentLang(), 'fromContacts') }} />
           <Stack.Screen name="NewLead" component={NewLeadNarrow} options={{ title: t(currentLang(), 'newLead') }} />
+          <Stack.Screen name="Calendar" component={CalendarNarrow} options={{ title: t(currentLang(), 'calendar') }} />
+          <Stack.Screen name="SentLinks" component={SentLinksNarrow} options={{ title: t(currentLang(), 'sentLinks') }} />
           <Stack.Screen name="AddUnit" component={AddUnitNarrow} options={{ title: t(currentLang(), 'addUnit') }} />
         </Stack.Navigator>
       )}
