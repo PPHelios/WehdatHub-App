@@ -1,4 +1,5 @@
 import React from 'react';
+import { Text } from 'react-native';
 import type { UploadFile } from '@wehdathub/shared';
 import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -52,17 +53,22 @@ type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Map: u
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tabs = createBottomTabNavigator<TabParams>();
 
+/** Tab bar glyphs: a plain text symbol per tab (a stopgap until the icon set lands with the design pass). */
+function tabIcon(glyph: string) {
+  return ({ color }: { color: string }) => <Text style={{ color, fontSize: 20, lineHeight: 24 }}>{glyph}</Text>;
+}
+
 function TabsScreen() {
   const lang = currentLang();
   const rights = useRights();
   return (
     <Tabs.Navigator>
-      {rights.leads ? <Tabs.Screen name="Today" component={TodayNarrow} options={{ title: t(lang, 'today') }} /> : null}
-      {rights.search ? <Tabs.Screen name="Search" component={SearchNarrow} options={{ title: t(lang, 'searchTab') }} /> : null}
-      {rights.leads ? <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab') }} /> : null}
-      <Tabs.Screen name="Map" component={MapScreen} options={{ title: t(lang, 'mapTab') }} />
-      <Tabs.Screen name="Units" component={UnitsScreen} options={{ title: t(lang, 'units') }} />
-      <Tabs.Screen name="More" component={MoreNarrow} options={{ title: t(lang, 'more') }} />
+      {rights.leads ? <Tabs.Screen name="Today" component={TodayNarrow} options={{ title: t(lang, 'today'), tabBarIcon: tabIcon('⌂') }} /> : null}
+      {rights.search ? <Tabs.Screen name="Search" component={SearchNarrow} options={{ title: t(lang, 'searchTab'), tabBarIcon: tabIcon('⌕') }} /> : null}
+      {rights.leads ? <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab'), tabBarIcon: tabIcon('◉') }} /> : null}
+      <Tabs.Screen name="Map" component={MapScreen} options={{ title: t(lang, 'mapTab'), tabBarIcon: tabIcon('◎') }} />
+      <Tabs.Screen name="Units" component={UnitsScreen} options={{ title: t(lang, 'units'), tabBarIcon: tabIcon('▤') }} />
+      <Tabs.Screen name="More" component={MoreNarrow} options={{ title: t(lang, 'more'), tabBarIcon: tabIcon('≡') }} />
     </Tabs.Navigator>
   );
 }
