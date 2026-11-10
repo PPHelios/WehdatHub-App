@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WehdatHub mark (copper and azure bars) inside the adaptive icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.4"
+        android:scaleY="0.4"
+        android:translateX="23.2"
+        android:translateY="22">
+        <path android:fillColor="#DC6A3D" android:pathData="M10,20 L32,55 L32,150 L10,150 Z" />
+        <path android:fillColor="#DC6A3D" android:pathData="M38,95 L60,70 L60,150 L38,150 Z" />
+        <path android:fillColor="#4E9FEA" android:pathData="M66,62 L88,35 L88,150 L66,150 Z" />
+        <path android:fillColor="#DC6A3D" android:pathData="M94,70 L116,95 L116,150 L94,150 Z" />
+        <path android:fillColor="#DC6A3D" android:pathData="M122,55 L144,20 L144,150 L122,150 Z" />
+    </group>
+</vector>

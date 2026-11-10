@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { formatEgp, type MapFilters } from '@wehdathub/shared';
 import { api } from '../api';
+import { API_BASE_URL } from '../config';
 import { currentLang } from '../auth';
 import { Chips } from '../components/Chips';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
@@ -62,7 +63,7 @@ export function MapScreen() {
         <Chips testID="map-rooms" value={rooms} options={roomOptions} onChange={(v) => setRooms(v)} />
       </View>
       <View style={styles.flex}>
-        <WebView ref={web} testID="map-web" style={styles.flex} originWhitelist={['*']} source={{ html, baseUrl: 'https://wehdathub.app' }} javaScriptEnabled onMessage={onMessage} onLoadStart={() => setReady(false)} />
+        <WebView ref={web} testID="map-web" style={styles.flex} originWhitelist={['*']} source={{ html, baseUrl: API_BASE_URL }} javaScriptEnabled onMessage={onMessage} onLoadStart={() => setReady(false)} />
         {map.isFetching ? <ActivityIndicator style={styles.busy} color={colors.primary} /> : null}
       </View>
       {picked ? (

@@ -7,6 +7,8 @@ export type StatusCounts = Record<UnitStatus, number>;
 export interface Rights { addUnits: boolean; editUnits: boolean; leads: boolean; search: boolean; team: boolean; owners: boolean; manager: boolean; agencyOwner: boolean; dataEntry: boolean; teamLead: boolean }
 export interface ApiBroker { id: string; name: string; role: string; lang: Lang }
 export interface ApiAgency { id: string; name: string; slug: string; logoUrl: string | null }
+/** Present only for the test number: its roles, its own role, and whether it may view NCH (read only). */
+export interface ApiTestSwitch { roles: string[]; role: string; canView: boolean; viewing: boolean }
 export interface LoginResult { token: string; expiresAt: string; broker: ApiBroker; agency: ApiAgency }
 
 export interface ApiUnit {
@@ -226,7 +228,9 @@ export function createApiClient(opts: ApiClientOptions) {
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
-    me: () => request<{ broker: ApiBroker; agency: ApiAgency; rights: Rights; expiresAt: string }>('GET', '/me'),
+    me: () => request<{ broker: ApiBroker; agency: ApiAgency; rights: Rights; expiresAt: string; testSwitch: ApiTestSwitch | null }>('GET', '/me'),
+    testRole: (role: string) => request<{ ok: true; role: string }>('POST', '/test-role', { role }),
+    testView: (view: 'home' | 'other') => request<{ ok: true; viewing: boolean }>('POST', '/test-view', { view }),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
     map: (f: MapFilters = {}) => request<MapData>('GET', '/map', undefined, { ...f }),
     mapUnits: (placeId: string, f: MapFilters = {}) => request<MapUnits>('GET', `/map/places/${encodeURIComponent(placeId)}/units`, undefined, { ...f }),

@@ -10,7 +10,7 @@ export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListIte
   const facts = [unit.bedrooms !== null ? `${unit.bedrooms} ${t(lang, 'beds')}` : null, unit.bathrooms !== null ? `${unit.bathrooms} ${t(lang, 'baths')}` : null, unit.area !== null ? `${Math.round(unit.area)} ${t(lang, 'sqm')}` : null].filter(Boolean);
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.9 : 1 }]}>
-      {unit.photo ? <Image source={{ uri: unit.photo }} style={styles.photo} resizeMode="cover" /> : <View style={[styles.photo, { backgroundColor: colors.border }]} />}
+      {unit.photo ? <Image source={{ uri: unit.photo }} style={styles.photo} resizeMode="cover" /> : null}
       <View style={styles.info}>
         <View style={styles.row}>
           <Text style={[styles.code, { color: colors.primary }]}>{unit.code}</Text>
