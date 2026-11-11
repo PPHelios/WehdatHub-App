@@ -152,7 +152,6 @@ export function PortalScreen() {
 /** Links sent to clients and whether they were opened. */
 export function LinksScreen() {
   const { colors } = useTheme();
-  const lang = currentLang();
   const q = useQuery({ queryKey: ['openedLinks'], queryFn: () => api.openedLinks() });
   return (
     <Gate q={q}>
