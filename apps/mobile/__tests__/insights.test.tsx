@@ -7,7 +7,7 @@ import { api } from '../src/api';
 jest.mock('../src/api', () => ({ api: { dashboard: jest.fn(), pricePerM2: jest.fn(), winLoss: jest.fn(), report: jest.fn() } }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: jest.fn() }) }));
 const m = api as unknown as Record<string, jest.Mock>;
-const wrap = (ui: React.ReactElement) => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
+const wrap = async (ui: React.ReactElement) => await render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -31,7 +31,7 @@ test('win and loss shows the summary', async () => {
 
 test('a report is sent', async () => {
   m.report.mockResolvedValue({ ok: true, id: 9 });
-  wrap(<ReportScreen />);
+  await wrap(<ReportScreen />);
   await fireEvent.changeText(screen.getByTestId('report-text'), 'it broke');
   await fireEvent.press(screen.getByTestId('report-send'));
   await waitFor(() => expect(m.report).toHaveBeenCalledWith('it broke'));
