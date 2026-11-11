@@ -4,7 +4,7 @@ import { FlashList } from '@shopify/flash-list';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { ApiUnitListItem, SearchResult, UnitStatus } from '@wehdathub/shared';
+import type { ApiUnitListItem, SearchResult, UnitStatus, VoiceFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
@@ -14,14 +14,13 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
-import { ensureMic, startRecording, stopRecording } from '../voice';
+import { HoldMic } from '../components/HoldMic';
 
 export function SearchScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [text, setText] = useState('');
-  const [recording, setRecording] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const search = useMutation<SearchResult, Error, { q: string; drop?: boolean; status?: UnitStatus }>({ mutationFn: ({ q, drop, status }) => api.search(q, { drop, status }) });
   // Active units first; Sold and Archived are one tap away, with their counts from the start. More results load on demand.
@@ -54,21 +53,13 @@ export function SearchScreen() {
     }
   };
 
-  const toggleMic = async () => {
+  const onVoice = async (file: VoiceFile) => {
     setVoiceError(null);
     try {
-      if (!recording) {
-        if (!(await ensureMic())) return setVoiceError(t(lang, 'micDenied'));
-        await startRecording();
-        return setRecording(true);
-      }
-      setRecording(false);
-      const file = await stopRecording();
       const { q } = await api.voiceToText(file);
       setText(q);
       await run(q);
     } catch (e) {
-      setRecording(false);
       setVoiceError(errorText(e, lang));
     }
   };
@@ -97,7 +88,12 @@ export function SearchScreen() {
     <FlashList
       data={[...data.items, ...extra]}
       keyExtractor={(u) => u.id}
-      ListHeaderComponent={<Text style={[styles.count, { color: colors.muted }]}>{data.total} {t(lang, 'results')}{data.relaxed ? ` · ${t(lang, 'relaxedNote')}` : ''}</Text>}
+      ListHeaderComponent={
+        <View>
+          <Text style={[styles.count, { color: colors.muted }]}>{data.total} {t(lang, 'results')}{data.relaxed ? ` · ${t(lang, 'relaxedNote')}` : ''}</Text>
+          {data.ignoredTerms?.length ? <Text testID="ignored-note" style={[styles.count, { color: colors.accent }]}>{t(lang, 'ignoredNote')} {data.ignoredTerms.join(' · ')}</Text> : null}
+        </View>
+      }
       renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => nav.navigate('Unit', { code: item.code })} />}
       onEndReached={() => { if (data.items.length + extra.length < data.total) loadMore(); }}
       onEndReachedThreshold={0.6}
@@ -110,7 +106,7 @@ export function SearchScreen() {
       <TextInput testID="search-input" style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'searchPlaceholder')} placeholderTextColor={colors.muted} returnKeyType="search" onSubmitEditing={() => run(text)} multiline={false} />
       <View style={styles.row}>
         <View style={styles.flex}><Button testID="search-go" label={t(lang, 'searchBtn')} loading={search.isPending} onPress={() => run(text)} /></View>
-        <View style={styles.flex}><Button testID="search-mic" label={recording ? t(lang, 'micStop') : t(lang, 'mic')} variant="secondary" onPress={toggleMic} /></View>
+        <View style={styles.flex}><HoldMic testID="search-mic" label={t(lang, 'mic')} onFile={onVoice} onError={setVoiceError} /></View>
       </View>
       {voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{voiceError}</Text> : null}
       {data?.counts && last ? (

@@ -5,7 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError } from '@wehdathub/shared';
-import type { PlaceSuggestion, UnitFields, UploadFile } from '@wehdathub/shared';
+import type { PlaceSuggestion, UnitFields, UploadFile, VoiceFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
@@ -21,7 +21,7 @@ import { MAX_PHOTOS, pickPhotos, takePhoto } from '../photos';
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { radius, spacing, useTheme } from '../theme';
 import { tick } from '../haptics';
-import { ensureMic, startRecording, stopRecording } from '../voice';
+import { HoldMic } from '../components/HoldMic';
 
 const str = (v: UnitFields[string]): string => (typeof v === 'string' ? v : '');
 /** In edit mode a photo already on the unit is listed with this type and its image id as name. */
@@ -44,7 +44,6 @@ export function AddUnitScreen() {
   const [describe, setDescribe] = useState('');
   const [photos, setPhotos] = useState<UploadFile[]>([]);
   const [photoAi, setPhotoAi] = useState(false);
-  const [recording, setRecording] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -125,18 +124,11 @@ export function AddUnitScreen() {
     return () => clearTimeout(h);
   }, [fields, photos, describe, photoAi, ready, editCode]);
 
-  const toggleMic = async () => {
+  const onVoice = async (file: VoiceFile) => {
     setError(null);
     try {
-      if (!recording) {
-        if (!(await ensureMic())) return setError(t(lang, 'micDenied'));
-        await startRecording();
-        return setRecording(true);
-      }
-      setRecording(false);
-      await fill({ voice: await stopRecording() });
+      await fill({ voice: file });
     } catch (e) {
-      setRecording(false);
       setError(errorText(e, lang));
     }
   };
@@ -222,7 +214,7 @@ export function AddUnitScreen() {
           <Field testID="describe" label={t(lang, 'describePlaceholder')} value={describe} onChangeText={setDescribe} multiline />
           <View style={styles.row}>
             <View style={styles.flex}><Button testID="fill" label={t(lang, 'fillBtn')} onPress={() => fill({ describe })} disabled={!describe.trim()} /></View>
-            <View style={styles.flex}><Button testID="unit-mic" label={recording ? t(lang, 'micStop') : t(lang, 'mic')} variant="secondary" onPress={toggleMic} /></View>
+            <View style={styles.flex}><HoldMic testID="unit-mic" label={t(lang, 'mic')} onFile={onVoice} onError={setError} /></View>
           </View>
         </>
       )}

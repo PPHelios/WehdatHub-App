@@ -9,7 +9,7 @@ import * as draft from '../src/draft';
 jest.mock('../src/api', () => ({ api: { extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn() } }));
 const mockReplace = jest.fn();
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ replace: mockReplace }), useRoute: () => ({ params: undefined }) }));
-jest.mock('../src/voice', () => ({ ensureMic: jest.fn().mockResolvedValue(true), startRecording: jest.fn(), stopRecording: jest.fn() }));
+jest.mock('../src/voice', () => ({ ensureMic: jest.fn().mockResolvedValue(true), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
 const m = api as unknown as { extractUnit: jest.Mock; reviewUnit: jest.Mock; createUnit: jest.Mock };
 
 const wrap = () => render(<QueryClientProvider client={new QueryClient()}><AddUnitScreen /></QueryClientProvider>);
