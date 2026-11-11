@@ -128,6 +128,7 @@ export function ReportScreen() {
   const ar = lang === 'ar';
   const send = async () => {
     setMsg(null);
+    if (text.trim().length < 3) return;
     try {
       const r = await api.report(text.trim());
       setMsg(`${ar ? 'وصلنا البلاغ' : 'Report sent'} #R${r.id}`);
@@ -141,7 +142,7 @@ export function ReportScreen() {
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
       <Field label={ar ? 'اكتب اللي حصل واللي كنت متوقعه' : 'What happened and what you expected'} value={text} onChangeText={setText} multiline testID="report-text" />
       {msg ? <Text testID="report-msg" style={{ color: colors.text }}>{msg}</Text> : null}
-      <Button testID="report-send" label={ar ? 'ابعت البلاغ' : 'Send report'} onPress={send} disabled={text.trim().length < 3} />
+      <Button testID="report-send" label={ar ? 'ابعت البلاغ' : 'Send report'} onPress={send} />
     </ScrollView>
   );
 }
