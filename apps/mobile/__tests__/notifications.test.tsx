@@ -43,3 +43,15 @@ test('saving sends only the alerts the person may change and shows the saved not
   expect(Object.keys(body.kinds)).toEqual(['follow_up']);
   expect(body.reminderMinutes).toEqual([30, 60]);
 });
+
+test('WhatsApp is not offered, and an old WhatsApp choice is saved as the default', async () => {
+  const old = { ...data, kinds: { follow_up: { ...data.kinds.follow_up, channel: 'whatsapp' } } };
+  m.notificationSettings.mockResolvedValue(old);
+  m.saveNotificationSettings.mockResolvedValue(data);
+  wrap();
+  await waitFor(() => expect(screen.getByTestId('kind-follow_up')).toBeTruthy());
+  expect(screen.queryByText(/واتساب|WhatsApp/i)).toBeNull();
+  await fireEvent.press(screen.getByTestId('save-notifications'));
+  await waitFor(() => expect(m.saveNotificationSettings).toHaveBeenCalled());
+  expect(m.saveNotificationSettings.mock.calls[0][0].kinds.follow_up.channel).toBe('web');
+});
