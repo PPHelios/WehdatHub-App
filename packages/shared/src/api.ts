@@ -143,6 +143,7 @@ export interface MapUnit {
   area: number | null;
   price: number | null;
   priceText: string | null;
+  photo?: string | null;
 }
 export interface MapUnits {
   place: { id: string; name_en: string | null; name_ar: string | null };

@@ -18,6 +18,7 @@ import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { useRights } from '../rights';
+import { waNumber } from './UnitScreen';
 import { radius, spacing, useTheme } from '../theme';
 
 type FollowUp = { at: Date; kind: 'call' | 'viewing' };
@@ -76,7 +77,10 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
       {message ? <Text testID="lead-message" style={{ color: colors.danger }}>{message}</Text> : null}
 
       {lead.phones.map((p) => (
-        <Button key={p} label={`📞 ${t(lang, 'call')} ${p}`} variant="secondary" onPress={() => Linking.openURL(`tel:${p.startsWith('+') ? p : `+${p}`}`)} />
+        <View key={p} style={styles.phoneRow}>
+          <View style={styles.phoneBtn}><Button label={`📞 ${t(lang, 'call')} ${p}`} variant="secondary" onPress={() => Linking.openURL(`tel:${p.startsWith('+') ? p : `+${p}`}`)} /></View>
+          <View style={styles.phoneBtn}><Button testID={`whatsapp-${p}`} label={`💬 ${t(lang, 'whatsappClient')}`} variant="secondary" onPress={() => { Linking.openURL(`https://wa.me/${waNumber(p)}`).catch(() => undefined); }} /></View>
+        </View>
       ))}
       <Button testID="lead-called" label={`✓ ${t(lang, 'iCalled')}`} loading={act.isPending} onPress={() => run((l) => api.leadCalled(l.ref, l.version))} />
 
@@ -129,6 +133,8 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
 }
 
 const styles = StyleSheet.create({
+  phoneRow: { flexDirection: 'row', gap: spacing.sm },
+  phoneBtn: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },
   title: { fontSize: 22, fontWeight: '800' },
   h: { fontSize: 16, fontWeight: '700', marginTop: spacing.md },

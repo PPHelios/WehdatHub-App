@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
@@ -83,9 +83,12 @@ export function MapScreen() {
               ListEmptyComponent={<Text style={{ color: colors.muted }}>{t(lang, 'noUnitsHere')}</Text>}
               renderItem={({ item }) => (
                 <Pressable accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: item.code })} style={[styles.row, { borderColor: colors.border }]}>
-                  <Text style={[styles.code, { color: colors.text }]}>{item.code}</Text>
-                  <Text style={{ color: colors.muted }} numberOfLines={1}>{[item.bedrooms !== null ? `${item.bedrooms} ${t(lang, 'roomsN')}` : null, item.area ? `${item.area} m²` : null].filter(Boolean).join(' · ')}</Text>
-                  {item.price !== null ? <Text style={[styles.price, { color: colors.text }]}>{formatEgp(item.price)} {t(lang, 'egp')}</Text> : null}
+                  {item.photo ? <Image testID="map-thumb" source={{ uri: item.photo }} style={[styles.thumb, { backgroundColor: colors.card }]} accessibilityIgnoresInvertColors /> : <View style={[styles.thumb, { backgroundColor: colors.card }]} />}
+                  <View style={styles.rowText}>
+                    <Text style={[styles.code, { color: colors.text }]}>{item.code}</Text>
+                    <Text style={{ color: colors.muted }} numberOfLines={1}>{[item.bedrooms !== null ? `${item.bedrooms} ${t(lang, 'roomsN')}` : null, item.area ? `${item.area} m²` : null].filter(Boolean).join(' · ')}</Text>
+                    {item.price !== null ? <Text style={[styles.price, { color: colors.text }]}>{formatEgp(item.price)} {t(lang, 'egp')}</Text> : null}
+                  </View>
                 </Pressable>
               )}
             />
@@ -103,7 +106,9 @@ const styles = StyleSheet.create({
   sheet: { maxHeight: '45%', borderTopWidth: 1, borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md, padding: spacing.lg, gap: spacing.sm },
   sheetHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sheetTitle: { fontSize: 18, fontWeight: '800', flex: 1 },
-  row: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.sm, gap: 2 },
+  row: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  rowText: { flex: 1, gap: 2 },
+  thumb: { width: 64, height: 64, borderRadius: radius.sm },
   close: { fontWeight: '700' },
   code: { fontWeight: '700' },
   price: { fontWeight: '800' },

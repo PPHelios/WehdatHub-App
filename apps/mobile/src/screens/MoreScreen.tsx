@@ -79,8 +79,8 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLin
           ) : null}
         </View>
       ) : null}
-      <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'lockSetting')}</Text><Switch testID="lock-switch" value={enabled} onValueChange={toggleLock} /></View>
-      {lockMsg ? <Text style={{ color: colors.danger }}>{lockMsg}</Text> : null}
+      <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'lockSetting')}</Text><Switch testID="lock-switch" value={enabled} onValueChange={toggleLock} trackColor={{ true: colors.primary, false: colors.border }} thumbColor={enabled ? colors.onPrimary : colors.muted} /></View>
+      {lockMsg ? <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, textAlign: lang === 'ar' ? 'right' : 'left' }}>{lockMsg}</Text> : null}
       <Button testID="sign-out" label={t(lang, 'signOut')} onPress={out} loading={busy} variant="secondary" />
     </ScrollView>
   );

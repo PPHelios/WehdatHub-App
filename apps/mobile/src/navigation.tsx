@@ -63,8 +63,19 @@ function tabIcon(glyph: string) {
 function TabsScreen() {
   const lang = currentLang();
   const rights = useRights();
+  const { colors } = useTheme();
   return (
-    <Tabs.Navigator>
+    <Tabs.Navigator
+      screenOptions={{
+        headerTitleAlign: 'center',
+        headerStyle: { backgroundColor: colors.bg },
+        headerTitleStyle: { color: colors.text },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.muted,
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.border },
+      }}
+    >
       {rights.leads ? <Tabs.Screen name="Today" component={TodayNarrow} options={{ title: t(lang, 'today'), tabBarIcon: tabIcon('⌂') }} /> : null}
       {rights.search ? <Tabs.Screen name="Search" component={SearchNarrow} options={{ title: t(lang, 'searchTab'), tabBarIcon: tabIcon('⌕') }} /> : null}
       {rights.leads ? <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab'), tabBarIcon: tabIcon('◉') }} /> : null}
