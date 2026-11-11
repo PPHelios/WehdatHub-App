@@ -11,6 +11,12 @@ import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
 
 const REMINDERS = [30, 60, 120] as const;
+/** WhatsApp is not an alert channel any more: an old saved choice shows as the default (both when Telegram is linked, else web). */
+function noWhatsapp(s: NotificationSettings): NotificationSettings {
+  const fallback: NotifyChannel = s.telegramLinked ? 'both' : 'web';
+  const kinds = Object.fromEntries(Object.entries(s.kinds).map(([k, v]) => [k, v.channel === 'whatsapp' ? { ...v, channel: fallback } : v]));
+  return { ...s, kinds };
+}
 const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
 /** The same choices as the website's Settings: per alert type on/off, channel and frequency; reminders; quiet hours. */
@@ -23,7 +29,7 @@ export function NotificationsScreen() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; bad: boolean } | null>(null);
   useEffect(() => {
-    if (q.data) setDraft(q.data);
+    if (q.data) setDraft(noWhatsapp(q.data));
   }, [q.data]);
 
   if (q.isLoading) return <Loading />;
@@ -32,7 +38,6 @@ export function NotificationsScreen() {
   const channels: { value: NotifyChannel; label: string }[] = [
     ...(draft.telegramLinked ? [{ value: 'both' as const, label: t(lang, 'chBoth') }, { value: 'telegram' as const, label: t(lang, 'chTelegram') }] : []),
     { value: 'web', label: t(lang, 'chWeb') },
-    { value: 'whatsapp', label: t(lang, 'chWhatsapp') },
   ];
   const freqs: { value: NotifyFrequency; label: string }[] = [
     { value: 'immediate', label: t(lang, 'fqImmediate') },
@@ -58,7 +63,7 @@ export function NotificationsScreen() {
       }
       const saved = await api.saveNotificationSettings({ kinds, reminderMinutes: draft.reminderMinutes, quiet: draft.quiet });
       queries.setQueryData(['notification-settings'], saved);
-      setDraft(saved);
+      setDraft(noWhatsapp(saved));
       setMsg({ text: t(lang, 'notifSaved'), bad: false });
     } catch {
       setMsg({ text: t(lang, 'notifSaveFail'), bad: true });
