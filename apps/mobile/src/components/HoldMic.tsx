@@ -96,7 +96,7 @@ export function HoldMic({ label, testID, onFile, onError, disabled = false }: Pr
       accessibilityState={{ busy: state === 'sending', disabled }}
       onStartShouldSetResponder={() => !disabled}
       onResponderTerminationRequest={() => false}
-      onResponderGrant={grant}
+      onResponderGrant={(e) => { void grant(e); }}
       onResponderMove={move}
       onResponderRelease={release}
       onResponderTerminate={() => { away.current = true; release(); }}
