@@ -22,7 +22,7 @@ import { useRights } from '../rights';
 import { stopPush } from '../push';
 import { spacing, useTheme } from '../theme';
 
-export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications') => void } = {}) {
+export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Owners' | 'Requests' | 'ActivityLog') => void } = {}) {
   const { colors } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
@@ -72,6 +72,9 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLin
       {onOpen ? <Button testID="open-calendar" label={`🗓 ${t(lang, 'calendar')}`} variant="secondary" onPress={() => onOpen('Calendar')} /> : null}
       {onOpen ? <Button testID="open-ask" label={`💬 ${t(lang, 'ask')}`} variant="secondary" onPress={() => onOpen('Ask')} /> : null}
       {onOpen && rights.team ? <Button testID="open-team" label={`👥 ${t(lang, 'team')}`} variant="secondary" onPress={() => onOpen('Team')} /> : null}
+      {onOpen && rights.owners ? <Button testID="open-owners" label={`👤 ${t(lang, 'owners')}`} variant="secondary" onPress={() => onOpen('Owners')} /> : null}
+      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-requests" label={`🔒 ${t(lang, 'requests')}`} variant="secondary" onPress={() => onOpen('Requests')} /> : null}
+      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-activity" label={`🗂 ${t(lang, 'activityLog')}`} variant="secondary" onPress={() => onOpen('ActivityLog')} /> : null}
       {onOpen ? <Button testID="open-links" label={`🔗 ${t(lang, 'sentLinks')}`} variant="secondary" onPress={() => onOpen('SentLinks')} /> : null}
       {onOpen ? <Button testID="open-notifications" label={`🔔 ${t(lang, 'notifications')}`} variant="secondary" onPress={() => onOpen('Notifications')} /> : null}
       {ts ? (
