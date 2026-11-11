@@ -39,7 +39,7 @@ export function MapScreen() {
   const [panel, setPanel] = useState(false);
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
-  const suggestions = usePlaceSuggestions(searching ? query : '').filter((p) => p.lat !== null && p.lng !== null);
+  const suggestions = usePlaceSuggestions(searching ? query : '').filter((p) => p.lat != null && p.lng != null);
 
   const filters: MapFilters = useMemo(
     () => ({
@@ -56,10 +56,10 @@ export function MapScreen() {
   const active = [ptype, fin, furn, pmin, pmax].filter(Boolean).length;
   const reset = () => { setPtype(''); setFin(''); setFurn(''); setPmin(''); setPmax(''); };
   // Picking a suggestion moves the map to the place (a compound closer than an area).
-  const goTo = (p: { kind: string; name_en: string | null; name_ar: string | null; lat: number | null; lng: number | null }) => {
+  const goTo = (p: { kind: string; name_en: string | null; name_ar: string | null; lat?: number | null; lng?: number | null }) => {
     setQuery(lang === 'en' ? p.name_en || p.name_ar || '' : p.name_ar || p.name_en || '');
     setSearching(false);
-    if (p.lat !== null && p.lng !== null) web.current?.injectJavaScript(`window.flyTo(${p.lat},${p.lng},${p.kind === 'compound' ? 15 : p.kind === 'subzone' ? 13 : 12});true;`);
+    if (p.lat != null && p.lng != null) web.current?.injectJavaScript(`window.flyTo(${p.lat},${p.lng},${p.kind === 'compound' ? 15 : p.kind === 'subzone' ? 13 : 12});true;`);
   };
   const map = useQuery({ queryKey: ['map', filters], queryFn: () => api.map(filters), placeholderData: (prev) => prev });
   const units = useQuery({ queryKey: ['mapUnits', picked?.id, filters], queryFn: () => api.mapUnits(picked!.id, filters), enabled: !!picked });
