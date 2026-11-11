@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Row } from '@wehdathub/shared';
+
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
