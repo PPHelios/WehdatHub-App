@@ -35,7 +35,7 @@ test('a change made elsewhere shows a clear message and reloads', async () => {
 });
 
 test('the WhatsApp button opens a chat with the lead in international form', async () => {
-  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
   await wrap();
   await waitFor(() => expect(screen.getByTestId('whatsapp-201012345678')).toBeTruthy());
   await fireEvent.press(screen.getByTestId('whatsapp-201012345678'));
