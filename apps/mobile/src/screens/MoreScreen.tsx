@@ -22,7 +22,7 @@ import { useRights } from '../rights';
 import { stopPush } from '../push';
 import { spacing, useTheme } from '../theme';
 
-export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Owners' | 'Requests' | 'ActivityLog') => void } = {}) {
+export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Prices' | 'WinLoss' | 'Report') => void } = {}) {
   const { colors } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
@@ -75,6 +75,10 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLin
       {onOpen && rights.owners ? <Button testID="open-owners" label={`👤 ${t(lang, 'owners')}`} variant="secondary" onPress={() => onOpen('Owners')} /> : null}
       {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-requests" label={`🔒 ${t(lang, 'requests')}`} variant="secondary" onPress={() => onOpen('Requests')} /> : null}
       {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-activity" label={`🗂 ${t(lang, 'activityLog')}`} variant="secondary" onPress={() => onOpen('ActivityLog')} /> : null}
+      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-dashboard" label={`📊 ${t(lang, 'dashboard')}`} variant="secondary" onPress={() => onOpen('Dashboard')} /> : null}
+      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-winloss" label={`📉 ${t(lang, 'winLoss')}`} variant="secondary" onPress={() => onOpen('WinLoss')} /> : null}
+      {onOpen ? <Button testID="open-prices" label={`💰 ${t(lang, 'prices')}`} variant="secondary" onPress={() => onOpen('Prices')} /> : null}
+      {onOpen ? <Button testID="open-report" label={`🐞 ${t(lang, 'report')}`} variant="secondary" onPress={() => onOpen('Report')} /> : null}
       {onOpen ? <Button testID="open-links" label={`🔗 ${t(lang, 'sentLinks')}`} variant="secondary" onPress={() => onOpen('SentLinks')} /> : null}
       {onOpen ? <Button testID="open-notifications" label={`🔔 ${t(lang, 'notifications')}`} variant="secondary" onPress={() => onOpen('Notifications')} /> : null}
       {ts ? (
