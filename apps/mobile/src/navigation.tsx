@@ -1,11 +1,12 @@
 import React from 'react';
+import { ActivityIndicator, Text, View } from 'react-native';
 import type { UploadFile } from '@wehdathub/shared';
 import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, currentLang } from './auth';
-import { Loading } from './components/StateViews';
+import { Logo } from './components/Logo';
 import { AddUnitScreen } from './screens/AddUnitScreen';
 import { LeadScreen } from './screens/LeadScreen';
 import { LeadsScreen } from './screens/LeadsScreen';
@@ -15,6 +16,7 @@ import { LoginScreen } from './screens/LoginScreen';
 import { MoreScreen } from './screens/MoreScreen';
 import { CalendarScreen } from './screens/CalendarScreen';
 import { SentLinksScreen } from './screens/SentLinksScreen';
+import { NotificationsScreen } from './screens/NotificationsScreen';
 import { TeamMemberScreen, TeamScreen } from './screens/TeamScreen';
 import { AskScreen } from './screens/AskScreen';
 import { UnitScreen } from './screens/UnitScreen';
@@ -34,6 +36,7 @@ function MoreTab() {
 const MoreNarrow = narrow(MoreTab);
 const CalendarNarrow = narrow(CalendarScreen);
 const SentLinksNarrow = narrow(SentLinksScreen);
+const NotificationsNarrow = narrow(NotificationsScreen);
 const TeamNarrow = narrow(TeamScreen);
 const TeamMemberNarrow = narrow(TeamMemberScreen);
 const AskNarrow = narrow(AskScreen);
@@ -45,24 +48,41 @@ import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
-export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Team: undefined; TeamMember: { id: string; name: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
+export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; TeamMember: { id: string; name: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Map: undefined; Units: undefined; More: undefined };
 
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tabs = createBottomTabNavigator<TabParams>();
 
+/** Tab bar glyphs: a plain text symbol per tab (a stopgap until the icon set lands with the design pass). */
+function tabIcon(glyph: string) {
+  return ({ color }: { color: string }) => <Text style={{ color, fontSize: 20, lineHeight: 24 }}>{glyph}</Text>;
+}
+
 function TabsScreen() {
   const lang = currentLang();
   const rights = useRights();
+  const { colors } = useTheme();
   return (
-    <Tabs.Navigator>
-      {rights.leads ? <Tabs.Screen name="Today" component={TodayNarrow} options={{ title: t(lang, 'today') }} /> : null}
-      {rights.search ? <Tabs.Screen name="Search" component={SearchNarrow} options={{ title: t(lang, 'searchTab') }} /> : null}
-      {rights.leads ? <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab') }} /> : null}
-      <Tabs.Screen name="Map" component={MapScreen} options={{ title: t(lang, 'mapTab') }} />
-      <Tabs.Screen name="Units" component={UnitsScreen} options={{ title: t(lang, 'units') }} />
-      <Tabs.Screen name="More" component={MoreNarrow} options={{ title: t(lang, 'more') }} />
+    <Tabs.Navigator
+      screenOptions={{
+        headerTitleAlign: 'center',
+        headerLeft: () => <View style={{ paddingHorizontal: 12 }}><Logo size={0.3} compact /></View>,
+        headerStyle: { backgroundColor: colors.bg },
+        headerTitleStyle: { color: colors.text },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.muted,
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.border },
+      }}
+    >
+      {rights.leads ? <Tabs.Screen name="Today" component={TodayNarrow} options={{ title: t(lang, 'today'), tabBarIcon: tabIcon('⌂') }} /> : null}
+      {rights.search ? <Tabs.Screen name="Search" component={SearchNarrow} options={{ title: t(lang, 'searchTab'), tabBarIcon: tabIcon('⌕') }} /> : null}
+      {rights.leads ? <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab'), tabBarIcon: tabIcon('◉') }} /> : null}
+      <Tabs.Screen name="Map" component={MapScreen} options={{ title: t(lang, 'mapTab'), tabBarIcon: tabIcon('◎') }} />
+      <Tabs.Screen name="Units" component={UnitsScreen} options={{ title: t(lang, 'units'), tabBarIcon: tabIcon('▤') }} />
+      <Tabs.Screen name="More" component={MoreNarrow} options={{ title: t(lang, 'more'), tabBarIcon: tabIcon('≡') }} />
     </Tabs.Navigator>
   );
 }
@@ -72,7 +92,14 @@ export function RootNavigation() {
   const { colors, scheme } = useTheme();
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
   const theme = { ...base, colors: { ...base.colors, primary: colors.primary, background: colors.bg, card: colors.bg, text: colors.text, border: colors.border } };
-  if (status === 'loading') return <Loading />;
+  if (status === 'loading') {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: 32 }}>
+        <Logo />
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
   return (
     <NavigationContainer theme={theme} ref={navigationRef}>
       {status === 'signedOut' ? (
@@ -88,6 +115,7 @@ export function RootNavigation() {
           <Stack.Screen name="NewLead" component={NewLeadNarrow} options={{ title: t(currentLang(), 'newLead') }} />
           <Stack.Screen name="Calendar" component={CalendarNarrow} options={{ title: t(currentLang(), 'calendar') }} />
           <Stack.Screen name="SentLinks" component={SentLinksNarrow} options={{ title: t(currentLang(), 'sentLinks') }} />
+          <Stack.Screen name="Notifications" component={NotificationsNarrow} options={{ title: t(currentLang(), 'notifications') }} />
           <Stack.Screen name="Team" component={TeamNarrow} options={{ title: t(currentLang(), 'team') }} />
           <Stack.Screen name="TeamMember" component={TeamMemberNarrow} options={({ route }) => ({ title: route.params.name })} />
           <Stack.Screen name="Ask" component={AskNarrow} options={{ title: t(currentLang(), 'ask') }} />
