@@ -1,10 +1,8 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
 import type { PlaceSuggestion } from '@wehdathub/shared';
-import { api } from '../api';
 import { currentLang } from '../auth';
-import { useDebounced } from '../useDebounced';
+import { usePlaceSuggestions } from '../usePlaceSuggestions';
 import { radius, spacing, useTheme } from '../theme';
 import { Field } from './Field';
 
@@ -17,10 +15,9 @@ const name = (p: PlaceSuggestion, lang: string) => (lang === 'en' ? p.name_en ||
 export function PlaceInput({ label, value, onChangeText, onPick, testID }: { label: string; value: string; onChangeText: (v: string) => void; onPick: (p: PlaceSuggestion) => void; testID?: string }) {
   const { colors } = useTheme();
   const lang = currentLang();
-  const typed = useDebounced(value.trim(), 250);
-  const found = useQuery({ queryKey: ['place-suggest', typed], queryFn: () => api.placeSuggest(typed), enabled: typed.length >= 2, staleTime: 60_000 });
+  const found = usePlaceSuggestions(value);
   // The list closes once the typed text is exactly one entry's name.
-  const items = (found.data?.items ?? []).filter((p) => name(p, lang) !== value.trim());
+  const items = found.filter((p) => name(p, lang) !== value.trim());
   return (
     <View style={styles.wrap}>
       <Field testID={testID} label={label} value={value} onChangeText={onChangeText} autoCorrect={false} />

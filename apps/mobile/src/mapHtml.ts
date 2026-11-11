@@ -24,6 +24,7 @@ export function mapHtml(tilesUrl: string, lang: 'ar' | 'en'): string {
     });
     if(pts.length&&!fitted){fitted=true;map.fitBounds(pts,{padding:[40,40],maxZoom:13});}
   };
+  window.flyTo=function(lat,lng,z){map.flyTo([lat,lng],z||14,{duration:0.8});};
   post({type:'ready'});
 })();
 </script></body></html>`;

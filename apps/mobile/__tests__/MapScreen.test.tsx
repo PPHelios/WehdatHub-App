@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MapScreen } from '../src/screens/MapScreen';
 import { api } from '../src/api';
+import { usePlaces } from '../src/placeList';
 
 const mockNavigate = jest.fn();
 jest.mock('../src/api', () => ({ api: { map: jest.fn(), mapUnits: jest.fn() } }));
@@ -35,4 +36,37 @@ test('a filter asks the server again', async () => {
   await waitFor(() => expect(screen.getByTestId('map-deal')).toBeTruthy());
   fireEvent.press(screen.getByText(/^Sale$|^بيع$/));
   await waitFor(() => expect(mocked.map).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'sale' })));
+});
+
+test('the filter panel sends type, finishing, furnishing and the budget as numbers', async () => {
+  mocked.map.mockResolvedValue(data);
+  await wrap();
+  await waitFor(() => expect(screen.getByTestId('map-filters-toggle')).toBeTruthy());
+  await fireEvent.press(screen.getByTestId('map-filters-toggle'));
+  await waitFor(() => expect(screen.getByTestId('map-pmax')).toBeTruthy());
+  await fireEvent.changeText(screen.getByTestId('map-pmax'), '6m');
+  await fireEvent.changeText(screen.getByTestId('map-pmin'), '250k');
+  await fireEvent.press(screen.getByText(/^Fully finished$|^تشطيب كامل$/));
+  await waitFor(() => expect(mocked.map).toHaveBeenLastCalledWith(expect.objectContaining({ pmax: 6e6, pmin: 250e3, fin: 'fully_finished' })));
+  await fireEvent.press(screen.getByTestId('map-reset'));
+  await waitFor(() => expect(mocked.map).toHaveBeenLastCalledWith(expect.not.objectContaining({ fin: 'fully_finished' })));
+});
+
+test('typing a place name suggests it from the phone list and picking it fills the box', async () => {
+  mocked.map.mockResolvedValue(data);
+  usePlaces.setState({
+    list: {
+      version: 'v1',
+      areas: [],
+      places: [{ id: 'p1', name_en: 'Mivida', name_ar: 'ميفيدا', aliases: [], area_id: null, subzone_id: null, lat: 30, lng: 31.5 }],
+    },
+    pending: [],
+  });
+  await wrap();
+  await waitFor(() => expect(screen.getByTestId('map-search')).toBeTruthy());
+  await fireEvent.changeText(screen.getByTestId('map-search'), 'miv');
+  await waitFor(() => expect(screen.getByTestId('map-place-p1')).toBeTruthy());
+  await fireEvent.press(screen.getByTestId('map-place-p1'));
+  await waitFor(() => expect(screen.queryByTestId('map-suggestions')).toBeNull());
+  usePlaces.setState({ list: null });
 });
