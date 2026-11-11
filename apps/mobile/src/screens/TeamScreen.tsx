@@ -79,7 +79,7 @@ export function TeamMemberScreen() {
       ListHeaderComponent={rights.manager || rights.agencyOwner ? (
         <View style={{ padding: spacing.lg, gap: spacing.sm }}>
           {rights.agencyOwner && (role === 'broker' || role === 'manager') ? <Button testID="member-role" variant="secondary" label={role === 'manager' ? ot(lang, 'makeBroker') : ot(lang, 'makeManager')} onPress={() => admin(() => api.changeRole(id, role === 'manager' ? 'broker' : 'manager'))} /> : null}
-          <Button testID="member-deactivate" variant="secondary" label={`⛔ ${ot(lang, 'deactivate')}`} onPress={() => Alert.alert(ot(lang, 'deactivateAsk'), undefined, [{ text: ot(lang, 'deactivate'), style: 'destructive', onPress: () => { void admin(() => api.deactivate(id)); } }, { text: 'OK', style: 'cancel' }])} />
+          <Button testID="member-deactivate" variant="secondary" label={`⛔ ${ot(lang, 'deactivate')}`} onPress={() => Alert.alert(ot(lang, 'deactivateAsk'), undefined, [{ text: ot(lang, 'deactivate'), style: 'destructive', onPress: () => { admin(() => api.deactivate(id)).catch(() => {}); } }, { text: 'OK', style: 'cancel' }])} />
         </View>
       ) : null}
       ListEmptyComponent={<EmptyView title={t(lang, 'noLeadsHere')} />}

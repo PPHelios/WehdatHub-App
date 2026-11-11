@@ -145,7 +145,7 @@ export function OwnerScreen() {
         </View>
       ) : null}
       {owner.canEdit && rights.manager ? (
-        <Button testID="owner-delete" variant="secondary" label={`🗑 ${ot(lang, 'del')}`} onPress={() => Alert.alert(ot(lang, 'delAsk'), undefined, [{ text: ot(lang, 'del'), style: 'destructive', onPress: () => { void run(async () => { await api.deleteOwner(id); nav.goBack(); }); } }, { text: 'OK', style: 'cancel' }])} />
+        <Button testID="owner-delete" variant="secondary" label={`🗑 ${ot(lang, 'del')}`} onPress={() => Alert.alert(ot(lang, 'delAsk'), undefined, [{ text: ot(lang, 'del'), style: 'destructive', onPress: () => { run(async () => { await api.deleteOwner(id); nav.goBack(); }).catch(() => {}); } }, { text: 'OK', style: 'cancel' }])} />
       ) : null}
       <Text style={[styles.name, { color: colors.text }]}>{ot(lang, 'history')}</Text>
       {events.map((e, i) => (
