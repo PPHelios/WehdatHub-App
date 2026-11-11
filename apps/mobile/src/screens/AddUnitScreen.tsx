@@ -12,6 +12,7 @@ import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
 import { PlaceInput } from '../components/PlaceInput';
+import { addPendingPlace } from '../placeList';
 import { SortablePhotos } from '../components/SortablePhotos';
 import { clearDraft, isEmptyDraft, loadDraft, saveDraft } from '../draft';
 import { errorText } from '../errors';
@@ -158,6 +159,8 @@ export function AddUnitScreen() {
       const sent = { ...fields, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
       const r = await api.createUnit(sent, photos);
       tick();
+      // A compound the list does not know is saved as pending on the server; show it on this phone straight away.
+      if (fields.compound_new === '1' && str(fields.compound)) addPendingPlace(str(fields.compound)).catch(() => undefined);
       await clearDraft();
       await qc.invalidateQueries({ queryKey: ['units'] });
       nav.replace('Unit', { code: r.code });

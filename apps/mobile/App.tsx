@@ -13,6 +13,7 @@ import { LockScreen } from './src/components/LockScreen';
 import { UpdateScreen } from './src/components/UpdateScreen';
 import { APP_VERSION } from './src/config';
 import { LOCK_AFTER_MS, useLock } from './src/lock';
+import { clearPlaces, syncPlaces } from './src/placeList';
 import { RootNavigation, navigationRef } from './src/navigation';
 import { startCrashReports, startFirebase, startPush } from './src/push';
 import { watchShares } from './src/share';
@@ -56,6 +57,20 @@ export default function App() {
       if (navigationRef.isReady()) go();
       else setTimeout(go, 800);
     });
+  }, [status]);
+
+  // The place list is kept on the phone: checked on sign-in, when the app comes back, and cleared on sign-out.
+  useEffect(() => {
+    if (status === 'signedOut') {
+      clearPlaces().catch(() => undefined);
+      return;
+    }
+    if (status !== 'signedIn') return;
+    syncPlaces().catch(() => undefined);
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') syncPlaces().catch(() => undefined);
+    });
+    return () => sub.remove();
   }, [status]);
 
   // Alerts and crash reports start once signed in, if the server has the phone's Firebase identifiers.

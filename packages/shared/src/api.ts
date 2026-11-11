@@ -80,6 +80,8 @@ export interface NewLead { phone1: string; phone2?: string; name?: string; kind?
 /** The fields of the add-unit form use the website form's names (strings, features as an array). */
 /** One entry of the place suggestion list: a compound (or its other name), an area, or a sub-zone. area_id and subzone_id are what a unit stores when it is picked. */
 export interface PlaceSuggestion { kind: 'compound' | 'area' | 'subzone'; id: string; name_en: string | null; name_ar: string | null; path: string; via: 'name' | 'alias' | 'alike'; area_id: string | null; subzone_id: string | null }
+export interface PlaceList { version: string; places: import('./placeMatch').ListPlace[]; areas: import('./placeMatch').ListArea[] }
+export type PlaceListReply = PlaceList | { version: string; unchanged: true };
 export type UnitFields = Record<string, string | string[] | boolean | undefined>;
 export interface ReviewResult { ok: boolean; blockers: { field: string; label: string }[]; warnings: { field: string; text: string }[]; duplicate: string | null }
 export interface FirebaseClientConfig { apiKey: string; appId: string; projectId: string; messagingSenderId: string }
@@ -296,6 +298,7 @@ export function createApiClient(opts: ApiClientOptions) {
     unitEditFields: (code: string) => request<{ code: string; version: number; fields: UnitFields }>('GET', `/units/${encodeURIComponent(code)}/edit`),
     saveUnitEdit: (code: string, version: number, fields: UnitFields) => request<{ code: string; version: number }>('POST', `/units/${encodeURIComponent(code)}/edit`, { version, fields }),
     placeSuggest: (q: string) => request<{ items: PlaceSuggestion[] }>('GET', '/places/suggest', undefined, { q }),
+    placeList: (since?: string) => request<PlaceListReply>('GET', '/places/list', undefined, since ? { since } : undefined),
     unitCompounds: (q: string) => request<{ items: { name: string; n: number }[] }>('GET', '/units/compounds', undefined, { q }),
     unitAccessRequest: (code: string) => request<{ ok: true; already: boolean; access: 'granted' | 'pending' }>('POST', `/units/${encodeURIComponent(code)}/access-request`, {}),
   };
