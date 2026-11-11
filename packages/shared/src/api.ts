@@ -77,6 +77,10 @@ export interface OwnerEvent { kind: string; data: Record<string, unknown> | null
 export interface OwnerRename { id: number; code: string; old_value: string | null; new_value: string; requested_by_name: string | null; created_at: string }
 export interface AccessRequest { id: number; status: 'pending' | 'approved' | 'declined'; created_at: string; code: string; broker_name: string; decided_by_name: string | null }
 export interface ActivityRow { id: string | number; at: string; who: string; text: string; device: string }
+export interface DashboardData { days: number; weekly: number[]; sources: { source: string; n: number }[]; pipeline: Record<string, number>; unassigned: number; uncontacted: number; overdue: number; units: { active: number; stale: number }; deals: { n: number; commission: number; value: number }; leads: number; board: { id: string; name: string; leads: number; contacted: number; forward: number; deals: number; commission: number }[] }
+export interface PriceRow { place: string; listing_type: 'sale' | 'rent'; units: number; median: number; low: number; high: number }
+export interface WinLossGroup { key: string; name?: string; won: number; lost: number; rate: number | null; top: string | null }
+export interface WinLossData { days: number; won: number; lost: number; rate: number | null; reasons: { key: string; n: number; pct: number }[]; brokers: WinLossGroup[]; sources: WinLossGroup[] }
 export interface AskAnswer { answer: string; found: boolean; lang: Lang; dataDates: string | null }
 export interface UnitImage { id: string; url: string; position: number }
 export interface ApiViewing { id: string; startsAt: string; place: string | null; status: string; proposedAt: string | null; clientNote: string | null; leadRef: string; leadName: string | null; unitCode: string | null }
@@ -302,6 +306,10 @@ export function createApiClient(opts: ApiClientOptions) {
     decideRename: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/owners/requests/${id}`, { decision: approve ? 'approve' : 'reject' }),
     accessRequests: (status: string, page = 0) => request<{ items: AccessRequest[]; total: number }>('GET', '/access-requests', undefined, { status, page }),
     answerAccess: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/access-requests/${id}`, { decision: approve ? 'approve' : 'decline' }),
+    dashboard: (days = 30) => request<DashboardData>('GET', '/dashboard', undefined, { days }),
+    pricePerM2: () => request<{ minUnits: number; items: PriceRow[] }>('GET', '/insights/prices'),
+    winLoss: (days = 30) => request<WinLossData>('GET', '/insights/winloss', undefined, { days }),
+    report: (text: string) => request<{ ok: true; id: number }>('POST', '/report', { text }),
     activityLog: (page = 0) => request<{ items: ActivityRow[]; more: boolean }>('GET', '/activity-log', undefined, { page }),
     /** Moves a lead to a broker of the team, or back to the managers with null. */
     assignLead: (ref: string, version: number, brokerId: string | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/assign`, { version, brokerId }),

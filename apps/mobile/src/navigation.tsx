@@ -21,6 +21,7 @@ import { TeamMemberScreen, TeamScreen } from './screens/TeamScreen';
 import { OwnerScreen, OwnersScreen } from './screens/OwnersScreen';
 import { ActivityLogScreen, RequestsScreen } from './screens/RequestsScreen';
 import { InviteScreen } from './screens/InviteScreen';
+import { DashboardScreen, PricesScreen, ReportScreen, WinLossScreen } from './screens/InsightsScreens';
 import { AskScreen } from './screens/AskScreen';
 import { UnitScreen } from './screens/UnitScreen';
 import { SearchScreen } from './screens/SearchScreen';
@@ -51,7 +52,7 @@ import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
-export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
+export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; Dashboard: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Map: undefined; Units: undefined; More: undefined };
 
@@ -126,6 +127,10 @@ export function RootNavigation() {
           <Stack.Screen name="Requests" component={RequestsScreen} options={{ title: t(currentLang(), 'requests') }} />
           <Stack.Screen name="ActivityLog" component={ActivityLogScreen} options={{ title: t(currentLang(), 'activityLog') }} />
           <Stack.Screen name="Invite" component={InviteScreen} options={{ title: t(currentLang(), 'invite') }} />
+          <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: t(currentLang(), 'dashboard') }} />
+          <Stack.Screen name="Prices" component={PricesScreen} options={{ title: t(currentLang(), 'prices') }} />
+          <Stack.Screen name="WinLoss" component={WinLossScreen} options={{ title: t(currentLang(), 'winLoss') }} />
+          <Stack.Screen name="Report" component={ReportScreen} options={{ title: t(currentLang(), 'report') }} />
           <Stack.Screen name="Ask" component={AskNarrow} options={{ title: t(currentLang(), 'ask') }} />
           <Stack.Screen name="AddUnit" component={AddUnitNarrow} options={{ title: t(currentLang(), 'addUnit') }} />
         </Stack.Navigator>
