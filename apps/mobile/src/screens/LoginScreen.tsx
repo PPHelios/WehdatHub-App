@@ -85,8 +85,8 @@ const styles = StyleSheet.create({
   brand: { fontSize: 34, fontWeight: '800', textAlign: 'center' },
   title: { fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: spacing.md },
   form: { gap: spacing.md },
-  label: { fontSize: 14 },
-  hint: { fontSize: 13 },
+  label: { fontSize: 14, textAlign: 'right', writingDirection: 'rtl' },
+  hint: { fontSize: 13, textAlign: 'right', writingDirection: 'rtl' },
   input: { minHeight: 52, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 18, writingDirection: 'ltr', textAlign: 'left' },
   message: { fontSize: 15, textAlign: 'center' },
 });
