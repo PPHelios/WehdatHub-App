@@ -22,7 +22,7 @@ import { useRights } from '../rights';
 import { stopPush } from '../push';
 import { spacing, useTheme } from '../theme';
 
-export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask') => void } = {}) {
+export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications') => void } = {}) {
   const { colors } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
@@ -69,6 +69,7 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLin
       {onOpen ? <Button testID="open-ask" label={`💬 ${t(lang, 'ask')}`} variant="secondary" onPress={() => onOpen('Ask')} /> : null}
       {onOpen && rights.team ? <Button testID="open-team" label={`👥 ${t(lang, 'team')}`} variant="secondary" onPress={() => onOpen('Team')} /> : null}
       {onOpen ? <Button testID="open-links" label={`🔗 ${t(lang, 'sentLinks')}`} variant="secondary" onPress={() => onOpen('SentLinks')} /> : null}
+      {onOpen ? <Button testID="open-notifications" label={`🔔 ${t(lang, 'notifications')}`} variant="secondary" onPress={() => onOpen('Notifications')} /> : null}
       {ts ? (
         <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]} testID="test-switch">
           <Text style={[styles.cardTitle, { color: colors.text }]}>{lang === 'ar' ? 'تبديل الاختبار' : 'Test switch'}</Text>
