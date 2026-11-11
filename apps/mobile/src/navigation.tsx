@@ -1,12 +1,12 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import type { UploadFile } from '@wehdathub/shared';
 import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, currentLang } from './auth';
-import { Loading } from './components/StateViews';
+import { Logo } from './components/Logo';
 import { AddUnitScreen } from './screens/AddUnitScreen';
 import { LeadScreen } from './screens/LeadScreen';
 import { LeadsScreen } from './screens/LeadsScreen';
@@ -68,6 +68,7 @@ function TabsScreen() {
     <Tabs.Navigator
       screenOptions={{
         headerTitleAlign: 'center',
+        headerLeft: () => <View style={{ paddingHorizontal: 12 }}><Logo size={0.3} compact /></View>,
         headerStyle: { backgroundColor: colors.bg },
         headerTitleStyle: { color: colors.text },
         tabBarActiveTintColor: colors.primary,
@@ -91,7 +92,14 @@ export function RootNavigation() {
   const { colors, scheme } = useTheme();
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
   const theme = { ...base, colors: { ...base.colors, primary: colors.primary, background: colors.bg, card: colors.bg, text: colors.text, border: colors.border } };
-  if (status === 'loading') return <Loading />;
+  if (status === 'loading') {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: 32 }}>
+        <Logo />
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
   return (
     <NavigationContainer theme={theme} ref={navigationRef}>
       {status === 'signedOut' ? (

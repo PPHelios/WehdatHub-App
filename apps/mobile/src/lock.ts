@@ -66,3 +66,13 @@ export const useLock = create<LockState>((set) => ({
     return false;
   },
 }));
+
+/** Whether this phone has a fingerprint, face or screen lock to protect the app with (unknown counts as yes, so the switch is not hidden by mistake). */
+export async function lockAvailable(): Promise<boolean> {
+  try {
+    if (await Keychain.isPasscodeAuthAvailable()) return true;
+    return (await Keychain.getSupportedBiometryType()) !== null;
+  } catch {
+    return true;
+  }
+}

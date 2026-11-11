@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
@@ -17,7 +17,7 @@ const ROLE_LABELS: Record<string, { ar: string; en: string }> = {
 import { listsStore } from '../lists';
 import { clearDraft } from '../draft';
 import { t } from '../i18n';
-import { useLock } from '../lock';
+import { lockAvailable, useLock } from '../lock';
 import { useRights } from '../rights';
 import { stopPush } from '../push';
 import { spacing, useTheme } from '../theme';
@@ -31,6 +31,10 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLin
   const rights = useRights();
   const { enabled, enable, disable } = useLock();
   const [lockMsg, setLockMsg] = useState<string | null>(null);
+  const [canLock, setCanLock] = useState(true);
+  useEffect(() => {
+    void lockAvailable().then(setCanLock);
+  }, []);
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me(), staleTime: 5 * 60_000 });
   const ts = me.data?.testSwitch ?? null;
   // A switch changes what the app may show, so every query is refetched after it.
@@ -79,7 +83,7 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLin
           ) : null}
         </View>
       ) : null}
-      <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'lockSetting')}</Text><Switch testID="lock-switch" value={enabled} onValueChange={toggleLock} trackColor={{ true: colors.primary, false: colors.border }} thumbColor={enabled ? colors.onPrimary : colors.muted} /></View>
+      {canLock || enabled ? <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'lockSetting')}</Text><Switch testID="lock-switch" value={enabled} onValueChange={toggleLock} trackColor={{ true: colors.primary, false: colors.border }} thumbColor={enabled ? colors.onPrimary : colors.muted} /></View> : null}
       {lockMsg ? <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, textAlign: lang === 'ar' ? 'right' : 'left' }}>{lockMsg}</Text> : null}
       <Button testID="sign-out" label={t(lang, 'signOut')} onPress={out} loading={busy} variant="secondary" />
     </ScrollView>
