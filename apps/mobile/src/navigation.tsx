@@ -21,6 +21,7 @@ import { TeamMemberScreen, TeamScreen } from './screens/TeamScreen';
 import { OwnerScreen, OwnersScreen } from './screens/OwnersScreen';
 import { ActivityLogScreen, RequestsScreen } from './screens/RequestsScreen';
 import { InviteScreen } from './screens/InviteScreen';
+import { CommissionsScreen, DealsScreen, LinksScreen, PortalScreen, SourcesScreen } from './screens/DealsScreens';
 import { DashboardScreen, PricesScreen, ReportScreen, WinLossScreen } from './screens/InsightsScreens';
 import { AskScreen } from './screens/AskScreen';
 import { UnitScreen } from './screens/UnitScreen';
@@ -52,7 +53,7 @@ import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
-export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; Dashboard: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
+export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; Dashboard: undefined; Deals: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Map: undefined; Units: undefined; More: undefined };
 
@@ -131,6 +132,11 @@ export function RootNavigation() {
           <Stack.Screen name="Prices" component={PricesScreen} options={{ title: t(currentLang(), 'prices') }} />
           <Stack.Screen name="WinLoss" component={WinLossScreen} options={{ title: t(currentLang(), 'winLoss') }} />
           <Stack.Screen name="Report" component={ReportScreen} options={{ title: t(currentLang(), 'report') }} />
+          <Stack.Screen name="Deals" component={DealsScreen} options={{ title: t(currentLang(), 'deals') }} />
+          <Stack.Screen name="Commissions" component={CommissionsScreen} options={{ title: t(currentLang(), 'commissions') }} />
+          <Stack.Screen name="Sources" component={SourcesScreen} options={{ title: t(currentLang(), 'sources') }} />
+          <Stack.Screen name="Portal" component={PortalScreen} options={{ title: t(currentLang(), 'portal') }} />
+          <Stack.Screen name="Links" component={LinksScreen} options={{ title: t(currentLang(), 'links') }} />
           <Stack.Screen name="Ask" component={AskNarrow} options={{ title: t(currentLang(), 'ask') }} />
           <Stack.Screen name="AddUnit" component={AddUnitNarrow} options={{ title: t(currentLang(), 'addUnit') }} />
         </Stack.Navigator>

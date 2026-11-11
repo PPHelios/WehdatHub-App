@@ -81,6 +81,10 @@ export interface DashboardData { days: number; weekly: number[]; sources: { sour
 export interface PriceRow { place: string; listing_type: 'sale' | 'rent'; units: number; median: number; low: number; high: number }
 export interface WinLossGroup { key: string; name?: string; won: number; lost: number; rate: number | null; top: string | null }
 export interface WinLossData { days: number; won: number; lost: number; rate: number | null; reasons: { key: string; n: number; pct: number }[]; brokers: WinLossGroup[]; sources: WinLossGroup[] }
+export type Row = Record<string, unknown>;
+export interface DealsData { items: Row[]; more: boolean; totals: Row[]; statuses: string[] }
+export interface CommissionsData { kind: string; period: string; items: Row[]; total: number; totals: Row | null; statuses: string[] }
+export interface SourcesData { month: string; rows: { source: string; leads: number; deals: number; commission: number; spend: number | null; perLead: number | null; perDeal: number | null }[]; totals: Row }
 export interface AskAnswer { answer: string; found: boolean; lang: Lang; dataDates: string | null }
 export interface UnitImage { id: string; url: string; position: number }
 export interface ApiViewing { id: string; startsAt: string; place: string | null; status: string; proposedAt: string | null; clientNote: string | null; leadRef: string; leadName: string | null; unitCode: string | null }
@@ -310,6 +314,17 @@ export function createApiClient(opts: ApiClientOptions) {
     pricePerM2: () => request<{ minUnits: number; items: PriceRow[] }>('GET', '/insights/prices'),
     winLoss: (days = 30) => request<WinLossData>('GET', '/insights/winloss', undefined, { days }),
     report: (text: string) => request<{ ok: true; id: number }>('POST', '/report', { text }),
+    deals: (status?: string, page = 0) => request<DealsData>('GET', '/deals', undefined, { status, page }),
+    dealStatus: (ref: string, status: string, version?: number) => request<{ ok: true }>('POST', `/deals/${ref}/status`, { status, version }),
+    commissions: (kind: 'resale' | 'developers', status?: string, page = 0) => request<CommissionsData>('GET', '/commissions', undefined, { kind, status, page }),
+    commission: (id: string) => request<{ commission: Row }>('GET', `/commissions/${id}`),
+    commissionMove: (id: string, body: Row) => request<{ ok: true }>('POST', `/commissions/${id}`, body),
+    sources: (month?: string) => request<SourcesData>('GET', '/sources', undefined, { month }),
+    saveSpend: (month: string, spend: Record<string, string>) => request<{ ok: true }>('POST', '/sources/spend', { month, spend }),
+    portalEnquiries: () => request<{ items: Row[] }>('GET', '/portal-enquiries'),
+    assignEnquiry: (id: string, b: { phone: string; brokerId?: string }) => request<{ ok: true; outcome: string }>('POST', `/portal-enquiries/${id}/assign`, b),
+    linkEnquiry: (id: string, unitCode: string) => request<{ ok: true }>('POST', `/portal-enquiries/${id}/link`, { unitCode }),
+    openedLinks: (status?: string, page?: number) => request<{ rows: Row[]; total: number; pages: number; page: number }>('GET', '/links', undefined, { status, page }),
     activityLog: (page = 0) => request<{ items: ActivityRow[]; more: boolean }>('GET', '/activity-log', undefined, { page }),
     /** Moves a lead to a broker of the team, or back to the managers with null. */
     assignLead: (ref: string, version: number, brokerId: string | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/assign`, { version, brokerId }),

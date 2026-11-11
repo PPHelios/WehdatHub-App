@@ -22,7 +22,7 @@ import { useRights } from '../rights';
 import { stopPush } from '../push';
 import { spacing, useTheme } from '../theme';
 
-export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Prices' | 'WinLoss' | 'Report') => void } = {}) {
+export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Commissions' | 'Sources' | 'Portal' | 'Links' | 'Prices' | 'WinLoss' | 'Report') => void } = {}) {
   const { colors } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
@@ -77,6 +77,11 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLin
       {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-activity" label={`🗂 ${t(lang, 'activityLog')}`} variant="secondary" onPress={() => onOpen('ActivityLog')} /> : null}
       {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-dashboard" label={`📊 ${t(lang, 'dashboard')}`} variant="secondary" onPress={() => onOpen('Dashboard')} /> : null}
       {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-winloss" label={`📉 ${t(lang, 'winLoss')}`} variant="secondary" onPress={() => onOpen('WinLoss')} /> : null}
+      {onOpen ? <Button testID="open-deals" label={`🤝 ${t(lang, 'deals')}`} variant="secondary" onPress={() => onOpen('Deals')} /> : null}
+      {onOpen ? <Button testID="open-commissions" label={`💸 ${t(lang, 'commissions')}`} variant="secondary" onPress={() => onOpen('Commissions')} /> : null}
+      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-sources" label={`📈 ${t(lang, 'sources')}`} variant="secondary" onPress={() => onOpen('Sources')} /> : null}
+      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-portal" label={`🏢 ${t(lang, 'portal')}`} variant="secondary" onPress={() => onOpen('Portal')} /> : null}
+      {onOpen ? <Button testID="open-opened-links" label={`👁 ${t(lang, 'links')}`} variant="secondary" onPress={() => onOpen('Links')} /> : null}
       {onOpen ? <Button testID="open-prices" label={`💰 ${t(lang, 'prices')}`} variant="secondary" onPress={() => onOpen('Prices')} /> : null}
       {onOpen ? <Button testID="open-report" label={`🐞 ${t(lang, 'report')}`} variant="secondary" onPress={() => onOpen('Report')} /> : null}
       {onOpen ? <Button testID="open-links" label={`🔗 ${t(lang, 'sentLinks')}`} variant="secondary" onPress={() => onOpen('SentLinks')} /> : null}
