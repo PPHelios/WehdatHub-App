@@ -42,12 +42,13 @@ test('the filter panel sends type, finishing, furnishing and the budget as numbe
   mocked.map.mockResolvedValue(data);
   await wrap();
   await waitFor(() => expect(screen.getByTestId('map-filters-toggle')).toBeTruthy());
-  fireEvent.press(screen.getByTestId('map-filters-toggle'));
-  fireEvent.changeText(screen.getByTestId('map-pmax'), '6m');
-  fireEvent.changeText(screen.getByTestId('map-pmin'), '250k');
-  fireEvent.press(screen.getByText(/^Fully finished$|^تشطيب كامل$/));
+  await fireEvent.press(screen.getByTestId('map-filters-toggle'));
+  await waitFor(() => expect(screen.getByTestId('map-pmax')).toBeTruthy());
+  await fireEvent.changeText(screen.getByTestId('map-pmax'), '6m');
+  await fireEvent.changeText(screen.getByTestId('map-pmin'), '250k');
+  await fireEvent.press(screen.getByText(/^Fully finished$|^تشطيب كامل$/));
   await waitFor(() => expect(mocked.map).toHaveBeenLastCalledWith(expect.objectContaining({ pmax: 6e6, pmin: 250e3, fin: 'fully_finished' })));
-  fireEvent.press(screen.getByTestId('map-reset'));
+  await fireEvent.press(screen.getByTestId('map-reset'));
   await waitFor(() => expect(mocked.map).toHaveBeenLastCalledWith(expect.not.objectContaining({ fin: 'fully_finished' })));
 });
 
@@ -63,9 +64,9 @@ test('typing a place name suggests it from the phone list and picking it fills t
   });
   await wrap();
   await waitFor(() => expect(screen.getByTestId('map-search')).toBeTruthy());
-  fireEvent.changeText(screen.getByTestId('map-search'), 'miv');
+  await fireEvent.changeText(screen.getByTestId('map-search'), 'miv');
   await waitFor(() => expect(screen.getByTestId('map-place-p1')).toBeTruthy());
-  fireEvent.press(screen.getByTestId('map-place-p1'));
+  await fireEvent.press(screen.getByTestId('map-place-p1'));
   await waitFor(() => expect(screen.queryByTestId('map-suggestions')).toBeNull());
   usePlaces.setState({ list: null });
 });

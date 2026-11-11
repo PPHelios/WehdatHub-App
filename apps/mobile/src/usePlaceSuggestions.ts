@@ -16,5 +16,5 @@ export function usePlaceSuggestions(text: string): PlaceMatch[] {
   const local = useMemo(() => (list && typed.length >= 2 ? suggestPlaces(typed, { places: [...list.places, ...pending], areas: list.areas }, 8) : []), [list, pending, typed]);
   const slow = useDebounced(typed, 250);
   const remote = useQuery({ queryKey: ['place-suggest', slow], queryFn: () => api.placeSuggest(slow), enabled: !list && slow.length >= 2, staleTime: 60_000 });
-  return list ? local : (remote.data?.items ?? []).map((p) => ({ ...p, lat: null, lng: null }));
+  return list ? local : remote.data?.items ?? [];
 }

@@ -4,7 +4,7 @@ import type { PlaceSuggestion } from './api';
 
 export interface ListPlace { id: string; name_en: string | null; name_ar: string | null; aliases?: string[] | null; area_id: string | null; subzone_id: string | null; lat: number | null; lng: number | null }
 export interface ListArea { id: string; parent_id: string | null; name_en: string | null; name_ar: string | null; aliases?: string[] | null; lat: number | null; lng: number | null }
-export type PlaceMatch = PlaceSuggestion & { lat: number | null; lng: number | null };
+export type PlaceMatch = PlaceSuggestion & { lat?: number | null; lng?: number | null };
 
 export function normalizeSearch(text: unknown): string {
   return String(text ?? "")
