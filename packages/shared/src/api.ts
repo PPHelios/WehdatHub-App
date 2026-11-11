@@ -70,6 +70,13 @@ export interface ApiLead {
 export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; offset: number; limit: number }
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
 export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
+export interface OwnerRow { id: string; name: string | null; code: string | null; phones: string[]; unit_count: number; flag: string | null; is_private: boolean }
+export interface OwnerUnit { code: string; compound: string | null; status: string; is_private: boolean }
+export interface OwnerProfile extends OwnerRow { notes: string | null; canEdit: boolean; units: OwnerUnit[] }
+export interface OwnerEvent { kind: string; data: Record<string, unknown> | null; created_at: string; broker_name: string | null }
+export interface OwnerRename { id: number; code: string; old_value: string | null; new_value: string; requested_by_name: string | null; created_at: string }
+export interface AccessRequest { id: number; status: 'pending' | 'approved' | 'declined'; created_at: string; code: string; broker_name: string; decided_by_name: string | null }
+export interface ActivityRow { id: string | number; at: string; who: string; text: string; device: string }
 export interface AskAnswer { answer: string; found: boolean; lang: Lang; dataDates: string | null }
 export interface UnitImage { id: string; url: string; position: number }
 export interface ApiViewing { id: string; startsAt: string; place: string | null; status: string; proposedAt: string | null; clientNote: string | null; leadRef: string; leadName: string | null; unitCode: string | null }
@@ -283,6 +290,19 @@ export function createApiClient(opts: ApiClientOptions) {
     /** `to` is a lead ref (L-0042) or a mobile number; leave it out to share without a client. */
     unitShareLink: (code: string, lang: Lang, to?: string) => request<{ url: string; recipientPhone: string | null; leadLinked: boolean }>('POST', `/units/${encodeURIComponent(code)}/share-link`, { lang, ...(to ? { to } : {}) }),
     team: () => request<{ items: TeamMember[] }>('GET', '/team'),
+    invite: (b: { name: string; phone: string; role: string }) => request<{ ok: true; created: boolean; url: string | null }>('POST', '/team/invite', b),
+    changeRole: (id: string, role: string) => request<{ ok: true }>('POST', `/team/${id}/role`, { role }),
+    deactivate: (id: string) => request<{ ok: true }>('POST', `/team/${id}/deactivate`, {}),
+    owners: (q: { q?: string; page?: number; private?: boolean } = {}) => request<{ items: OwnerRow[]; more: boolean }>('GET', '/owners', undefined, { q: q.q, page: q.page, private: q.private ? '1' : undefined }),
+    owner: (id: string) => request<{ owner: OwnerProfile; events: OwnerEvent[]; lead: { ref: number } | null }>('GET', `/owners/${id}`),
+    editOwner: (id: string, b: { name?: string; phone?: string; notes?: string; flag?: string }) => request<{ ok: true; nameRequested: boolean }>('POST', `/owners/${id}`, b),
+    deleteOwner: (id: string) => request<{ ok: true }>('POST', `/owners/${id}/delete`, {}),
+    ownerPrivate: (id: string, value: boolean, units: string[] = []) => request<{ ok: true }>('POST', `/owners/${id}/portfolio`, { value, units }),
+    ownerRenames: () => request<{ items: OwnerRename[] }>('GET', '/owners/requests'),
+    decideRename: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/owners/requests/${id}`, { decision: approve ? 'approve' : 'reject' }),
+    accessRequests: (status: string, page = 0) => request<{ items: AccessRequest[]; total: number }>('GET', '/access-requests', undefined, { status, page }),
+    answerAccess: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/access-requests/${id}`, { decision: approve ? 'approve' : 'decline' }),
+    activityLog: (page = 0) => request<{ items: ActivityRow[]; more: boolean }>('GET', '/activity-log', undefined, { page }),
     /** Moves a lead to a broker of the team, or back to the managers with null. */
     assignLead: (ref: string, version: number, brokerId: string | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/assign`, { version, brokerId }),
     ask: (question: string) => request<AskAnswer>('POST', '/ask', { question }),

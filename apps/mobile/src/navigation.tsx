@@ -18,6 +18,9 @@ import { CalendarScreen } from './screens/CalendarScreen';
 import { SentLinksScreen } from './screens/SentLinksScreen';
 import { NotificationsScreen } from './screens/NotificationsScreen';
 import { TeamMemberScreen, TeamScreen } from './screens/TeamScreen';
+import { OwnerScreen, OwnersScreen } from './screens/OwnersScreen';
+import { ActivityLogScreen, RequestsScreen } from './screens/RequestsScreen';
+import { InviteScreen } from './screens/InviteScreen';
 import { AskScreen } from './screens/AskScreen';
 import { UnitScreen } from './screens/UnitScreen';
 import { SearchScreen } from './screens/SearchScreen';
@@ -48,7 +51,7 @@ import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
-export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; TeamMember: { id: string; name: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
+export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Map: undefined; Units: undefined; More: undefined };
 
@@ -118,6 +121,11 @@ export function RootNavigation() {
           <Stack.Screen name="Notifications" component={NotificationsNarrow} options={{ title: t(currentLang(), 'notifications') }} />
           <Stack.Screen name="Team" component={TeamNarrow} options={{ title: t(currentLang(), 'team') }} />
           <Stack.Screen name="TeamMember" component={TeamMemberNarrow} options={({ route }) => ({ title: route.params.name })} />
+          <Stack.Screen name="Owners" component={OwnersScreen} options={{ title: t(currentLang(), 'owners') }} />
+          <Stack.Screen name="Owner" component={OwnerScreen} options={({ route }) => ({ title: route.params.name })} />
+          <Stack.Screen name="Requests" component={RequestsScreen} options={{ title: t(currentLang(), 'requests') }} />
+          <Stack.Screen name="ActivityLog" component={ActivityLogScreen} options={{ title: t(currentLang(), 'activityLog') }} />
+          <Stack.Screen name="Invite" component={InviteScreen} options={{ title: t(currentLang(), 'invite') }} />
           <Stack.Screen name="Ask" component={AskNarrow} options={{ title: t(currentLang(), 'ask') }} />
           <Stack.Screen name="AddUnit" component={AddUnitNarrow} options={{ title: t(currentLang(), 'addUnit') }} />
         </Stack.Navigator>
