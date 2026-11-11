@@ -1,4 +1,5 @@
 import React from 'react';
+import { Linking } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApiClientError } from '@wehdathub/shared';
@@ -31,4 +32,12 @@ test('a change made elsewhere shows a clear message and reloads', async () => {
   await fireEvent.press(screen.getByTestId('lead-called'));
   await waitFor(() => expect(screen.getByTestId('lead-message')).toBeTruthy());
   expect(m.lead.mock.calls.length).toBeGreaterThan(1);
+});
+
+test('the WhatsApp button opens a chat with the lead in international form', async () => {
+  const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+  await wrap();
+  await waitFor(() => expect(screen.getByTestId('whatsapp-201012345678')).toBeTruthy());
+  await fireEvent.press(screen.getByTestId('whatsapp-201012345678'));
+  await waitFor(() => expect(open).toHaveBeenCalledWith('https://wa.me/201012345678'));
 });

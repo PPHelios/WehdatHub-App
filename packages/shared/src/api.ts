@@ -143,6 +143,7 @@ export interface MapUnit {
   area: number | null;
   price: number | null;
   priceText: string | null;
+  photo?: string | null;
 }
 export interface MapUnits {
   place: { id: string; name_en: string | null; name_ar: string | null };
@@ -192,7 +193,7 @@ export interface ApiClientOptions {
 export function createApiClient(opts: ApiClientOptions) {
   const doFetch = opts.fetchImpl ?? fetch;
 
-  async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown, query?: Record<string, string | number | boolean | undefined>): Promise<T> {
+  async function request<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, query?: Record<string, string | number | boolean | undefined>): Promise<T> {
     const qs = query
       ? Object.entries(query)
           .filter(([, v]) => v !== undefined && v !== '' && v !== false)
@@ -225,6 +226,8 @@ export function createApiClient(opts: ApiClientOptions) {
   }
 
   return {
+    notificationSettings: () => request<NotificationSettings>('GET', '/notification-settings'),
+    saveNotificationSettings: (body: NotificationSettingsInput) => request<NotificationSettings>('PUT', '/notification-settings', body),
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
@@ -298,3 +301,9 @@ export function createApiClient(opts: ApiClientOptions) {
   };
 }
 export type ApiClient = ReturnType<typeof createApiClient>;
+
+export type NotifyChannel = 'both' | 'telegram' | 'web' | 'whatsapp';
+export type NotifyFrequency = 'immediate' | 'hourly' | 'daily';
+export interface NotifyKind { label: { ar: string; en: string }; on: boolean; channel: NotifyChannel; frequency: NotifyFrequency; locked: 'owner' | 'manager' | null; urgent: boolean }
+export interface NotificationSettings { kinds: Record<string, NotifyKind>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number }; telegramLinked: boolean }
+export interface NotificationSettingsInput { kinds: Record<string, { on?: boolean; channel?: NotifyChannel; frequency?: NotifyFrequency }>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number } }

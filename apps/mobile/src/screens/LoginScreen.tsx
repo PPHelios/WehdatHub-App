@@ -4,6 +4,7 @@ import { codeSchema, phoneSchema } from '@wehdathub/shared';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
+import { Logo } from '../components/Logo';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
@@ -53,14 +54,12 @@ export function LoginScreen() {
   return (
     <KeyboardAvoidingView style={[styles.flex, { backgroundColor: colors.bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.brand, { color: colors.text }]}>
-          Wehdat<Text style={{ color: colors.primary }}>Hub</Text>
-        </Text>
+        <Logo />
         <Text style={[styles.title, { color: colors.text }]}>{t(LANG, 'signIn')}</Text>
         {step === 'phone' ? (
           <View style={styles.form}>
             <Text style={[styles.label, { color: colors.muted }]}>{t(LANG, 'phoneLabel')}</Text>
-            <TextInput testID="phone-input" style={input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" placeholder="01012345678" placeholderTextColor={colors.muted} editable={!busy} />
+            <TextInput testID="phone-input" style={input} value={phone} onChangeText={(v) => { setPhone(v); if (message?.bad) setMessage(null); }} onBlur={() => { if (phone.trim() && !phoneSchema.safeParse(phone).success) setMessage({ text: t(LANG, 'badPhone'), bad: true }); }} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" placeholder="01012345678" placeholderTextColor={colors.muted} editable={!busy} />
             <Text style={[styles.hint, { color: colors.muted }]}>{t(LANG, 'phoneHint')}</Text>
             <Button testID="send-code" label={t(LANG, 'sendCode')} onPress={requestCode} loading={busy} />
           </View>
@@ -82,11 +81,10 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   body: { flexGrow: 1, justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  brand: { fontSize: 34, fontWeight: '800', textAlign: 'center' },
   title: { fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: spacing.md },
   form: { gap: spacing.md },
-  label: { fontSize: 14 },
-  hint: { fontSize: 13 },
+  label: { fontSize: 14, textAlign: 'right', writingDirection: 'rtl' },
+  hint: { fontSize: 13, textAlign: 'right', writingDirection: 'rtl' },
   input: { minHeight: 52, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 18, writingDirection: 'ltr', textAlign: 'left' },
   message: { fontSize: 15, textAlign: 'center' },
 });

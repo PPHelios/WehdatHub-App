@@ -5,6 +5,8 @@ jest.mock('react-native-keychain', () => ({
   getGenericPassword: jest.fn().mockResolvedValue(false),
   setGenericPassword: jest.fn().mockResolvedValue({}),
   resetGenericPassword: jest.fn().mockResolvedValue(true),
+  isPasscodeAuthAvailable: jest.fn().mockResolvedValue(true),
+  getSupportedBiometryType: jest.fn().mockResolvedValue(null),
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () => {

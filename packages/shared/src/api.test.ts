@@ -45,6 +45,9 @@ describe('input rules', () => {
   it('accepts typed phones and six-digit codes only', () => {
     expect(phoneSchema.safeParse('+20 101 234 5678').data).toBe('201012345678');
     expect(phoneSchema.safeParse('12').success).toBe(false);
+    expect(phoneSchema.safeParse('0101234567').success).toBe(false);
+    expect(phoneSchema.safeParse('01312345678').success).toBe(false);
+    expect(phoneSchema.safeParse('01012345678').data).toBe('01012345678');
     expect(codeSchema.safeParse('123 456').data).toBe('123456');
     expect(codeSchema.safeParse('12345').success).toBe(false);
   });
