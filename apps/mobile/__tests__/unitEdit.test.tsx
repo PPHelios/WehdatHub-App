@@ -11,7 +11,7 @@ const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
 let mockParams: object | undefined = { edit: 'A-1' };
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate, replace: jest.fn() }), useRoute: () => ({ params: mockParams }) }));
-jest.mock('../src/voice', () => ({ ensureMic: jest.fn(), startRecording: jest.fn(), stopRecording: jest.fn() }));
+jest.mock('../src/voice', () => ({ ensureMic: jest.fn(), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
 const m = api as unknown as Record<string, jest.Mock>;
 
 const client = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });

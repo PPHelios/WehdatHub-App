@@ -10,7 +10,7 @@ import { ApiClientError } from '@wehdathub/shared';
 jest.mock('../src/api', () => ({ api: { placeSuggest: jest.fn(), extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn() } }));
 const mockReplace = jest.fn();
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ replace: mockReplace }), useRoute: () => ({ params: undefined }) }));
-jest.mock('../src/voice', () => ({ ensureMic: jest.fn().mockResolvedValue(true), startRecording: jest.fn(), stopRecording: jest.fn() }));
+jest.mock('../src/voice', () => ({ ensureMic: jest.fn().mockResolvedValue(true), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
 const m = api as unknown as { placeSuggest: jest.Mock; createUnit: jest.Mock };
 
 const golden = { kind: 'subzone', id: 's1', name_en: 'Golden Square', name_ar: 'المربع الذهبي', path: 'New Cairo', via: 'name', area_id: 'a1', subzone_id: 's1' };
