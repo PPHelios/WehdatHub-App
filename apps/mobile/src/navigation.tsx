@@ -7,6 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, currentLang } from './auth';
+import { BottomSafe } from './components/BottomSafe';
 import { Logo } from './components/Logo';
 import { AddUnitScreen } from './screens/AddUnitScreen';
 import { LeadScreen } from './screens/LeadScreen';
@@ -114,7 +115,7 @@ export function RootNavigation() {
           <Stack.Screen name="Tabs" component={LoginScreen} />
         </Stack.Navigator>
       ) : (
-        <Stack.Navigator>
+        <Stack.Navigator screenLayout={({ children }) => <BottomSafe>{children}</BottomSafe>}>
           <Stack.Screen name="Tabs" component={TabsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Unit" component={UnitNarrow} options={{ title: t(currentLang(), 'unit') }} />
           <Stack.Screen name="Lead" component={LeadNarrow} options={{ title: t(currentLang(), 'leadsTab') }} />
