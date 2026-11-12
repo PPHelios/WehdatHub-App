@@ -13,7 +13,7 @@ import { ot } from '../ownerText';
 import { useRights } from '../rights';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
-import { t } from '../i18n';
+import { stageLabel, t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 
@@ -86,7 +86,7 @@ export function TeamMemberScreen() {
       renderItem={({ item }) => (
         <Pressable accessibilityRole="button" onPress={() => nav.navigate('Lead', { ref: item.ref })} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.name, { color: colors.text }]}>{item.name || item.ref}</Text>
-          <Text style={{ color: colors.muted }}>{item.ref} · {t(lang, `st_${item.stage}` as never)}</Text>
+          <Text style={{ color: colors.muted }}>{item.ref} · {stageLabel(lang, item.stage)}</Text>
         </Pressable>
       )}
     />

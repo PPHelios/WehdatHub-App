@@ -137,7 +137,38 @@ export function CompareScreen() {
   );
 }
 
-/** The agency's plan, credits and payments. Payment requests stay on the website. */
+type MeterData = { used: number; limit: number };
+type Allowance = { plan?: { name?: [string, string]; priceEgp?: number }; source?: string; until?: string | null; credits?: MeterData; seats?: MeterData; units?: MeterData };
+
+const SOURCE_LABEL: Record<string, [string, string]> = { pilot: ['تجريبي للشركاء (ببلاش)', 'Pilot (free)'], paid: ['مدفوعة', 'Paid'], trial: ['فترة تجربة', 'Trial'], free: ['مجانية', 'Free'] };
+
+/** A used-of-limit bar: brand azure, copper from 80%, red at the limit. */
+function Meter({ label, used, limit, testID }: { label: string; used: number; limit: number; testID?: string }) {
+  const { colors } = useTheme();
+  const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  const fill = pct >= 100 ? colors.danger : pct >= 80 ? colors.accent : colors.primary;
+  return (
+    <View testID={testID} style={styles.meter}>
+      <View style={styles.meterHead}>
+        <Text style={{ color: colors.text, fontWeight: '700' }}>{label}</Text>
+        <Text style={{ color: colors.muted }}>{num(used)} / {num(limit)}</Text>
+      </View>
+      <View style={[styles.track, { backgroundColor: colors.border }]}>
+        <View style={{ width: `${pct}%`, height: 8, borderRadius: 4, backgroundColor: fill }} />
+      </View>
+    </View>
+  );
+}
+
+const meters = (a: Allowance, ar: boolean) => (
+  <>
+    {a.credits ? <Meter testID="meter-credits" label={ar ? 'رصيد الذكاء الاصطناعي (الشهر ده)' : 'AI credits (this month)'} used={a.credits.used} limit={a.credits.limit} /> : null}
+    {a.seats ? <Meter testID="meter-seats" label={ar ? 'المستخدمين' : 'Users'} used={a.seats.used} limit={a.seats.limit} /> : null}
+    {a.units ? <Meter testID="meter-units" label={ar ? 'الوحدات' : 'Units'} used={a.units.used} limit={a.units.limit} /> : null}
+  </>
+);
+
+/** The agency's plan: its name and period, what is used of users, units and AI credits, and its payments. */
 export function PlanScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
@@ -145,31 +176,55 @@ export function PlanScreen() {
   const query = useQuery({ queryKey: ['plan'], queryFn: () => api.plan() });
   return (
     <Gate q={query}>
-      {(d) => (
-        <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
-          <Card testID="plan-allowance">
-            {Object.entries(d.allowance).filter(([, v]) => typeof v === 'string' || typeof v === 'number').map(([k, v]) => <Text key={k} style={{ color: colors.text }}>{k}: {str(v)}</Text>)}
-          </Card>
-          {d.payments.length ? <Card><Text style={[styles.h, { color: colors.text }]}>{ar ? 'المدفوعات' : 'Payments'}</Text>{d.payments.map((p) => <Text key={str(p.id ?? p.reference)} style={{ color: colors.text }}>{str(p.reference)} · {str(p.status)}</Text>)}</Card> : null}
-        </ScrollView>
-      )}
+      {(d) => {
+        const a = d.allowance as Allowance;
+        const src = SOURCE_LABEL[a.source ?? ''];
+        return (
+          <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
+            <Card testID="plan-allowance">
+              <Text style={[styles.h, { color: colors.text }]}>{a.plan?.name ? a.plan.name[ar ? 0 : 1] : ''}</Text>
+              {src ? <Text style={{ color: colors.muted }}>{src[ar ? 0 : 1]}{a.until ? ` · ${ar ? 'لحد' : 'until'} ${str(a.until).slice(0, 10)}` : ''}</Text> : null}
+              {a.plan?.priceEgp ? <Text style={{ color: colors.muted }}>{num(a.plan.priceEgp)} {t(lang, 'egp')} / {ar ? 'شهر' : 'month'}</Text> : null}
+              {meters(a, ar)}
+            </Card>
+            {d.payments.length ? <Card><Text style={[styles.h, { color: colors.text }]}>{ar ? 'المدفوعات' : 'Payments'}</Text>{d.payments.map((p) => <Text key={str(p.id ?? p.reference)} style={{ color: colors.text }}>{str(p.reference)} · {str(p.status)}</Text>)}</Card> : null}
+          </ScrollView>
+        );
+      }}
     </Gate>
   );
 }
 
-/** This month's usage: yours, and the agency's for managers. */
+type UsageBlock = { total?: number; today?: number; actions?: { action: string; n: number; today: number }[] } | null;
+
+/** This month's use: AI credits, the agency's message credits, and your own messages (the agency's for managers). */
 export function UsageScreen() {
   const { colors } = useTheme();
+  const ar = currentLang() === 'ar';
   const query = useQuery({ queryKey: ['usage'], queryFn: () => api.usage() });
-  const lines = (o: Record<string, unknown> | null) => (o ? Object.entries(o).filter(([, v]) => typeof v === 'string' || typeof v === 'number').map(([k, v]) => <Text key={k} style={{ color: colors.text }}>{k}: {str(v)}</Text>) : null);
+  const block = (u: UsageBlock, testID: string, title: string) =>
+    u ? (
+      <Card testID={testID}>
+        <Text style={[styles.h, { color: colors.text }]}>{title}</Text>
+        <Text style={{ color: colors.muted }}>{ar ? 'النهارده' : 'Today'}: {num(u.today ?? 0)} · {ar ? 'الشهر' : 'This month'}: {num(u.total ?? 0)}</Text>
+        {(u.actions ?? []).map((x) => <Text key={x.action} style={{ color: colors.text }}>{x.action.replace(/_/g, ' ')}: {num(x.n)}</Text>)}
+      </Card>
+    ) : null;
   return (
     <Gate q={query}>
-      {(d) => (
-        <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
-          <Card testID="usage-mine">{lines(d.mine)}</Card>
-          {d.agency ? <Card testID="usage-agency">{lines(d.agency)}</Card> : null}
-        </ScrollView>
-      )}
+      {(d) => {
+        const st = d.state as { used?: number; limit?: number };
+        return (
+          <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
+            <Card testID="usage-credits">
+              {meters(d.allowance as Allowance, ar)}
+              {typeof st.limit === 'number' ? <Meter testID="meter-messages" label={ar ? 'رسايل البوت للشركة (الشهر ده)' : 'Agency bot messages (this month)'} used={st.used ?? 0} limit={st.limit} /> : null}
+            </Card>
+            {block(d.mine as UsageBlock, 'usage-mine', ar ? 'رسايلي' : 'My messages')}
+            {block(d.agency as UsageBlock, 'usage-agency', ar ? 'رسايل الشركة' : 'Agency messages')}
+          </ScrollView>
+        );
+      }}
     </Gate>
   );
 }
@@ -232,6 +287,9 @@ export function PlatformScreen() {
 }
 
 const styles = StyleSheet.create({
+  meter: { gap: spacing.xs },
+  meterHead: { flexDirection: 'row', justifyContent: 'space-between' },
+  track: { height: 8, borderRadius: 4, overflow: 'hidden' },
   pad: { padding: spacing.lg, gap: spacing.md },
   gap: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.md, alignItems: 'center', justifyContent: 'space-between' },

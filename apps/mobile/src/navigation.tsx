@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { UploadFile } from '@wehdathub/shared';
 import { trackScreen } from './analytics';
 import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation } from '@react-navigation/native';
@@ -8,7 +8,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, currentLang } from './auth';
 import { BottomSafe } from './components/BottomSafe';
+import { Icon } from './components/Icon';
+import type { IconName } from './components/Icon';
 import { Logo } from './components/Logo';
+import { FONT_BOLD } from './fonts';
 import { AddUnitScreen } from './screens/AddUnitScreen';
 import { LeadScreen } from './screens/LeadScreen';
 import { LeadsScreen } from './screens/LeadsScreen';
@@ -63,10 +66,16 @@ type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Map: u
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tabs = createBottomTabNavigator<TabParams>();
 
-/** Tab bar glyphs: a plain text symbol per tab (a stopgap until the icon set lands with the design pass). */
-function tabIcon(glyph: string) {
-  return ({ color }: { color: string }) => <Text style={{ color, fontSize: 20, lineHeight: 24 }}>{glyph}</Text>;
+/** Tab bar icon: the line icon, with a soft brand-colour pill behind the active tab. */
+function TabIcon({ name, color, focused }: { name: IconName; color: string; focused: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ width: 52, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? `${colors.primary}26` : 'transparent' }}>
+      <Icon name={name} color={color} size={22} />
+    </View>
+  );
 }
+const tabIcon = (name: IconName) => ({ color, focused }: { color: string; focused: boolean }) => <TabIcon name={name} color={color} focused={focused} />;
 
 function TabsScreen() {
   const lang = currentLang();
@@ -78,19 +87,21 @@ function TabsScreen() {
         headerTitleAlign: 'center',
         headerLeft: () => <View style={{ paddingHorizontal: 12 }}><Logo size={0.3} compact /></View>,
         headerStyle: { backgroundColor: colors.bg },
-        headerTitleStyle: { color: colors.text },
+        headerTitleStyle: { color: colors.text, fontFamily: FONT_BOLD },
+        headerShadowVisible: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
-        tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.border },
+        tabBarLabelStyle: { fontSize: 12, fontFamily: FONT_BOLD },
+        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, height: 64 },
+        tabBarItemStyle: { paddingVertical: 4 },
       }}
     >
-      {rights.leads ? <Tabs.Screen name="Today" component={TodayNarrow} options={{ title: t(lang, 'today'), tabBarIcon: tabIcon('⌂') }} /> : null}
-      {rights.search ? <Tabs.Screen name="Search" component={SearchNarrow} options={{ title: t(lang, 'searchTab'), tabBarIcon: tabIcon('⌕') }} /> : null}
-      {rights.leads ? <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab'), tabBarIcon: tabIcon('◉') }} /> : null}
-      <Tabs.Screen name="Map" component={MapScreen} options={{ title: t(lang, 'mapTab'), tabBarIcon: tabIcon('◎') }} />
-      <Tabs.Screen name="Units" component={UnitsScreen} options={{ title: t(lang, 'units'), tabBarIcon: tabIcon('▤') }} />
-      <Tabs.Screen name="More" component={MoreNarrow} options={{ title: t(lang, 'more'), tabBarIcon: tabIcon('≡') }} />
+      {rights.leads ? <Tabs.Screen name="Today" component={TodayNarrow} options={{ title: t(lang, 'today'), tabBarIcon: tabIcon('today') }} /> : null}
+      {rights.search ? <Tabs.Screen name="Search" component={SearchNarrow} options={{ title: t(lang, 'searchTab'), tabBarIcon: tabIcon('search') }} /> : null}
+      {rights.leads ? <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab'), tabBarIcon: tabIcon('leads') }} /> : null}
+      <Tabs.Screen name="Map" component={MapScreen} options={{ title: t(lang, 'mapTab'), tabBarIcon: tabIcon('map') }} />
+      <Tabs.Screen name="Units" component={UnitsScreen} options={{ title: t(lang, 'units'), tabBarIcon: tabIcon('units') }} />
+      <Tabs.Screen name="More" component={MoreNarrow} options={{ title: t(lang, 'more'), tabBarIcon: tabIcon('more') }} />
     </Tabs.Navigator>
   );
 }
@@ -115,7 +126,7 @@ export function RootNavigation() {
           <Stack.Screen name="Tabs" component={LoginScreen} />
         </Stack.Navigator>
       ) : (
-        <Stack.Navigator screenLayout={({ children }) => <BottomSafe>{children}</BottomSafe>}>
+        <Stack.Navigator screenLayout={({ children }) => <BottomSafe>{children}</BottomSafe>} screenOptions={{ headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerShadowVisible: false }}>
           <Stack.Screen name="Tabs" component={TabsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Unit" component={UnitNarrow} options={{ title: t(currentLang(), 'unit') }} />
           <Stack.Screen name="Lead" component={LeadNarrow} options={{ title: t(currentLang(), 'leadsTab') }} />
