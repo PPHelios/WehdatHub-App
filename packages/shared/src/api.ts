@@ -69,6 +69,7 @@ export interface ApiLead {
 }
 export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; offset: number; limit: number }
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
+export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; start: number; end: number; days: number[]; max_jumps: number }; roundRobin: boolean; order: string[]; brokers: { id: string; name: string; role: string; away: boolean; open: number }[] }
 export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
 export interface OwnerRow { id: string; name: string | null; code: string | null; phones: string[]; unit_count: number; flag: string | null; is_private: boolean }
 export interface OwnerUnit { code: string; compound: string | null; status: string; is_private: boolean }
@@ -305,6 +306,10 @@ export function createApiClient(opts: ApiClientOptions) {
     /** `to` is a lead ref (L-0042) or a mobile number; leave it out to share without a client. */
     unitShareLink: (code: string, lang: Lang, to?: string) => request<{ url: string; recipientPhone: string | null; leadLinked: boolean }>('POST', `/units/${encodeURIComponent(code)}/share-link`, { lang, ...(to ? { to } : {}) }),
     team: () => request<{ items: TeamMember[] }>('GET', '/team'),
+    teamRules: () => request<TeamRules>('GET', '/team/rules'),
+    saveTeamRules: (b: { enabled: boolean; wait_minutes: string; start: string; end: string; days: number[]; max_jumps: number }) => request<{ rules: TeamRules['rules'] }>('POST', '/team/rules', b),
+    saveTeamRouting: (b: { roundRobin: boolean; order: string[] }) => request<{ roundRobin: boolean; order: string[] }>('POST', '/team/routing', b),
+    setTeamAway: (id: string, until: string | null) => request<{ id: string; awayUntil: string | null }>('POST', `/team/${encodeURIComponent(id)}/away`, { until }),
     invite: (b: { name: string; phone: string; role: string }) => request<{ ok: true; created: boolean; url: string | null }>('POST', '/team/invite', b),
     changeRole: (id: string, role: string) => request<{ ok: true }>('POST', `/team/${id}/role`, { role }),
     deactivate: (id: string) => request<{ ok: true }>('POST', `/team/${id}/deactivate`, {}),
