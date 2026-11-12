@@ -8,6 +8,8 @@ import type { ApiLead, LeadTab, LeadsPage } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { BulkAssign } from '../components/BulkAssign';
+import { useRights } from '../rights';
 import { SwipeRow } from '../components/SwipeRow';
 import { tick } from '../haptics';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
@@ -35,13 +37,18 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [tab, setTab] = useState<LeadTab>('all');
   const [text, setText] = useState('');
+  const manager = useRights().manager;
+  const [unassigned, setUnassigned] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [sel, setSel] = useState<Record<string, ApiLead>>({});
+  const [assigning, setAssigning] = useState(false);
   const wideColumns = useColumns();
   const columns = single ? 1 : wideColumns;
   const q = useDebounced(text.trim());
   const list = useInfiniteQuery({
-    queryKey: ['leads', tab, q],
+    queryKey: ['leads', tab, q, unassigned],
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api.leads({ tab, q, offset: pageParam }),
+    queryFn: ({ pageParam }) => api.leads({ tab, q, offset: pageParam, broker: unassigned ? 'none' : undefined }),
     getNextPageParam: (last: LeadsPage) => (last.more ? last.offset + last.limit : undefined),
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
@@ -73,6 +80,11 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
       {text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching) ? <ActivityIndicator style={styles.searching} color={colors.primary} /> : null}
       <View style={styles.chipsBox}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {manager ? (
+            <Pressable testID="chip-unassigned" accessibilityRole="button" accessibilityState={{ selected: unassigned }} onPress={() => setUnassigned((u) => !u)} style={[styles.chip, { borderColor: unassigned ? colors.accent : colors.border }, unassigned && { backgroundColor: colors.accent }]}>
+              <Text style={[styles.chipText, { color: unassigned ? colors.onPrimary : colors.text }]}>{t(lang, 'unassigned')}</Text>
+            </Pressable>
+          ) : null}
           {TABS.map(([v, k]) => (
             <Pressable key={v} accessibilityRole="button" accessibilityState={{ selected: v === tab }} onPress={() => setTab(v)} style={[styles.chip, { borderColor: v === tab ? colors.primary : colors.border }, v === tab && { backgroundColor: colors.primary }]}>
               <Text style={[styles.chipText, { color: v === tab ? colors.onPrimary : colors.text }]}>{k.startsWith('st_') ? stageLabel(lang, k.slice(3)) : t(lang, k)}{tabCounts && tabCounts[v] !== undefined ? ` (${tabCounts[v]})` : ''}</Text>
@@ -93,7 +105,7 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
             keyExtractor={(l) => l.ref}
             renderItem={({ item }) => (
               <SwipeRow rightLabel={`📞 ${t(lang, 'quickCall')}`} leftLabel={`✓ ${t(lang, 'markCalled')}`} onSwipeRight={() => callLead(item)} onSwipeLeft={() => markLead(item)}>
-                <LeadRow lead={item} onPress={() => onOpen(item.ref)} onQuick={() => quick(item)} />
+                <LeadRow lead={item} picked={selecting ? Boolean(sel[item.ref]) : undefined} onPress={() => (selecting ? setSel((c) => { const n = { ...c }; if (n[item.ref]) delete n[item.ref]; else n[item.ref] = item; return n; }) : onOpen(item.ref))} onQuick={() => quick(item)} />
               </SwipeRow>
             )}
             onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
@@ -105,23 +117,34 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
           />
         )}
       </View>
-      <View style={styles.fab}><Button testID="new-lead" label={`＋ ${t(lang, 'newLead')}`} onPress={() => nav.navigate('NewLead')} /></View>
+      {selecting ? (
+        <View style={styles.fab}>
+          <Button testID="assign-selected" label={`${t(lang, 'assignTo')} (${Object.keys(sel).length})`} disabled={!Object.keys(sel).length} onPress={() => setAssigning(true)} />
+          <Button testID="select-done" variant="secondary" label={t(lang, 'doneSelect')} onPress={() => { setSelecting(false); setSel({}); }} />
+        </View>
+      ) : (
+        <View style={styles.fab}>
+          <Button testID="new-lead" label={`＋ ${t(lang, 'newLead')}`} onPress={() => nav.navigate('NewLead')} />
+          {manager ? <Button testID="select-leads" variant="secondary" label={t(lang, 'selectLeads')} onPress={() => setSelecting(true)} /> : null}
+        </View>
+      )}
+      {assigning ? <BulkAssign leads={Object.values(sel)} onCancel={() => setAssigning(false)} onDone={() => { setAssigning(false); setSelecting(false); setSel({}); tick(); queries.invalidateQueries({ queryKey: ['leads'] }); }} /> : null}
     </View>
   );
 }
 
-function LeadRow({ lead, onPress, onQuick }: { lead: ApiLead; onPress: () => void; onQuick: () => void }) {
+function LeadRow({ lead, picked, onPress, onQuick }: { lead: ApiLead; picked?: boolean; onPress: () => void; onQuick: () => void }) {
   const { colors } = useTheme();
   const lang = currentLang();
   const due = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
   const late = due !== null && due.getTime() < Date.now();
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} onLongPress={onQuick} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <Pressable accessibilityRole="button" onPress={onPress} onLongPress={onQuick} style={[styles.card, { backgroundColor: colors.card, borderColor: picked ? colors.primary : colors.border }, picked && { borderWidth: 2 }]}>
       <View style={styles.cardTop}>
-        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{lead.name || lead.ref}</Text>
+        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{picked === undefined ? '' : picked ? '☑ ' : '☐ '}{lead.name || lead.ref}</Text>
         <Text style={{ color: colors.primary, fontWeight: '700' }}>{stageLabel(lang, lead.stage)}</Text>
       </View>
-      <Text style={{ color: colors.muted }}>{lead.ref}{lead.phones[0] ? ` · ${lead.phones[0]}` : ''}</Text>
+      <Text style={{ color: colors.muted }}>{lead.ref}{lead.phones[0] ? ` · ${lead.phones[0]}` : ''} · {lead.assignee ?? t(lang, 'unassigned')}</Text>
       {due ? <Text style={{ color: late ? colors.danger : colors.accent, fontWeight: '600' }}>{late ? `${t(lang, 'tabOverdue')} · ` : ''}{due.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</Text> : null}
     </Pressable>
   );

@@ -30,6 +30,26 @@ export function NewLeadScreen() {
   const [kind, setKind] = useState<ApiLead['kind']>('buyer');
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const [paste, setPaste] = useState('');
+  const [filling, setFilling] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const fill = async () => {
+    setFilling(true);
+    setMessage(null);
+    try {
+      const r = await api.extractLead(paste.trim());
+      if (r.name) setName(r.name);
+      if (r.phones[0]) setPhone(r.phones[0]);
+      if (r.kind) setKind(r.kind);
+      if (r.note) setNotes((cur) => (cur ? `${cur}\n${r.note}` : r.note));
+      setNotice(t(lang, 'pasteDone'));
+    } catch (e) {
+      setMessage(errorText(e, lang));
+    } finally {
+      setFilling(false);
+    }
+  };
 
   const save = async () => {
     setMessage(null);
@@ -48,6 +68,9 @@ export function NewLeadScreen() {
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Button testID="from-contacts" variant="secondary" label={`📇 ${t(lang, 'fromContacts')}`} onPress={() => nav.navigate('Contacts')} />
+      <Field label={t(lang, 'pasteFrom')} value={paste} onChangeText={setPaste} multiline testID="lead-paste" placeholder={t(lang, 'pasteHint')} />
+      <Button testID="lead-fill" variant="secondary" label={`✨ ${t(lang, 'pasteFill')}`} onPress={fill} disabled={filling || !paste.trim()} />
+      {notice ? <Text style={{ color: colors.accent }}>{notice}</Text> : null}
       <Field label={t(lang, 'leadName')} value={name} onChangeText={setName} testID="lead-name" />
       <Field label={t(lang, 'leadPhone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="lead-phone" />
       <Chips<ApiLead['kind']> options={KINDS.map((k) => ({ value: k, label: KIND_LABEL[k][lang === 'ar' ? 0 : 1] }))} value={kind} onChange={setKind} />
