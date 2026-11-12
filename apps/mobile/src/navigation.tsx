@@ -36,13 +36,15 @@ import { TodayScreen } from './screens/TodayScreen';
 import { UnitsScreen } from './screens/UnitsScreen';
 import { ContactsScreen } from './screens/ContactsScreen';
 import { narrow } from './layout';
-import { useRights } from './rights';
+import { useRightsState } from './rights';
+import { TAB_ICON, TAB_TITLE, navPlan } from './roleNav';
+import type { TabKey } from './roleNav';
 
 const TodayNarrow = narrow(TodayScreen);
 const SearchNarrow = narrow(SearchScreen);
 function MoreTab() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  return <MoreScreen onOpen={(s) => nav.navigate(s)} />;
+  return <MoreScreen onOpen={(s) => nav.navigate(s as never)} />;
 }
 const MoreNarrow = narrow(MoreTab);
 const CalendarNarrow = narrow(CalendarScreen);
@@ -59,9 +61,9 @@ import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
-export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
+export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: undefined; LeadsList: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
-type TabParams = { Today: undefined; Search: undefined; Leads: undefined; Map: undefined; Units: undefined; More: undefined };
+type TabParams = Record<TabKey, undefined>;
 
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tabs = createBottomTabNavigator<TabParams>();
@@ -77,12 +79,25 @@ function TabIcon({ name, color, focused }: { name: IconName; color: string; focu
 }
 const tabIcon = (name: IconName) => ({ color, focused }: { color: string; focused: boolean }) => <TabIcon name={name} color={color} focused={focused} />;
 
+/** Add unit on the tab bar is a button, not a screen: pressing it opens the form on top of the tabs. */
+const NothingHere = () => null;
+
 function TabsScreen() {
   const lang = currentLang();
-  const rights = useRights();
+  const { rights, ready } = useRightsState();
   const { colors } = useTheme();
+  if (!ready) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+  const plan = navPlan(rights);
+  const screens: Record<TabKey, React.ComponentType> = { Today: TodayNarrow, Search: SearchNarrow, Leads: LeadsScreen, Map: MapScreen, Units: UnitsScreen, More: MoreNarrow, Team: TeamNarrow, Dashboard: DashboardScreen, Owners: OwnersScreen, AddUnit: NothingHere, Plan: PlanScreen };
   return (
     <Tabs.Navigator
+      initialRouteName={plan.initial}
       screenOptions={{
         headerTitleAlign: 'center',
         headerLeft: () => <View style={{ paddingHorizontal: 12 }}><Logo size={0.3} compact /></View>,
@@ -96,12 +111,15 @@ function TabsScreen() {
         tabBarItemStyle: { paddingVertical: 4 },
       }}
     >
-      {rights.leads ? <Tabs.Screen name="Today" component={TodayNarrow} options={{ title: t(lang, 'today'), tabBarIcon: tabIcon('today') }} /> : null}
-      {rights.search ? <Tabs.Screen name="Search" component={SearchNarrow} options={{ title: t(lang, 'searchTab'), tabBarIcon: tabIcon('search') }} /> : null}
-      {rights.leads ? <Tabs.Screen name="Leads" component={LeadsScreen} options={{ title: t(lang, 'leadsTab'), tabBarIcon: tabIcon('leads') }} /> : null}
-      <Tabs.Screen name="Map" component={MapScreen} options={{ title: t(lang, 'mapTab'), tabBarIcon: tabIcon('map') }} />
-      <Tabs.Screen name="Units" component={UnitsScreen} options={{ title: t(lang, 'units'), tabBarIcon: tabIcon('units') }} />
-      <Tabs.Screen name="More" component={MoreNarrow} options={{ title: t(lang, 'more'), tabBarIcon: tabIcon('more') }} />
+      {plan.tabs.map((k) => (
+        <Tabs.Screen
+          key={k}
+          name={k}
+          component={screens[k]}
+          options={{ title: t(lang, TAB_TITLE[k]), tabBarIcon: tabIcon(TAB_ICON[k]) }}
+          listeners={k === 'AddUnit' ? { tabPress: (e) => { e.preventDefault(); navigationRef.navigate('AddUnit'); } } : undefined}
+        />
+      ))}
     </Tabs.Navigator>
   );
 }
@@ -158,6 +176,10 @@ export function RootNavigation() {
           <Stack.Screen name="Plan" component={PlanScreen} options={{ title: t(currentLang(), 'plan') }} />
           <Stack.Screen name="Usage" component={UsageScreen} options={{ title: t(currentLang(), 'usage') }} />
           <Stack.Screen name="Platform" component={PlatformScreen} options={{ title: t(currentLang(), 'platform') }} />
+          <Stack.Screen name="UnitsList" component={UnitsScreen} options={{ title: t(currentLang(), 'units') }} />
+          <Stack.Screen name="LeadsList" component={LeadsScreen} options={{ title: t(currentLang(), 'leadsTab') }} />
+          <Stack.Screen name="MapList" component={MapScreen} options={{ title: t(currentLang(), 'mapTab') }} />
+          <Stack.Screen name="TodayList" component={TodayNarrow} options={{ title: t(currentLang(), 'today') }} />
           <Stack.Screen name="Ask" component={AskNarrow} options={{ title: t(currentLang(), 'ask') }} />
           <Stack.Screen name="AddUnit" component={AddUnitNarrow} options={{ title: t(currentLang(), 'addUnit') }} />
         </Stack.Navigator>
