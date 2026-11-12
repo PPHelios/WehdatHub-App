@@ -282,6 +282,10 @@ export function createApiClient(opts: ApiClientOptions) {
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
     leadStage: (ref: string, version: number, stage: LeadStage, lostReason?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/stage`, { version, stage, lostReason }),
     leadFollowUp: (ref: string, version: number, at: string, kind: 'call' | 'viewing', note?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/follow-up`, { version, at, kind, note }),
+    leadDraft: (ref: string, lang: 'ar' | 'en') => request<{ text: string; wa: string | null }>('POST', `/leads/${encodeURIComponent(ref)}/draft`, { lang }),
+    leadSend: (ref: string, code: string, lang: 'ar' | 'en') => request<{ url: string }>('POST', `/leads/${encodeURIComponent(ref)}/send`, { code, lang }),
+    leadMerge: (ref: string, other: string, confirm: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/merge`, { other, confirm }),
+    leadErase: (ref: string, confirm: string) => request<{ ok: true }>('POST', `/leads/${encodeURIComponent(ref)}/erase`, { confirm }),
     leadNote: (ref: string, version: number, text: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/note`, { version, text }),
     /** Reads a pasted/shared message and/or a voice note into the add-unit fields. Nothing is saved. */
     extractUnit: (o: { describe?: string; voice?: UploadFile; fields?: UnitFields }) => {
