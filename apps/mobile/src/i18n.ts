@@ -2,6 +2,7 @@ import type { Lang } from '@wehdathub/shared';
 
 const strings = {
   ar: {
+    restartForLayout: 'اقفل التطبيق وافتحه تاني عشان الشكل يتظبط على اللغة.',
     signIn: 'الدخول', phoneLabel: 'رقم الموبايل المسجل', phoneHint: 'هيوصلك كود على البوت (تليجرام أو واتساب).', sendCode: 'ابعتلي الكود',
     codeLabel: 'الكود (6 أرقام)', verify: 'دخول', changeNumber: 'غيّر الرقم', resend: 'ابعت الكود تاني', codeSent: 'لو الرقم ده مسجل، الكود هيوصلك على البوت خلال دقيقة.',
     badPhone: 'اكتب رقم موبايل صحيح.', badCode: 'اكتب الكود المكوّن من 6 أرقام.', wrongCode: 'الكود مش صح، أو انتهى، أو اتستخدم قبل كده.',
@@ -25,6 +26,7 @@ const strings = {
     whatsappClient: 'واتساب العميل', notifications: 'الإشعارات', notifWhere: 'التنبيهات توصلك فين؟', notifHint: 'اختار التنبيهات اللي توصلك ووصلت فين.', chBoth: 'تليجرام والموقع (ببلاش)', chTelegram: 'تليجرام بس (ببلاش)', chWeb: 'الموقع (ببلاش)', notifChannel: 'القناة', notifFreq: 'التكرار', fqImmediate: 'فوري', fqHourly: 'كل ساعة (ملخص)', fqDaily: 'يومياً ٩ الصبح (ملخص)', notifAlways: 'دايماً شغّال وفوري', notifLockedBy: 'اتقفل من المدير أو المالك', remindersTitle: 'تذكير المكالمات والمعاينات', remindersHint: 'ابعتلي تذكير قبل الميعاد بكام؟ اختار واحد أو أكتر.', min30: 'نص ساعة', min60: 'ساعة', min120: 'ساعتين', quietTitle: 'ساعات الهدوء (بتوقيت القاهرة)', quietHold: 'متبعتليش تنبيهات في الوقت ده (بتتجمع وتوصل بعده)', quietFrom: 'من', quietUntil: 'لحد', notifSaved: 'اتحفظ.', notifSaveFail: 'مقدرناش نحفظ. جرب تاني.',
   },
   en: {
+    restartForLayout: 'Close the app and open it again to apply the language layout.',
     signIn: 'Sign in', phoneLabel: 'Your registered mobile', phoneHint: 'A code reaches you through the bot (Telegram or WhatsApp).', sendCode: 'Send me the code',
     codeLabel: 'Code (6 digits)', verify: 'Sign in', changeNumber: 'Change number', resend: 'Send the code again', codeSent: 'If this number is registered, the code reaches you through the bot within a minute.',
     badPhone: 'Enter a valid mobile number.', badCode: 'Enter the 6-digit code.', wrongCode: 'That code is wrong, expired, or already used.',

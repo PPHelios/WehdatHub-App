@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
+import { Alert, AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -19,6 +19,8 @@ import { startAnalytics } from './src/analytics';
 import { installErrorReporting } from './src/errorReport';
 import { startCrashReports, startFirebase, startPush } from './src/push';
 import { watchShares } from './src/share';
+import { syncDirection } from './src/direction';
+import { t } from './src/i18n';
 
 I18nManager.allowRTL(true);
 
@@ -38,6 +40,12 @@ export default function App() {
     // The server says the lowest app version it supports. A failure to ask never blocks the app.
     api.config().then((c) => isOutdated(APP_VERSION, c.minAppVersion) && setTooOld(c)).catch(() => undefined);
   }, [restore]);
+
+  // The layout direction follows the app language; a change only shows after the app is reopened.
+  const lang = useAuth((s) => s.broker?.lang);
+  useEffect(() => {
+    if (status === 'signedIn' && lang && syncDirection(lang)) Alert.alert(t(lang, 'restartForLayout'));
+  }, [status, lang]);
 
   // Lock after 30 seconds in the background.
   useEffect(() => {
