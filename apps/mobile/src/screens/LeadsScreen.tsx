@@ -12,7 +12,7 @@ import { SwipeRow } from '../components/SwipeRow';
 import { tick } from '../haptics';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
-import { t, type StringKey } from '../i18n';
+import { stageLabel, t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { Split, useColumns, useWide } from '../layout';
 import { LeadScreen } from './LeadScreen';
@@ -75,7 +75,7 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           {TABS.map(([v, k]) => (
             <Pressable key={v} accessibilityRole="button" accessibilityState={{ selected: v === tab }} onPress={() => setTab(v)} style={[styles.chip, { borderColor: v === tab ? colors.primary : colors.border }, v === tab && { backgroundColor: colors.primary }]}>
-              <Text style={[styles.chipText, { color: v === tab ? colors.onPrimary : colors.text }]}>{t(lang, k)}{tabCounts && tabCounts[v] !== undefined ? ` (${tabCounts[v]})` : ''}</Text>
+              <Text style={[styles.chipText, { color: v === tab ? colors.onPrimary : colors.text }]}>{k.startsWith('st_') ? stageLabel(lang, k.slice(3)) : t(lang, k)}{tabCounts && tabCounts[v] !== undefined ? ` (${tabCounts[v]})` : ''}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -119,7 +119,7 @@ function LeadRow({ lead, onPress, onQuick }: { lead: ApiLead; onPress: () => voi
     <Pressable accessibilityRole="button" onPress={onPress} onLongPress={onQuick} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.cardTop}>
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{lead.name || lead.ref}</Text>
-        <Text style={{ color: colors.primary, fontWeight: '700' }}>{t(lang, `st_${lead.stage}` as StringKey)}</Text>
+        <Text style={{ color: colors.primary, fontWeight: '700' }}>{stageLabel(lang, lead.stage)}</Text>
       </View>
       <Text style={{ color: colors.muted }}>{lead.ref}{lead.phones[0] ? ` · ${lead.phones[0]}` : ''}</Text>
       {due ? <Text style={{ color: late ? colors.danger : colors.accent, fontWeight: '600' }}>{late ? `${t(lang, 'tabOverdue')} · ` : ''}{due.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</Text> : null}

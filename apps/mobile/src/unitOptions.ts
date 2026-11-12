@@ -16,3 +16,10 @@ export const FURNISHING: Opt[] = [
   { value: 'kitchen_and_ac', ar: 'مطبخ وتكييف', en: 'Kitchen & AC' }, { value: 'ac_only', ar: 'تكييف فقط', en: 'AC only' }, { value: 'kitchen_only', ar: 'مطبخ فقط', en: 'Kitchen only' },
 ];
 export const options = (list: Opt[], lang: Lang) => list.map((o) => ({ value: o.value, label: lang === 'ar' ? o.ar : o.en }));
+
+/** The label of one stored value (finishing, furnishing, type), or the value itself when it is not on the list. */
+export const labelOf = (list: Opt[], value: string | null | undefined, lang: Lang): string | null => {
+  if (!value) return null;
+  const o = list.find((x) => x.value === value);
+  return o ? (lang === 'ar' ? o.ar : o.en) : value.replace(/_/g, ' ');
+};

@@ -20,9 +20,11 @@ import { installErrorReporting } from './src/errorReport';
 import { startCrashReports, startFirebase, startPush } from './src/push';
 import { watchShares } from './src/share';
 import { syncDirection } from './src/direction';
+import { installBrandFont } from './src/fonts';
 import { t } from './src/i18n';
 
 I18nManager.allowRTL(true);
+installBrandFont();
 
 const queries = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000, gcTime: DAY } } });
 

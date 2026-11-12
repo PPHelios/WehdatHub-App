@@ -12,6 +12,8 @@ import { PhotoGallery } from '../components/PhotoGallery';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { featureChip } from '../featureLabels';
+import { FINISHING, FURNISHING, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { spacing, useTheme } from '../theme';
 
@@ -81,7 +83,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
     [t(lang, 'baths'), u.bathrooms !== null ? String(u.bathrooms) : null],
     [t(lang, 'sqm'), u.area !== null ? String(Math.round(u.area)) : null],
     ['', [u.district, u.city].filter(Boolean).join(' · ') || null],
-    ['', [u.finishing, u.furnishing].filter(Boolean).join(' · ') || null],
+    ['', [labelOf(FINISHING, u.finishing, lang), labelOf(FURNISHING, u.furnishing, lang)].filter(Boolean).join(' · ') || null],
   ];
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.body}>
@@ -115,7 +117,21 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         {u.status === 'active' ? <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} /> : null}
         <ClientLinkModal visible={pickClient} busy={sharing} error={clientErr} onSubmit={shareLink} onCancel={() => setPickClient(false)} />
         <Button testID="share-unit" variant="secondary" label={t(lang, 'shareUnit')} onPress={() => { Share.share({ message: [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n') }).catch(() => undefined); }} />
-        {u.features.length ? <Text style={[styles.row, { color: colors.text }]}>{t(lang, 'features')}: {u.features.join(' · ')}</Text> : null}
+        {u.features.length ? (
+          <View testID="features" style={styles.featBox}>
+            <Text style={[styles.featTitle, { color: colors.text }]}>{t(lang, 'features')}</Text>
+            <View style={styles.chips}>
+              {u.features.map((k) => {
+                const f = featureChip(k, lang);
+                return (
+                  <View key={f.key} style={[styles.chip, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <Text style={{ color: colors.text }}>{f.icon} {f.label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -131,6 +147,10 @@ export function waNumber(phone: string): string {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  featBox: { gap: spacing.sm, marginTop: spacing.md },
+  featTitle: { fontSize: 16, fontWeight: '700' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
   flyerBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: spacing.lg, gap: spacing.sm },
   flyerImg: { flex: 1, width: '100%' },
   actions: { flexDirection: 'row', gap: spacing.sm },

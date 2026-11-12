@@ -15,7 +15,7 @@ import { Section } from '../components/Section';
 import { ViewingForm } from '../components/ViewingForm';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
-import { t, type StringKey } from '../i18n';
+import { stageLabel, t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { useRights } from '../rights';
 import { waNumber } from './UnitScreen';
@@ -68,7 +68,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
   if (q.isError || !q.data) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
   const { lead, timeline } = q.data;
   const followUp = (f: FollowUp) => run((l) => api.leadFollowUp(l.ref, l.version, f.at.toISOString(), f.kind));
-  const stageOptions = LEAD_STAGES.map((s) => ({ value: s, label: t(lang, `st_${s}` as StringKey) }));
+  const stageOptions = LEAD_STAGES.map((s) => ({ value: s, label: stageLabel(lang, s) }));
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={async () => { await q.refetch(); }} />}>
@@ -124,7 +124,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
       {timeline.map((e) => (
         <View key={e.id} style={[styles.event, { borderColor: colors.border }]}>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{new Date(e.at).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}{e.by ? ` · ${e.by}` : ''}</Text>
-          <Text style={{ color: colors.text }}>{e.text || (e.stage ? t(lang, `st_${e.stage}` as StringKey) : e.kind)}</Text>
+          <Text style={{ color: colors.text }}>{e.text || (e.stage ? stageLabel(lang, e.stage) : e.kind)}</Text>
         </View>
       ))}
       </Section>
