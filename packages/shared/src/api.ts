@@ -274,6 +274,7 @@ export function createApiClient(opts: ApiClientOptions) {
     setViewing: (ref: string, o: { version: number; at: string; unitCode?: string; place?: string; lang: Lang }) => request<ViewingSet>('POST', `/leads/${encodeURIComponent(ref)}/viewing`, o),
     viewings: (o: { from?: string; to?: string } = {}) => request<{ items: ApiViewing[] }>('GET', '/viewings', undefined, { from: o.from, to: o.to }),
     sentLinks: (offset = 0) => request<{ offset: number; hasMore: boolean; items: SentLink[] }>('GET', '/links', undefined, { offset: offset || undefined }),
+    extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string }>('POST', '/leads/extract', { message }),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
     leadStage: (ref: string, version: number, stage: LeadStage, lostReason?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/stage`, { version, stage, lostReason }),
