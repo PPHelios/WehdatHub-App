@@ -22,7 +22,7 @@ import { useRights } from '../rights';
 import { stopPush } from '../push';
 import { spacing, useTheme } from '../theme';
 
-export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Commissions' | 'Sources' | 'Portal' | 'Links' | 'Prices' | 'WinLoss' | 'Report') => void } = {}) {
+export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Links' | 'Prices' | 'WinLoss' | 'Report') => void } = {}) {
   const { colors } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
@@ -82,6 +82,12 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLin
       {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-sources" label={`📈 ${t(lang, 'sources')}`} variant="secondary" onPress={() => onOpen('Sources')} /> : null}
       {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-portal" label={`🏢 ${t(lang, 'portal')}`} variant="secondary" onPress={() => onOpen('Portal')} /> : null}
       {onOpen ? <Button testID="open-opened-links" label={`👁 ${t(lang, 'links')}`} variant="secondary" onPress={() => onOpen('Links')} /> : null}
+      {onOpen ? <Button testID="open-projects" label={`🏗 ${t(lang, 'projects')}`} variant="secondary" onPress={() => onOpen('Projects')} /> : null}
+      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-library" label={`📚 ${t(lang, 'library')}`} variant="secondary" onPress={() => onOpen('Library')} /> : null}
+      {onOpen ? <Button testID="open-compare" label={`⚖️ ${t(lang, 'compare')}`} variant="secondary" onPress={() => onOpen('Compare')} /> : null}
+      {onOpen ? <Button testID="open-plan" label={`💳 ${t(lang, 'plan')}`} variant="secondary" onPress={() => onOpen('Plan')} /> : null}
+      {onOpen ? <Button testID="open-usage" label={`📶 ${t(lang, 'usage')}`} variant="secondary" onPress={() => onOpen('Usage')} /> : null}
+      {onOpen && me.data?.platformOwner ? <Button testID="open-platform" label={`🛰 ${t(lang, 'platform')}`} variant="secondary" onPress={() => onOpen('Platform')} /> : null}
       {onOpen ? <Button testID="open-prices" label={`💰 ${t(lang, 'prices')}`} variant="secondary" onPress={() => onOpen('Prices')} /> : null}
       {onOpen ? <Button testID="open-report" label={`🐞 ${t(lang, 'report')}`} variant="secondary" onPress={() => onOpen('Report')} /> : null}
       {onOpen ? <Button testID="open-links" label={`🔗 ${t(lang, 'sentLinks')}`} variant="secondary" onPress={() => onOpen('SentLinks')} /> : null}
