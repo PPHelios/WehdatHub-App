@@ -34,3 +34,4 @@ jest.mock('@react-native-community/netinfo', () => ({ __esModule: true, default:
 jest.mock('@react-native-firebase/messaging', () => ({ getMessaging: jest.fn(() => ({})), getToken: jest.fn().mockResolvedValue('t'.repeat(30)), requestPermission: jest.fn().mockResolvedValue(1), onMessage: jest.fn(() => () => undefined), onNotificationOpenedApp: jest.fn(() => () => undefined), onTokenRefresh: jest.fn(() => () => undefined), getInitialNotification: jest.fn().mockResolvedValue(null) }));
 
 jest.mock('react-native-contacts', () => ({ __esModule: true, default: { requestPermission: jest.fn().mockResolvedValue('authorized'), getAllWithoutPhotos: jest.fn().mockResolvedValue([]) } }));
+jest.mock('@bam.tech/react-native-image-resizer', () => ({ __esModule: true, default: { createResizedImage: jest.fn(async (uri) => ({ uri: `${uri}.min.jpg`, name: 'x.jpg', size: 1000 })) } }));

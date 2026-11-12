@@ -19,6 +19,7 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { MAX_PHOTOS, pickPhotos, takePhoto } from '../photos';
+import { compressPhotos } from '../compress';
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { radius, spacing, useTheme } from '../theme';
 import { tick } from '../haptics';
@@ -189,13 +190,13 @@ export function AddUnitScreen() {
       if (editCode) {
         await api.saveUnitEdit(editCode, version, fields);
         const ph = photoChanges(originalIds.current, photos);
-        if (ph.changed) await api.unitPhotos(editCode, { add: ph.add, remove: ph.remove, order: ph.order });
+        if (ph.changed) await api.unitPhotos(editCode, { add: await compressPhotos(ph.add), remove: ph.remove, order: ph.order });
         tick();
         await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] })]);
         return nav.goBack();
       }
       const sent = { ...fields, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
-      const r = await api.createUnit(sent, photos);
+      const r = await api.createUnit(sent, await compressPhotos(photos));
       tick();
       track('unit_saved', { photos: photos.length });
       // A compound the list does not know is saved as pending on the server; show it on this phone straight away.
@@ -232,7 +233,7 @@ export function AddUnitScreen() {
     setError(null);
     try {
       const code = toUnit.trim();
-      await api.unitPhotos(code, { add: photos });
+      await api.unitPhotos(code, { add: await compressPhotos(photos) });
       await clearDraft();
       await qc.invalidateQueries({ queryKey: ['unit', code] });
       nav.replace('Unit', { code });
