@@ -109,7 +109,7 @@ export default function App() {
       {tooOld ? (
         <UpdateScreen config={tooOld} />
       ) : (
-        <PersistQueryClientProvider client={queries} persistOptions={{ persister: listsStore, maxAge: DAY, buster: 'v1', dehydrateOptions: { shouldDehydrateQuery: (q) => q.state.status === 'success' && KEPT.includes(String(q.queryKey[0])) } }}>
+        <PersistQueryClientProvider client={queries} persistOptions={{ persister: listsStore, maxAge: DAY, buster: 'v2', dehydrateOptions: { shouldDehydrateQuery: (q) => q.state.status === 'success' && KEPT.includes(String(q.queryKey[0])) } }}>
           <RootNavigation />
           {locked && status === 'signedIn' ? <LockScreen /> : null}
           <OfflineBanner />
