@@ -13,10 +13,12 @@ interface Props {
   /** Lets the page stop scrolling while a photo is held, so the drag never fights the scroll. */
   onDragging?: (dragging: boolean) => void;
   removeLabel: string;
+  /** A failed upload can be tried again. */
+  onRetry?: (uri: string) => void;
 }
 
 /** Drag-and-drop photo order: hold the ⋮⋮ handle, move the photo up or down, let go. The first photo is the cover. */
-export function SortablePhotos({ photos, onChange, onDragging, removeLabel }: Props) {
+export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRetry }: Props) {
   const { colors } = useTheme();
   const [active, setActive] = useState<{ from: number; to: number } | null>(null);
   const dy = useRef(new Animated.Value(0)).current;
@@ -76,6 +78,13 @@ export function SortablePhotos({ photos, onChange, onDragging, removeLabel }: Pr
             </View>
             <SmartImage uri={p.uri} style={styles.thumb} />
             <Text style={[styles.pos, { color: colors.text }]}>{i === 0 ? '★ 1' : String(i + 1)}</Text>
+            {p.failed ? (
+              <Pressable testID={`photo-retry-${i}`} accessibilityRole="button" onPress={() => onRetry?.(p.uri)} style={styles.remove}><Text style={{ color: colors.danger, fontWeight: '700' }}>↻</Text></Pressable>
+            ) : p.key ? (
+              <Text testID={`photo-done-${i}`} style={{ color: colors.accent, fontWeight: '700' }}>✓</Text>
+            ) : p.pct !== undefined ? (
+              <Text testID={`photo-pct-${i}`} style={{ color: colors.muted, fontWeight: '700' }}>{p.pct}%</Text>
+            ) : null}
             <Pressable testID={`photo-remove-${i}`} accessibilityRole="button" onPress={() => onChange(photos.filter((_x, j) => j !== i))} style={styles.remove}>
               <Text style={{ color: colors.danger, fontWeight: '700' }}>{removeLabel}</Text>
             </Pressable>
