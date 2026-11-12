@@ -20,6 +20,7 @@ import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { MAX_PHOTOS, pickPhotos, takePhoto } from '../photos';
 import { compressPhotos } from '../compress';
+import { SaveNotConfirmed, newSaveKey, withSaveCheck } from '../saveKey';
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { radius, spacing, useTheme } from '../theme';
 import { tick } from '../haptics';
@@ -58,6 +59,8 @@ export function AddUnitScreen() {
   const [failedCheck, setFailedCheck] = useState(false);
   const [ack, setAck] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const saveKey = useRef(newSaveKey());
   const dirty = useRef(false);
   const shared = useRef(route.params);
   const editCode = route.params?.edit;
@@ -179,7 +182,10 @@ export function AddUnitScreen() {
     if (review?.blockers.length) { setFailedCheck(true); setBlockers(review.blockers); return; }
     dirty.current = false;
     setSaving(true);
-    try { await doSave(force); } finally { setSaving(false); }
+    setProgress(0);
+    // Photos prepared first (60%), then the wait for the server creeps toward 95% until the answer.
+    const creep = setInterval(() => setProgress((p) => (p >= 0.6 && p < 0.95 ? p + 0.01 : p)), 600);
+    try { await doSave(force); } finally { clearInterval(creep); setSaving(false); }
   };
 
   const doSave = async (force: boolean) => {
@@ -193,7 +199,7 @@ export function AddUnitScreen() {
         // retries the photos, so it never meets "changed elsewhere" from its own first save.
         const key = JSON.stringify(fields);
         if (savedDetails.current !== key) {
-          const saved = await api.saveUnitEdit(editCode, version, fields);
+          const saved = await api.saveUnitEdit(editCode, version, fields, saveKey.current);
           setVersion(saved.version);
           savedDetails.current = key;
         }
@@ -210,7 +216,11 @@ export function AddUnitScreen() {
         return nav.goBack();
       }
       const sent = { ...fields, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
-      const r = await api.createUnit(sent, await compressPhotos(photos));
+      const prepared = await compressPhotos(photos, (d, n) => setProgress(0.6 * (d / Math.max(1, n))));
+      setProgress(0.6);
+      const r = await withSaveCheck(api.createUnit(sent, prepared, saveKey.current), () => api.unitSaveStatus(saveKey.current));
+      setProgress(1);
+      saveKey.current = newSaveKey();
       tick();
       track('unit_saved', { photos: photos.length });
       // A compound the list does not know is saved as pending on the server; show it on this phone straight away.
@@ -220,6 +230,7 @@ export function AddUnitScreen() {
       nav.replace('Unit', { code: r.code });
     } catch (e) {
       track('unit_save_refused', { reason: e instanceof ApiClientError ? String(e.code || e.status) : 'error' });
+      if (e instanceof SaveNotConfirmed) return setError(t(lang, 'saveNotConfirmed'));
       if (!(e instanceof ApiClientError)) return setError(errorText(e, lang));
       if (editCode && e.code === 'conflict') return setError(t(lang, 'changedElsewhere'));
       if (editCode && e.code === 'incomplete') { setFailedCheck(true); return setBlockers((e.extra.blockers as { field: string; label: string }[]) ?? []); }
@@ -341,6 +352,7 @@ export function AddUnitScreen() {
           {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {c.from || '—'} ← {c.to || '—'}</Text>)}
         </View>
       ) : null}
+      {review && !review.warnings.length && !review.blockers.length ? <Text testID="no-warnings" style={{ color: colors.muted }}>✓ {t(lang, 'noWarnings')}</Text> : null}
       {review?.warnings.length && !review.blockers.length ? (
         <View testID="warnings" style={[styles.box, { borderColor: colors.accent }]}>
           {review.warnings.map((w) => <Text key={w.field + w.text} style={{ color: colors.text }}>• {w.text}</Text>)}
@@ -355,7 +367,7 @@ export function AddUnitScreen() {
         </View>
       ) : null}
       {error ? <Text testID="unit-error" style={{ color: colors.danger }}>{error}</Text> : null}
-      <Button testID="save-unit" label={t(lang, 'saveUnit')} onPress={() => save(false)} loading={saving} disabled={saving || Boolean(review?.warnings.length && !review.blockers.length && !ack)} />
+      <Button testID="save-unit" label={saving ? `${t(lang, 'saving')} ${Math.round(progress * 100)}%` : t(lang, 'saveUnit')} progress={saving ? progress : undefined} onPress={() => save(false)} loading={saving} disabled={saving || Boolean(review?.warnings.length && !review.blockers.length && !ack)} />
       {editCode ? null : <Button label={t(lang, 'discardDraft')} variant="secondary" onPress={discard} />}
     </ScrollView>
   );

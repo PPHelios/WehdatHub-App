@@ -21,4 +21,7 @@ export async function compressPhoto(f: UploadFile): Promise<UploadFile> {
   }
 }
 
-export const compressPhotos = (files: UploadFile[]) => Promise.all(files.map(compressPhoto));
+export const compressPhotos = (files: UploadFile[], onEach?: (done: number, total: number) => void) => {
+  let done = 0;
+  return Promise.all(files.map(async (f) => { const r = await compressPhoto(f); onEach?.(++done, files.length); return r; }));
+};

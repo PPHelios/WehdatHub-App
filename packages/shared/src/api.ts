@@ -294,9 +294,10 @@ export function createApiClient(opts: ApiClientOptions) {
     /** An error caught inside the app (a screen crash); the server keeps it with the failures and alerts the owner. */
     reportClientError: (body: { message: string; screen?: string; stack?: string; platform: string; appVersion: string }) => request<unknown>('POST', '/client-error', body),
     /** Saves the unit; photos are sent in the broker's order. */
-    createUnit: (fields: UnitFields, photos: UploadFile[]) => {
+    createUnit: (fields: UnitFields, photos: UploadFile[], saveKey?: string) => {
       const form = new FormData();
       form.append('fields', JSON.stringify(fields));
+      if (saveKey) form.append('save_key', saveKey);
       for (const p of photos) form.append('photos', p as unknown as Blob);
       return request<{ code: string; photos: number; photosFailed: number }>('POST', '/units', form);
     },
@@ -365,7 +366,9 @@ export function createApiClient(opts: ApiClientOptions) {
       return request<{ images: UnitImage[]; failed: number }>('POST', `/units/${encodeURIComponent(code)}/photos`, form);
     },
     unitEditFields: (code: string) => request<{ code: string; version: number; fields: UnitFields }>('GET', `/units/${encodeURIComponent(code)}/edit`),
-    saveUnitEdit: (code: string, version: number, fields: UnitFields) => request<{ code: string; version: number }>('POST', `/units/${encodeURIComponent(code)}/edit`, { version, fields }),
+    saveUnitEdit: (code: string, version: number, fields: UnitFields, saveKey?: string) => request<{ code: string; version: number }>('POST', `/units/${encodeURIComponent(code)}/edit`, { version, fields, ...(saveKey ? { save_key: saveKey } : {}) }),
+    /** Was the save with this key stored? Asked once when a save has not answered for 60 seconds. */
+    unitSaveStatus: (key: string) => request<{ saved: boolean; code?: string }>('GET', '/units/save-status', undefined, { key }),
     placeSuggest: (q: string) => request<{ items: PlaceSuggestion[] }>('GET', '/places/suggest', undefined, { q }),
     placeList: (since?: string) => request<PlaceListReply>('GET', '/places/list', undefined, since ? { since } : undefined),
     unitCompounds: (q: string) => request<{ items: { name: string; n: number }[] }>('GET', '/units/compounds', undefined, { q }),
