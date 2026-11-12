@@ -15,7 +15,7 @@ import { Section } from '../components/Section';
 import { ViewingForm } from '../components/ViewingForm';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
-import { stageLabel, t, type StringKey } from '../i18n';
+import { stageLabel, t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { useRights } from '../rights';
 import { waNumber } from './UnitScreen';
