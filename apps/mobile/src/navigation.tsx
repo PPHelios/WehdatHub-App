@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import type { UploadFile } from '@wehdathub/shared';
+import { trackScreen } from './analytics';
 import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -107,7 +108,7 @@ export function RootNavigation() {
     );
   }
   return (
-    <NavigationContainer theme={theme} ref={navigationRef}>
+    <NavigationContainer theme={theme} ref={navigationRef} onStateChange={() => trackScreen(navigationRef.getCurrentRoute()?.name ?? '')}>
       {status === 'signedOut' ? (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Tabs" component={LoginScreen} />

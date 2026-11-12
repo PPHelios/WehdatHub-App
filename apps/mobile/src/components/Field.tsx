@@ -4,12 +4,13 @@ import type { TextInputProps } from 'react-native';
 import { radius, spacing, useTheme } from '../theme';
 
 /** A labelled text input. */
-export function Field({ label, ...props }: { label: string } & TextInputProps) {
+export function Field({ label, required, invalid, hint, ...props }: { label: string; required?: boolean; invalid?: boolean; hint?: string } & TextInputProps) {
   const { colors } = useTheme();
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.label, { color: colors.muted }]}>{label}</Text>
-      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }, props.multiline && styles.multi, props.style]} />
+      <Text style={[styles.label, { color: colors.muted }]}>{label}{required ? <Text style={{ color: colors.danger }}> *</Text> : null}</Text>
+      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : required ? colors.accent : colors.border, backgroundColor: colors.card }, props.multiline && styles.multi, props.style]} />
+      {hint ? <Text testID="field-hint" style={[styles.label, { color: colors.accent }]}>{hint}</Text> : null}
     </View>
   );
 }

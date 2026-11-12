@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError } from '@wehdathub/shared';
-import type { PlaceSuggestion, UnitFields, UploadFile, VoiceFile } from '@wehdathub/shared';
+import type { PlaceSuggestion, ReviewResult, UnitFields, UploadFile, VoiceFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
@@ -22,6 +22,8 @@ import { MAX_PHOTOS, pickPhotos, takePhoto } from '../photos';
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { radius, spacing, useTheme } from '../theme';
 import { tick } from '../haptics';
+import { track } from '../analytics';
+import { readPhone, readPrice } from '../readback';
 import { HoldMic } from '../components/HoldMic';
 
 const str = (v: UnitFields[string]): string => (typeof v === 'string' ? v : '');
@@ -51,13 +53,18 @@ export function AddUnitScreen() {
   const [blockers, setBlockers] = useState<{ field: string; label: string }[]>([]);
   const [duplicate, setDuplicate] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [review, setReview] = useState<ReviewResult | null>(null);
+  const [failedCheck, setFailedCheck] = useState(false);
+  const [ack, setAck] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const dirty = useRef(false);
   const shared = useRef(route.params);
   const editCode = route.params?.edit;
   const [version, setVersion] = useState(0);
   const originalIds = useRef<string[]>([]);
   const [toUnit, setToUnit] = useState('');
 
-  const set = (k: string, v: UnitFields[string]) => setFields((f) => ({ ...f, [k]: v }));
+  const set = (k: string, v: UnitFields[string]) => { dirty.current = true; setAck(false); setFields((f) => ({ ...f, [k]: v })); };
   // A compound picked from the list brings its own area; an area or sub-zone fills the area and leaves the compound empty.
   const pickPlace = (p: PlaceSuggestion) =>
     setFields((f) => ({
@@ -67,7 +74,9 @@ export function AddUnitScreen() {
       subzone_id: p.subzone_id ?? '',
       area_path: p.kind === 'compound' ? p.path : [p.path, p.name_ar || p.name_en].filter(Boolean).join(' › '),
     }));
-  const field = (k: string, label: string, extra: object = {}) => <Field key={k} testID={`f-${k}`} label={label} value={str(fields[k])} onChangeText={(v) => set(k, v)} {...extra} />;
+  const REQUIRED = ['owner_phone', 'price_value', ...(fields.owner_name_from_phone === '1' ? [] : ['owner_name'])];
+  const missing = (k: string) => (review?.blockers ?? blockers).some((b) => b.field === k);
+  const field = (k: string, label: string, extra: object = {}) => <Field key={k} testID={`f-${k}`} label={label} value={str(fields[k])} onChangeText={(v) => set(k, v)} required={REQUIRED.includes(k)} invalid={failedCheck && missing(k)} {...extra} />;
 
   // Fill from a message and/or a voice note. What the form already says is sent along and kept.
   const fill = useCallback(async (o: { describe?: string; voice?: UploadFile }) => {
@@ -125,6 +134,26 @@ export function AddUnitScreen() {
     return () => clearTimeout(h);
   }, [fields, photos, describe, photoAi, ready, editCode]);
 
+  // The server checks the form as the broker types: what is missing, warnings, a duplicate and (edit) what changes.
+  useEffect(() => {
+    if (!ready) return;
+    let live = true;
+    const h = setTimeout(() => {
+      api.reviewUnit(fields, photos.length, editCode).then((r) => { if (live) setReview(r); }).catch(() => undefined);
+    }, 700);
+    return () => { live = false; clearTimeout(h); };
+  }, [fields, photos.length, ready, editCode]);
+
+  // Leaving with unsaved edits asks first (a new unit keeps its draft, so only edits ask).
+  useEffect(() => nav.addListener?.('beforeRemove', (e) => {
+    if (!editCode || !dirty.current || saving) return;
+    e.preventDefault();
+    Alert.alert(t(lang, 'leaveTitle'), t(lang, 'leaveBody'), [
+      { text: t(lang, 'stay'), style: 'cancel' },
+      { text: t(lang, 'leave'), style: 'destructive', onPress: () => nav.dispatch(e.data.action) },
+    ]);
+  }), [nav, editCode, saving, lang]);
+
   const onVoice = async (file: VoiceFile) => {
     setError(null);
     try {
@@ -144,8 +173,17 @@ export function AddUnitScreen() {
   };
 
   const save = async (force = false) => {
+    if (saving) return;
+    if (review?.blockers.length) { setFailedCheck(true); setBlockers(review.blockers); return; }
+    dirty.current = false;
+    setSaving(true);
+    try { await doSave(force); } finally { setSaving(false); }
+  };
+
+  const doSave = async (force: boolean) => {
     setError(null);
     setBlockers([]);
+    setFailedCheck(false);
     setDuplicate(null);
     try {
       if (editCode) {
@@ -159,17 +197,20 @@ export function AddUnitScreen() {
       const sent = { ...fields, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
       const r = await api.createUnit(sent, photos);
       tick();
+      track('unit_saved', { photos: photos.length });
       // A compound the list does not know is saved as pending on the server; show it on this phone straight away.
       if (fields.compound_new === '1' && str(fields.compound)) addPendingPlace(str(fields.compound)).catch(() => undefined);
       await clearDraft();
       await qc.invalidateQueries({ queryKey: ['units'] });
       nav.replace('Unit', { code: r.code });
     } catch (e) {
+      track('unit_save_refused', { reason: e instanceof ApiClientError ? String(e.code || e.status) : 'error' });
       if (!(e instanceof ApiClientError)) return setError(errorText(e, lang));
       if (editCode && e.code === 'conflict') return setError(t(lang, 'changedElsewhere'));
-      if (editCode && e.code === 'incomplete') return setBlockers((e.extra.blockers as { field: string; label: string }[]) ?? []);
+      if (editCode && e.code === 'incomplete') { setFailedCheck(true); return setBlockers((e.extra.blockers as { field: string; label: string }[]) ?? []); }
       if (e.code === 'incomplete') {
         const rv = await api.reviewUnit(fields, photos.length).catch(() => null);
+        setFailedCheck(true);
         return setBlockers(rv?.blockers ?? []);
       }
       if (e.code === 'duplicate') {
@@ -210,7 +251,7 @@ export function AddUnitScreen() {
 
   const resale = fields.market !== 'primary';
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" scrollEnabled={!dragging}>
+    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.content, saving && styles.locked]} keyboardShouldPersistTaps="handled" scrollEnabled={!dragging} pointerEvents={saving ? 'none' : 'auto'}>
       {(
         <>
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fillFrom')}</Text>
@@ -238,7 +279,7 @@ export function AddUnitScreen() {
         </View>
       ) : null}
       <View style={styles.row}><View style={styles.flex}>{field('city', t(lang, 'fCity'))}</View><View style={styles.flex}>{field('district', t(lang, 'fDistrict'))}</View></View>
-      {field('price_value', t(lang, 'fPrice'), { keyboardType: 'numbers-and-punctuation' })}
+      {field('price_value', t(lang, 'fPrice'), { keyboardType: 'numbers-and-punctuation', hint: readPrice(str(fields.price_value), lang) })}
       <View style={styles.row}><View style={styles.flex}>{field('area_value', t(lang, 'fArea'), { keyboardType: 'decimal-pad' })}</View><View style={styles.flex}>{field('floor_level', t(lang, 'fFloor'), { keyboardType: 'number-pad' })}</View></View>
       <View style={styles.row}><View style={styles.flex}>{field('bedrooms', t(lang, 'fBedrooms'), { keyboardType: 'number-pad' })}</View><View style={styles.flex}>{field('bathrooms', t(lang, 'fBathrooms'), { keyboardType: 'number-pad' })}</View></View>
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fFinishing')}</Text>
@@ -249,7 +290,7 @@ export function AddUnitScreen() {
       {fields.is_ready === '1' ? null : field('delivery_year', t(lang, 'fDelivery'), { keyboardType: 'number-pad' })}
       {resale && fields.listing_type !== 'rent' ? <View style={styles.row}><View style={styles.flex}>{field('down_payment_value', t(lang, 'fDown'), { keyboardType: 'numbers-and-punctuation' })}</View><View style={styles.flex}>{field('remaining_amount', t(lang, 'fRemaining'), { keyboardType: 'numbers-and-punctuation' })}</View></View> : null}
       {field('owner_name', t(lang, 'fOwnerName'))}
-      {field('owner_phone', t(lang, 'fOwnerPhone'), { keyboardType: 'phone-pad' })}
+      {field('owner_phone', t(lang, 'fOwnerPhone'), { keyboardType: 'phone-pad', hint: readPhone(str(fields.owner_phone)) })}
       <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'usePhoneAsName')}</Text><Switch value={fields.owner_name_from_phone === '1'} onValueChange={(v) => set('owner_name_from_phone', v ? '1' : '')} /></View>
       <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'compoundNew')}</Text><Switch value={fields.compound_new === '1'} onValueChange={(v) => set('compound_new', v ? '1' : '')} /></View>
       {field('notes', t(lang, 'fNotes'), { multiline: true })}
@@ -273,10 +314,22 @@ export function AddUnitScreen() {
         </>
       )}
 
-      {blockers.length ? (
+      {failedCheck && (review?.blockers ?? blockers).length ? (
         <View testID="blockers" style={[styles.box, { borderColor: colors.danger }]}>
           <Text style={{ color: colors.danger, fontWeight: '700' }}>{t(lang, 'stillNeeded')}</Text>
-          {blockers.map((b) => <Text key={b.field} style={{ color: colors.text }}>• {b.label}</Text>)}
+          {(review?.blockers ?? blockers).map((b) => <Text key={b.field} style={{ color: colors.text }}>• {b.label}</Text>)}
+        </View>
+      ) : null}
+      {editCode && review?.changes?.length ? (
+        <View testID="changes" style={[styles.box, { borderColor: colors.border }]}>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'willChange')}</Text>
+          {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {c.from || '—'} ← {c.to || '—'}</Text>)}
+        </View>
+      ) : null}
+      {review?.warnings.length && !review.blockers.length ? (
+        <View testID="warnings" style={[styles.box, { borderColor: colors.accent }]}>
+          {review.warnings.map((w) => <Text key={w.field + w.text} style={{ color: colors.text }}>• {w.text}</Text>)}
+          <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'warnOk')}</Text><Switch testID="ack" value={ack} onValueChange={setAck} /></View>
         </View>
       ) : null}
       {duplicate !== null ? (
@@ -287,7 +340,7 @@ export function AddUnitScreen() {
         </View>
       ) : null}
       {error ? <Text testID="unit-error" style={{ color: colors.danger }}>{error}</Text> : null}
-      <Button testID="save-unit" label={t(lang, 'saveUnit')} onPress={() => save(false)} />
+      <Button testID="save-unit" label={t(lang, 'saveUnit')} onPress={() => save(false)} loading={saving} disabled={saving || Boolean(review?.warnings.length && !review.blockers.length && !ack)} />
       {editCode ? null : <Button label={t(lang, 'discardDraft')} variant="secondary" onPress={discard} />}
     </ScrollView>
   );
@@ -299,5 +352,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  locked: { opacity: 0.6 },
   box: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
 });
