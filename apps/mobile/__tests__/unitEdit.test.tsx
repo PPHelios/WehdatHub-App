@@ -31,7 +31,7 @@ test('edit mode loads the unit, saves with its version and goes back', async () 
   expect(screen.getByTestId('add-photos')).toBeTruthy();
   await fireEvent.changeText(screen.getByTestId('f-price_value'), '8500000');
   await fireEvent.press(screen.getByTestId('save-unit'));
-  await waitFor(() => expect(m.saveUnitEdit).toHaveBeenCalledWith('A-1', 4, expect.objectContaining({ price_value: '8500000' })));
+  await waitFor(() => expect(m.saveUnitEdit).toHaveBeenCalledWith('A-1', 4, expect.objectContaining({ price_value: '8500000' }), expect.any(String)));
   await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
 });
 
