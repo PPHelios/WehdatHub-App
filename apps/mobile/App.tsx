@@ -15,6 +15,8 @@ import { APP_VERSION } from './src/config';
 import { LOCK_AFTER_MS, useLock } from './src/lock';
 import { clearPlaces, syncPlaces } from './src/placeList';
 import { RootNavigation, navigationRef } from './src/navigation';
+import { startAnalytics } from './src/analytics';
+import { installErrorReporting } from './src/errorReport';
 import { startCrashReports, startFirebase, startPush } from './src/push';
 import { watchShares } from './src/share';
 
@@ -23,6 +25,7 @@ I18nManager.allowRTL(true);
 const queries = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000, gcTime: DAY } } });
 
 export default function App() {
+  useEffect(() => installErrorReporting(), []);
   const restore = useAuth((s) => s.restore);
   const status = useAuth((s) => s.status);
   const locked = useLock((s) => s.locked);
@@ -84,6 +87,7 @@ export default function App() {
         if (gone || !(await startFirebase(c.firebase))) return;
         const id = useAuth.getState().broker?.id;
         if (id) startCrashReports(String(id)).catch(() => undefined);
+        startAnalytics().catch(() => undefined);
         const off = await startPush((s) => {
           const go = () => navigationRef.navigate(s.name, s.params as never);
           if (navigationRef.isReady()) go();

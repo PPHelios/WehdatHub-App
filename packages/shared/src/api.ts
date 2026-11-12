@@ -98,7 +98,8 @@ export interface PlaceSuggestion { kind: 'compound' | 'area' | 'subzone'; id: st
 export interface PlaceList { version: string; places: import('./placeMatch').ListPlace[]; areas: import('./placeMatch').ListArea[] }
 export type PlaceListReply = PlaceList | { version: string; unchanged: true };
 export type UnitFields = Record<string, string | string[] | boolean | undefined>;
-export interface ReviewResult { ok: boolean; blockers: { field: string; label: string }[]; warnings: { field: string; text: string }[]; duplicate: string | null }
+export interface UnitChange { field: string; ar: string; en: string; from: string; to: string }
+export interface ReviewResult { ok: boolean; blockers: { field: string; label: string }[]; warnings: { field: string; text: string }[]; duplicate: string | null; /** Edit only: the main fields that would change. */ changes?: UnitChange[] }
 export interface FirebaseClientConfig { apiKey: string; appId: string; projectId: string; messagingSenderId: string }
 export interface AppConfig {
   minAppVersion: string;
@@ -204,6 +205,8 @@ export interface ApiClientOptions {
   getToken: () => string | null;
   /** Called when the server says the session is over (HTTP 401 on a call that sent a token). */
   onUnauthorized?: () => void;
+  /** Sent with every call (the app's platform and version), so the server's failure log can tell the phones apart. */
+  headers?: Record<string, string>;
   fetchImpl?: typeof fetch;
 }
 
@@ -218,7 +221,7 @@ export function createApiClient(opts: ApiClientOptions) {
           .join('&')
       : '';
     const token = opts.getToken();
-    const headers: Record<string, string> = { Accept: 'application/json' };
+    const headers: Record<string, string> = { Accept: 'application/json', ...(opts.headers ?? {}) };
     const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
     if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -284,7 +287,10 @@ export function createApiClient(opts: ApiClientOptions) {
       if (o.fields) form.append('fields', JSON.stringify(o.fields));
       return request<{ fields: UnitFields }>('POST', '/units/extract', form);
     },
-    reviewUnit: (fields: UnitFields, photoCount: number) => request<ReviewResult>('POST', '/units/review', { fields, photoCount }),
+    /** `code` set (edit): the review also lists what would change. */
+    reviewUnit: (fields: UnitFields, photoCount: number, code?: string) => request<ReviewResult>('POST', '/units/review', { fields, photoCount, ...(code ? { code } : {}) }),
+    /** An error caught inside the app (a screen crash); the server keeps it with the failures and alerts the owner. */
+    reportClientError: (body: { message: string; screen?: string; stack?: string; platform: string; appVersion: string }) => request<unknown>('POST', '/client-error', body),
     /** Saves the unit; photos are sent in the broker's order. */
     createUnit: (fields: UnitFields, photos: UploadFile[]) => {
       const form = new FormData();
