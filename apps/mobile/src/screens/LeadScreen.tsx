@@ -13,6 +13,7 @@ import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
 import { Section } from '../components/Section';
+import { LeadActions } from '../components/LeadActions';
 import { ViewingForm } from '../components/ViewingForm';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
@@ -120,6 +121,8 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
       <Section testID="sec-viewing" title={t(lang, 'addViewing')}>
         <ViewingForm lead={lead} />
       </Section>
+
+      <LeadActions lead={lead} manager={rights.team} />
 
       <Section testID="sec-history" title={t(lang, 'history')}>
       {timeline.map((e) => (
