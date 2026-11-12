@@ -108,7 +108,9 @@ export interface AppConfig {
   /** The phone's public Firebase identifiers; null until the server has them. Alerts and crash reports stay off without them. */
   firebase?: { android?: FirebaseClientConfig; ios?: FirebaseClientConfig } | null;
 }
-export interface UploadFile { uri: string; name: string; type: string }
+/** key: set once the photo is stored (direct upload); pct: upload progress 0 to 100; failed: the upload stopped and can be retried. */
+export interface UploadFile { uri: string; name: string; type: string; key?: string; pct?: number; failed?: boolean }
+export interface PhotoUploadLink { key: string; upload_url: string; thumb_key: string; thumb_upload_url: string | null }
 export interface SearchAsk { terms: string[]; numbers?: unknown[]; aiDown?: boolean; withoutTotal: number }
 export interface SearchResult {
   status: 'results' | 'none' | 'ask' | 'small_talk' | 'listing' | 'other';
@@ -294,10 +296,11 @@ export function createApiClient(opts: ApiClientOptions) {
     /** An error caught inside the app (a screen crash); the server keeps it with the failures and alerts the owner. */
     reportClientError: (body: { message: string; screen?: string; stack?: string; platform: string; appVersion: string }) => request<unknown>('POST', '/client-error', body),
     /** Saves the unit; photos are sent in the broker's order. */
-    createUnit: (fields: UnitFields, photos: UploadFile[], saveKey?: string) => {
+    createUnit: (fields: UnitFields, photos: UploadFile[], saveKey?: string, photoKeys?: string[]) => {
       const form = new FormData();
       form.append('fields', JSON.stringify(fields));
       if (saveKey) form.append('save_key', saveKey);
+      if (photoKeys?.length) form.append('photo_keys', JSON.stringify(photoKeys));
       for (const p of photos) form.append('photos', p as unknown as Blob);
       return request<{ code: string; photos: number; photosFailed: number }>('POST', '/units', form);
     },
@@ -358,8 +361,11 @@ export function createApiClient(opts: ApiClientOptions) {
     ask: (question: string) => request<AskAnswer>('POST', '/ask', { question }),
     unitFlyer: (code: string, theme: 'dark' | 'light' = 'dark') => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/flyer`, { theme }),
     /** Photos of an existing unit: new files to add, ids to remove, and the order of the kept ones (first is the cover). */
-    unitPhotos: (code: string, o: { add?: UploadFile[]; remove?: string[]; order?: string[] }) => {
+    /** One-time links so each photo goes straight to storage; then send the returned keys as photoKeys. */
+    photoUploadLinks: (count: number) => request<{ uploads: PhotoUploadLink[]; expires_in: number }>('POST', '/units/photo-upload', { count }),
+    unitPhotos: (code: string, o: { add?: UploadFile[]; remove?: string[]; order?: string[]; photoKeys?: string[] }) => {
       const form = new FormData();
+      if (o.photoKeys?.length) form.append('photo_keys', JSON.stringify(o.photoKeys));
       for (const p of o.add ?? []) form.append('photos', p as unknown as Blob);
       if (o.remove?.length) form.append('remove', JSON.stringify(o.remove));
       if (o.order?.length) form.append('order', JSON.stringify(o.order));
