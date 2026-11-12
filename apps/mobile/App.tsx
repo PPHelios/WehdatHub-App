@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { startUsage } from './src/usage';
 import { Alert, AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient } from '@tanstack/react-query';
@@ -30,6 +31,7 @@ const queries = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTi
 
 export default function App() {
   useEffect(() => installErrorReporting(), []);
+  useEffect(() => startUsage(), []);
   const restore = useAuth((s) => s.restore);
   const status = useAuth((s) => s.status);
   const locked = useLock((s) => s.locked);

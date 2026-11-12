@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { timed } from '../usage';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import type { ApiLead } from '@wehdathub/shared';
@@ -24,7 +25,7 @@ export function BulkAssign({ leads, onDone, onCancel }: { leads: ApiLead[]; onDo
     let lastError: unknown = null;
     for (const l of leads) {
       try {
-        await api.assignLead(l.ref, l.version, brokerId);
+        await timed('lead_assign', () => api.assignLead(l.ref, l.version, brokerId), { kind: 'bulk' });
       } catch (e) {
         failed += 1;
         lastError = e;

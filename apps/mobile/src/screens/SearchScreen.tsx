@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { timed } from '../usage';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useMutation } from '@tanstack/react-query';
@@ -22,7 +23,7 @@ export function SearchScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [text, setText] = useState('');
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const search = useMutation<SearchResult, Error, { q: string; drop?: boolean; status?: UnitStatus }>({ mutationFn: ({ q, drop, status }) => api.search(q, { drop, status }) });
+  const search = useMutation<SearchResult, Error, { q: string; drop?: boolean; status?: UnitStatus }>({ mutationFn: ({ q, drop, status }) => timed('search', () => api.search(q, { drop, status })) });
   // Active units first; Sold and Archived are one tap away, with their counts from the start. More results load on demand.
   const [last, setLast] = useState<{ q: string; drop: boolean; status: UnitStatus } | null>(null);
   const [extra, setExtra] = useState<ApiUnitListItem[]>([]);

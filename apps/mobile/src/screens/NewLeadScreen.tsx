@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { timed } from '../usage';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -38,7 +39,7 @@ export function NewLeadScreen() {
     setFilling(true);
     setMessage(null);
     try {
-      const r = await api.extractLead(paste.trim());
+      const r = await timed('lead_paste', () => api.extractLead(paste.trim()));
       if (r.name) setName(r.name);
       if (r.phones[0]) setPhone(r.phones[0]);
       if (r.kind) setKind(r.kind);
