@@ -1,8 +1,9 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatEgp } from '@wehdathub/shared';
 import type { ApiUnitListItem, Lang } from '@wehdathub/shared';
 import { t } from '../i18n';
+import { SmartImage } from './SmartImage';
 import { radius, spacing, useTheme } from '../theme';
 
 export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListItem; lang: Lang; onPress: () => void; onEdit?: () => void }) {
@@ -10,7 +11,7 @@ export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListIte
   const facts = [unit.bedrooms !== null ? `${unit.bedrooms} ${t(lang, 'beds')}` : null, unit.bathrooms !== null ? `${unit.bathrooms} ${t(lang, 'baths')}` : null, unit.area !== null ? `${Math.round(unit.area)} ${t(lang, 'sqm')}` : null].filter(Boolean);
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.9 : 1 }]}>
-      {unit.photo ? <Image source={{ uri: unit.photo }} style={styles.photo} resizeMode="cover" /> : null}
+      {unit.photo ? <SmartImage uri={unit.photo} style={styles.photo} /> : null}
       <View style={styles.info}>
         <View style={styles.row}>
           <Text style={[styles.code, { color: colors.primary }]}>{unit.code}</Text>

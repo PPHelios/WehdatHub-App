@@ -16,6 +16,9 @@ const ICONS = {
   owners: [{ c: [12, 8, 4] }, { d: 'M4 21a8 8 0 0 1 16 0' }, { d: 'M18 3l2 2-2 2' }],
   dashboard: [{ d: 'M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z' }],
   plan: [{ r: [2, 5, 20, 14, 2] }, { d: 'M2 10h20' }],
+  mic: [{ r: [9, 2, 6, 11, 3] }, { d: 'M19 10v2a7 7 0 0 1-14 0v-2M12 19v3' }],
+  trash: [{ d: 'M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6' }],
+  download: [{ d: 'M12 3v12M7 10l5 5 5-5M5 21h14' }],
 } satisfies Record<string, Part[]>;
 
 export type IconName = keyof typeof ICONS;

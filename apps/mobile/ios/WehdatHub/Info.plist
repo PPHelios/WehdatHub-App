@@ -53,6 +53,8 @@
 	<string>Used only when you tap Take photo to add a photo to a unit.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Used only to choose unit photos you pick.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Used only to save a unit flyer to your photos when you tap Save to gallery.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Used to unlock the app with Face ID.</string>
 	<key>NSContactsUsageDescription</key>
