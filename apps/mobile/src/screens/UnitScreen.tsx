@@ -13,6 +13,7 @@ import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import { featureChip } from '../featureLabels';
+import { saveToGallery } from '../saveImage';
 import { FINISHING, FURNISHING, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { spacing, useTheme } from '../theme';
@@ -28,6 +29,18 @@ export function UnitScreen({ code }: { code?: string } = {}) {
   const contact = useQuery({ queryKey: ['unit', unitCode, 'contact'], queryFn: () => api.unitContact(unitCode), retry: false, enabled: unit.isSuccess });
   const [flyer, setFlyer] = useState<string | null>(null);
   const [flyerBusy, setFlyerBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const saveFlyer = async () => {
+    if (!flyer) return;
+    setSaving(true);
+    try {
+      Alert.alert(t(lang, (await saveToGallery(flyer)) ? 'savedToGallery' : 'galleryDenied'));
+    } catch {
+      Alert.alert(t(lang, 'flyerFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
   const makeFlyer = async () => {
     setFlyerBusy(true);
     try {
@@ -109,6 +122,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
             <View style={styles.flyerBack}>
               <Image testID="flyer-image" source={{ uri: flyer }} style={styles.flyerImg} resizeMode="contain" />
               <Button testID="flyer-share" label={t(lang, 'shareFlyer')} onPress={() => { Share.share({ message: flyer }).catch(() => undefined); }} />
+              <Button testID="flyer-save" variant="secondary" label={t(lang, 'saveToGallery')} loading={saving} onPress={saveFlyer} />
               <Button label={t(lang, 'closePanel')} variant="secondary" onPress={() => setFlyer(null)} />
             </View>
           </Modal>

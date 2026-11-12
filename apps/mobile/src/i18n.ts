@@ -2,6 +2,8 @@ import type { Lang } from '@wehdathub/shared';
 
 const strings = {
   ar: {
+    photosRetry: 'اتحفظت بيانات الوحدة، بس الصور ماترفعتش. اضغط حفظ تاني للصور.',
+    tapRetry: 'اضغط للإعادة', saveToGallery: 'حفظ في المعرض', savedToGallery: 'اتحفظت في المعرض.', galleryDenied: 'محتاجين صلاحية الصور عشان نحفظ في المعرض. فعّلها من إعدادات التليفون.', micFailed: 'المايك مش شغال دلوقتي. اقفل التطبيق وافتحه تاني، ولو فضل كده ابعت بلاغ.', dragCancel: 'اسحب بعيد للإلغاء', holdMic: 'اضغط مع الاستمرار وتكلم',
     restartForLayout: 'اقفل التطبيق وافتحه تاني عشان الشكل يتظبط على اللغة.',
     signIn: 'الدخول', phoneLabel: 'رقم الموبايل المسجل', phoneHint: 'هيوصلك كود على البوت (تليجرام أو واتساب).', sendCode: 'ابعتلي الكود',
     codeLabel: 'الكود (6 أرقام)', verify: 'دخول', changeNumber: 'غيّر الرقم', resend: 'ابعت الكود تاني', codeSent: 'لو الرقم ده مسجل، الكود هيوصلك على البوت خلال دقيقة.',
@@ -26,6 +28,8 @@ const strings = {
     whatsappClient: 'واتساب العميل', notifications: 'الإشعارات', notifWhere: 'التنبيهات توصلك فين؟', notifHint: 'اختار التنبيهات اللي توصلك ووصلت فين.', chBoth: 'تليجرام والموقع (ببلاش)', chTelegram: 'تليجرام بس (ببلاش)', chWeb: 'الموقع (ببلاش)', notifChannel: 'القناة', notifFreq: 'التكرار', fqImmediate: 'فوري', fqHourly: 'كل ساعة (ملخص)', fqDaily: 'يومياً ٩ الصبح (ملخص)', notifAlways: 'دايماً شغّال وفوري', notifLockedBy: 'اتقفل من المدير أو المالك', remindersTitle: 'تذكير المكالمات والمعاينات', remindersHint: 'ابعتلي تذكير قبل الميعاد بكام؟ اختار واحد أو أكتر.', min30: 'نص ساعة', min60: 'ساعة', min120: 'ساعتين', quietTitle: 'ساعات الهدوء (بتوقيت القاهرة)', quietHold: 'متبعتليش تنبيهات في الوقت ده (بتتجمع وتوصل بعده)', quietFrom: 'من', quietUntil: 'لحد', notifSaved: 'اتحفظ.', notifSaveFail: 'مقدرناش نحفظ. جرب تاني.',
   },
   en: {
+    photosRetry: 'The unit details were saved, but the photos did not upload. Press Save again for the photos.',
+    tapRetry: 'Tap to retry', saveToGallery: 'Save to gallery', savedToGallery: 'Saved to your gallery.', galleryDenied: 'Photos permission is needed to save to the gallery. Turn it on in phone settings.', micFailed: 'The microphone is not working right now. Close and reopen the app, and report it if it keeps happening.', dragCancel: 'Slide away to cancel', holdMic: 'Press and hold, then speak',
     restartForLayout: 'Close the app and open it again to apply the language layout.',
     signIn: 'Sign in', phoneLabel: 'Your registered mobile', phoneHint: 'A code reaches you through the bot (Telegram or WhatsApp).', sendCode: 'Send me the code',
     codeLabel: 'Code (6 digits)', verify: 'Sign in', changeNumber: 'Change number', resend: 'Send the code again', codeSent: 'If this number is registered, the code reaches you through the bot within a minute.',

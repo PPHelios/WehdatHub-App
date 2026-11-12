@@ -62,6 +62,7 @@ export function AddUnitScreen() {
   const shared = useRef(route.params);
   const editCode = route.params?.edit;
   const [version, setVersion] = useState(0);
+  const savedDetails = useRef<string | null>(null);
   const originalIds = useRef<string[]>([]);
   const [toUnit, setToUnit] = useState('');
 
@@ -188,9 +189,22 @@ export function AddUnitScreen() {
     setDuplicate(null);
     try {
       if (editCode) {
-        await api.saveUnitEdit(editCode, version, fields);
+        // The details and the photos are two calls. If the photos fail, the details are already saved: a second Save then only
+        // retries the photos, so it never meets "changed elsewhere" from its own first save.
+        const key = JSON.stringify(fields);
+        if (savedDetails.current !== key) {
+          const saved = await api.saveUnitEdit(editCode, version, fields);
+          setVersion(saved.version);
+          savedDetails.current = key;
+        }
         const ph = photoChanges(originalIds.current, photos);
-        if (ph.changed) await api.unitPhotos(editCode, { add: await compressPhotos(ph.add), remove: ph.remove, order: ph.order });
+        if (ph.changed) {
+          try {
+            await api.unitPhotos(editCode, { add: await compressPhotos(ph.add), remove: ph.remove, order: ph.order });
+          } catch {
+            return setError(t(lang, 'photosRetry'));
+          }
+        }
         tick();
         await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] })]);
         return nav.goBack();
