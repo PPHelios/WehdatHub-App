@@ -330,7 +330,7 @@ export function createApiClient(opts: ApiClientOptions) {
     portalEnquiries: () => request<{ items: Row[] }>('GET', '/portal-enquiries'),
     assignEnquiry: (id: string, b: { phone: string; brokerId?: string }) => request<{ ok: true; outcome: string }>('POST', `/portal-enquiries/${id}/assign`, b),
     linkEnquiry: (id: string, unitCode: string) => request<{ ok: true }>('POST', `/portal-enquiries/${id}/link`, { unitCode }),
-    openedLinks: (status?: string, page?: number) => request<{ rows: Row[]; total: number; pages: number; page: number }>('GET', '/links', undefined, { status, page }),
+    openedLinks: (status?: string, page?: number) => request<{ rows: Row[]; total: number; pages: number; page: number }>('GET', '/opened-links', undefined, { status, page }),
     catalogue: (q?: string, page = 0) => request<{ projects: { items: Row[]; total: number; pages: number }; developers: { items: Row[] }; canEdit: boolean }>('GET', '/catalogue', undefined, { q, page }),
     project: (id: string) => request<{ project: Row; developer: Row | null; phases: Row[]; plans: Row[]; materials: Row[]; units: Row[]; canEdit: boolean }>('GET', `/catalogue/projects/${id}`),
     archiveProject: (id: string, archived: boolean) => request<{ ok: true }>('POST', `/catalogue/projects/${id}/archive`, { archived }),

@@ -19,10 +19,12 @@ import { clearDraft } from '../draft';
 import { t } from '../i18n';
 import { lockAvailable, useLock } from '../lock';
 import { useRights } from '../rights';
+import { moreItems, navPlan } from '../roleNav';
+import type { MoreScreenName } from '../roleNav';
 import { stopPush } from '../push';
 import { spacing, useTheme } from '../theme';
 
-export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Links' | 'Prices' | 'WinLoss' | 'Report') => void } = {}) {
+export function MoreScreen({ onOpen }: { onOpen?: (screen: MoreScreenName) => void } = {}) {
   const { colors } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
@@ -37,6 +39,7 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLin
   }, []);
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.me(), staleTime: 5 * 60_000 });
   const ts = me.data?.testSwitch ?? null;
+  const items = moreItems(rights, navPlan(rights).tabs, Boolean(me.data?.platformOwner));
   // A switch changes what the app may show, so every query is refetched after it.
   const switchRole = async (role: string) => {
     await api.testRole(role).catch(() => {});
@@ -69,29 +72,7 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: 'Calendar' | 'SentLin
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.body, { backgroundColor: colors.bg }]}>
       <Text style={[styles.name, { color: colors.text }]}>{broker?.name}</Text>
       {agencyName ? <Text style={[styles.agency, { color: colors.muted }]}>{t(lang, 'agency')}: {agencyName}</Text> : null}
-      {onOpen ? <Button testID="open-calendar" label={`🗓 ${t(lang, 'calendar')}`} variant="secondary" onPress={() => onOpen('Calendar')} /> : null}
-      {onOpen ? <Button testID="open-ask" label={`💬 ${t(lang, 'ask')}`} variant="secondary" onPress={() => onOpen('Ask')} /> : null}
-      {onOpen && rights.team ? <Button testID="open-team" label={`👥 ${t(lang, 'team')}`} variant="secondary" onPress={() => onOpen('Team')} /> : null}
-      {onOpen && rights.owners ? <Button testID="open-owners" label={`👤 ${t(lang, 'owners')}`} variant="secondary" onPress={() => onOpen('Owners')} /> : null}
-      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-requests" label={`🔒 ${t(lang, 'requests')}`} variant="secondary" onPress={() => onOpen('Requests')} /> : null}
-      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-activity" label={`🗂 ${t(lang, 'activityLog')}`} variant="secondary" onPress={() => onOpen('ActivityLog')} /> : null}
-      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-dashboard" label={`📊 ${t(lang, 'dashboard')}`} variant="secondary" onPress={() => onOpen('Dashboard')} /> : null}
-      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-winloss" label={`📉 ${t(lang, 'winLoss')}`} variant="secondary" onPress={() => onOpen('WinLoss')} /> : null}
-      {onOpen ? <Button testID="open-deals" label={`🤝 ${t(lang, 'deals')}`} variant="secondary" onPress={() => onOpen('Deals')} /> : null}
-      {onOpen ? <Button testID="open-commissions" label={`💸 ${t(lang, 'commissions')}`} variant="secondary" onPress={() => onOpen('Commissions')} /> : null}
-      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-sources" label={`📈 ${t(lang, 'sources')}`} variant="secondary" onPress={() => onOpen('Sources')} /> : null}
-      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-portal" label={`🏢 ${t(lang, 'portal')}`} variant="secondary" onPress={() => onOpen('Portal')} /> : null}
-      {onOpen ? <Button testID="open-opened-links" label={`👁 ${t(lang, 'links')}`} variant="secondary" onPress={() => onOpen('Links')} /> : null}
-      {onOpen ? <Button testID="open-projects" label={`🏗 ${t(lang, 'projects')}`} variant="secondary" onPress={() => onOpen('Projects')} /> : null}
-      {onOpen && (rights.manager || rights.agencyOwner) ? <Button testID="open-library" label={`📚 ${t(lang, 'library')}`} variant="secondary" onPress={() => onOpen('Library')} /> : null}
-      {onOpen ? <Button testID="open-compare" label={`⚖️ ${t(lang, 'compare')}`} variant="secondary" onPress={() => onOpen('Compare')} /> : null}
-      {onOpen ? <Button testID="open-plan" label={`💳 ${t(lang, 'plan')}`} variant="secondary" onPress={() => onOpen('Plan')} /> : null}
-      {onOpen ? <Button testID="open-usage" label={`📶 ${t(lang, 'usage')}`} variant="secondary" onPress={() => onOpen('Usage')} /> : null}
-      {onOpen && me.data?.platformOwner ? <Button testID="open-platform" label={`🛰 ${t(lang, 'platform')}`} variant="secondary" onPress={() => onOpen('Platform')} /> : null}
-      {onOpen ? <Button testID="open-prices" label={`💰 ${t(lang, 'prices')}`} variant="secondary" onPress={() => onOpen('Prices')} /> : null}
-      {onOpen ? <Button testID="open-report" label={`🐞 ${t(lang, 'report')}`} variant="secondary" onPress={() => onOpen('Report')} /> : null}
-      {onOpen ? <Button testID="open-links" label={`🔗 ${t(lang, 'sentLinks')}`} variant="secondary" onPress={() => onOpen('SentLinks')} /> : null}
-      {onOpen ? <Button testID="open-notifications" label={`🔔 ${t(lang, 'notifications')}`} variant="secondary" onPress={() => onOpen('Notifications')} /> : null}
+      {onOpen ? items.map((it) => <Button key={it.id} testID={`open-${it.id}`} label={`${it.icon} ${t(lang, it.label)}`} variant="secondary" onPress={() => onOpen(it.screen)} />) : null}
       {ts ? (
         <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]} testID="test-switch">
           <Text style={[styles.cardTitle, { color: colors.text }]}>{lang === 'ar' ? 'تبديل الاختبار' : 'Test switch'}</Text>

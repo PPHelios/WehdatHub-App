@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { currentLang } from '../auth';
 import { filterContacts, loadContacts } from '../contacts';
 import type { PhoneContact } from '../contacts';
@@ -14,8 +14,10 @@ export function ClientLinkModal({ visible, busy, error, onSubmit, onCancel }: { 
   const lang = currentLang();
   const [text, setText] = useState('');
   const [contacts, setContacts] = useState<PhoneContact[] | null>(null);
+  const [denied, setDenied] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
   useEffect(() => {
-    if (visible && contacts === null) loadContacts().then((c) => setContacts(c ?? [])).catch(() => setContacts([]));
+    if (visible && contacts === null) loadContacts().then((c) => { setDenied(c === null); setContacts(c ?? []); }).catch(() => setContacts([]));
   }, [visible, contacts]);
   // Typing a name (not a code or number) shows matching phone contacts.
   const looksLikeName = /[^\d+\-\s()LlTt]/.test(text) && text.trim().length >= 2;
@@ -26,7 +28,23 @@ export function ClientLinkModal({ visible, busy, error, onSubmit, onCancel }: { 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'linkToClient')}</Text>
           <Field testID="client-to" label={t(lang, 'clientHint')} value={text} onChangeText={setText} autoCapitalize="characters" autoCorrect={false} />
-          {matches.map((c) => (
+          <Button testID="client-pick-contact" label={`📇 ${t(lang, 'pickContact')}`} variant="secondary" onPress={() => setListOpen((o) => !o)} />
+          {listOpen && denied ? (
+            <View style={styles.denied}>
+              <Text style={{ color: colors.text }}>{t(lang, 'contactsDenied')}</Text>
+              <Button label={t(lang, 'openSettings')} variant="secondary" onPress={() => { Linking.openSettings().catch(() => undefined); }} />
+            </View>
+          ) : null}
+          {listOpen && !denied ? (
+            <ScrollView testID="client-contact-list" style={styles.list} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+              {(contacts ? filterContacts(contacts, looksLikeName ? text : '') : []).slice(0, 60).map((c) => (
+                <Pressable key={c.id} accessibilityRole="button" onPress={() => { setText(c.phone); setListOpen(false); }} style={[styles.match, { borderColor: colors.border }]}>
+                  <Text style={{ color: colors.text }}>{c.name || c.phone} · {c.phone}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : null}
+          {!listOpen && matches.map((c) => (
             <Pressable key={c.id} accessibilityRole="button" onPress={() => setText(c.phone)} style={[styles.match, { borderColor: colors.border }]}>
               <Text style={{ color: colors.text }}>{c.name} · {c.phone}</Text>
             </Pressable>
@@ -46,4 +64,6 @@ const styles = StyleSheet.create({
   card: { borderRadius: radius.md, padding: spacing.lg, gap: spacing.sm },
   h: { fontSize: 18, fontWeight: '700' },
   match: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md },
+  list: { maxHeight: 220 },
+  denied: { gap: spacing.sm },
 });
