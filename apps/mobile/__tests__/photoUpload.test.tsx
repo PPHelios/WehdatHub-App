@@ -42,7 +42,7 @@ test('putBytes rejects on a refused upload', async () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  m.photoUploadLinks.mockResolvedValue({ uploads: [link('k1'), link('k2')], expires_in: 7200 });
+  m.photoUploadLinks.mockImplementation(async () => ({ uploads: [link('k1'), link('k2')], expires_in: 7200 })); // a fresh list per call
   up.mockImplementation(async (_f: UploadFile, _l: unknown, onPct: (n: number) => void) => { onPct(50); onPct(100); });
 });
 
