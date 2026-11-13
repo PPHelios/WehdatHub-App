@@ -51,18 +51,26 @@ function useList(initial: UploadFile[]) {
   return { photos, ...usePhotoUploads(photos, setPhotos) };
 }
 
-test('new photos upload one by one and end with their keys', async () => {
-  const { result } = await renderHook(() => useList([photo('a'), photo('b')]));
-  await waitFor(() => expect(result.current.photos.map((p) => p.key)).toEqual(['k1', 'k2']));
+test('nothing uploads while picking; uploadAll sends the kept photos one by one and skips the not-kept ones', async () => {
+  const { result } = await renderHook(() => useList([photo('a'), photo('b'), { ...photo('c'), notKept: true }]));
+  expect(up).not.toHaveBeenCalled();
+  let files: UploadFile[] | null = null;
+  await act(async () => { files = await result.current.uploadAll(() => undefined); });
+  expect(files!.map((p) => p.key)).toEqual(['k1', 'k2']);
   expect(m.photoUploadLinks).toHaveBeenCalledWith(2);
-  expect(result.current.unfinished).toBe(false);
+  expect(up).toHaveBeenCalledTimes(2);
+  await waitFor(() => expect(result.current.photos.map((p) => p.key)).toEqual(['k1', 'k2', undefined]));
 });
 
-test('a failed upload stops there, shows as failed, and retry tries it again', async () => {
+test('a failed upload stops there, shows as failed, and retry then Save tries it again', async () => {
   up.mockRejectedValueOnce(new Error('upload_403'));
   const { result } = await renderHook(() => useList([photo('a')]));
+  let files: UploadFile[] | null = [];
+  await act(async () => { files = await result.current.uploadAll(() => undefined); });
+  expect(files).toBeNull();
   await waitFor(() => expect(result.current.photos[0].failed).toBe(true));
   expect(result.current.hasFailed).toBe(true);
   await act(async () => { result.current.retry(result.current.photos[0].uri); });
-  await waitFor(() => expect(result.current.photos[0].key).toBe('k1'));
+  await act(async () => { files = await result.current.uploadAll(() => undefined); });
+  expect(files!.map((p) => p.key)).toEqual(['k1']);
 });

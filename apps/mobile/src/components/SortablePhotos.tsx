@@ -15,10 +15,14 @@ interface Props {
   removeLabel: string;
   /** A failed upload can be tried again. */
   onRetry?: (uri: string) => void;
+  /** Picked photos are kept or dropped here (only 15 are kept); the label shows the state. */
+  onToggle?: (uri: string) => void;
+  keepLabel?: string;
+  skipLabel?: string;
 }
 
 /** Drag-and-drop photo order: hold the ⋮⋮ handle, move the photo up or down, let go. The first photo is the cover. */
-export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRetry }: Props) {
+export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRetry, onToggle, keepLabel, skipLabel }: Props) {
   const { colors } = useTheme();
   const [active, setActive] = useState<{ from: number; to: number } | null>(null);
   const dy = useRef(new Animated.Value(0)).current;
@@ -71,6 +75,7 @@ export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRe
               styles.row,
               { backgroundColor: colors.card, borderColor: dragged ? colors.primary : colors.border, zIndex: dragged ? 10 : 0, elevation: dragged ? 6 : 0 },
               dragged ? { transform: [{ translateY: dy }] } : { transform: [{ translateY: shift(i) }] },
+              p.notKept ? { opacity: 0.55 } : null,
             ]}
           >
             <View {...responder(i).panHandlers} testID={`photo-handle-${i}`} style={styles.handle} accessibilityRole="adjustable" accessibilityLabel={`${i + 1}`}>
@@ -84,6 +89,11 @@ export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRe
               <Text testID={`photo-done-${i}`} style={{ color: colors.accent, fontWeight: '700' }}>✓</Text>
             ) : p.pct !== undefined ? (
               <Text testID={`photo-pct-${i}`} style={{ color: colors.muted, fontWeight: '700' }}>{p.pct}%</Text>
+            ) : null}
+            {onToggle && p.type !== 'existing' ? (
+              <Pressable testID={`photo-keep-${i}`} accessibilityRole="button" onPress={() => onToggle(p.uri)} style={styles.remove}>
+                <Text style={{ color: p.notKept ? colors.muted : colors.accent, fontWeight: '700' }}>{p.notKept ? skipLabel : keepLabel}</Text>
+              </Pressable>
             ) : null}
             <Pressable testID={`photo-remove-${i}`} accessibilityRole="button" onPress={() => onChange(photos.filter((_x, j) => j !== i))} style={styles.remove}>
               <Text style={{ color: colors.danger, fontWeight: '700' }}>{removeLabel}</Text>

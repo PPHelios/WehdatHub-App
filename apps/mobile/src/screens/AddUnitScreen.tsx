@@ -18,7 +18,7 @@ import { clearDraft, isEmptyDraft, loadDraft, saveDraft } from '../draft';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { MAX_PHOTOS, pickPhotos, takePhoto } from '../photos';
+import { MAX_PHOTOS, MAX_POOL, addPicked, pickPhotos, takePhoto, toggleKeep } from '../photos';
 import { compressPhotos } from '../compress';
 import { usePhotoUploads } from '../usePhotoUploads';
 import { SaveNotConfirmed, newSaveKey, withSaveCheck } from '../saveKey';
@@ -50,6 +50,11 @@ export function AddUnitScreen() {
   const [describe, setDescribe] = useState('');
   const [photos, setPhotos] = useState<UploadFile[]>([]);
   const uploads = usePhotoUploads(photos, setPhotos);
+  // Only the kept photos (at most 15) are ever uploaded or saved, and only when Save is pressed.
+  const kept = photos.filter((p) => !p.notKept);
+  const [slow, setSlow] = useState<string | null>(null);
+  const [dupAck, setDupAck] = useState(false);
+  const saved = useRef(false);
   const [photoAi, setPhotoAi] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -125,7 +130,7 @@ export function AddUnitScreen() {
       const s = shared.current;
       if (s) {
         setNotice(t(lang, 'sharedIn'));
-        if (s.photos?.length) setPhotos((p) => [...p, ...s.photos!].slice(0, MAX_PHOTOS));
+        if (s.photos?.length) setPhotos((p) => addPicked(p, s.photos!));
         if (s.text) setDescribe((cur) => (cur ? `${cur}\n${s.text}` : s.text!));
       }
       setReady(true);
@@ -146,14 +151,14 @@ export function AddUnitScreen() {
     if (!ready) return;
     let live = true;
     const h = setTimeout(() => {
-      api.reviewUnit(fields, photos.length, editCode).then((r) => { if (live) setReview(r); }).catch(() => undefined);
+      api.reviewUnit(fields, kept.length, editCode).then((r) => { if (live) setReview(r); }).catch(() => undefined);
     }, 700);
     return () => { live = false; clearTimeout(h); };
-  }, [fields, photos.length, ready, editCode]);
+  }, [fields, kept.length, ready, editCode]);
 
   // Leaving with unsaved edits asks first (a new unit keeps its draft, so only edits ask).
   useEffect(() => nav.addListener?.('beforeRemove', (e) => {
-    if (!editCode || !dirty.current || saving) return;
+    if (!editCode || !dirty.current || saving || saved.current) return;
     e.preventDefault();
     Alert.alert(t(lang, 'leaveTitle'), t(lang, 'leaveBody'), [
       { text: t(lang, 'stay'), style: 'cancel' },
@@ -173,7 +178,7 @@ export function AddUnitScreen() {
   const addPhotos = async (fn: () => Promise<UploadFile[]>) => {
     try {
       const got = await fn();
-      setPhotos((p) => [...p, ...got].slice(0, MAX_PHOTOS));
+      setPhotos((p) => addPicked(p, got));
     } catch {
       setError(t(lang, 'serverError'));
     }
@@ -182,15 +187,35 @@ export function AddUnitScreen() {
   const save = async (force = false) => {
     if (saving) return;
     if (review?.blockers.length) { setFailedCheck(true); setBlockers(review.blockers); return; }
+    // A look-alike unit asks before anything is uploaded; accepting it once (the switch or Save anyway) is never asked again.
+    const accepted = force || dupAck;
+    if (!editCode && !accepted && review?.duplicate) return setDuplicate(review.duplicate);
+    if (accepted) setDupAck(true);
     dirty.current = false;
     setSaving(true);
     setProgress(0);
+    setSlow(null);
     // Photos prepared first (60%), then the wait for the server creeps toward 95% until the answer.
     const creep = setInterval(() => setProgress((p) => (p >= 0.6 && p < 0.95 ? p + 0.01 : p)), 600);
-    try { await doSave(force); } finally { clearInterval(creep); setSaving(false); }
+    try {
+      const files = await sendPhotos();
+      if (!files) { dirty.current = true; return setError(t(lang, 'photosRetry')); }
+      await doSave(accepted, files);
+    } finally { clearInterval(creep); setSaving(false); setSlow(null); }
   };
 
-  const doSave = async (force: boolean) => {
+  // The kept photos go to storage now, with their own % on the Save button and a note when the connection is slow.
+  const sendPhotos = () => {
+    const t0 = Date.now();
+    return uploads.uploadAll((_done, _total, frac) => {
+      setProgress(0.6 * frac);
+      const spent = (Date.now() - t0) / 1000;
+      const eta = frac > 0.02 ? (spent * (1 - frac)) / frac : 0;
+      setSlow(spent > 4 && eta > 40 ? t(lang, 'slowNet').replace('{m}', String(Math.max(1, Math.round(eta / 60)))) : null);
+    });
+  };
+
+  const doSave = async (force: boolean, files: UploadFile[]) => {
     setError(null);
     setBlockers([]);
     setFailedCheck(false);
@@ -205,7 +230,7 @@ export function AddUnitScreen() {
           setVersion(saved.version);
           savedDetails.current = key;
         }
-        const ph = photoChanges(originalIds.current, photos);
+        const ph = photoChanges(originalIds.current, files);
         if (ph.changed) {
           try {
             const keyed = ph.add.length > 0 && ph.add.every((p) => p.key);
@@ -215,19 +240,21 @@ export function AddUnitScreen() {
           }
         }
         tick();
+        saved.current = true;
         await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] })]);
         return nav.goBack();
       }
       const sent = { ...fields, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
       // Photos already stored by their own upload go as keys; on an old server they are prepared and sent here as before.
-      const keyed = photos.length > 0 && photos.every((p) => p.key);
-      const prepared = keyed ? [] : await compressPhotos(photos, (d, n) => setProgress(0.6 * (d / Math.max(1, n))));
+      const keyed = files.length > 0 && files.every((p) => p.key);
+      const prepared = keyed ? [] : await compressPhotos(files, (d, n) => setProgress(0.6 * (d / Math.max(1, n))));
       setProgress(0.6);
-      const r = await withSaveCheck(api.createUnit(sent, prepared, saveKey.current, keyed ? photos.map((p) => p.key as string) : undefined), () => api.unitSaveStatus(saveKey.current));
+      const r = await withSaveCheck(api.createUnit(sent, prepared, saveKey.current, keyed ? files.map((p) => p.key as string) : undefined), () => api.unitSaveStatus(saveKey.current));
       setProgress(1);
       saveKey.current = newSaveKey();
+      saved.current = true;
       tick();
-      track('unit_saved', { photos: photos.length });
+      track('unit_saved', { photos: files.length });
       // A compound the list does not know is saved as pending on the server; show it on this phone straight away.
       if (fields.compound_new === '1' && str(fields.compound)) addPendingPlace(str(fields.compound)).catch(() => undefined);
       await clearDraft();
@@ -240,12 +267,12 @@ export function AddUnitScreen() {
       if (editCode && e.code === 'conflict') return setError(t(lang, 'changedElsewhere'));
       if (editCode && e.code === 'incomplete') { setFailedCheck(true); return setBlockers((e.extra.blockers as { field: string; label: string }[]) ?? []); }
       if (e.code === 'incomplete') {
-        const rv = await api.reviewUnit(fields, photos.length).catch(() => null);
+        const rv = await api.reviewUnit(fields, files.length).catch(() => null);
         setFailedCheck(true);
         return setBlockers(rv?.blockers ?? []);
       }
       if (e.code === 'duplicate') {
-        const rv = await api.reviewUnit(fields, photos.length).catch(() => null);
+        const rv = await api.reviewUnit(fields, files.length).catch(() => null);
         return setDuplicate(rv?.duplicate ?? '');
       }
       if (e.code === 'owner_name_required') return setError(t(lang, 'ownerNameNeeded'));
@@ -264,8 +291,8 @@ export function AddUnitScreen() {
     setError(null);
     try {
       const code = toUnit.trim();
-      const keyed = photos.length > 0 && photos.every((p) => p.key);
-      await api.unitPhotos(code, keyed ? { photoKeys: photos.map((p) => p.key as string) } : { add: await compressPhotos(photos) });
+      const keyed = kept.length > 0 && kept.every((p) => p.key);
+      await api.unitPhotos(code, keyed ? { photoKeys: kept.map((p) => p.key as string) } : { add: await compressPhotos(kept) });
       await clearDraft();
       await qc.invalidateQueries({ queryKey: ['unit', code] });
       nav.replace('Unit', { code });
@@ -330,15 +357,29 @@ export function AddUnitScreen() {
 
       {(
         <>
-          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'photosTitle')} ({photos.length}/{MAX_PHOTOS})</Text>
+          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'photosTitle')} ({kept.length}/{MAX_PHOTOS})</Text>
           <View style={styles.row}>
-            <View style={styles.flex}><Button testID="add-photos" label={t(lang, 'addPhotos')} variant="secondary" onPress={() => addPhotos(() => pickPhotos(MAX_PHOTOS - photos.length))} /></View>
-            <View style={styles.flex}><Button testID="take-photo" label={t(lang, 'takePhoto')} variant="secondary" onPress={() => addPhotos(takePhoto)} disabled={photos.length >= MAX_PHOTOS} /></View>
+            <View style={styles.flex}><Button testID="add-photos" label={t(lang, 'addPhotos')} variant="secondary" onPress={() => addPhotos(() => pickPhotos(MAX_POOL - photos.length))} /></View>
+            <View style={styles.flex}><Button testID="take-photo" label={t(lang, 'takePhoto')} variant="secondary" onPress={() => addPhotos(takePhoto)} disabled={photos.length >= MAX_POOL} /></View>
           </View>
           {photos.length > 1 ? <Text style={{ color: colors.muted }}>{t(lang, 'dragHint')}</Text> : null}
-          <SortablePhotos photos={photos} onChange={setPhotos} onDragging={setDragging} removeLabel={t(lang, 'removePhoto')} onRetry={uploads.retry} />
+          {photos.length > kept.length ? <Text testID="photos-picked" style={{ color: colors.muted }}>{t(lang, 'photosPicked').replace('{n}', String(photos.length)).replace('{k}', String(kept.length))}</Text> : null}
+          <SortablePhotos
+            photos={photos}
+            onChange={setPhotos}
+            onDragging={setDragging}
+            removeLabel={t(lang, 'removePhoto')}
+            onRetry={uploads.retry}
+            keepLabel={t(lang, 'keepOn')}
+            skipLabel={t(lang, 'keepOff')}
+            onToggle={(uri) => {
+              const next = toggleKeep(photos, uri);
+              if (next === photos) setNotice(t(lang, 'photosFull'));
+              else setPhotos(next);
+            }}
+          />
           {editCode ? null : <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'aiOrder')}</Text><Switch value={photoAi} onValueChange={setPhotoAi} /></View>}
-          {!editCode && photos.length ? (
+          {!editCode && kept.length ? (
             <View style={[styles.box, { borderColor: colors.border }]}>
               <Field testID="to-unit" label={t(lang, 'addToExisting')} value={toUnit} onChangeText={setToUnit} autoCapitalize="characters" autoCorrect={false} />
               <Button testID="to-unit-go" variant="secondary" label={t(lang, 'addPhotosToUnit')} disabled={!toUnit.trim()} onPress={addToExisting} />
@@ -366,15 +407,17 @@ export function AddUnitScreen() {
           <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'warnOk')}</Text><Switch testID="ack" value={ack} onValueChange={setAck} /></View>
         </View>
       ) : null}
-      {duplicate !== null ? (
+      {(duplicate ?? (editCode ? null : review?.duplicate ?? null)) !== null ? (
         <View testID="duplicate" style={[styles.box, { borderColor: colors.accent }]}>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'duplicateAsk')} {duplicate}</Text>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'duplicateAsk')} {duplicate ?? review?.duplicate}</Text>
+          <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'dupOk')}</Text><Switch testID="dup-ack" value={dupAck} onValueChange={setDupAck} /></View>
           <Button label={t(lang, 'saveAnyway')} onPress={() => save(true)} />
-          <Button label={t(lang, 'cancel')} variant="secondary" onPress={() => setDuplicate(null)} />
+          {duplicate !== null ? <Button label={t(lang, 'cancel')} variant="secondary" onPress={() => setDuplicate(null)} /> : null}
         </View>
       ) : null}
       {error ? <Text testID="unit-error" style={{ color: colors.danger }}>{error}</Text> : null}
-      <Button testID="save-unit" label={saving ? `${t(lang, 'saving')} ${Math.round(progress * 100)}%` : t(lang, 'saveUnit')} progress={saving ? progress : undefined} onPress={() => save(false)} loading={saving} disabled={saving || uploads.unfinished || Boolean(review?.warnings.length && !review.blockers.length && !ack)} />
+      {slow ? <Text testID="slow-net" style={{ color: colors.accent, fontWeight: '700' }}>🐢 {slow}</Text> : null}
+      <Button testID="save-unit" label={saving ? `${t(lang, 'saving')} ${Math.round(progress * 100)}%` : t(lang, 'saveUnit')} progress={saving ? progress : undefined} onPress={() => save(false)} loading={saving} disabled={saving || Boolean(review?.warnings.length && !review.blockers.length && !ack)} />
       {editCode ? null : <Button label={t(lang, 'discardDraft')} variant="secondary" onPress={discard} />}
     </ScrollView>
   );
