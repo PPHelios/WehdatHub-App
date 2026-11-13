@@ -27,3 +27,21 @@ test('a failure shows retry', async () => {
   await wrap();
   await waitFor(() => expect(screen.getAllByText(/Try again|حاول تاني/).length).toBeGreaterThan(0));
 });
+
+test('shows the role cards', async () => {
+  mocked.today.mockResolvedValue({
+    counts: { followUpsToday: 0, viewings: 0, newLeads: 0 },
+    tasks: [],
+    moreTasks: 0,
+    cards: {
+      oldUnits: { total: 1, items: [{ code: 'NH-1', line: 'Flat 150m', days: 30, hidden: false }] },
+      target: null,
+      ops: { unassigned: 2, uncontactedOld: 0, overdue: 1, team: false },
+      commissions: null,
+      approvals: null,
+    },
+  });
+  await wrap();
+  await waitFor(() => expect(screen.getByTestId('today-card-old')).toBeTruthy());
+  expect(screen.getByTestId('today-card-info')).toBeTruthy();
+});
