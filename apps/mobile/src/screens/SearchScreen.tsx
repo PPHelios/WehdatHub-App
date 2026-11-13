@@ -91,6 +91,7 @@ export function SearchScreen() {
       keyExtractor={(u) => u.id}
       ListHeaderComponent={
         <View>
+          {data.reading ? <Text testID="reading-line" style={[styles.count, { color: colors.text }]}>{data.reading}</Text> : null}
           <Text style={[styles.count, { color: colors.muted }]}>{data.total} {t(lang, 'results')}{data.relaxed ? ` · ${t(lang, 'relaxedNote')}` : ''}</Text>
           {data.ignoredTerms?.length ? <Text testID="ignored-note" style={[styles.count, { color: colors.accent }]}>{t(lang, 'ignoredNote')} {data.ignoredTerms.join(' · ')}</Text> : null}
         </View>

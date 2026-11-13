@@ -123,6 +123,8 @@ export interface SearchResult {
   limit?: number;
   relaxed?: boolean;
   ignoredTerms?: string[];
+  /** What the server understood, in the broker's language (e.g. "شقة · بيع أو إيجار · هايد بارك"). */
+  reading?: string;
   ask?: SearchAsk;
 }
 export interface VoiceFile { uri: string; name: string; type: string }
