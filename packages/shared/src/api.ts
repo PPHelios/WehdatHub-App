@@ -46,8 +46,17 @@ export interface ApiUnitDetail extends ApiUnit {
 }
 export type TodayTaskKind = 'late' | 'viewing' | 'hot' | 'call' | 'matches';
 export interface TodayTask { ref: string; name: string | null; kind: TodayTaskKind; at: string | null; unitCode: string | null; phone: string | null; matches: number | null }
+export interface TodayOldUnit { code: string; line: string; days: number; hidden: boolean }
+/** The cards under the task list, by role. A card with nothing in it is null. */
+export interface TodayCards {
+  oldUnits: { total: number; items: TodayOldUnit[] } | null;
+  target: { deals: number; commission: number; targetDeals: number | null; targetCommission: number | null; daysLeft: number } | null;
+  ops: { unassigned: number; uncontactedOld: number; overdue: number; team: boolean } | null;
+  commissions: { overdue: number; registrations: number } | null;
+  approvals: { access: number; names: number } | null;
+}
 export interface LeaseRow { code: string; tenant_name: string | null; tenant_ref: string | null; broker_name: string | null; rent: number | null; end: string; daysLeft: number; done: boolean; doneKind: string | null }
-export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number; leases?: { code: string; tenant: string | null; end: string; daysLeft: number }[] }
+export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number; leases?: { code: string; tenant: string | null; end: string; daysLeft: number }[]; cards?: TodayCards }
 export type LeadStage = 'new' | 'contacted' | 'interested' | 'viewing' | 'negotiation' | 'won' | 'lost';
 export const LEAD_STAGES: LeadStage[] = ['new', 'contacted', 'interested', 'viewing', 'negotiation', 'won', 'lost'];
 export type LeadTab = 'all' | LeadStage | 'due_today' | 'overdue' | 'no_next_step';
@@ -182,6 +191,8 @@ export interface UnitsQuery {
   deal?: string;
   mine?: boolean;
   staleDays?: number;
+  /** Units nobody has confirmed for 21 days (Today's "units to check"). */
+  old?: boolean;
   bedrooms?: number;
   furnishing?: string;
   finishing?: string;

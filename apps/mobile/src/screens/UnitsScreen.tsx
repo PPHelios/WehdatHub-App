@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { UnitsPage } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { Button } from '../components/Button';
+import { TodayCards } from '../components/TodayCards';
 import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
@@ -34,6 +35,8 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const route = useRoute<RouteProp<{ p: { old?: boolean } | undefined }, 'p'>>();
+  const [oldOnly, setOldOnly] = useState(Boolean(route.params?.old));
   const [status, setStatus] = useState<(typeof STATUSES)[number]>('active');
   const [text, setText] = useState('');
   const wideColumns = useColumns();
@@ -47,14 +50,16 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const suggest = useQuery({ queryKey: ['compounds', typed], queryFn: () => api.unitCompounds(typed), enabled: showFilters && !compound });
 
   const list = useInfiniteQuery({
-    queryKey: ['units', status, q, compound, staleDays],
+    queryKey: ['units', status, q, compound, staleDays, oldOnly],
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api.units({ status, q, compound: compound || undefined, staleDays: staleDays || undefined, limit: PAGE, offset: pageParam }),
+    queryFn: ({ pageParam }) => api.units({ status, q, compound: compound || undefined, staleDays: staleDays || undefined, old: oldOnly && status === 'active' ? true : undefined, limit: PAGE, offset: pageParam }),
     getNextPageParam: (last: UnitsPage) => (last.offset + last.items.length < last.total ? last.offset + last.items.length : undefined),
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   const counts = list.data?.pages[0]?.counts;
   const rights = useRights();
+  // Data entry has no Today: the units nobody has confirmed (agency-wide) sit above their list instead.
+  const old = useQuery({ queryKey: ['today'], queryFn: () => api.today(), enabled: rights.dataEntry && status === 'active' });
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
@@ -69,7 +74,11 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
             <Text style={{ color: s === status ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, s)}{counts ? ` (${counts[s]})` : ''}</Text>
           </Pressable>
         ))}
+        <Pressable testID="units-old" accessibilityRole="button" accessibilityState={{ selected: oldOnly }} onPress={() => { setStatus('active'); setOldOnly((v) => !v); }} style={[styles.chip, { borderColor: oldOnly ? colors.primary : colors.border, backgroundColor: oldOnly ? colors.primary : 'transparent' }]}>
+          <Text style={{ color: oldOnly ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, 'tcOldUnits')}</Text>
+        </Pressable>
       </View>
+      {rights.dataEntry && status === 'active' && old.data?.cards?.oldUnits ? <View style={styles.oldStrip}><TodayCards cards={old.data.cards} only="oldUnits" onShowAll={() => { setStatus('active'); setOldOnly(true); }} /></View> : null}
       {showFilters ? (
         <View style={styles.panel}>
           {compound ? (
@@ -121,6 +130,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
 }
 
 const styles = StyleSheet.create({
+  oldStrip: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   flex: { flex: 1 },
   searching: { position: 'absolute', top: spacing.lg + 14, end: spacing.lg + 14 },
   search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
