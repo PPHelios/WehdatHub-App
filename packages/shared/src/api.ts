@@ -123,6 +123,8 @@ export interface SearchResult {
   limit?: number;
   relaxed?: boolean;
   ignoredTerms?: string[];
+  /** What the server understood, in the broker's language (e.g. "شقة · بيع أو إيجار · هايد بارك"). */
+  reading?: string;
   ask?: SearchAsk;
 }
 export interface VoiceFile { uri: string; name: string; type: string }
@@ -366,6 +368,9 @@ export function createApiClient(opts: ApiClientOptions) {
     unitStatus: (code: string, status: 'active' | 'sold' | 'archived') => request<{ ok: true; status: string }>('POST', `/units/${encodeURIComponent(code)}/status`, { status }),
     unitDelete: (code: string) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/delete`, {}),
     unitRestore: (code: string) => request<{ ok: true; code: string }>('POST', `/units/${encodeURIComponent(code)}/restore`, {}),
+    unitLease: (code: string) => request<{ rent: boolean; lease: { startDate: string; months: number; rent: number | null; increasePct: number | null; tenantName: string | null; remind: boolean } | null }>('GET', `/units/${encodeURIComponent(code)}/lease`),
+    saveUnitLease: (code: string, l: { startDate: string; months: string; rent: string; increasePct: string; tenantName: string; remind: boolean } | { remove: true }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease`, l),
+    saveUnitPrivate: (code: string, p: { pin: string; unitNo: string; address: string }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/private`, p),
     unitFlyer: (code: string, theme: 'dark' | 'light' = 'dark') => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/flyer`, { theme }),
     /** Photos of an existing unit: new files to add, ids to remove, and the order of the kept ones (first is the cover). */
     /** One-time links so each photo goes straight to storage; then send the returned keys as photoKeys. */
