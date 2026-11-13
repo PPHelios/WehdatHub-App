@@ -8,8 +8,8 @@ const photos = [
   { uri: 'file:///c.jpg', name: 'c', type: 'image/jpeg' },
 ] as any;
 
-test('the photo handle claims the drag before the page scrolls, so a short finger move still reorders', () => {
-  render(<SortablePhotos photos={photos} onChange={() => {}} removeLabel="Remove" />);
+test('the photo handle claims the drag before the page scrolls, so a short finger move still reorders', async () => {
+  await render(<SortablePhotos photos={photos} onChange={() => {}} removeLabel="Remove" />);
   const handle = screen.getByTestId('photo-handle-1');
   expect(handle.props.onMoveShouldSetResponderCapture()).toBe(true);
   expect(handle.props.onStartShouldSetResponder()).toBe(true);
