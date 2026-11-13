@@ -45,7 +45,7 @@ export function PhotoGallery({ photos, closeLabel }: { photos: Photo[]; closeLab
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
         onMomentumScrollEnd={(e) => onEnd(e.nativeEvent.contentOffset.x)}
         renderItem={({ item, index: i }) => (
-          <Pressable accessibilityRole="imagebutton" testID={`photo-${i}`} onPress={() => setFull(realIndex(i, n))}>
+          <Pressable accessibilityRole="imagebutton" testID={!loop ? `photo-${i}` : i >= n && i < 2 * n ? `photo-${i - n}` : undefined} onPress={() => setFull(realIndex(i, n))}>
             <Image source={{ uri: item.url }} style={{ width, height: h }} resizeMode="cover" />
           </Pressable>
         )}
