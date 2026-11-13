@@ -20,12 +20,10 @@ import { saveToGallery } from '../saveImage';
 import { FINISHING, FURNISHING, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { clientLang } from '../prefs';
 
 export function UnitScreen({ code }: { code?: string } = {}) {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const routeParams = useRoute<NativeStackScreenProps<RootStackParams, 'Unit'>['route']>().params;
@@ -129,7 +127,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         <Button testID="flyer-nobrand" variant="secondary" label={`🖼 ${t(lang, 'flyer')} · ${t(lang, 'flyerNoBrand')}`} loading={flyerBusy === 'nb'} disabled={flyerBusy === 'main'} onPress={() => makeFlyer(true)} />
         {flyer ? (
           <Modal visible transparent animationType="fade" onRequestClose={() => setFlyer(null)}>
-            <View style={[styles.flyerBack, { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.lg }]}>
+            <View style={[styles.flyerBack, { paddingTop: spacing.xl, paddingBottom: 64 /* clears the system navigation bar */ }]}>
               <Image testID="flyer-image" source={{ uri: flyer }} style={styles.flyerImg} resizeMode="contain" />
               {/* The buttons sit on a solid card so they read on any theme and clear the system navigation bar. */}
               <View style={[styles.flyerButtons, { backgroundColor: colors.bg }]}>

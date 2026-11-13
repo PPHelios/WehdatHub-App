@@ -16,7 +16,7 @@ export function PlaceInput({ label, value, onChangeText, onPick, testID }: { lab
   const { colors } = useTheme();
   const lang = currentLang();
   // The list shows only for text the person typed: picking an entry or filling by voice changes the value without typing, and closes it.
-  const typed = useRef<string | null>(null);
+  const typed = useRef<string | null>(value);
   const open = typed.current === value;
   const found = usePlaceSuggestions(open ? value : '');
   // The list closes once the typed text is exactly one entry's name.

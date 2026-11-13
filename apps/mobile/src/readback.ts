@@ -26,3 +26,8 @@ export function withCommas(raw: string): string {
   const [whole, ...rest] = d.split('.');
   return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (rest.length ? `.${rest.join('')}` : '');
 }
+
+/** What is stored and sent: digits only (commas are for display). Arabic digits become Latin. */
+export function plain(raw: string): string {
+  return digits(raw).replace(/[^\d.]/g, '');
+}

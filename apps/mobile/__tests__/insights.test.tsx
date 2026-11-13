@@ -34,5 +34,5 @@ test('a report is sent', async () => {
   await wrap(<ReportScreen />);
   await fireEvent.changeText(screen.getByTestId('report-text'), 'it broke');
   await fireEvent.press(screen.getByTestId('report-send'));
-  await waitFor(() => expect(m.report).toHaveBeenCalledWith('it broke'));
+  await waitFor(() => expect(m.report).toHaveBeenCalledWith('it broke', expect.objectContaining({ type: 'bug' })));
 });

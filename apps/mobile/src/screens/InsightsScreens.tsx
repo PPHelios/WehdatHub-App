@@ -134,8 +134,8 @@ export function ReportScreen() {
     setMsg(null);
     if (text.trim().length < 3) return;
     try {
-      const routes = nav.getState()?.routes ?? [];
-      const net = await NetInfo.fetch().catch(() => null);
+      const routes = nav.getState?.()?.routes ?? [];
+      const net = await Promise.resolve().then(() => NetInfo.fetch()).catch(() => null);
       const device = {
         appVersion: `${APP_VERSION} (${APP_BUILD})`,
         platform: Platform.OS,
