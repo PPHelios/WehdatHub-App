@@ -2,9 +2,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useQueryClient } from '@tanstack/react-query';
 import type { TodayCards as Cards } from '@wehdathub/shared';
-import { api } from '../api';
 import { currentLang } from '../auth';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
@@ -15,7 +13,6 @@ export function TodayCards({ cards, only }: { cards: Cards; only?: 'oldUnits' })
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const qc = useQueryClient();
   const box = [styles.card, { backgroundColor: colors.card, borderColor: colors.border }];
   const row = (key: string, text: string, onPress: () => void, side?: string) => (
     <Pressable key={key} accessibilityRole="button" onPress={onPress} style={styles.row}>
@@ -43,28 +40,10 @@ export function TodayCards({ cards, only }: { cards: Cards; only?: 'oldUnits' })
     if (cards.approvals?.access) info.push(row('access', `🔒 ${cards.approvals.access} ${t(lang, 'tcAccess')}`, () => nav.navigate('Requests')));
     if (cards.approvals?.names) info.push(row('names', `✏️ ${cards.approvals.names} ${t(lang, 'tcNames')}`, () => nav.navigate('Owners')));
   }
-  const dismiss = async (key: string) => {
-    try { await api.todayDismiss('lease', key); } catch { /* the card stays; the next refresh shows the truth */ }
-    await qc.invalidateQueries({ queryKey: ['today'] });
-  };
   const days = (n: number) => `${n} ${t(lang, 'tcDays')}`;
   return (
     <>
       {info.length ? <View testID="today-card-info" style={box}>{info}</View> : null}
-      {!only && cards.leases ? (
-        <View testID="today-card-leases" style={box}>
-          <Text style={[styles.title, { color: colors.text }]}>{t(lang, 'tcLeases')} ({cards.leases.total})</Text>
-          {cards.leases.items.map((l) => (
-            <View key={l.key} style={styles.row}>
-              <Pressable accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: l.code })} style={styles.grow}>
-                <Text style={{ color: colors.text }}><Text style={styles.bold}>{l.code}</Text>{l.tenant ? ` · ${l.tenant}` : ''}</Text>
-                <Text style={{ color: colors.muted }}>{l.date} · {days(l.days)}</Text>
-              </Pressable>
-              <Pressable testID="lease-dismiss" accessibilityRole="button" accessibilityLabel={t(lang, 'tcHide')} onPress={() => dismiss(l.key)} hitSlop={8}><Text style={{ color: colors.muted, fontSize: 18 }}>✕</Text></Pressable>
-            </View>
-          ))}
-        </View>
-      ) : null}
       {cards.oldUnits ? (
         <View testID="today-card-old" style={box}>
           <Text style={[styles.title, { color: colors.text }]}>{t(lang, 'tcOldUnits')} ({cards.oldUnits.total})</Text>

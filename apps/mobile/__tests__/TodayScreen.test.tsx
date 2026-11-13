@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TodayScreen } from '../src/screens/TodayScreen';
 import { api } from '../src/api';
@@ -28,7 +28,7 @@ test('a failure shows retry', async () => {
   await waitFor(() => expect(screen.getAllByText(/Try again|حاول تاني/).length).toBeGreaterThan(0));
 });
 
-test('shows the role cards and a lease can be dismissed', async () => {
+test('shows the role cards', async () => {
   mocked.today.mockResolvedValue({
     counts: { followUpsToday: 0, viewings: 0, newLeads: 0 },
     tasks: [],
@@ -36,17 +36,12 @@ test('shows the role cards and a lease can be dismissed', async () => {
     cards: {
       oldUnits: { total: 1, items: [{ code: 'NH-1', line: 'Flat 150m', days: 30, hidden: false }] },
       target: null,
-      leases: { total: 1, items: [{ key: 'R-1:end:2027-01-01', code: 'R-1', tenant: 'Ali', kind: 'end', date: '2027-01-01', days: 40 }] },
       ops: { unassigned: 2, uncontactedOld: 0, overdue: 1, team: false },
       commissions: null,
       approvals: null,
     },
   });
-  (mocked as unknown as { todayDismiss: jest.Mock }).todayDismiss = jest.fn().mockResolvedValue({ ok: true });
   await wrap();
   await waitFor(() => expect(screen.getByTestId('today-card-old')).toBeTruthy());
-  expect(screen.getByTestId('today-card-leases')).toBeTruthy();
   expect(screen.getByTestId('today-card-info')).toBeTruthy();
-  fireEvent.press(screen.getByTestId('lease-dismiss'));
-  await waitFor(() => expect((mocked as unknown as { todayDismiss: jest.Mock }).todayDismiss).toHaveBeenCalledWith('lease', 'R-1:end:2027-01-01'));
 });
