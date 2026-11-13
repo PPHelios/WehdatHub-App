@@ -7,6 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { CatalogueForms } from '../components/CatalogueForms';
 import { Field } from '../components/Field';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
@@ -29,7 +30,7 @@ function Gate<T>({ q, children }: { q: { isPending: boolean; isError: boolean; e
   return children(q.data);
 }
 
-/** The project catalogue. Editing projects, uploads and price sheets stay on the website. */
+/** The project catalogue. Managers add developers and projects here; uploads and price sheets stay on the website. */
 export function ProjectsScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
@@ -42,6 +43,7 @@ export function ProjectsScreen() {
       <Gate q={query}>
         {(d) => (
           <View style={styles.gap}>
+            {d.canEdit ? <CatalogueForms /> : null}
             {d.projects.items.map((p) => (
               <Pressable key={str(p.id)} testID={`project-${str(p.id)}`} accessibilityRole="button" onPress={() => nav.navigate('Project', { id: str(p.id), name: str(p.name) })}>
                 <Card>

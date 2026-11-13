@@ -10,6 +10,7 @@ import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
+import { SaveSearchButton } from '../components/SaveSearchButton';
 import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
@@ -91,6 +92,7 @@ export function SearchScreen() {
       keyExtractor={(u) => u.id}
       ListHeaderComponent={
         <View>
+          {data.f && data.total > 0 ? <SaveSearchButton f={data.f} /> : null}
           {data.reading ? <Text testID="reading-line" style={[styles.count, { color: colors.text }]}>{data.reading}</Text> : null}
           <Text style={[styles.count, { color: colors.muted }]}>{data.total} {t(lang, 'results')}{data.relaxed ? ` · ${t(lang, 'relaxedNote')}` : ''}</Text>
           {data.ignoredTerms?.length ? <Text testID="ignored-note" style={[styles.count, { color: colors.accent }]}>{t(lang, 'ignoredNote')} {data.ignoredTerms.join(' · ')}</Text> : null}
