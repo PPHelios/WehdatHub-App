@@ -32,6 +32,8 @@ export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRe
   const responder = (index: number) =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
+      // Claim the drag before the page's scroll view does, so a small finger move never turns into a scroll.
+      onMoveShouldSetPanResponderCapture: () => true,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         dy.setValue(0);
