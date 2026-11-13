@@ -7,8 +7,8 @@ export type TabKey = 'Today' | 'Search' | 'Leads' | 'Map' | 'Units' | 'More' | '
 /** The tabs each role gets, left to right in English (the layout flips in Arabic), and the tab the app opens on. */
 export function navPlan(r: Rights): { tabs: TabKey[]; initial: TabKey } {
   if (r.dataEntry) return { tabs: r.owners ? ['AddUnit', 'Units', 'Owners', 'More'] : ['AddUnit', 'Units', 'More'], initial: 'Units' };
-  if (r.agencyOwner) return { tabs: ['Dashboard', 'Team', 'Search', 'Plan', 'More'], initial: 'Search' };
-  if (r.manager) return { tabs: ['Dashboard', 'Team', 'Leads', 'Search', 'More'], initial: 'Leads' };
+  if (r.agencyOwner) return { tabs: ['Today', 'Dashboard', 'Team', 'Search', 'More'], initial: 'Today' };
+  if (r.manager) return { tabs: ['Today', 'Leads', 'Team', 'Search', 'More'], initial: 'Today' };
   if (r.teamLead) return { tabs: ['Search', 'Team', 'Today', 'More'], initial: 'Today' };
   return { tabs: ['Search', 'Leads', 'Today', 'Map', 'More'], initial: 'Today' };
 }

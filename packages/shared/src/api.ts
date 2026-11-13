@@ -190,6 +190,8 @@ export interface UnitsQuery {
   deal?: string;
   mine?: boolean;
   staleDays?: number;
+  /** Units nobody has confirmed for 21 days (Today's "units to check"). */
+  old?: boolean;
   bedrooms?: number;
   furnishing?: string;
   finishing?: string;

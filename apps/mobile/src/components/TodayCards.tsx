@@ -9,7 +9,7 @@ import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 
 /** The cards under Today's task list, from the same result the website shows (server: services/today.js). */
-export function TodayCards({ cards, only }: { cards: Cards; only?: 'oldUnits' }) {
+export function TodayCards({ cards, only, onShowAll }: { cards: Cards; only?: 'oldUnits'; onShowAll?: () => void }) {
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -40,6 +40,7 @@ export function TodayCards({ cards, only }: { cards: Cards; only?: 'oldUnits' })
     if (cards.approvals?.access) info.push(row('access', `🔒 ${cards.approvals.access} ${t(lang, 'tcAccess')}`, () => nav.navigate('Requests')));
     if (cards.approvals?.names) info.push(row('names', `✏️ ${cards.approvals.names} ${t(lang, 'tcNames')}`, () => nav.navigate('Owners')));
   }
+  const showAll = onShowAll ?? (() => nav.navigate('UnitsList', { old: true }));
   const days = (n: number) => `${n} ${t(lang, 'tcDays')}`;
   return (
     <>
@@ -49,7 +50,7 @@ export function TodayCards({ cards, only }: { cards: Cards; only?: 'oldUnits' })
           <Text style={[styles.title, { color: colors.text }]}>{t(lang, 'tcOldUnits')} ({cards.oldUnits.total})</Text>
           <Text style={{ color: colors.muted }}>{t(lang, 'tcOldUnitsHint')}</Text>
           {cards.oldUnits.items.map((u) => row(u.code, `${u.code} · ${u.line}`, () => nav.navigate('Unit', { code: u.code }), u.hidden ? t(lang, 'tcHidden') : days(u.days)))}
-          {cards.oldUnits.total > cards.oldUnits.items.length ? <Text style={{ color: colors.muted }}>{cards.oldUnits.total - cards.oldUnits.items.length} {t(lang, 'tcMore')}</Text> : null}
+          <Pressable testID="old-show-all" accessibilityRole="button" onPress={showAll}><Text style={{ color: colors.primary, fontWeight: '600' }}>{t(lang, 'tcShowAll')}{cards.oldUnits.total > cards.oldUnits.items.length ? ` (+${cards.oldUnits.total - cards.oldUnits.items.length})` : ''}</Text></Pressable>
         </View>
       ) : null}
     </>
