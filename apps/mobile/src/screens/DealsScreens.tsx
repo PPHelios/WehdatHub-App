@@ -8,7 +8,10 @@ import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
+import { DealForm } from '../components/DealForm';
 import { Field } from '../components/Field';
+import { Section } from '../components/Section';
+import { useRights } from '../rights';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
@@ -37,6 +40,8 @@ export function DealsScreen() {
   const ar = lang === 'ar';
   const qc = useQueryClient();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const rights = useRights();
+  const [fix, setFix] = useState<Record<string, string>>({});
   const [status, setStatus] = useState('');
   const q = useQuery({ queryKey: ['deals', status], queryFn: () => api.deals(status || undefined) });
   const setDeal = async (ref: string, to: string, version: unknown) => {
@@ -46,6 +51,7 @@ export function DealsScreen() {
     <Gate q={q}>
       {(d) => (
         <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
+          <Section testID="sec-new-deal" title={t(lang, 'newDeal')}><DealForm /></Section>
           <Chips testID="deal-status" value={status} onChange={(v) => setStatus(v === status ? '' : v)} options={d.statuses.map((s) => ({ value: s, label: s }))} />
           <Card>
             <Text style={[styles.h, { color: colors.text }]}>{ar ? 'إجمالي الشهور' : 'Monthly totals'}</Text>
@@ -56,6 +62,12 @@ export function DealsScreen() {
               <Text style={[styles.h, { color: colors.text }]}>#{str(x.ref)} · {str(x.status)}</Text>
               <Text style={{ color: colors.text }}>{str(x.client_name)} · {str(x.unit_code)} · {num(x.price)}</Text>
               {str(x.deal_type) === 'rent' && x.unit_code ? <Button testID={`add-lease-${str(x.ref)}`} variant="secondary" label={`🔑 ${t(lang, 'addLease')}`} onPress={() => nav.navigate('Unit', { code: str(x.unit_code), lease: { tenantName: x.lead_ref ? `L-${String(x.lead_ref).padStart(4, '0')}` : str(x.client_name), startDate: str(x.closed_at).slice(0, 10), rent: x.price === null || x.price === undefined ? '' : String(Math.round(Number(x.price))) } })} /> : null}
+              {rights.manager || rights.agencyOwner ? (
+                <Section testID={`sec-fix-${str(x.ref)}`} title={t(lang, 'correctDeal')}>
+                  <Field label={t(lang, 'dealCommission')} value={fix[str(x.ref)] ?? ''} onChangeText={(v) => setFix({ ...fix, [str(x.ref)]: v })} />
+                  <Button testID={`fix-${str(x.ref)}`} label={t(lang, 'save')} disabled={!(fix[str(x.ref)] ?? '').trim()} onPress={async () => { try { await api.correctDeal(`D-${String(x.ref).padStart(4, '0')}`, { commission: fix[str(x.ref)], version: Number(x.version) }); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { Alert.alert(errorText(e, lang)); } }} />
+                </Section>
+              ) : null}
               {d.statuses.length ? <Chips value={str(x.status)} onChange={(s) => { void setDeal(str(x.ref), s, x.version); }} options={d.statuses.map((s) => ({ value: s, label: s }))} /> : null}
             </Card>
           ))}

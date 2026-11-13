@@ -299,7 +299,7 @@ export function AddUnitScreen() {
 
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fDeal')}</Text>
       <Chips options={[{ value: 'sale', label: t(lang, 'sale') }, { value: 'rent', label: t(lang, 'rent') }]} value={str(fields.listing_type)} onChange={(v) => set('listing_type', v)} />
-      <Chips options={[{ value: 'resale', label: t(lang, 'resale') }, { value: 'primary', label: t(lang, 'primary') }]} value={str(fields.market)} onChange={(v) => set('market', v)} />
+      {fields.market === 'primary' ? <Chips options={[{ value: 'resale', label: t(lang, 'resale') }, { value: 'primary', label: t(lang, 'primary') }]} value={str(fields.market)} onChange={(v) => set('market', v)} /> : null}
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fType')}</Text>
       <Chips options={options(PROPERTY_TYPES, lang)} value={str(fields.property_type)} onChange={(v) => set('property_type', v)} />
 

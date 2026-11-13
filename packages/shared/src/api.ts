@@ -124,6 +124,8 @@ export interface SearchResult {
   limit?: number;
   relaxed?: boolean;
   ignoredTerms?: string[];
+  /** The search's filters as a token the server can save (saved searches). */
+  f?: string | null;
   /** What the server understood, in the broker's language (e.g. "شقة · بيع أو إيجار · هايد بارك"). */
   reading?: string;
   ask?: SearchAsk;
@@ -372,6 +374,20 @@ export function createApiClient(opts: ApiClientOptions) {
     unitDelete: (code: string) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/delete`, {}),
     unitRestore: (code: string) => request<{ ok: true; code: string }>('POST', `/units/${encodeURIComponent(code)}/restore`, {}),
     unitLease: (code: string) => request<{ rent: boolean; lease: { startDate: string; months: number; rent: number | null; increasePct: number | null; tenantName: string | null; remind: boolean; done?: boolean } | null }>('GET', `/units/${encodeURIComponent(code)}/lease`),
+    createDeal: (b: Record<string, string>) => request<{ ok: true; ref: string; duplicate: boolean }>('POST', '/deals', b),
+    correctDeal: (ref: string, b: { commission: string; price?: string; external?: string; version?: number }) => request<{ ok: true }>('POST', `/deals/${encodeURIComponent(ref)}/correct`, b),
+    savedSearches: () => request<{ items: { id: string; name: string; total: number; fresh: number }[]; max: number }>('GET', '/saved-searches'),
+    saveSearch: (f: string, name: string) => request<{ ok: true; id: string }>('POST', '/saved-searches', { f, name }),
+    savedSearch: (id: string) => request<{ name: string; total: number; items: ApiUnitListItem[] }>('GET', `/saved-searches/${id}`),
+    deleteSavedSearch: (id: string) => request<{ ok: true }>('POST', `/saved-searches/${id}/delete`, {}),
+    saveDeveloper: (b: Record<string, string>, id?: string) => request<{ ok: true; id: string | null }>('POST', id ? `/catalogue/developers/${id}` : '/catalogue/developers', b),
+    saveProject: (b: Record<string, string>, id?: string) => request<{ ok: true; id: string | null }>('POST', id ? `/catalogue/projects/${id}` : '/catalogue/projects', b),
+    uploadLogo: (file: UploadFile) => {
+      const form = new FormData();
+      form.append('logo', file as unknown as Blob);
+      return request<{ ok: true; url: string }>('POST', '/settings/logo', form);
+    },
+    removeLogo: () => request<{ ok: true }>('POST', '/settings/logo/remove', {}),
     leases: (soon = false) => request<{ items: LeaseRow[] }>('GET', `/leases${soon ? '?soon=1' : ''}`),
     unitLeaseDone: (code: string, kind: 'renewed' | 'leaving' | 'relist') => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease/done`, { kind }),
     unitLeaseContacts: (code: string) => request<{ tenant: { name: string | null; ref: string; phone: string } | null; owner: { name: string | null; phone: string } | null }>('GET', `/units/${encodeURIComponent(code)}/lease/contacts`),

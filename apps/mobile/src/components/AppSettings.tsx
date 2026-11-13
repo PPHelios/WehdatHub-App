@@ -3,6 +3,8 @@ import { StyleSheet, Switch, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { useAuth } from '../auth';
+import { pickPhotos } from '../photos';
+import { useRights } from '../rights';
 import { t } from '../i18n';
 import { spacing, useTheme } from '../theme';
 import { Button } from './Button';
@@ -12,6 +14,7 @@ import { Field } from './Field';
 export function AppSettings() {
   const { colors } = useTheme();
   const lang = useAuth((s) => s.broker?.lang) ?? 'ar';
+  const rights = useRights();
   const q = useQuery({ queryKey: ['app-settings'], queryFn: () => api.appSettings() });
   const [style, setStyle] = useState('');
   const [quiet, setQuiet] = useState(true);
@@ -55,6 +58,13 @@ export function AppSettings() {
             <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'dataEntryOwnersLabel')}</Text>
             <Switch testID="sw-owners" value={sw.dataEntryOwners} onValueChange={(v) => setSw({ ...sw, dataEntryOwners: v })} />
           </View>
+        </>
+      ) : null}
+      {rights.manager || rights.agencyOwner ? (
+        <>
+          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'logoTitle')}</Text>
+          <Button testID="logo-pick" variant="secondary" label={t(lang, 'logoPick')} onPress={async () => { const [file] = await pickPhotos(1); if (!file) return; try { await api.uploadLogo(file); setMsg(t(lang, 'notifSaved')); } catch { setMsg(t(lang, 'notifSaveFail')); } }} />
+          <Button testID="logo-remove" variant="secondary" label={t(lang, 'logoRemove')} onPress={async () => { try { await api.removeLogo(); setMsg(t(lang, 'notifSaved')); } catch { setMsg(t(lang, 'notifSaveFail')); } }} />
         </>
       ) : null}
       {msg ? <Text style={{ color: colors.muted }}>{msg}</Text> : null}
