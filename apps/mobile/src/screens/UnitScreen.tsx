@@ -25,7 +25,8 @@ export function UnitScreen({ code }: { code?: string } = {}) {
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const routeCode = useRoute<NativeStackScreenProps<RootStackParams, 'Unit'>['route']>().params?.code;
+  const routeParams = useRoute<NativeStackScreenProps<RootStackParams, 'Unit'>['route']>().params;
+  const routeCode = routeParams?.code;
   const unitCode = code ?? routeCode ?? '';
   const unit = useQuery({ queryKey: ['unit', unitCode], queryFn: () => api.unit(unitCode) });
   // The owner's number comes only when the agency's privacy rules let this broker see it; otherwise the buttons stay hidden.
@@ -134,7 +135,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         ) : null}
         {u.canEdit ? <Button testID="edit-unit" variant="secondary" label={`✎ ${t(lang, 'editUnit')}`} onPress={() => nav.navigate('AddUnit', { edit: u.code })} /> : null}
         {u.canEdit ? <UnitLifecycle code={u.code} status={u.status} /> : null}
-        {u.canEdit ? <UnitPrivateForms code={u.code} /> : null}
+        {u.canEdit ? <UnitPrivateForms code={u.code} prefill={routeParams?.lease} /> : null}
         {u.status === 'active' ? <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} /> : null}
         <ClientLinkModal visible={pickClient} busy={sharing} error={clientErr} onSubmit={shareLink} onCancel={() => setPickClient(false)} />
         <Button testID="share-unit" variant="secondary" label={t(lang, 'shareUnit')} onPress={() => { Share.share({ message: [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n') }).catch(() => undefined); }} />

@@ -21,6 +21,7 @@ import { LoginScreen } from './screens/LoginScreen';
 import { MoreScreen } from './screens/MoreScreen';
 import { CalendarScreen } from './screens/CalendarScreen';
 import { SentLinksScreen } from './screens/SentLinksScreen';
+import { LeasesScreen } from './screens/LeasesScreen';
 import { NotificationsScreen } from './screens/NotificationsScreen';
 import { TeamMemberScreen, TeamScreen } from './screens/TeamScreen';
 import { OwnerScreen, OwnersScreen } from './screens/OwnersScreen';
@@ -63,7 +64,7 @@ import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
-export type RootStackParams = { Tabs: undefined; Unit: { code: string }; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
+export type RootStackParams = { Tabs: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = Record<TabKey, undefined>;
 
@@ -161,6 +162,7 @@ export function RootNavigation() {
           <Stack.Screen name="Owner" component={OwnerScreen} options={({ route }) => ({ title: route.params.name })} />
           <Stack.Screen name="Requests" component={RequestsScreen} options={{ title: t(currentLang(), 'requests') }} />
           <Stack.Screen name="ActivityLog" component={ActivityLogScreen} options={{ title: t(currentLang(), 'activityLog') }} />
+          <Stack.Screen name="Leases" component={LeasesScreen} options={{ title: t(currentLang(), 'leasesTitle') }} />
           <Stack.Screen name="Pipeline" component={PipelineScreen} options={{ title: t(currentLang(), 'pipeline') }} />
           <Stack.Screen name="LeadRules" component={LeadRulesScreen} options={{ title: t(currentLang(), 'leadRules') }} />
           <Stack.Screen name="Invite" component={InviteScreen} options={{ title: t(currentLang(), 'invite') }} />
