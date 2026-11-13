@@ -198,7 +198,9 @@ export function AddUnitScreen() {
     // Photos prepared first (60%), then the wait for the server creeps toward 95% until the answer.
     const creep = setInterval(() => setProgress((p) => (p >= 0.6 && p < 0.95 ? p + 0.01 : p)), 600);
     try {
-      const files = await sendPhotos();
+      // A new unit uploads its photos first (the live review already checked the form). An edit saves its details first, so a
+      // changed-elsewhere refusal costs no upload, and uploads inside doSave.
+      const files = editCode ? kept : await sendPhotos();
       if (!files) { dirty.current = true; return setError(t(lang, 'photosRetry')); }
       await doSave(accepted, files);
     } finally { clearInterval(creep); setSaving(false); setSlow(null); }
@@ -230,7 +232,9 @@ export function AddUnitScreen() {
           setVersion(saved.version);
           savedDetails.current = key;
         }
-        const ph = photoChanges(originalIds.current, files);
+        const sent = await sendPhotos();
+        if (!sent) { dirty.current = true; return setError(t(lang, 'photosRetry')); }
+        const ph = photoChanges(originalIds.current, sent);
         if (ph.changed) {
           try {
             const keyed = ph.add.length > 0 && ph.add.every((p) => p.key);
