@@ -26,7 +26,7 @@ import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { radius, spacing, useTheme } from '../theme';
 import { tick } from '../haptics';
 import { track } from '../analytics';
-import { readPhone, readPrice } from '../readback';
+import { readPhone, readPrice, withCommas } from '../readback';
 import { HoldMic } from '../components/HoldMic';
 
 const str = (v: UnitFields[string]): string => (typeof v === 'string' ? v : '');
@@ -336,14 +336,16 @@ export function AddUnitScreen() {
 
       <Text style={{ color: colors.muted }}>{t(lang, 'placeRule')}</Text>
       <PlaceInput testID="f-compound" label={t(lang, 'fCompound')} value={str(fields.compound)} onChangeText={(v) => set('compound', v)} onPick={pickPlace} />
+      <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'placeNew')}</Text><Switch testID="place-new" value={fields.compound_new === '1'} onValueChange={(v) => set('compound_new', v ? '1' : '')} /></View>
+      {fields.compound_new === '1' ? <><Text style={{ color: colors.muted }}>{t(lang, 'placeBoth')}</Text>{field('district', t(lang, 'fPlaceArea'))}</> : null}
       {fields.area_id ? (
         <View style={styles.switchRow}>
           <Text testID="picked-area" style={[styles.flex, { color: colors.text }]}>{t(lang, 'fPlaceArea')}: {str(fields.area_path)}</Text>
           <Button testID="clear-area" label={t(lang, 'clear')} variant="secondary" onPress={() => setFields((f) => ({ ...f, area_id: '', subzone_id: '', area_path: '' }))} />
         </View>
       ) : null}
-      <View style={styles.row}><View style={styles.flex}>{field('city', t(lang, 'fCity'))}</View><View style={styles.flex}>{field('district', t(lang, 'fDistrict'))}</View></View>
-      {field('price_value', t(lang, 'fPrice'), { keyboardType: 'numbers-and-punctuation', hint: readPrice(str(fields.price_value), lang) })}
+      <View style={styles.row}><View style={styles.flex}>{field('city', t(lang, 'fCity'))}</View>{fields.compound_new === '1' ? null : <View style={styles.flex}>{field('district', t(lang, 'fDistrict'))}</View>}</View>
+      {field('price_value', t(lang, 'fPrice'), { keyboardType: 'numbers-and-punctuation', hint: readPrice(str(fields.price_value), lang), onChangeText: (v: string) => set('price_value', withCommas(v)) })}
       <View style={styles.row}><View style={styles.flex}>{field('area_value', t(lang, 'fArea'), { keyboardType: 'decimal-pad' })}</View><View style={styles.flex}>{field('floor_level', t(lang, 'fFloor'), { keyboardType: 'number-pad' })}</View></View>
       <View style={styles.row}><View style={styles.flex}>{field('bedrooms', t(lang, 'fBedrooms'), { keyboardType: 'number-pad' })}</View><View style={styles.flex}>{field('bathrooms', t(lang, 'fBathrooms'), { keyboardType: 'number-pad' })}</View></View>
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fFinishing')}</Text>
@@ -352,11 +354,10 @@ export function AddUnitScreen() {
       <Chips options={options(FURNISHING, lang)} value={str(fields.furnishing)} onChange={(v) => set('furnishing', v)} />
       <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'fReady')}</Text><Switch value={fields.is_ready === '1'} onValueChange={(v) => set('is_ready', v ? '1' : '')} /></View>
       {fields.is_ready === '1' ? null : field('delivery_year', t(lang, 'fDelivery'), { keyboardType: 'number-pad' })}
-      {resale && fields.listing_type !== 'rent' ? <View style={styles.row}><View style={styles.flex}>{field('down_payment_value', t(lang, 'fDown'), { keyboardType: 'numbers-and-punctuation' })}</View><View style={styles.flex}>{field('remaining_amount', t(lang, 'fRemaining'), { keyboardType: 'numbers-and-punctuation' })}</View></View> : null}
+      {resale && fields.listing_type !== 'rent' ? <View style={styles.row}><View style={styles.flex}>{field('down_payment_value', t(lang, 'fDown'), { keyboardType: 'numbers-and-punctuation', onChangeText: (v: string) => set('down_payment_value', withCommas(v)) })}</View><View style={styles.flex}>{field('remaining_amount', t(lang, 'fRemaining'), { keyboardType: 'numbers-and-punctuation', onChangeText: (v: string) => set('remaining_amount', withCommas(v)) })}</View></View> : null}
       {field('owner_name', t(lang, 'fOwnerName'))}
       {field('owner_phone', t(lang, 'fOwnerPhone'), { keyboardType: 'phone-pad', hint: readPhone(str(fields.owner_phone)) })}
       <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'usePhoneAsName')}</Text><Switch value={fields.owner_name_from_phone === '1'} onValueChange={(v) => set('owner_name_from_phone', v ? '1' : '')} /></View>
-      <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'compoundNew')}</Text><Switch value={fields.compound_new === '1'} onValueChange={(v) => set('compound_new', v ? '1' : '')} /></View>
       {field('notes', t(lang, 'fNotes'), { multiline: true })}
 
       {(

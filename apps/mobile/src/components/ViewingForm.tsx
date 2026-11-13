@@ -8,6 +8,7 @@ import { currentLang } from '../auth';
 import { errorText } from '../errors';
 import { tick } from '../haptics';
 import { t } from '../i18n';
+import { clientLang } from '../prefs';
 import { radius, spacing, useTheme } from '../theme';
 import { Button } from './Button';
 import { Chips } from './Chips';
@@ -48,7 +49,7 @@ export function ViewingForm({ lead, unitCode = '' }: { lead: ApiLead; unitCode?:
     setError(null);
     try {
       const cur = (qc.getQueryData(['lead', lead.ref]) as { lead: ApiLead } | undefined)?.lead ?? lead;
-      const r = await api.setViewing(lead.ref, { version: cur.version, at: viewingInstant(day, hour), unitCode: unit.trim() || undefined, place: place.trim() || undefined, lang });
+      const r = await api.setViewing(lead.ref, { version: cur.version, at: viewingInstant(day, hour), unitCode: unit.trim() || undefined, place: place.trim() || undefined, lang: clientLang() });
       tick();
       setDone(r);
       await Promise.all([qc.invalidateQueries({ queryKey: ['lead', lead.ref] }), qc.invalidateQueries({ queryKey: ['leads'] }), qc.invalidateQueries({ queryKey: ['today'] }), qc.invalidateQueries({ queryKey: ['viewings'] })]);

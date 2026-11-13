@@ -18,6 +18,7 @@ import { ViewingForm } from '../components/ViewingForm';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { stageLabel, t } from '../i18n';
+import { eventText } from '../leadEvents';
 import type { RootStackParams } from '../navigation';
 import { useRights } from '../rights';
 import { waNumber } from './UnitScreen';
@@ -128,7 +129,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
       {timeline.map((e) => (
         <View key={e.id} style={[styles.event, { borderColor: colors.border }]}>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{new Date(e.at).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}{e.by ? ` · ${e.by}` : ''}</Text>
-          <Text style={{ color: colors.text }}>{e.text || (e.stage ? stageLabel(lang, e.stage) : e.kind)}</Text>
+          <Text style={{ color: colors.text }}>{eventText(e, lang)}</Text>
         </View>
       ))}
       </Section>

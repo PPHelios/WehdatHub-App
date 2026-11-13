@@ -19,10 +19,13 @@ import { featureChip } from '../featureLabels';
 import { saveToGallery } from '../saveImage';
 import { FINISHING, FURNISHING, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
-import { spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { clientLang } from '../prefs';
 
 export function UnitScreen({ code }: { code?: string } = {}) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const routeParams = useRoute<NativeStackScreenProps<RootStackParams, 'Unit'>['route']>().params;
@@ -32,7 +35,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
   // The owner's number comes only when the agency's privacy rules let this broker see it; otherwise the buttons stay hidden.
   const contact = useQuery({ queryKey: ['unit', unitCode, 'contact'], queryFn: () => api.unitContact(unitCode), retry: false, enabled: unit.isSuccess });
   const [flyer, setFlyer] = useState<string | null>(null);
-  const [flyerBusy, setFlyerBusy] = useState(false);
+  const [flyerBusy, setFlyerBusy] = useState<'main' | 'nb' | null>(null); // each flyer button spins on its own
   const [saving, setSaving] = useState(false);
   const saveFlyer = async () => {
     if (!flyer) return;
@@ -48,13 +51,13 @@ export function UnitScreen({ code }: { code?: string } = {}) {
     }
   };
   const makeFlyer = async (unbranded = false) => {
-    setFlyerBusy(true);
+    setFlyerBusy(unbranded ? 'nb' : 'main');
     try {
-      setFlyer((await timed('flyer_make', () => api.unitFlyer(unitCode, 'dark', unbranded))).url);
+      setFlyer((await timed('flyer_make', () => api.unitFlyer(unitCode, 'dark', unbranded, clientLang()))).url);
     } catch (e) {
       Alert.alert(e instanceof ApiClientError && e.status === 503 ? t(lang, 'flyerBusy') : t(lang, 'flyerFailed'));
     } finally {
-      setFlyerBusy(false);
+      setFlyerBusy(null);
     }
   };
   const [asking, setAsking] = useState(false);
@@ -79,7 +82,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
     setSharing(true);
     setClientErr(null);
     try {
-      const { url } = await timed('client_link', () => api.unitShareLink(unitCode, lang, to || undefined), { kind: to ? 'to_client' : 'open' });
+      const { url } = await timed('client_link', () => api.unitShareLink(unitCode, clientLang(), to || undefined), { kind: to ? 'to_client' : 'open' });
       setPickClient(false);
       await Share.share({ message: url });
     } catch (e) {
@@ -122,22 +125,25 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         ) : null}
         {hidden === 'pending' ? <Text testID="access-pending" style={{ color: colors.muted }}>{t(lang, 'accessPending')}</Text> : null}
         {hidden === 'ask' ? <Button testID="request-access" variant="secondary" label={t(lang, 'requestAccess')} loading={asking} onPress={requestAccess} /> : null}
-        <Button testID="flyer" variant="secondary" label={`🖼 ${t(lang, 'flyer')}`} loading={flyerBusy} onPress={() => makeFlyer(false)} />
-        <Button testID="flyer-nobrand" variant="secondary" label={`🖼 ${t(lang, 'flyer')} · ${t(lang, 'flyerNoBrand')}`} loading={flyerBusy} onPress={() => makeFlyer(true)} />
+        <Button testID="flyer" variant="secondary" label={`🖼 ${t(lang, 'flyer')}`} loading={flyerBusy === 'main'} disabled={flyerBusy === 'nb'} onPress={() => makeFlyer(false)} />
+        <Button testID="flyer-nobrand" variant="secondary" label={`🖼 ${t(lang, 'flyer')} · ${t(lang, 'flyerNoBrand')}`} loading={flyerBusy === 'nb'} disabled={flyerBusy === 'main'} onPress={() => makeFlyer(true)} />
         {flyer ? (
           <Modal visible transparent animationType="fade" onRequestClose={() => setFlyer(null)}>
-            <View style={styles.flyerBack}>
+            <View style={[styles.flyerBack, { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.lg }]}>
               <Image testID="flyer-image" source={{ uri: flyer }} style={styles.flyerImg} resizeMode="contain" />
-              <Button testID="flyer-share" label={t(lang, 'shareFlyer')} onPress={() => { Share.share({ message: flyer }).catch(() => undefined); }} />
-              <Button testID="flyer-save" variant="secondary" label={t(lang, 'saveToGallery')} loading={saving} onPress={saveFlyer} />
-              <Button label={t(lang, 'closePanel')} variant="secondary" onPress={() => setFlyer(null)} />
+              {/* The buttons sit on a solid card so they read on any theme and clear the system navigation bar. */}
+              <View style={[styles.flyerButtons, { backgroundColor: colors.bg }]}>
+                <Button testID="flyer-share" label={t(lang, 'shareFlyer')} onPress={() => { Share.share({ message: flyer }).catch(() => undefined); }} />
+                <Button testID="flyer-save" variant="secondary" label={t(lang, 'saveToGallery')} loading={saving} onPress={saveFlyer} />
+                <Button label={t(lang, 'closePanel')} variant="secondary" onPress={() => setFlyer(null)} />
+              </View>
             </View>
           </Modal>
         ) : null}
         {u.canEdit ? <Button testID="edit-unit" variant="secondary" label={`✎ ${t(lang, 'editUnit')}`} onPress={() => nav.navigate('AddUnit', { edit: u.code })} /> : null}
         {u.canEdit ? <UnitLifecycle code={u.code} status={u.status} /> : null}
         {u.canEdit ? <UnitPrivateForms code={u.code} prefill={routeParams?.lease} /> : null}
-        {u.status === 'active' ? <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} /> : null}
+        <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} />
         <ClientLinkModal visible={pickClient} busy={sharing} error={clientErr} onSubmit={shareLink} onCancel={() => setPickClient(false)} />
         <Button testID="share-unit" variant="secondary" label={t(lang, 'shareUnit')} onPress={() => { Share.share({ message: [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n') }).catch(() => undefined); }} />
         {u.features.length ? (
@@ -176,6 +182,7 @@ const styles = StyleSheet.create({
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
   flyerBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: spacing.lg, gap: spacing.sm },
   flyerImg: { flex: 1, width: '100%' },
+  flyerButtons: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg },
   actions: { flexDirection: 'row', gap: spacing.sm },
   body: { paddingBottom: spacing.xl },
   info: { padding: spacing.lg, gap: spacing.sm },

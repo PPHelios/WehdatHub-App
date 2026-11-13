@@ -13,10 +13,12 @@ interface AuthState {
   restore: () => Promise<void>;
   signIn: (r: LoginResult) => Promise<void>;
   signOut: () => Promise<void>;
+  /** The language button: the broker's language changes here at once (the server is told by the caller). */
+  setLang: (lang: ApiBroker['lang']) => Promise<void>;
 }
 
 /** The session token lives in the phone's secure storage (Keychain / Keystore), never in plain storage. */
-export const useAuth = create<AuthState>((set) => ({
+export const useAuth = create<AuthState>((set, get) => ({
   status: 'loading',
   token: null,
   broker: null,
@@ -40,6 +42,13 @@ export const useAuth = create<AuthState>((set) => ({
       accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
     });
     set({ status: 'signedIn', token: r.token, broker: r.broker, agencyName });
+  },
+  async setLang(lang) {
+    const { token, broker, agencyName } = get();
+    if (!token || !broker) return;
+    const next = { ...broker, lang };
+    set({ broker: next });
+    await Keychain.setGenericPassword('session', JSON.stringify({ token, broker: next, agencyName }), { service: SERVICE, accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY }).catch(() => undefined);
   },
   async signOut() {
     await Keychain.resetGenericPassword({ service: SERVICE }).catch(() => {});

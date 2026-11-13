@@ -57,7 +57,7 @@ export function moreItems(r: Rights, tabs: TabKey[], platformOwner: boolean): Mo
     [manager, { id: 'usage', icon: '📶', label: 'usage', screen: 'Usage' }],
     [platformOwner, { id: 'platform', icon: '🛰', label: 'platform', screen: 'Platform' }],
     [true, { id: 'notifications', icon: '🔔', label: 'notifications', screen: 'Notifications' }],
-    [true, { id: 'report', icon: '🐞', label: 'report', screen: 'Report' }],
+    [true, { id: 'report', icon: '✉️', label: 'contactUs', screen: 'Report' }],
   ];
   return rows.filter(([show]) => show).map(([, item]) => item);
 }

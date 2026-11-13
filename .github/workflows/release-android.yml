@@ -39,6 +39,12 @@ jobs:
           if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then
             echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > apps/mobile/android/app/google-services.json
           fi
+      - name: Stamp the app version (shown in More and sent with reports)
+        env:
+          VERSION_NAME: ${{ inputs.version_name || '1.0.0' }}
+          VERSION_CODE: ${{ inputs.version_code || github.run_number }}
+        run: |
+          sed -i "s/^export const APP_VERSION = .*/export const APP_VERSION = '${VERSION_NAME}';/; s/^export const APP_BUILD = .*/export const APP_BUILD = '${VERSION_CODE}';/" apps/mobile/src/config.ts
       - name: Build bundle
         working-directory: apps/mobile/android
         env:

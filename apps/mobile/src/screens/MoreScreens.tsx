@@ -12,6 +12,7 @@ import { Field } from '../components/Field';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { clientLang } from '../prefs';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 
@@ -127,7 +128,7 @@ export function CompareScreen() {
   const [msg, setMsg] = useState<string | null>(null);
   const make = async () => {
     setMsg(null); setUrl(null);
-    try { const r = await api.compare(codes.map((c) => c.trim()).filter(Boolean), lang); setUrl(r.url); } catch (e) { setMsg(errorText(e, lang)); }
+    try { const r = await api.compare(codes.map((c) => c.trim()).filter(Boolean), clientLang()); setUrl(r.url); } catch (e) { setMsg(errorText(e, lang)); }
   };
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">

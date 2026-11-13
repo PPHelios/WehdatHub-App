@@ -21,6 +21,7 @@ import { installErrorReporting } from './src/errorReport';
 import { startCrashReports, startFirebase, startPush } from './src/push';
 import { watchShares } from './src/share';
 import { syncDirection } from './src/direction';
+import { usePrefs } from './src/prefs';
 import { installBrandFont } from './src/fonts';
 import { t } from './src/i18n';
 
@@ -35,12 +36,15 @@ export default function App() {
   const restore = useAuth((s) => s.restore);
   const status = useAuth((s) => s.status);
   const locked = useLock((s) => s.locked);
-  const scheme = useColorScheme();
+  const systemScheme = useColorScheme();
+  const appearance = usePrefs((s) => s.appearance);
+  const scheme = appearance === 'system' ? systemScheme : appearance;
   const [tooOld, setTooOld] = useState<AppConfig | null>(null);
 
   useEffect(() => {
     restore();
     useLock.getState().load();
+    void usePrefs.getState().load();
     // The server says the lowest app version it supports. A failure to ask never blocks the app.
     api.config().then((c) => isOutdated(APP_VERSION, c.minAppVersion) && setTooOld(c)).catch(() => undefined);
   }, [restore]);

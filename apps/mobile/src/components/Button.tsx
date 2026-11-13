@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { radius, spacing, useTheme } from '../theme';
 
@@ -17,22 +17,28 @@ interface Props {
 export function Button({ label, onPress, loading = false, disabled = false, variant = 'primary', testID, progress }: Props) {
   const { colors } = useTheme();
   const busy = useRef(false);
-  const blocked = loading || disabled;
+  const alive = useRef(true);
+  const [running, setRunning] = useState(false);
+  useEffect(() => () => { alive.current = false; }, []);
+  const spin = loading || running;
+  const blocked = spin || disabled;
   const primary = variant === 'primary';
   const handle = async () => {
     if (blocked || busy.current) return;
     busy.current = true;
+    setRunning(true); // the spinner shows while any action that calls the server is running, even when the screen passes no `loading`
     try {
       await onPress();
     } finally {
       busy.current = false;
+      if (alive.current) setRunning(false);
     }
   };
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
-      accessibilityState={{ busy: loading, disabled: blocked }}
+      accessibilityState={{ busy: spin, disabled: blocked }}
       onPress={handle}
       style={({ pressed }) => [
         styles.base,
@@ -40,7 +46,7 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
       ]}
     >
       {progress !== undefined ? <View testID="button-progress" pointerEvents="none" style={[styles.fill, { width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`, backgroundColor: primary ? colors.onPrimary : colors.primary }]} /> : null}
-      {loading && progress === undefined ? <ActivityIndicator testID="button-spinner" color={primary ? colors.onPrimary : colors.primary} /> : null}
+      {spin && progress === undefined ? <ActivityIndicator testID="button-spinner" color={primary ? colors.onPrimary : colors.primary} /> : null}
       <Text style={[styles.label, { color: primary ? colors.onPrimary : colors.text }]}>{label}</Text>
     </Pressable>
   );

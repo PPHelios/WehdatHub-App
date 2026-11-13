@@ -11,9 +11,14 @@ export type UsageEvent = 'ask' | 'search' | 'voice_search' | 'open_unit' | 'flye
 type Item = { event: UsageEvent; ok: boolean; ms?: number; meta?: Record<string, string | number | boolean> };
 
 let queue: Item[] = [];
+const trail: string[] = [];
+/** The last few things the person did (names only), sent with a report so we can see what led up to it. */
+export const usageTrail = (): string[] => [...trail];
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 export function usage(event: UsageEvent, ok = true, ms?: number, meta?: Item['meta']) {
+  trail.push(`${event}${ok ? '' : ' (failed)'}`);
+  if (trail.length > 10) trail.shift();
   queue.push({ event, ok, ms: ms === undefined ? undefined : Math.round(ms), meta: { platform: Platform.OS, app_version: APP_VERSION, ...(meta ?? {}) } });
   if (queue.length >= 20) void flushUsage();
   else if (!timer) timer = setTimeout(() => void flushUsage(), 30000);
