@@ -9,6 +9,7 @@ import { api } from '../api';
 import { currentLang } from '../auth';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { Button } from '../components/Button';
+import { TodayCards } from '../components/TodayCards';
 import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
@@ -55,6 +56,8 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   const counts = list.data?.pages[0]?.counts;
   const rights = useRights();
+  // Data entry has no Today: the units nobody has confirmed (agency-wide) sit above their list instead.
+  const old = useQuery({ queryKey: ['today'], queryFn: () => api.today(), enabled: rights.dataEntry && status === 'active' });
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
@@ -70,6 +73,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
           </Pressable>
         ))}
       </View>
+      {rights.dataEntry && status === 'active' && old.data?.cards?.oldUnits ? <View style={styles.oldStrip}><TodayCards cards={old.data.cards} only="oldUnits" /></View> : null}
       {showFilters ? (
         <View style={styles.panel}>
           {compound ? (
@@ -121,6 +125,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
 }
 
 const styles = StyleSheet.create({
+  oldStrip: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   flex: { flex: 1 },
   searching: { position: 'absolute', top: spacing.lg + 14, end: spacing.lg + 14 },
   search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },

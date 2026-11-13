@@ -7,6 +7,7 @@ import type { TodayTask } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { TodayCards } from '../components/TodayCards';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
@@ -49,6 +50,7 @@ export function TodayScreen() {
           </View>
         ))
       )}
+      {q.data.cards ? <TodayCards cards={q.data.cards} /> : null}
       {moreTasks > 0 ? <Text style={[styles.more, { color: colors.muted }]}>{t(lang, 'moreTasks')} {moreTasks}</Text> : null}
     </ScrollView>
   );

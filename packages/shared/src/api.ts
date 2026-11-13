@@ -46,7 +46,18 @@ export interface ApiUnitDetail extends ApiUnit {
 }
 export type TodayTaskKind = 'late' | 'viewing' | 'hot' | 'call' | 'matches';
 export interface TodayTask { ref: string; name: string | null; kind: TodayTaskKind; at: string | null; unitCode: string | null; phone: string | null; matches: number | null }
-export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number }
+export interface TodayOldUnit { code: string; line: string; days: number; hidden: boolean }
+export interface TodayLease { key: string; code: string; tenant: string | null; kind: 'end'; date: string; days: number }
+/** The cards under the task list, by role. A card with nothing in it is null. */
+export interface TodayCards {
+  oldUnits: { total: number; items: TodayOldUnit[] } | null;
+  target: { deals: number; commission: number; targetDeals: number | null; targetCommission: number | null; daysLeft: number } | null;
+  leases: { total: number; items: TodayLease[] } | null;
+  ops: { unassigned: number; uncontactedOld: number; overdue: number; team: boolean } | null;
+  commissions: { overdue: number; registrations: number } | null;
+  approvals: { access: number; names: number } | null;
+}
+export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number; cards?: TodayCards }
 export type LeadStage = 'new' | 'contacted' | 'interested' | 'viewing' | 'negotiation' | 'won' | 'lost';
 export const LEAD_STAGES: LeadStage[] = ['new', 'contacted', 'interested', 'viewing', 'negotiation', 'won', 'lost'];
 export type LeadTab = 'all' | LeadStage | 'due_today' | 'overdue' | 'no_next_step';
@@ -300,6 +311,7 @@ export function createApiClient(opts: ApiClientOptions) {
       return request<{ code: string; photos: number; photosFailed: number }>('POST', '/units', form);
     },
     today: () => request<TodayData>('GET', '/today'),
+    todayDismiss: (kind: 'lease', key: string) => request<{ ok: true }>('POST', '/today/dismiss', { kind, key }),
     unit: (code: string) => request<ApiUnitDetail>('GET', `/units/${encodeURIComponent(code)}`),
     unitContact: (code: string) => request<{ name: string | null; phone: string | null }>('GET', `/units/${encodeURIComponent(code)}/contact`),
     /** `to` is a lead ref (L-0042) or a mobile number; leave it out to share without a client. */
