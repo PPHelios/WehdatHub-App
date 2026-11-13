@@ -253,6 +253,8 @@ export function createApiClient(opts: ApiClientOptions) {
   return {
     notificationSettings: () => request<NotificationSettings>('GET', '/notification-settings'),
     saveNotificationSettings: (body: NotificationSettingsInput) => request<NotificationSettings>('PUT', '/notification-settings', body),
+    appSettings: () => request<{ draftStyle: string; quietLine: boolean; switches: { brokersMayWrite: boolean; dataEntryOwners: boolean } | null }>('GET', '/settings'),
+    saveAppSettings: (body: { draftStyle?: string; quietLine?: boolean; switches?: { brokersMayWrite?: boolean; dataEntryOwners?: boolean } }) => request<{ ok: true }>('POST', '/settings', body),
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
