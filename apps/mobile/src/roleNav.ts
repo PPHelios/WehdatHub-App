@@ -16,7 +16,7 @@ export function navPlan(r: Rights): { tabs: TabKey[]; initial: TabKey } {
 export const TAB_ICON: Record<TabKey, IconName> = { Today: 'today', Search: 'search', Leads: 'leads', Map: 'map', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'add', Plan: 'plan' };
 export const TAB_TITLE: Record<TabKey, StringKey> = { Today: 'today', Search: 'searchTab', Leads: 'leadsTab', Map: 'mapTab', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'addUnit', Plan: 'plan' };
 
-export type MoreScreenName = 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Prices' | 'WinLoss' | 'Report' | 'UnitsList' | 'LeadsList' | 'MapList' | 'TodayList' | 'AddUnit' | 'LeadRules' | 'Pipeline';
+export type MoreScreenName = 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Prices' | 'WinLoss' | 'Report' | 'UnitsList' | 'LeadsList' | 'MapList' | 'TodayList' | 'AddUnit' | 'LeadRules' | 'Pipeline' | 'Leases';
 export interface MoreItem { id: string; icon: string; label: StringKey; screen: MoreScreenName }
 
 /**
@@ -43,6 +43,7 @@ export function moreItems(r: Rights, tabs: TabKey[], platformOwner: boolean): Mo
     [manager, { id: 'winloss', icon: '📉', label: 'winLoss', screen: 'WinLoss' }],
     [manager, { id: 'sources', icon: '📈', label: 'sources', screen: 'Sources' }],
     [manager, { id: 'portal', icon: '🏢', label: 'portal', screen: 'Portal' }],
+    [true, { id: 'leases', icon: '🔑', label: 'leasesTitle', screen: 'Leases' }],
     [r.team, { id: 'pipeline', icon: '🧭', label: 'pipeline', screen: 'Pipeline' }],
     [manager, { id: 'lead-rules', icon: '⚙️', label: 'leadRules', screen: 'LeadRules' }],
     [manager, { id: 'requests', icon: '🔒', label: 'requests', screen: 'Requests' }],
