@@ -107,27 +107,27 @@ export function MapScreen() {
         <Chips<Deal> testID="map-deal" value={deal} options={[{ value: 'sale', label: t(lang, 'sale') }, { value: 'rent', label: t(lang, 'rent') }]} onChange={(v) => setDeal(v === deal ? '' : v)} />
         <Chips testID="map-rooms" value={rooms} options={roomOptions} onChange={(v) => setRooms(v)} />
         <Button testID="map-filters-toggle" variant="secondary" label={`${t(lang, 'mapFilters')}${active ? ` (${active})` : ''}`} onPress={() => setPanel((o) => !o)} />
-        {panel ? (
-          <ScrollView testID="map-filters" style={styles.panel} keyboardShouldPersistTaps="handled">
-            <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fType')}</Text>
-            <Chips testID="map-ptype" value={ptype} options={[{ value: '', label: t(lang, 'anyOne') }, ...options(PROPERTY_TYPES, lang).filter((o) => !map.data?.facets.types || map.data.facets.types.includes(o.value))]} onChange={setPtype} />
-            <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fFinishing')}</Text>
-            <Chips testID="map-fin" value={fin} options={[{ value: '', label: t(lang, 'anyOne') }, ...options(FINISHING, lang)]} onChange={setFin} />
-            <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fFurnishing')}</Text>
-            <Chips testID="map-furn" value={furn} options={[{ value: '', label: t(lang, 'anyOne') }, ...options(FURNISHING, lang)]} onChange={setFurn} />
-            <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'budgetTitle')}</Text>
-            <View style={styles.budget}>
-              <TextInput testID="map-pmin" style={[styles.input, styles.flex, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={pmin} onChangeText={setPmin} placeholder={t(lang, 'budgetFrom')} placeholderTextColor={colors.muted} autoCorrect={false} />
-              <TextInput testID="map-pmax" style={[styles.input, styles.flex, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={pmax} onChangeText={setPmax} placeholder={t(lang, 'budgetTo')} placeholderTextColor={colors.muted} autoCorrect={false} />
-            </View>
-            {active ? <Button testID="map-reset" variant="secondary" label={t(lang, 'resetFilters')} onPress={reset} /> : null}
-          </ScrollView>
-        ) : null}
       </View>
       <View style={styles.flex}>
         <WebView ref={web} testID="map-web" style={styles.flex} originWhitelist={['*']} source={{ html, baseUrl: API_BASE_URL }} javaScriptEnabled onMessage={onMessage} onLoadStart={() => setReady(false)} />
         {map.isFetching ? <ActivityIndicator style={styles.busy} color={colors.primary} /> : null}
       </View>
+      {panel ? (
+        <ScrollView testID="map-filters" style={[styles.overlay, styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]} keyboardShouldPersistTaps="handled">
+          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fType')}</Text>
+          <Chips testID="map-ptype" value={ptype} options={[{ value: '', label: t(lang, 'anyOne') }, ...options(PROPERTY_TYPES, lang).filter((o) => !map.data?.facets.types || map.data.facets.types.includes(o.value))]} onChange={setPtype} />
+          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fFinishing')}</Text>
+          <Chips testID="map-fin" value={fin} options={[{ value: '', label: t(lang, 'anyOne') }, ...options(FINISHING, lang)]} onChange={setFin} />
+          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fFurnishing')}</Text>
+          <Chips testID="map-furn" value={furn} options={[{ value: '', label: t(lang, 'anyOne') }, ...options(FURNISHING, lang)]} onChange={setFurn} />
+          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'budgetTitle')}</Text>
+          <View style={styles.budget}>
+            <TextInput testID="map-pmin" style={[styles.input, styles.flex, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={pmin} onChangeText={setPmin} placeholder={t(lang, 'budgetFrom')} placeholderTextColor={colors.muted} autoCorrect={false} />
+            <TextInput testID="map-pmax" style={[styles.input, styles.flex, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={pmax} onChangeText={setPmax} placeholder={t(lang, 'budgetTo')} placeholderTextColor={colors.muted} autoCorrect={false} />
+          </View>
+          {active ? <Button testID="map-reset" variant="secondary" label={t(lang, 'resetFilters')} onPress={reset} /> : null}
+        </ScrollView>
+      ) : null}
       {picked ? (
         <View style={[styles.sheet, { backgroundColor: colors.card, borderColor: colors.border }]} testID="map-sheet">
           <View style={styles.sheetHead}>
@@ -168,11 +168,12 @@ const styles = StyleSheet.create({
   input: { minHeight: 44, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, fontSize: 16 },
   list: { borderWidth: 1, borderRadius: radius.md, overflow: 'hidden' },
   item: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  panel: { maxHeight: 260 },
+  panel: { maxHeight: '60%', padding: spacing.md },
+  overlay: { position: 'absolute', start: 0, end: 0, bottom: 0, borderTopWidth: 1, borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md },
   budget: { flexDirection: 'row', gap: spacing.sm },
   h: { fontWeight: '700', marginTop: spacing.sm },
   busy: { position: 'absolute', top: spacing.md, end: spacing.md },
-  sheet: { maxHeight: '45%', borderTopWidth: 1, borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md, padding: spacing.lg, gap: spacing.sm },
+  sheet: { position: 'absolute', start: 0, end: 0, bottom: 0, maxHeight: '38%', borderTopWidth: 1, borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md, padding: spacing.lg, gap: spacing.sm },
   sheetHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sheetTitle: { fontSize: 18, fontWeight: '800', flex: 1 },
   row: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md },

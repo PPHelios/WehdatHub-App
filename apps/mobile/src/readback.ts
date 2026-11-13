@@ -18,3 +18,16 @@ export function readPhone(raw: string): string {
   const d = digits(raw).replace(/^\+?20/, '0');
   return /^01[0125]\d{8}$/.test(d) ? `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}` : '';
 }
+
+/** Thousands separators as a number is typed: 9500000 shows as 9,500,000 (Arabic digits become Latin; the server reads commas). */
+export function withCommas(raw: string): string {
+  const d = digits(raw).replace(/[^\d.]/g, '');
+  if (!d) return '';
+  const [whole, ...rest] = d.split('.');
+  return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (rest.length ? `.${rest.join('')}` : '');
+}
+
+/** What is stored and sent: digits only (commas are for display). Arabic digits become Latin. */
+export function plain(raw: string): string {
+  return digits(raw).replace(/[^\d.]/g, '');
+}

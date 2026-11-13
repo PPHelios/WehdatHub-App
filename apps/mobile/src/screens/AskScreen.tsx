@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { ApiClientError } from '@wehdathub/shared';
 import type { AskAnswer, VoiceFile } from '@wehdathub/shared';
 import { timed } from '../usage';
@@ -52,8 +52,10 @@ export function AskScreen() {
       {error ? <Text testID="ask-error" style={{ color: colors.danger }}>{error}</Text> : null}
       {out ? (
         <View testID="ask-answer" style={[styles.box, { borderColor: out.found ? colors.accent : colors.border, backgroundColor: colors.card }]}>
-          <Text style={{ color: colors.text, fontSize: 16 }}>{out.answer}</Text>
+          <Text selectable style={{ color: colors.text, fontSize: 16 }}>{out.answer}</Text>
           {out.dataDates ? <Text style={{ color: colors.muted }}>{out.dataDates}</Text> : null}
+          {/* The share sheet has Copy, WhatsApp and the rest; pressing and holding the text also selects a part of it. */}
+          <Button testID="ask-copy" variant="secondary" label={t(lang, 'copyAnswer')} onPress={() => { Share.share({ message: out.answer }).catch(() => undefined); }} />
         </View>
       ) : null}
     </ScrollView>

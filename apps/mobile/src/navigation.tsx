@@ -104,7 +104,7 @@ function TabsScreen() {
       initialRouteName={plan.initial}
       screenOptions={{
         headerTitleAlign: 'center',
-        headerLeft: () => <View style={{ paddingHorizontal: 12 }}><Logo size={0.3} compact /></View>,
+        headerLeft: () => <View style={{ paddingHorizontal: 12 }}><Logo size={0.55} compact /></View>,
         headerStyle: { backgroundColor: colors.bg },
         headerTitleStyle: { color: colors.text, fontFamily: FONT_BOLD },
         headerShadowVisible: false,

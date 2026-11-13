@@ -8,7 +8,8 @@ export function putBytes(url: string, body: Blob, onPct: (pct: number) => void):
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url);
     xhr.setRequestHeader('Content-Type', 'image/jpeg');
-    xhr.upload.onprogress = (e) => { if (e.lengthComputable && e.total) onPct(Math.round((e.loaded / e.total) * 100)); };
+    // Some phones count a few bytes more than the file, so the percent is capped at 100.
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && e.total) onPct(Math.min(100, Math.round((e.loaded / e.total) * 100))); };
     xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`upload_${xhr.status}`)));
     xhr.onerror = () => reject(new Error('upload_network'));
     xhr.ontimeout = () => reject(new Error('upload_timeout'));

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { useAuth } from '../auth';
@@ -23,11 +23,22 @@ import { moreItems, navPlan } from '../roleNav';
 import type { MoreScreenName } from '../roleNav';
 import { stopPush } from '../push';
 import { spacing, useTheme } from '../theme';
+import { usePrefs } from '../prefs';
+import { APP_BUILD, APP_VERSION } from '../config';
+import { syncDirection } from '../direction';
 
 export function MoreScreen({ onOpen }: { onOpen?: (screen: MoreScreenName) => void } = {}) {
   const { colors } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
+  const { appearance, clientLang, setAppearance, setClientLang } = usePrefs();
+  const setLang = useAuth((a) => a.setLang);
+  // The app language button: saved on the server too, so the website and the bot follow. The layout flips once the app is reopened.
+  const changeLang = async (l: 'ar' | 'en') => {
+    await api.setLang(l).catch(() => undefined);
+    await setLang(l);
+    if (syncDirection(l)) Alert.alert(t(l, 'restartForLayout'));
+  };
   const [busy, setBusy] = useState(false);
   const lang = broker?.lang ?? 'ar';
   const rights = useRights();
@@ -73,6 +84,15 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: MoreScreenName) => vo
       <Text style={[styles.name, { color: colors.text }]}>{broker?.name}</Text>
       {agencyName ? <Text style={[styles.agency, { color: colors.muted }]}>{t(lang, 'agency')}: {agencyName}</Text> : null}
       {onOpen ? items.map((it) => <Button key={it.id} testID={`open-${it.id}`} label={`${it.icon} ${t(lang, it.label)}`} variant="secondary" onPress={() => onOpen(it.screen)} />) : null}
+      <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]} testID="app-settings">
+        <Text style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'appearance')}</Text>
+        <Chips testID="appearance" value={appearance} options={[{ value: 'system' as const, label: t(lang, 'appSystem') }, { value: 'light' as const, label: t(lang, 'appLight') }, { value: 'dark' as const, label: t(lang, 'appDark') }]} onChange={setAppearance} />
+        <Text style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'languageTitle')}</Text>
+        <Chips testID="app-lang" value={lang} options={[{ value: 'ar' as const, label: 'العربية' }, { value: 'en' as const, label: 'English' }]} onChange={(l) => { void changeLang(l); }} />
+        <Text style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'clientLangTitle')}</Text>
+        <Chips testID="client-lang" value={clientLang} options={[{ value: 'ar' as const, label: 'العربية' }, { value: 'en' as const, label: 'English' }]} onChange={setClientLang} />
+        <Text style={{ color: colors.muted }}>{t(lang, 'clientLangHint')}</Text>
+      </View>
       {ts ? (
         <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]} testID="test-switch">
           <Text style={[styles.cardTitle, { color: colors.text }]}>{lang === 'ar' ? 'تبديل الاختبار' : 'Test switch'}</Text>
@@ -84,6 +104,7 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: MoreScreenName) => vo
       ) : null}
       {canLock || enabled ? <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'lockSetting')}</Text><Switch testID="lock-switch" value={enabled} onValueChange={toggleLock} trackColor={{ true: colors.primary, false: colors.border }} thumbColor={enabled ? colors.onPrimary : colors.muted} /></View> : null}
       {lockMsg ? <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, textAlign: lang === 'ar' ? 'right' : 'left' }}>{lockMsg}</Text> : null}
+      <Text testID="app-version" style={{ color: colors.muted }}>{t(lang, 'appVersionLabel')}: {APP_VERSION} ({APP_BUILD})</Text>
       <Button testID="sign-out" label={t(lang, 'signOut')} onPress={out} loading={busy} variant="secondary" />
     </ScrollView>
   );

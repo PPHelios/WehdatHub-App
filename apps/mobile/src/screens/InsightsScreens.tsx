@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../api';
@@ -10,6 +11,8 @@ import { Field } from '../components/Field';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { APP_BUILD, APP_VERSION } from '../config';
+import { usageTrail } from '../usage';
 import { radius, spacing, useTheme } from '../theme';
 
 const num = (n: number) => Number(n).toLocaleString('en-US');
@@ -118,20 +121,33 @@ export function WinLossScreen() {
   );
 }
 
-/** A broker's bug report to the team. */
+/** Contact us: a problem, a suggestion or a request to the team. The app version, phone type, screen and last actions go with it. */
 export function ReportScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation();
   const [text, setText] = useState('');
+  const [type, setType] = useState<'bug' | 'suggestion' | 'request'>('bug');
   const [msg, setMsg] = useState<string | null>(null);
   const ar = lang === 'ar';
   const send = async () => {
     setMsg(null);
     if (text.trim().length < 3) return;
     try {
-      const r = await api.report(text.trim());
-      setMsg(`${ar ? 'وصلنا البلاغ' : 'Report sent'} #R${r.id}`);
+      const routes = nav.getState?.()?.routes ?? [];
+      const net = await Promise.resolve().then(() => NetInfo.fetch()).catch(() => null);
+      const device = {
+        appVersion: `${APP_VERSION} (${APP_BUILD})`,
+        platform: Platform.OS,
+        osVersion: String(Platform.Version),
+        model: String((Platform.constants as { Model?: string })?.Model ?? ''),
+        screen: String(routes.length > 1 ? routes[routes.length - 2].name : ''),
+        network: net ? `${net.type}${net.isConnected ? '' : ' offline'}` : '',
+        locale: lang,
+        trail: usageTrail(),
+      };
+      const r = await api.report(text.trim(), { type, device });
+      setMsg(`${ar ? 'وصلنا' : 'Sent'} #R${r.id}`);
       setText('');
       setTimeout(() => nav.goBack(), 1200);
     } catch (e) {
@@ -140,9 +156,14 @@ export function ReportScreen() {
   };
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
-      <Field label={ar ? 'اكتب اللي حصل واللي كنت متوقعه' : 'What happened and what you expected'} value={text} onChangeText={setText} multiline testID="report-text" />
+      <Text style={{ color: colors.muted }}>{t(lang, 'contactHint')}</Text>
+      <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'contactType')}</Text>
+      <Chips testID="report-type" value={type} options={[{ value: 'bug' as const, label: t(lang, 'typeBug') }, { value: 'suggestion' as const, label: t(lang, 'typeSuggestion') }, { value: 'request' as const, label: t(lang, 'typeRequest') }]} onChange={setType} />
+      <Field label={ar ? 'اكتب هنا' : 'Write here'} value={text} onChangeText={setText} multiline testID="report-text" />
       {msg ? <Text testID="report-msg" style={{ color: colors.text }}>{msg}</Text> : null}
-      <Button testID="report-send" label={ar ? 'ابعت البلاغ' : 'Send report'} onPress={send} />
+      <Button testID="report-send" label={ar ? 'ابعت' : 'Send'} onPress={send} />
+      <Text selectable style={{ color: colors.muted }}>{t(lang, 'contactEmail')} wehdat.hub@gmail.com</Text>
+      <Text style={{ color: colors.muted }}>{t(lang, 'appVersionLabel')}: {APP_VERSION} ({APP_BUILD})</Text>
     </ScrollView>
   );
 }

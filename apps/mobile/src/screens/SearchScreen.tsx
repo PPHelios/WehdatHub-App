@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { timed } from '../usage';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
@@ -24,6 +25,20 @@ export function SearchScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [text, setText] = useState('');
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  // The search box and mic float at the bottom like a chat app: they slide away on scrolling down and come back on scrolling up.
+  const slide = useRef(new Animated.Value(0)).current;
+  const lastY = useRef(0);
+  const hidden = useRef(false);
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = Math.max(0, e.nativeEvent.contentOffset.y);
+    const dy = y - lastY.current;
+    lastY.current = y;
+    const hide = dy > 6 && y > 60 ? true : dy < -6 || y <= 60 ? false : hidden.current;
+    if (hide !== hidden.current) {
+      hidden.current = hide;
+      Animated.timing(slide, { toValue: hide ? 1 : 0, duration: 180, useNativeDriver: true }).start();
+    }
+  };
   const search = useMutation<SearchResult, Error, { q: string; drop?: boolean; status?: UnitStatus }>({ mutationFn: ({ q, drop, status }) => timed('search', () => api.search(q, { drop, status })) });
   // Active units first; Sold and Archived are one tap away, with their counts from the start. More results load on demand.
   const [last, setLast] = useState<{ q: string; drop: boolean; status: UnitStatus } | null>(null);
@@ -99,6 +114,9 @@ export function SearchScreen() {
         </View>
       }
       renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => nav.navigate('Unit', { code: item.code })} />}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      contentContainerStyle={{ paddingBottom: 150 }}
       onEndReached={() => { if (data.items.length + extra.length < data.total) loadMore(); }}
       onEndReachedThreshold={0.6}
       ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.count} color={colors.primary} /> : null}
@@ -107,11 +125,6 @@ export function SearchScreen() {
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <TextInput testID="search-input" style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'searchPlaceholder')} placeholderTextColor={colors.muted} returnKeyType="search" onSubmitEditing={() => run(text)} multiline={false} />
-      <View style={styles.row}>
-        <View style={styles.flex}><Button testID="search-go" label={t(lang, 'searchBtn')} loading={search.isPending} onPress={() => run(text)} /></View>
-        <View style={styles.flex}><HoldMic testID="search-mic" label={t(lang, 'mic')} onFile={onVoice} onError={setVoiceError} /></View>
-      </View>
       {voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{voiceError}</Text> : null}
       {data?.counts && last ? (
         <View style={styles.chips}>
@@ -123,14 +136,22 @@ export function SearchScreen() {
         </View>
       ) : null}
       <View style={styles.flex}>{body}</View>
+      <Animated.View style={[styles.bar, { backgroundColor: colors.bg, borderColor: colors.border, transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 220] }) }] }]}>
+      <TextInput testID="search-input" style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'searchPlaceholder')} placeholderTextColor={colors.muted} returnKeyType="search" onSubmitEditing={() => run(text)} multiline={false} />
+      <View style={styles.row}>
+        <View style={styles.flex}><Button testID="search-go" label={t(lang, 'searchBtn')} loading={search.isPending} onPress={() => run(text)} /></View>
+        <View style={styles.flex}><HoldMic testID="search-mic" label={t(lang, 'mic')} onFile={onVoice} onError={setVoiceError} /></View>
+      </View>
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  input: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
-  row: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg },
+  bar: { position: 'absolute', start: 0, end: 0, bottom: 0, padding: spacing.md, gap: spacing.sm, borderTopWidth: 1 },
+  input: { margin: 0, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  row: { flexDirection: 'row', gap: spacing.sm },
   err: { padding: spacing.lg, textAlign: 'center' },
   ask: { padding: spacing.xl, gap: spacing.md },
   askTitle: { fontSize: 18, fontWeight: '700' },

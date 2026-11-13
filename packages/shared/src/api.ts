@@ -351,7 +351,8 @@ export function createApiClient(opts: ApiClientOptions) {
     dashboard: (days = 30) => request<DashboardData>('GET', '/dashboard', undefined, { days }),
     pricePerM2: () => request<{ minUnits: number; items: PriceRow[] }>('GET', '/insights/prices'),
     winLoss: (days = 30) => request<WinLossData>('GET', '/insights/winloss', undefined, { days }),
-    report: (text: string) => request<{ ok: true; id: number }>('POST', '/report', { text }),
+    report: (text: string, extra?: { type?: 'bug' | 'suggestion' | 'request'; device?: Record<string, unknown> }) => request<{ ok: true; id: number }>('POST', '/report', { text, ...(extra ?? {}) }),
+    setLang: (lang: Lang) => request<{ ok: true; lang: Lang }>('POST', '/me/lang', { lang }),
     deals: (status?: string, page = 0) => request<DealsData>('GET', '/deals', undefined, { status, page }),
     dealStatus: (ref: string, status: string, version?: number) => request<{ ok: true }>('POST', `/deals/${ref}/status`, { status, version }),
     commissions: (kind: 'resale' | 'developers', status?: string, page = 0) => request<CommissionsData>('GET', '/commissions', undefined, { kind, status, page }),
@@ -362,7 +363,7 @@ export function createApiClient(opts: ApiClientOptions) {
     portalEnquiries: () => request<{ items: Row[] }>('GET', '/portal-enquiries'),
     assignEnquiry: (id: string, b: { phone: string; brokerId?: string }) => request<{ ok: true; outcome: string }>('POST', `/portal-enquiries/${id}/assign`, b),
     linkEnquiry: (id: string, unitCode: string) => request<{ ok: true }>('POST', `/portal-enquiries/${id}/link`, { unitCode }),
-    openedLinks: (status?: string, page?: number) => request<{ rows: Row[]; total: number; pages: number; page: number }>('GET', '/opened-links', undefined, { status, page }),
+    openedLinks: (status?: string, page?: number, q?: string, days?: number) => request<{ rows: Row[]; total: number; pages: number; page: number }>('GET', '/opened-links', undefined, { status, page, q, days }),
     catalogue: (q?: string, page = 0) => request<{ projects: { items: Row[]; total: number; pages: number }; developers: { items: Row[] }; canEdit: boolean }>('GET', '/catalogue', undefined, { q, page }),
     project: (id: string) => request<{ project: Row; developer: Row | null; phases: Row[]; plans: Row[]; materials: Row[]; units: Row[]; canEdit: boolean }>('GET', `/catalogue/projects/${id}`),
     archiveProject: (id: string, archived: boolean) => request<{ ok: true }>('POST', `/catalogue/projects/${id}/archive`, { archived }),
@@ -404,7 +405,7 @@ export function createApiClient(opts: ApiClientOptions) {
     unitLeaseContacts: (code: string) => request<{ tenant: { name: string | null; ref: string; phone: string } | null; owner: { name: string | null; phone: string } | null }>('GET', `/units/${encodeURIComponent(code)}/lease/contacts`),
     saveUnitLease: (code: string, l: { startDate: string; months: string; rent: string; increasePct: string; tenantName: string } | { remove: true }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease`, l),
     saveUnitPrivate: (code: string, p: { pin: string; unitNo: string; address: string }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/private`, p),
-    unitFlyer: (code: string, theme: 'dark' | 'light' = 'dark', unbranded = false) => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/flyer`, { theme, unbranded }),
+    unitFlyer: (code: string, theme: 'dark' | 'light' = 'dark', unbranded = false, lang?: Lang) => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/flyer`, { theme, unbranded, ...(lang ? { lang } : {}) }),
     /** Photos of an existing unit: new files to add, ids to remove, and the order of the kept ones (first is the cover). */
     /** One-time links so each photo goes straight to storage; then send the returned keys as photoKeys. */
     photoUploadLinks: (count: number) => request<{ uploads: PhotoUploadLink[]; expires_in: number }>('POST', '/units/photo-upload', { count }),

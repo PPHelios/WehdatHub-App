@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -166,24 +166,52 @@ export function PortalScreen() {
   );
 }
 
-/** Links sent to clients and whether they were opened. */
+/** Links sent to clients: when, to whom, by whom, how often opened. Last 7 days first; filters and "load more" keep it short as it grows. */
 export function LinksScreen() {
   const { colors } = useTheme();
-  const q = useQuery({ queryKey: ['openedLinks'], queryFn: () => api.openedLinks() });
+  const lang = currentLang();
+  const ar = lang === 'ar';
+  const [days, setDays] = useState('7');
+  const [status, setStatus] = useState('all');
+  const [text, setText] = useState('');
+  const [search, setSearch] = useState('');
+  const list = useInfiniteQuery({
+    queryKey: ['openedLinks', days, status, search],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => api.openedLinks(status === 'all' ? undefined : status, pageParam, search || undefined, days === 'all' ? undefined : Number(days)),
+    getNextPageParam: (last) => (last.page + 1 < last.pages ? last.page + 1 : undefined),
+  });
+  const rows = list.data?.pages.flatMap((p) => p.rows) ?? [];
+  const total = list.data?.pages[0]?.total ?? 0;
+  const when = (v: unknown) => (v ? new Date(String(v)).toLocaleString(ar ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '');
   return (
-    <Gate q={q}>
-      {(d) => (
-        <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
-          <Text style={{ color: colors.muted }}>{d.total}</Text>
-          {d.rows.map((x, i) => (
-            <Card key={str(x.id ?? i)}>
-              <Text style={{ color: colors.text }}>{str(x.lead_name ?? x.client_name)} · {str(x.unit_code)} · {str(x.status)}</Text>
-              <Text style={{ color: colors.muted }}>{str(x.channel)} · {str(x.sent_at ?? x.created_at).slice(0, 16)}</Text>
-            </Card>
-          ))}
-        </ScrollView>
+    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
+      <Chips testID="links-days" value={days} options={[{ value: '7', label: ar ? 'آخر 7 أيام' : 'Last 7 days' }, { value: '30', label: ar ? 'آخر 30 يوم' : 'Last 30 days' }, { value: 'all', label: ar ? 'الكل' : 'All' }]} onChange={setDays} />
+      <Chips testID="links-status" value={status} options={[{ value: 'all', label: ar ? 'كل الحالات' : 'Any' }, { value: 'opened', label: ar ? 'اتفتحت' : 'Opened' }, { value: 'never', label: ar ? 'ما اتفتحتش' : 'Not opened' }, { value: 'repeat', label: ar ? 'اتفتحت أكتر من مرة' : 'Opened twice or more' }]} onChange={setStatus} />
+      <Field testID="links-search" label={ar ? 'ابحث بكود الوحدة أو اسم العميل أو رقمه' : 'Search by unit code, client name or number'} value={text} onChangeText={setText} returnKeyType="search" onSubmitEditing={() => setSearch(text.trim())} />
+      <Button testID="links-search-go" variant="secondary" label={ar ? 'بحث' : 'Search'} onPress={() => setSearch(text.trim())} />
+      {list.isPending ? <Loading label={t(lang, 'loading')} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} /> : (
+        <>
+          <Text style={{ color: colors.muted }}>{total} {ar ? 'لينك' : total === 1 ? 'link' : 'links'}</Text>
+          {rows.map((x, i) => {
+            const lead = x.lead as { name?: string | null; ref?: string | null; phone?: string | null } | null;
+            return (
+              <Card key={str(x.token_hash ?? i)} testID="link-row">
+                <View style={styles.rowBetween}>
+                  <Text style={{ color: colors.primary, fontWeight: '800', flex: 1 }}>{str(x.unit_code)}{x.compound ? ` · ${str(x.compound)}` : ''}</Text>
+                  <Text style={{ color: Number(x.open_count) ? colors.accent : colors.muted, fontWeight: '700' }}>{Number(x.open_count) ? `${num(x.open_count)} ${ar ? 'فتحة' : 'opens'} · ${num(x.devices)} ${ar ? 'جهاز' : 'devices'}` : ar ? 'ما اتفتحش' : 'Not opened'}</Text>
+                </View>
+                <Text style={{ color: colors.text }}>{[lead?.name || lead?.ref, str(x.recipient_phone) || lead?.phone].filter(Boolean).join(' · ') || (ar ? 'من غير عميل' : 'No client')}</Text>
+                <Text style={{ color: colors.muted }}>{ar ? 'اتبعت' : 'Sent'} {when(x.created_at)}{x.sent_by ? ` · ${str(x.sent_by)}` : ''}</Text>
+                {x.last_opened_at ? <Text style={{ color: colors.muted }}>{ar ? 'آخر فتح' : 'Last opened'} {when(x.last_opened_at)}</Text> : null}
+              </Card>
+            );
+          })}
+          {!rows.length ? <Text style={{ color: colors.muted }}>{ar ? 'مفيش لينكات بالفلتر ده.' : 'No links with this filter.'}</Text> : null}
+          {list.hasNextPage ? <Button testID="links-more" variant="secondary" label={ar ? 'اعرض أكتر' : 'Load more'} onPress={() => list.fetchNextPage()} loading={list.isFetchingNextPage} /> : null}
+        </>
       )}
-    </Gate>
+    </ScrollView>
   );
 }
 
@@ -191,4 +219,5 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
   card: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
   h: { fontSize: 16, fontWeight: '700' },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
 });

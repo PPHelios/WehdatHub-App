@@ -18,8 +18,11 @@ test('a second tap while the action runs is ignored', async () => {
   const first = fireEvent.press(button); // settles when the action ends
   await fireEvent.press(button); // ignored
   expect(onPress).toHaveBeenCalledTimes(1);
+  expect(screen.getByTestId('button-spinner')).toBeTruthy(); // the spinner shows by itself while the action runs
   await act(async () => release());
   await first;
+  expect(screen.queryByTestId('button-spinner')).toBeNull();
   await fireEvent.press(button);
   expect(onPress).toHaveBeenCalledTimes(2);
 });
+
