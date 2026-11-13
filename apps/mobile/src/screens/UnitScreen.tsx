@@ -47,10 +47,10 @@ export function UnitScreen({ code }: { code?: string } = {}) {
       setSaving(false);
     }
   };
-  const makeFlyer = async () => {
+  const makeFlyer = async (unbranded = false) => {
     setFlyerBusy(true);
     try {
-      setFlyer((await timed('flyer_make', () => api.unitFlyer(unitCode))).url);
+      setFlyer((await timed('flyer_make', () => api.unitFlyer(unitCode, 'dark', unbranded))).url);
     } catch (e) {
       Alert.alert(e instanceof ApiClientError && e.status === 503 ? t(lang, 'flyerBusy') : t(lang, 'flyerFailed'));
     } finally {
@@ -122,7 +122,8 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         ) : null}
         {hidden === 'pending' ? <Text testID="access-pending" style={{ color: colors.muted }}>{t(lang, 'accessPending')}</Text> : null}
         {hidden === 'ask' ? <Button testID="request-access" variant="secondary" label={t(lang, 'requestAccess')} loading={asking} onPress={requestAccess} /> : null}
-        <Button testID="flyer" variant="secondary" label={`🖼 ${t(lang, 'flyer')}`} loading={flyerBusy} onPress={makeFlyer} />
+        <Button testID="flyer" variant="secondary" label={`🖼 ${t(lang, 'flyer')}`} loading={flyerBusy} onPress={() => makeFlyer(false)} />
+        <Button testID="flyer-nobrand" variant="secondary" label={`🖼 ${t(lang, 'flyer')} · ${t(lang, 'flyerNoBrand')}`} loading={flyerBusy} onPress={() => makeFlyer(true)} />
         {flyer ? (
           <Modal visible transparent animationType="fade" onRequestClose={() => setFlyer(null)}>
             <View style={styles.flyerBack}>

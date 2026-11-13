@@ -119,7 +119,7 @@ export interface AppConfig {
   firebase?: { android?: FirebaseClientConfig; ios?: FirebaseClientConfig } | null;
 }
 /** key: set once the photo is stored (direct upload); pct: upload progress 0 to 100; failed: the upload stopped and can be retried. */
-export interface UploadFile { uri: string; name: string; type: string; key?: string; pct?: number; failed?: boolean }
+export interface UploadFile { uri: string; name: string; type: string; key?: string; pct?: number; failed?: boolean; /** Picked but not one of the 15 kept: never uploaded or saved. */ notKept?: boolean }
 export interface PhotoUploadLink { key: string; upload_url: string; thumb_key: string; thumb_upload_url: string | null }
 export interface SearchAsk { terms: string[]; numbers?: unknown[]; aiDown?: boolean; withoutTotal: number }
 export interface SearchResult {
@@ -404,7 +404,7 @@ export function createApiClient(opts: ApiClientOptions) {
     unitLeaseContacts: (code: string) => request<{ tenant: { name: string | null; ref: string; phone: string } | null; owner: { name: string | null; phone: string } | null }>('GET', `/units/${encodeURIComponent(code)}/lease/contacts`),
     saveUnitLease: (code: string, l: { startDate: string; months: string; rent: string; increasePct: string; tenantName: string } | { remove: true }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease`, l),
     saveUnitPrivate: (code: string, p: { pin: string; unitNo: string; address: string }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/private`, p),
-    unitFlyer: (code: string, theme: 'dark' | 'light' = 'dark') => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/flyer`, { theme }),
+    unitFlyer: (code: string, theme: 'dark' | 'light' = 'dark', unbranded = false) => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/flyer`, { theme, unbranded }),
     /** Photos of an existing unit: new files to add, ids to remove, and the order of the kept ones (first is the cover). */
     /** One-time links so each photo goes straight to storage; then send the returned keys as photoKeys. */
     photoUploadLinks: (count: number) => request<{ uploads: PhotoUploadLink[]; expires_in: number }>('POST', '/units/photo-upload', { count }),
