@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -10,6 +12,7 @@ import { Field } from '../components/Field';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
@@ -33,6 +36,7 @@ export function DealsScreen() {
   const lang = currentLang();
   const ar = lang === 'ar';
   const qc = useQueryClient();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [status, setStatus] = useState('');
   const q = useQuery({ queryKey: ['deals', status], queryFn: () => api.deals(status || undefined) });
   const setDeal = async (ref: string, to: string, version: unknown) => {
@@ -51,6 +55,7 @@ export function DealsScreen() {
             <Card key={str(x.ref)} testID={`deal-${str(x.ref)}`}>
               <Text style={[styles.h, { color: colors.text }]}>#{str(x.ref)} · {str(x.status)}</Text>
               <Text style={{ color: colors.text }}>{str(x.client_name)} · {str(x.unit_code)} · {num(x.price)}</Text>
+              {str(x.deal_type) === 'rent' && x.unit_code ? <Button testID={`add-lease-${str(x.ref)}`} variant="secondary" label={`🔑 ${t(lang, 'addLease')}`} onPress={() => nav.navigate('Unit', { code: str(x.unit_code), lease: { tenantName: x.lead_ref ? `L-${String(x.lead_ref).padStart(4, '0')}` : str(x.client_name), startDate: str(x.closed_at).slice(0, 10), rent: x.price === null || x.price === undefined ? '' : String(Math.round(Number(x.price))) } })} /> : null}
               {d.statuses.length ? <Chips value={str(x.status)} onChange={(s) => { void setDeal(str(x.ref), s, x.version); }} options={d.statuses.map((s) => ({ value: s, label: s }))} /> : null}
             </Card>
           ))}

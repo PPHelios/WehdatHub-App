@@ -55,7 +55,8 @@ export interface TodayCards {
   commissions: { overdue: number; registrations: number } | null;
   approvals: { access: number; names: number } | null;
 }
-export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number; cards?: TodayCards }
+export interface LeaseRow { code: string; tenant_name: string | null; tenant_ref: string | null; broker_name: string | null; rent: number | null; end: string; daysLeft: number; done: boolean; doneKind: string | null }
+export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number; leases?: { code: string; tenant: string | null; end: string; daysLeft: number }[]; cards?: TodayCards }
 export type LeadStage = 'new' | 'contacted' | 'interested' | 'viewing' | 'negotiation' | 'won' | 'lost';
 export const LEAD_STAGES: LeadStage[] = ['new', 'contacted', 'interested', 'viewing', 'negotiation', 'won', 'lost'];
 export type LeadTab = 'all' | LeadStage | 'due_today' | 'overdue' | 'no_next_step';
@@ -381,8 +382,11 @@ export function createApiClient(opts: ApiClientOptions) {
     unitStatus: (code: string, status: 'active' | 'sold' | 'archived') => request<{ ok: true; status: string }>('POST', `/units/${encodeURIComponent(code)}/status`, { status }),
     unitDelete: (code: string) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/delete`, {}),
     unitRestore: (code: string) => request<{ ok: true; code: string }>('POST', `/units/${encodeURIComponent(code)}/restore`, {}),
-    unitLease: (code: string) => request<{ rent: boolean; lease: { startDate: string; months: number; rent: number | null; increasePct: number | null; tenantName: string | null; remind: boolean } | null }>('GET', `/units/${encodeURIComponent(code)}/lease`),
-    saveUnitLease: (code: string, l: { startDate: string; months: string; rent: string; increasePct: string; tenantName: string; remind: boolean } | { remove: true }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease`, l),
+    unitLease: (code: string) => request<{ rent: boolean; lease: { startDate: string; months: number; rent: number | null; increasePct: number | null; tenantName: string | null; remind: boolean; done?: boolean } | null }>('GET', `/units/${encodeURIComponent(code)}/lease`),
+    leases: (soon = false) => request<{ items: LeaseRow[] }>('GET', `/leases${soon ? '?soon=1' : ''}`),
+    unitLeaseDone: (code: string, kind: 'renewed' | 'leaving' | 'relist') => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease/done`, { kind }),
+    unitLeaseContacts: (code: string) => request<{ tenant: { name: string | null; ref: string; phone: string } | null; owner: { name: string | null; phone: string } | null }>('GET', `/units/${encodeURIComponent(code)}/lease/contacts`),
+    saveUnitLease: (code: string, l: { startDate: string; months: string; rent: string; increasePct: string; tenantName: string } | { remove: true }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease`, l),
     saveUnitPrivate: (code: string, p: { pin: string; unitNo: string; address: string }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/private`, p),
     unitFlyer: (code: string, theme: 'dark' | 'light' = 'dark') => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/flyer`, { theme }),
     /** Photos of an existing unit: new files to add, ids to remove, and the order of the kept ones (first is the cover). */

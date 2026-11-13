@@ -1,8 +1,9 @@
 import React from 'react';
-import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { TodayTask } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -11,6 +12,7 @@ import { TodayCards } from '../components/TodayCards';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
+import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 
 const KIND_LABEL: Record<TodayTask['kind'], StringKey> = { late: 'late', viewing: 'viewing', hot: 'hot', call: 'callTask', matches: 'matches' };
@@ -19,11 +21,13 @@ export function TodayScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<BottomTabNavigationProp<{ Units: undefined }>>();
+  const stack = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const q = useQuery({ queryKey: ['today'], queryFn: () => api.today() });
 
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
   if (q.isError || !q.data) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} altLabel={t(lang, 'openUnits')} onAlt={() => nav.navigate('Units')} />;
   const { counts, tasks, moreTasks } = q.data;
+  const leases = q.data.leases ?? [];
   const stats: [StringKey, number][] = [['followUps', counts.followUpsToday], ['viewings', counts.viewings], ['newLeads', counts.newLeads]];
 
   return (
@@ -50,6 +54,20 @@ export function TodayScreen() {
           </View>
         ))
       )}
+      {leases.length ? (
+        <View testID="today-leases" style={styles.leases}>
+          <Text style={[styles.name, { color: colors.text }]}>🔑 {t(lang, 'leasesSoon')}</Text>
+          {leases.map((z) => (
+            <Pressable key={z.code} testID={`today-lease-${z.code}`} accessibilityRole="button" onPress={() => stack.navigate('Unit', { code: z.code })} style={[styles.task, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.taskInfo}>
+                <Text style={[styles.name, { color: colors.text }]}>{z.code}</Text>
+                {z.tenant ? <Text style={{ color: colors.muted }}>{z.tenant}</Text> : null}
+              </View>
+              <Text style={{ color: z.daysLeft <= 60 ? colors.danger : colors.accent, fontWeight: '700' }}>{z.daysLeft} {t(lang, 'daysN')}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       {q.data.cards ? <TodayCards cards={q.data.cards} /> : null}
       {moreTasks > 0 ? <Text style={[styles.more, { color: colors.muted }]}>{t(lang, 'moreTasks')} {moreTasks}</Text> : null}
     </ScrollView>
@@ -57,6 +75,7 @@ export function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
+  leases: { gap: 8, marginTop: 8 },
   content: { padding: spacing.lg, gap: spacing.md, flexGrow: 1 },
   stats: { flexDirection: 'row', gap: spacing.sm },
   stat: { flex: 1, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
