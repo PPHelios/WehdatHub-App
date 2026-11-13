@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ApiClientError } from '@wehdathub/shared';
 import type { AskAnswer, VoiceFile } from '@wehdathub/shared';
+import { timed } from '../usage';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
@@ -19,11 +20,11 @@ export function AskScreen() {
   const [out, setOut] = useState<AskAnswer | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const ask = async (text = question) => {
+  const ask = async (text = question, voice = false) => {
     setError(null);
     if (!text.trim()) return setError(t(lang, 'askEmpty'));
     try {
-      setOut(await api.ask(text.trim()));
+      setOut(await timed('ask', () => api.ask(text.trim()), { kind: voice ? 'voice' : 'text' }));
     } catch (e) {
       setOut(null);
       if (e instanceof ApiClientError && e.code === 'ai_blocked' && typeof e.extra.message === 'string') setError(e.extra.message);
@@ -35,7 +36,7 @@ export function AskScreen() {
     try {
       const heard = (await api.voiceToText(file)).q;
       setQuestion(heard);
-      await ask(heard);
+      await ask(heard, true);
     } catch (e) {
       setError(errorText(e, lang));
     }

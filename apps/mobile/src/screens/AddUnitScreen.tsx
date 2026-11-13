@@ -20,6 +20,8 @@ import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { MAX_PHOTOS, pickPhotos, takePhoto } from '../photos';
 import { compressPhotos } from '../compress';
+import { usePhotoUploads } from '../usePhotoUploads';
+import { SaveNotConfirmed, newSaveKey, withSaveCheck } from '../saveKey';
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { radius, spacing, useTheme } from '../theme';
 import { tick } from '../haptics';
@@ -47,6 +49,7 @@ export function AddUnitScreen() {
   const [fields, setFields] = useState<UnitFields>({ listing_type: 'sale', market: 'resale' });
   const [describe, setDescribe] = useState('');
   const [photos, setPhotos] = useState<UploadFile[]>([]);
+  const uploads = usePhotoUploads(photos, setPhotos);
   const [photoAi, setPhotoAi] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -58,6 +61,8 @@ export function AddUnitScreen() {
   const [failedCheck, setFailedCheck] = useState(false);
   const [ack, setAck] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const saveKey = useRef(newSaveKey());
   const dirty = useRef(false);
   const shared = useRef(route.params);
   const editCode = route.params?.edit;
@@ -179,7 +184,10 @@ export function AddUnitScreen() {
     if (review?.blockers.length) { setFailedCheck(true); setBlockers(review.blockers); return; }
     dirty.current = false;
     setSaving(true);
-    try { await doSave(force); } finally { setSaving(false); }
+    setProgress(0);
+    // Photos prepared first (60%), then the wait for the server creeps toward 95% until the answer.
+    const creep = setInterval(() => setProgress((p) => (p >= 0.6 && p < 0.95 ? p + 0.01 : p)), 600);
+    try { await doSave(force); } finally { clearInterval(creep); setSaving(false); }
   };
 
   const doSave = async (force: boolean) => {
@@ -193,14 +201,15 @@ export function AddUnitScreen() {
         // retries the photos, so it never meets "changed elsewhere" from its own first save.
         const key = JSON.stringify(fields);
         if (savedDetails.current !== key) {
-          const saved = await api.saveUnitEdit(editCode, version, fields);
+          const saved = await api.saveUnitEdit(editCode, version, fields, saveKey.current);
           setVersion(saved.version);
           savedDetails.current = key;
         }
         const ph = photoChanges(originalIds.current, photos);
         if (ph.changed) {
           try {
-            await api.unitPhotos(editCode, { add: await compressPhotos(ph.add), remove: ph.remove, order: ph.order });
+            const keyed = ph.add.length > 0 && ph.add.every((p) => p.key);
+            await api.unitPhotos(editCode, keyed ? { photoKeys: ph.add.map((p) => p.key as string), remove: ph.remove, order: ph.order } : { add: await compressPhotos(ph.add), remove: ph.remove, order: ph.order });
           } catch {
             return setError(t(lang, 'photosRetry'));
           }
@@ -210,7 +219,13 @@ export function AddUnitScreen() {
         return nav.goBack();
       }
       const sent = { ...fields, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
-      const r = await api.createUnit(sent, await compressPhotos(photos));
+      // Photos already stored by their own upload go as keys; on an old server they are prepared and sent here as before.
+      const keyed = photos.length > 0 && photos.every((p) => p.key);
+      const prepared = keyed ? [] : await compressPhotos(photos, (d, n) => setProgress(0.6 * (d / Math.max(1, n))));
+      setProgress(0.6);
+      const r = await withSaveCheck(api.createUnit(sent, prepared, saveKey.current, keyed ? photos.map((p) => p.key as string) : undefined), () => api.unitSaveStatus(saveKey.current));
+      setProgress(1);
+      saveKey.current = newSaveKey();
       tick();
       track('unit_saved', { photos: photos.length });
       // A compound the list does not know is saved as pending on the server; show it on this phone straight away.
@@ -220,6 +235,7 @@ export function AddUnitScreen() {
       nav.replace('Unit', { code: r.code });
     } catch (e) {
       track('unit_save_refused', { reason: e instanceof ApiClientError ? String(e.code || e.status) : 'error' });
+      if (e instanceof SaveNotConfirmed) return setError(t(lang, 'saveNotConfirmed'));
       if (!(e instanceof ApiClientError)) return setError(errorText(e, lang));
       if (editCode && e.code === 'conflict') return setError(t(lang, 'changedElsewhere'));
       if (editCode && e.code === 'incomplete') { setFailedCheck(true); return setBlockers((e.extra.blockers as { field: string; label: string }[]) ?? []); }
@@ -238,6 +254,7 @@ export function AddUnitScreen() {
         return setError(like.length ? `${t(lang, 'compoundUnknown')} ${t(lang, 'didYouMean')} ${like.join(' / ')}` : t(lang, 'compoundUnknown'));
       }
       if (e.code === 'plan_limit') return setError(t(lang, 'planLimit'));
+      if (e.code === 'photo_missing') { setPhotos((p) => p.map((x) => (x.type === EXISTING ? x : { ...x, key: undefined, pct: undefined, failed: false }))); return setError(t(lang, 'photosExpired')); }
       setError(errorText(e, lang));
     }
   };
@@ -247,7 +264,8 @@ export function AddUnitScreen() {
     setError(null);
     try {
       const code = toUnit.trim();
-      await api.unitPhotos(code, { add: await compressPhotos(photos) });
+      const keyed = photos.length > 0 && photos.every((p) => p.key);
+      await api.unitPhotos(code, keyed ? { photoKeys: photos.map((p) => p.key as string) } : { add: await compressPhotos(photos) });
       await clearDraft();
       await qc.invalidateQueries({ queryKey: ['unit', code] });
       nav.replace('Unit', { code });
@@ -318,7 +336,7 @@ export function AddUnitScreen() {
             <View style={styles.flex}><Button testID="take-photo" label={t(lang, 'takePhoto')} variant="secondary" onPress={() => addPhotos(takePhoto)} disabled={photos.length >= MAX_PHOTOS} /></View>
           </View>
           {photos.length > 1 ? <Text style={{ color: colors.muted }}>{t(lang, 'dragHint')}</Text> : null}
-          <SortablePhotos photos={photos} onChange={setPhotos} onDragging={setDragging} removeLabel={t(lang, 'removePhoto')} />
+          <SortablePhotos photos={photos} onChange={setPhotos} onDragging={setDragging} removeLabel={t(lang, 'removePhoto')} onRetry={uploads.retry} />
           {editCode ? null : <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'aiOrder')}</Text><Switch value={photoAi} onValueChange={setPhotoAi} /></View>}
           {!editCode && photos.length ? (
             <View style={[styles.box, { borderColor: colors.border }]}>
@@ -341,6 +359,7 @@ export function AddUnitScreen() {
           {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {c.from || '—'} ← {c.to || '—'}</Text>)}
         </View>
       ) : null}
+      {review && !review.warnings.length && !review.blockers.length ? <Text testID="no-warnings" style={{ color: colors.muted }}>✓ {t(lang, 'noWarnings')}</Text> : null}
       {review?.warnings.length && !review.blockers.length ? (
         <View testID="warnings" style={[styles.box, { borderColor: colors.accent }]}>
           {review.warnings.map((w) => <Text key={w.field + w.text} style={{ color: colors.text }}>• {w.text}</Text>)}
@@ -355,7 +374,7 @@ export function AddUnitScreen() {
         </View>
       ) : null}
       {error ? <Text testID="unit-error" style={{ color: colors.danger }}>{error}</Text> : null}
-      <Button testID="save-unit" label={t(lang, 'saveUnit')} onPress={() => save(false)} loading={saving} disabled={saving || Boolean(review?.warnings.length && !review.blockers.length && !ack)} />
+      <Button testID="save-unit" label={saving ? `${t(lang, 'saving')} ${Math.round(progress * 100)}%` : t(lang, 'saveUnit')} progress={saving ? progress : undefined} onPress={() => save(false)} loading={saving} disabled={saving || uploads.unfinished || Boolean(review?.warnings.length && !review.blockers.length && !ack)} />
       {editCode ? null : <Button label={t(lang, 'discardDraft')} variant="secondary" onPress={discard} />}
     </ScrollView>
   );

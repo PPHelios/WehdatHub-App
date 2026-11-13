@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ApiLead, LeadTab, LeadsPage } from '@wehdathub/shared';
 import { api } from '../api';
@@ -35,7 +35,9 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const [tab, setTab] = useState<LeadTab>('all');
+  const params = (useRoute().params ?? {}) as { tab?: LeadTab; broker?: string };
+  const [tab, setTab] = useState<LeadTab>(params.tab ?? 'all');
+  const brokerFilter = params.broker;
   const [text, setText] = useState('');
   const manager = useRights().manager;
   const [unassigned, setUnassigned] = useState(false);
@@ -46,9 +48,9 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   const columns = single ? 1 : wideColumns;
   const q = useDebounced(text.trim());
   const list = useInfiniteQuery({
-    queryKey: ['leads', tab, q, unassigned],
+    queryKey: ['leads', tab, q, unassigned, brokerFilter],
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api.leads({ tab, q, offset: pageParam, broker: unassigned ? 'none' : undefined }),
+    queryFn: ({ pageParam }) => api.leads({ tab, q, offset: pageParam, broker: unassigned ? 'none' : brokerFilter }),
     getNextPageParam: (last: LeadsPage) => (last.more ? last.offset + last.limit : undefined),
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];

@@ -6,8 +6,8 @@ import { ApiClientError } from '@wehdathub/shared';
 import { LeadScreen } from '../src/screens/LeadScreen';
 import { api } from '../src/api';
 
-jest.mock('../src/api', () => ({ api: { lead: jest.fn(), leadCalled: jest.fn(), leadStage: jest.fn(), leadFollowUp: jest.fn(), leadNote: jest.fn() } }));
-jest.mock('@react-navigation/native', () => ({ useRoute: () => ({ params: { ref: 'L-0001' } }) }));
+jest.mock('../src/api', () => ({ api: { lead: jest.fn(), leadCalled: jest.fn(), leadStage: jest.fn(), leadFollowUp: jest.fn(), leadNote: jest.fn(), leadDraft: jest.fn() } }));
+jest.mock('@react-navigation/native', () => ({ useRoute: () => ({ params: { ref: 'L-0001' } }), useNavigation: () => ({ goBack: jest.fn() }) }));
 const m = api as unknown as Record<string, jest.Mock>;
 const lead = { ref: 'L-0001', name: 'Sara', phones: ['201012345678'], kind: 'buyer', stage: 'new', lostReason: null, source: 'Web', notes: null, nextFollowUpAt: null, followUpKind: null, followUpNote: null, lastContactAt: null, assignee: null, version: 3 };
 
@@ -40,4 +40,13 @@ test('the WhatsApp button opens a chat with the lead in international form', asy
   await waitFor(() => expect(screen.getByTestId('whatsapp-201012345678')).toBeTruthy());
   await fireEvent.press(screen.getByTestId('whatsapp-201012345678'));
   await waitFor(() => expect(open).toHaveBeenCalledWith('https://wa.me/201012345678'));
+});
+
+test('draft button asks the server and shows the text', async () => {
+  m.leadDraft = jest.fn().mockResolvedValue({ text: 'اهلا يا سارة', wa: null });
+  m.lead.mockResolvedValue({ lead, timeline: [] });
+  await wrap();
+  await waitFor(() => expect(screen.getByTestId('lead-draft')).toBeTruthy());
+  await fireEvent.press(screen.getByTestId('lead-draft'));
+  await waitFor(() => expect(screen.getByText('اهلا يا سارة')).toBeTruthy());
 });

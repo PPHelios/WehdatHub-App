@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { usage } from '../usage';
 import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { tick } from '../haptics';
@@ -12,6 +13,7 @@ import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
 import { Section } from '../components/Section';
+import { LeadActions } from '../components/LeadActions';
 import { ViewingForm } from '../components/ViewingForm';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
@@ -78,8 +80,8 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
 
       {lead.phones.map((p) => (
         <View key={p} style={styles.phoneRow}>
-          <View style={styles.phoneBtn}><Button label={`📞 ${t(lang, 'call')} ${p}`} variant="secondary" onPress={() => Linking.openURL(`tel:${p.startsWith('+') ? p : `+${p}`}`)} /></View>
-          <View style={styles.phoneBtn}><Button testID={`whatsapp-${p}`} label={`💬 ${t(lang, 'whatsappClient')}`} variant="secondary" onPress={() => { Linking.openURL(`https://wa.me/${waNumber(p)}`).catch(() => undefined); }} /></View>
+          <View style={styles.phoneBtn}><Button label={`📞 ${t(lang, 'call')} ${p}`} variant="secondary" onPress={() => { usage('call_tap', true, undefined, { kind: 'lead' }); Linking.openURL(`tel:${p.startsWith('+') ? p : `+${p}`}`); }} /></View>
+          <View style={styles.phoneBtn}><Button testID={`whatsapp-${p}`} label={`💬 ${t(lang, 'whatsappClient')}`} variant="secondary" onPress={() => { usage('whatsapp_tap', true, undefined, { kind: 'lead' }); Linking.openURL(`https://wa.me/${waNumber(p)}`).catch(() => undefined); }} /></View>
         </View>
       ))}
       <Button testID="lead-called" label={`✓ ${t(lang, 'iCalled')}`} loading={act.isPending} onPress={() => run((l) => api.leadCalled(l.ref, l.version))} />
@@ -119,6 +121,8 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
       <Section testID="sec-viewing" title={t(lang, 'addViewing')}>
         <ViewingForm lead={lead} />
       </Section>
+
+      <LeadActions lead={lead} manager={rights.team} />
 
       <Section testID="sec-history" title={t(lang, 'history')}>
       {timeline.map((e) => (

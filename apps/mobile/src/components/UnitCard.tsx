@@ -15,6 +15,7 @@ export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListIte
       <View style={styles.info}>
         <View style={styles.row}>
           <Text style={[styles.code, { color: colors.primary }]}>{unit.code}</Text>
+          {unit.dealType === 'sale' || unit.dealType === 'rent' ? <Text testID={`deal-${unit.code}`} style={[styles.badge, { color: unit.dealType === 'rent' ? colors.accent : colors.primary }]}>{t(lang, unit.dealType)}</Text> : null}
           {unit.mine ? <Text style={[styles.badge, { color: colors.accent }]}>{t(lang, 'mine')}</Text> : null}
           {onEdit ? <Pressable testID={`edit-${unit.code}`} accessibilityRole="button" accessibilityLabel={t(lang, 'editUnit')} hitSlop={12} onPress={onEdit}><Text style={[styles.badge, { color: colors.primary }]}>✎ {t(lang, 'editUnit')}</Text></Pressable> : null}
         </View>

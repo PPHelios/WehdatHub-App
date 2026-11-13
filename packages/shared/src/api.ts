@@ -78,6 +78,7 @@ export interface ApiLead {
 }
 export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; offset: number; limit: number }
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
+export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; start: number; end: number; days: number[]; max_jumps: number }; roundRobin: boolean; order: string[]; brokers: { id: string; name: string; role: string; away: boolean; open: number }[] }
 export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
 export interface OwnerRow { id: string; name: string | null; code: string | null; phones: string[]; unit_count: number; flag: string | null; is_private: boolean }
 export interface OwnerUnit { code: string; compound: string | null; status: string; is_private: boolean }
@@ -116,7 +117,9 @@ export interface AppConfig {
   /** The phone's public Firebase identifiers; null until the server has them. Alerts and crash reports stay off without them. */
   firebase?: { android?: FirebaseClientConfig; ios?: FirebaseClientConfig } | null;
 }
-export interface UploadFile { uri: string; name: string; type: string }
+/** key: set once the photo is stored (direct upload); pct: upload progress 0 to 100; failed: the upload stopped and can be retried. */
+export interface UploadFile { uri: string; name: string; type: string; key?: string; pct?: number; failed?: boolean }
+export interface PhotoUploadLink { key: string; upload_url: string; thumb_key: string; thumb_upload_url: string | null }
 export interface SearchAsk { terms: string[]; numbers?: unknown[]; aiDown?: boolean; withoutTotal: number }
 export interface SearchResult {
   status: 'results' | 'none' | 'ask' | 'small_talk' | 'listing' | 'other';
@@ -129,6 +132,8 @@ export interface SearchResult {
   limit?: number;
   relaxed?: boolean;
   ignoredTerms?: string[];
+  /** What the server understood, in the broker's language (e.g. "شقة · بيع أو إيجار · هايد بارك"). */
+  reading?: string;
   ask?: SearchAsk;
 }
 export interface VoiceFile { uri: string; name: string; type: string }
@@ -257,6 +262,8 @@ export function createApiClient(opts: ApiClientOptions) {
   return {
     notificationSettings: () => request<NotificationSettings>('GET', '/notification-settings'),
     saveNotificationSettings: (body: NotificationSettingsInput) => request<NotificationSettings>('PUT', '/notification-settings', body),
+    appSettings: () => request<{ draftStyle: string; quietLine: boolean; switches: { brokersMayWrite: boolean; dataEntryOwners: boolean } | null }>('GET', '/settings'),
+    saveAppSettings: (body: { draftStyle?: string; quietLine?: boolean; switches?: { brokersMayWrite?: boolean; dataEntryOwners?: boolean } }) => request<{ ok: true }>('POST', '/settings', body),
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
@@ -267,7 +274,7 @@ export function createApiClient(opts: ApiClientOptions) {
     map: (f: MapFilters = {}) => request<MapData>('GET', '/map', undefined, { ...f }),
     mapUnits: (placeId: string, f: MapFilters = {}) => request<MapUnits>('GET', `/map/places/${encodeURIComponent(placeId)}/units`, undefined, { ...f }),
     search: (q: string, o: { ai?: boolean; drop?: boolean; status?: UnitStatus; offset?: number } = {}) => request<SearchResult>('GET', '/search', undefined, { q, ai: o.ai, drop: o.drop, status: o.status, offset: o.offset }),
-    leadCounts: (q?: string) => request<{ counts: Record<string, number> }>('GET', '/leads/counts', undefined, { q }),
+    leadCounts: (q?: string, broker?: string) => request<{ counts: Record<string, number> }>('GET', '/leads/counts', undefined, { q, broker }),
     /** Sends a recorded note; the server writes it down and answers the text to search. */
     voiceToText: (file: VoiceFile) => {
       const form = new FormData();
@@ -288,6 +295,10 @@ export function createApiClient(opts: ApiClientOptions) {
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
     leadStage: (ref: string, version: number, stage: LeadStage, lostReason?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/stage`, { version, stage, lostReason }),
     leadFollowUp: (ref: string, version: number, at: string, kind: 'call' | 'viewing', note?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/follow-up`, { version, at, kind, note }),
+    leadDraft: (ref: string, lang: 'ar' | 'en') => request<{ text: string; wa: string | null }>('POST', `/leads/${encodeURIComponent(ref)}/draft`, { lang }),
+    leadSend: (ref: string, code: string, lang: 'ar' | 'en') => request<{ url: string }>('POST', `/leads/${encodeURIComponent(ref)}/send`, { code, lang }),
+    leadMerge: (ref: string, other: string, confirm: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/merge`, { other, confirm }),
+    leadErase: (ref: string, confirm: string) => request<{ ok: true }>('POST', `/leads/${encodeURIComponent(ref)}/erase`, { confirm }),
     leadNote: (ref: string, version: number, text: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/note`, { version, text }),
     /** Reads a pasted/shared message and/or a voice note into the add-unit fields. Nothing is saved. */
     extractUnit: (o: { describe?: string; voice?: UploadFile; fields?: UnitFields }) => {
@@ -302,9 +313,11 @@ export function createApiClient(opts: ApiClientOptions) {
     /** An error caught inside the app (a screen crash); the server keeps it with the failures and alerts the owner. */
     reportClientError: (body: { message: string; screen?: string; stack?: string; platform: string; appVersion: string }) => request<unknown>('POST', '/client-error', body),
     /** Saves the unit; photos are sent in the broker's order. */
-    createUnit: (fields: UnitFields, photos: UploadFile[]) => {
+    createUnit: (fields: UnitFields, photos: UploadFile[], saveKey?: string, photoKeys?: string[]) => {
       const form = new FormData();
       form.append('fields', JSON.stringify(fields));
+      if (saveKey) form.append('save_key', saveKey);
+      if (photoKeys?.length) form.append('photo_keys', JSON.stringify(photoKeys));
       for (const p of photos) form.append('photos', p as unknown as Blob);
       return request<{ code: string; photos: number; photosFailed: number }>('POST', '/units', form);
     },
@@ -314,6 +327,10 @@ export function createApiClient(opts: ApiClientOptions) {
     /** `to` is a lead ref (L-0042) or a mobile number; leave it out to share without a client. */
     unitShareLink: (code: string, lang: Lang, to?: string) => request<{ url: string; recipientPhone: string | null; leadLinked: boolean }>('POST', `/units/${encodeURIComponent(code)}/share-link`, { lang, ...(to ? { to } : {}) }),
     team: () => request<{ items: TeamMember[] }>('GET', '/team'),
+    teamRules: () => request<TeamRules>('GET', '/team/rules'),
+    saveTeamRules: (b: { enabled: boolean; wait_minutes: string; start: string; end: string; days: number[]; max_jumps: number }) => request<{ rules: TeamRules['rules'] }>('POST', '/team/rules', b),
+    saveTeamRouting: (b: { roundRobin: boolean; order: string[] }) => request<{ roundRobin: boolean; order: string[] }>('POST', '/team/routing', b),
+    setTeamAway: (id: string, until: string | null) => request<{ id: string; awayUntil: string | null }>('POST', `/team/${encodeURIComponent(id)}/away`, { until }),
     invite: (b: { name: string; phone: string; role: string }) => request<{ ok: true; created: boolean; url: string | null }>('POST', '/team/invite', b),
     changeRole: (id: string, role: string) => request<{ ok: true }>('POST', `/team/${id}/role`, { role }),
     deactivate: (id: string) => request<{ ok: true }>('POST', `/team/${id}/deactivate`, {}),
@@ -359,17 +376,28 @@ export function createApiClient(opts: ApiClientOptions) {
     /** Moves a lead to a broker of the team, or back to the managers with null. */
     assignLead: (ref: string, version: number, brokerId: string | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/assign`, { version, brokerId }),
     ask: (question: string) => request<AskAnswer>('POST', '/ask', { question }),
+    unitStatus: (code: string, status: 'active' | 'sold' | 'archived') => request<{ ok: true; status: string }>('POST', `/units/${encodeURIComponent(code)}/status`, { status }),
+    unitDelete: (code: string) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/delete`, {}),
+    unitRestore: (code: string) => request<{ ok: true; code: string }>('POST', `/units/${encodeURIComponent(code)}/restore`, {}),
+    unitLease: (code: string) => request<{ rent: boolean; lease: { startDate: string; months: number; rent: number | null; increasePct: number | null; tenantName: string | null; remind: boolean } | null }>('GET', `/units/${encodeURIComponent(code)}/lease`),
+    saveUnitLease: (code: string, l: { startDate: string; months: string; rent: string; increasePct: string; tenantName: string; remind: boolean } | { remove: true }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease`, l),
+    saveUnitPrivate: (code: string, p: { pin: string; unitNo: string; address: string }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/private`, p),
     unitFlyer: (code: string, theme: 'dark' | 'light' = 'dark') => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/flyer`, { theme }),
     /** Photos of an existing unit: new files to add, ids to remove, and the order of the kept ones (first is the cover). */
-    unitPhotos: (code: string, o: { add?: UploadFile[]; remove?: string[]; order?: string[] }) => {
+    /** One-time links so each photo goes straight to storage; then send the returned keys as photoKeys. */
+    photoUploadLinks: (count: number) => request<{ uploads: PhotoUploadLink[]; expires_in: number }>('POST', '/units/photo-upload', { count }),
+    unitPhotos: (code: string, o: { add?: UploadFile[]; remove?: string[]; order?: string[]; photoKeys?: string[] }) => {
       const form = new FormData();
+      if (o.photoKeys?.length) form.append('photo_keys', JSON.stringify(o.photoKeys));
       for (const p of o.add ?? []) form.append('photos', p as unknown as Blob);
       if (o.remove?.length) form.append('remove', JSON.stringify(o.remove));
       if (o.order?.length) form.append('order', JSON.stringify(o.order));
       return request<{ images: UnitImage[]; failed: number }>('POST', `/units/${encodeURIComponent(code)}/photos`, form);
     },
     unitEditFields: (code: string) => request<{ code: string; version: number; fields: UnitFields }>('GET', `/units/${encodeURIComponent(code)}/edit`),
-    saveUnitEdit: (code: string, version: number, fields: UnitFields) => request<{ code: string; version: number }>('POST', `/units/${encodeURIComponent(code)}/edit`, { version, fields }),
+    saveUnitEdit: (code: string, version: number, fields: UnitFields, saveKey?: string) => request<{ code: string; version: number }>('POST', `/units/${encodeURIComponent(code)}/edit`, { version, fields, ...(saveKey ? { save_key: saveKey } : {}) }),
+    /** Was the save with this key stored? Asked once when a save has not answered for 60 seconds. */
+    unitSaveStatus: (key: string) => request<{ saved: boolean; code?: string }>('GET', '/units/save-status', undefined, { key }),
     placeSuggest: (q: string) => request<{ items: PlaceSuggestion[] }>('GET', '/places/suggest', undefined, { q }),
     placeList: (since?: string) => request<PlaceListReply>('GET', '/places/list', undefined, since ? { since } : undefined),
     unitCompounds: (q: string) => request<{ items: { name: string; n: number }[] }>('GET', '/units/compounds', undefined, { q }),

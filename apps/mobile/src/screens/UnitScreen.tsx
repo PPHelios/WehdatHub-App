@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { timed, usage } from '../usage';
+import { UnitLifecycle } from '../components/UnitLifecycle';
+import { UnitPrivateForms } from '../components/UnitPrivateForms';
 import { Alert, Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -34,7 +37,9 @@ export function UnitScreen({ code }: { code?: string } = {}) {
     if (!flyer) return;
     setSaving(true);
     try {
-      Alert.alert(t(lang, (await saveToGallery(flyer)) ? 'savedToGallery' : 'galleryDenied'));
+      const ok = await saveToGallery(flyer);
+      usage('flyer_save', ok);
+      Alert.alert(t(lang, ok ? 'savedToGallery' : 'galleryDenied'));
     } catch {
       Alert.alert(t(lang, 'flyerFailed'));
     } finally {
@@ -44,7 +49,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
   const makeFlyer = async () => {
     setFlyerBusy(true);
     try {
-      setFlyer((await api.unitFlyer(unitCode)).url);
+      setFlyer((await timed('flyer_make', () => api.unitFlyer(unitCode))).url);
     } catch (e) {
       Alert.alert(e instanceof ApiClientError && e.status === 503 ? t(lang, 'flyerBusy') : t(lang, 'flyerFailed'));
     } finally {
@@ -73,7 +78,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
     setSharing(true);
     setClientErr(null);
     try {
-      const { url } = await api.unitShareLink(unitCode, lang, to || undefined);
+      const { url } = await timed('client_link', () => api.unitShareLink(unitCode, lang, to || undefined), { kind: to ? 'to_client' : 'open' });
       setPickClient(false);
       await Share.share({ message: url });
     } catch (e) {
@@ -111,7 +116,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         {contact.data?.phone ? (
           <View style={styles.actions}>
             <View style={styles.flex}><Button testID="call-owner" label={`📞 ${t(lang, 'callOwner')}`} onPress={() => { Linking.openURL(`tel:${contact.data?.phone}`).catch(() => undefined); }} /></View>
-            <View style={styles.flex}><Button testID="whatsapp-owner" variant="secondary" label={`💬 ${t(lang, 'whatsappOwner')}`} onPress={() => { Linking.openURL(`https://wa.me/${waNumber(contact.data?.phone ?? '')}`).catch(() => undefined); }} /></View>
+            <View style={styles.flex}><Button testID="whatsapp-owner" variant="secondary" label={`💬 ${t(lang, 'whatsappOwner')}`} onPress={() => { usage('whatsapp_tap', true, undefined, { kind: 'owner' }); Linking.openURL(`https://wa.me/${waNumber(contact.data?.phone ?? '')}`).catch(() => undefined); }} /></View>
           </View>
         ) : null}
         {hidden === 'pending' ? <Text testID="access-pending" style={{ color: colors.muted }}>{t(lang, 'accessPending')}</Text> : null}
@@ -128,6 +133,8 @@ export function UnitScreen({ code }: { code?: string } = {}) {
           </Modal>
         ) : null}
         {u.canEdit ? <Button testID="edit-unit" variant="secondary" label={`✎ ${t(lang, 'editUnit')}`} onPress={() => nav.navigate('AddUnit', { edit: u.code })} /> : null}
+        {u.canEdit ? <UnitLifecycle code={u.code} status={u.status} /> : null}
+        {u.canEdit ? <UnitPrivateForms code={u.code} /> : null}
         {u.status === 'active' ? <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} /> : null}
         <ClientLinkModal visible={pickClient} busy={sharing} error={clientErr} onSubmit={shareLink} onCancel={() => setPickClient(false)} />
         <Button testID="share-unit" variant="secondary" label={t(lang, 'shareUnit')} onPress={() => { Share.share({ message: [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n') }).catch(() => undefined); }} />
