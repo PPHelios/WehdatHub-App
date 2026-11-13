@@ -7,6 +7,7 @@ import { useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { ErrorView, Loading } from '../components/StateViews';
+import { AppSettings } from '../components/AppSettings';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
 
@@ -126,6 +127,7 @@ export function NotificationsScreen() {
       ))}
       {msg ? <Text accessibilityLiveRegion="polite" style={{ color: msg.bad ? colors.danger : colors.muted }}>{msg.text}</Text> : null}
       <Button testID="save-notifications" label={t(lang, 'save')} onPress={save} loading={busy} />
+      <AppSettings />
     </ScrollView>
   );
 }
