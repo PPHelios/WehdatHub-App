@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { InboxScreen } from '../src/screens/InboxScreen';
+import notifee from '@notifee/react-native';
 import { api } from '../src/api';
 
 jest.mock('../src/api', () => ({ api: { notificationsInbox: jest.fn(), notificationRead: jest.fn(), notificationDelete: jest.fn(), notificationsReadAll: jest.fn(), notificationsDeleteAll: jest.fn() } }));
@@ -26,4 +27,6 @@ test('an empty inbox says so', async () => {
   m.notificationsInbox.mockResolvedValue({ items: [], page: 1, more: false, unread: 0 });
   await wrap();
   await waitFor(() => expect(screen.getByTestId('inbox-empty')).toBeTruthy());
+  await waitFor(() => expect(notifee.cancelAllNotifications).toHaveBeenCalled());
+  expect(notifee.setBadgeCount).toHaveBeenCalledWith(0);
 });

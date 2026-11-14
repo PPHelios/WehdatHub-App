@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
@@ -8,6 +8,7 @@ import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
+import { clearTray } from '../tray';
 
 /** The broker's notifications: newest first, unread in bold. Each can be marked read or deleted (deleted ones stay in the managers' log). */
 export function InboxScreen() {
@@ -22,6 +23,9 @@ export function InboxScreen() {
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   const refresh = () => qc.invalidateQueries({ queryKey: ['inbox'] });
+  const unread = list.data?.pages[0]?.unread;
+  // Nothing unread: close what the phone still shows and clear the icon number.
+  useEffect(() => { if (unread === 0) void clearTray(); }, [unread]);
   const when = (v: string) => new Date(v).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
   const askDeleteAll = () =>
     Alert.alert(t(lang, 'deleteAll'), undefined, [
