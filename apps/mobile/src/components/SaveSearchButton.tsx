@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Switch, Text, View } from 'react-native';
+import { ApiClientError } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { errorText } from '../errors';
@@ -14,14 +15,15 @@ export function SaveSearchButton({ f }: { f: string }) {
   const lang = currentLang();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [alerts, setAlerts] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const save = async () => {
     try {
-      await api.saveSearch(f, name);
+      await api.saveSearch(f, name, alerts);
       setMsg(t(lang, 'savedOk'));
       setOpen(false);
     } catch (e) {
-      setMsg(errorText(e, lang));
+      setMsg(e instanceof ApiClientError && e.code === 'limit_alerts' ? t(lang, 'limitAlerts') : errorText(e, lang));
     }
   };
   return (
@@ -29,6 +31,7 @@ export function SaveSearchButton({ f }: { f: string }) {
       {open ? (
         <>
           <Field testID="save-search-name" label={t(lang, 'savedSearchName')} value={name} onChangeText={setName} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'alertsOn')}</Text><Switch testID="save-search-alerts" value={alerts} onValueChange={setAlerts} /></View>
           <Button testID="save-search-go" label={t(lang, 'save')} onPress={save} disabled={!name.trim()} />
         </>
       ) : (
