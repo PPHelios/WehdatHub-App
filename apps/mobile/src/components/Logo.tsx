@@ -34,7 +34,7 @@ export function Logo({ size = 1, compact = false }: { size?: number; compact?: b
         <Text style={[styles.word, { color: colors.text, fontSize }]}>وحدات هب</Text>
       ) : (
         <Text style={[styles.word, { color: colors.text, fontSize }]}>
-          Wehdat<Text style={{ color: colors.primary }}>Hub</Text>
+          Wehdat <Text style={{ color: colors.primary }}>Hub</Text>
         </Text>
       )}
     </View>
