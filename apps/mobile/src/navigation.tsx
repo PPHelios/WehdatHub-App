@@ -24,6 +24,7 @@ import { SentLinksScreen } from './screens/SentLinksScreen';
 import { SavedSearchesScreen } from './screens/SavedSearchesScreen';
 import { LeasesScreen } from './screens/LeasesScreen';
 import { NotificationsScreen } from './screens/NotificationsScreen';
+import { InboxScreen } from './screens/InboxScreen';
 import { TeamMemberScreen, TeamScreen } from './screens/TeamScreen';
 import { OwnerScreen, OwnersScreen } from './screens/OwnersScreen';
 import { ActivityLogScreen, RequestsScreen } from './screens/RequestsScreen';
@@ -54,6 +55,7 @@ const MoreNarrow = narrow(MoreTab);
 const CalendarNarrow = narrow(CalendarScreen);
 const SentLinksNarrow = narrow(SentLinksScreen);
 const NotificationsNarrow = narrow(NotificationsScreen);
+const InboxNarrow = narrow(InboxScreen);
 const TeamNarrow = narrow(TeamScreen);
 const TeamMemberNarrow = narrow(TeamMemberScreen);
 const AskNarrow = narrow(AskScreen);
@@ -65,7 +67,7 @@ import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
-export type RootStackParams = { Tabs: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
+export type RootStackParams = { Tabs: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = Record<TabKey, undefined>;
 
@@ -156,6 +158,7 @@ export function RootNavigation() {
           <Stack.Screen name="NewLead" component={NewLeadNarrow} options={{ title: t(currentLang(), 'newLead') }} />
           <Stack.Screen name="Calendar" component={CalendarNarrow} options={{ title: t(currentLang(), 'calendar') }} />
           <Stack.Screen name="SentLinks" component={SentLinksNarrow} options={{ title: t(currentLang(), 'sentLinks') }} />
+          <Stack.Screen name="Inbox" component={InboxNarrow} options={{ title: t(currentLang(), 'inbox') }} />
           <Stack.Screen name="Notifications" component={NotificationsNarrow} options={{ title: t(currentLang(), 'notifications') }} />
           <Stack.Screen name="Team" component={TeamNarrow} options={{ title: t(currentLang(), 'team') }} />
           <Stack.Screen name="TeamMember" component={TeamMemberNarrow} options={({ route }) => ({ title: route.params.name })} />

@@ -83,6 +83,8 @@ export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; off
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
 export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; start: number; end: number; days: number[]; max_jumps: number }; roundRobin: boolean; order: string[]; brokers: { id: string; name: string; role: string; away: boolean; open: number }[] }
 export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
+export interface InboxItem { id: string; kind: string; title: string; body: string; url: string | null; created_at: string; read: boolean }
+export interface InboxPage { items: InboxItem[]; page: number; more: boolean; unread: number }
 export interface OwnerRow { id: string; name: string | null; code: string | null; phones: string[]; /** The list carries only the last four digits ("••••1234"); the full number is on the owner page. */ phones_masked?: boolean; unit_count: number; flag: string | null; is_private: boolean }
 export interface OwnerUnit { code: string; compound: string | null; status: string; is_private: boolean }
 export interface OwnerProfile extends OwnerRow { notes: string | null; canEdit: boolean; units: OwnerUnit[] }
@@ -299,6 +301,11 @@ export function createApiClient(opts: ApiClientOptions) {
     sentLinks: (offset = 0) => request<{ offset: number; hasMore: boolean; items: SentLink[] }>('GET', '/links', undefined, { offset: offset || undefined }),
     extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string }>('POST', '/leads/extract', { message }),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
+    notificationsInbox: (page = 1) => request<InboxPage>('GET', '/notifications', undefined, { page }),
+    notificationRead: (id: string) => request<{ ok: boolean; unread: number }>('POST', `/notifications/${encodeURIComponent(id)}/read`, {}),
+    notificationDelete: (id: string) => request<{ ok: boolean; unread: number }>('POST', `/notifications/${encodeURIComponent(id)}/delete`, {}),
+    notificationsReadAll: () => request<{ ok: boolean; unread: number }>('POST', '/notifications/read-all', {}),
+    notificationsDeleteAll: () => request<{ ok: boolean; unread: number }>('POST', '/notifications/delete-all', {}),
     leadLang: (ref: string, version: number, lang: 'ar' | 'en' | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/lang`, { lang, version }),
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
     leadStage: (ref: string, version: number, stage: LeadStage, lostReason?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/stage`, { version, stage, lostReason }),
