@@ -86,7 +86,7 @@ export interface TeamMember { id: string; name: string; role: string; me: boolea
 export interface AskOffer { area: number; floor: string | number | null; price: number; down: number | null; monthly: number | null }
 export interface AskProject { name: string; name_en: string | null; place: string | null; offers: AskOffer[]; client_text: string }
 export interface AskResults { chips: { key: string; value: string }[]; dropped: string[]; total_projects: number; total_offers: number; page: number; pages: number; projects: AskProject[] }
-export interface ClientRequest { id: string; summary: string; lead: { ref: string; name: string | null } | null; matches: number; alerts: boolean; fulfilled_at: string | null; created_at: string }
+export interface ClientRequest { id: string; summary: string; summary_en?: string; broker_name?: string; lead: { ref: string; name: string | null } | null; matches: number; alerts: boolean; fulfilled_at: string | null; created_at: string }
 export interface ClientRequestsPage { items: ClientRequest[]; page: number; more?: boolean; pages?: number }
 export interface InboxItem { id: string; kind: string; title: string; body: string; url: string | null; created_at: string; read: boolean }
 export interface InboxPage { items: InboxItem[]; page: number; more: boolean; unread: number }
@@ -307,10 +307,10 @@ export function createApiClient(opts: ApiClientOptions) {
     extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string }>('POST', '/leads/extract', { message }),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
     askResults: (q: string, page = 1, sort: 'best' | 'cheap' = 'best', drop: string[] = []) => request<AskResults>('GET', '/ask/results', undefined, { q, page, sort, ...(drop.length ? { drop: drop.join(',') } : {}) }),
-    clientRequests: (tab: 'pending' | 'fulfilled', page = 1) => request<ClientRequestsPage>('GET', '/requests', undefined, { tab, page }),
-    addClientRequest: (q: string, lead: string | undefined, alerts: boolean) => request<ClientRequest>('POST', '/requests', { q, ...(lead ? { lead } : {}), alerts }),
-    clientRequestDelete: (id: string) => request<{ ok: boolean }>('POST', `/requests/${encodeURIComponent(id)}/delete`, {}),
-    clientRequestFulfil: (id: string) => request<{ ok: boolean }>('POST', `/requests/${encodeURIComponent(id)}/fulfil`, {}),
+    clientRequests: (tab: 'pending' | 'fulfilled', page = 1) => request<ClientRequestsPage>('GET', '/client-requests', undefined, { tab, page }),
+    addClientRequest: (q: string, lead: string | undefined, alerts: boolean) => request<ClientRequest>('POST', '/client-requests', { q, ...(lead ? { lead } : {}), alerts }),
+    clientRequestDelete: (id: string) => request<{ ok: boolean }>('POST', `/client-requests/${encodeURIComponent(id)}/delete`, {}),
+    clientRequestFulfil: (id: string) => request<{ ok: boolean }>('POST', `/client-requests/${encodeURIComponent(id)}/fulfil`, {}),
     notificationsInbox: (page = 1) => request<InboxPage>('GET', '/notifications', undefined, { page }),
     notificationRead: (id: string) => request<{ ok: boolean; unread: number }>('POST', `/notifications/${encodeURIComponent(id)}/read`, {}),
     notificationDelete: (id: string) => request<{ ok: boolean; unread: number }>('POST', `/notifications/${encodeURIComponent(id)}/delete`, {}),

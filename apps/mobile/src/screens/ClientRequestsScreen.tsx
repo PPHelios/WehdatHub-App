@@ -69,7 +69,7 @@ export function ClientRequestsScreen() {
           {!items.length ? <Text testID="requests-empty" style={{ color: colors.muted }}>{t(lang, 'noRequests')}</Text> : null}
           {items.map((r) => (
             <View key={r.id} testID={`request-${r.id}`} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>{r.alerts ? '🔔 ' : ''}{r.summary}</Text>
+              <Text style={{ color: colors.text, fontWeight: '700' }}>{r.alerts ? '🔔 ' : ''}{lang === 'en' && r.summary_en ? r.summary_en : r.summary}</Text>
               {r.lead ? (
                 <Pressable testID={`request-lead-${r.id}`} accessibilityRole="button" onPress={() => nav.navigate('Lead', { ref: r.lead!.ref })}>
                   <Text style={{ color: colors.primary }}>👤 {r.lead.name || r.lead.ref}</Text>
