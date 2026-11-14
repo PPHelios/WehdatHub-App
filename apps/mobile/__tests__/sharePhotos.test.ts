@@ -9,8 +9,8 @@ class FakeReader {
 }
 
 beforeEach(() => {
-  (global as unknown as { FileReader: unknown }).FileReader = FakeReader;
-  (global as unknown as { fetch: unknown }).fetch = jest.fn().mockResolvedValue({ blob: async () => ({}) });
+  (globalThis as unknown as { FileReader: unknown }).FileReader = FakeReader;
+  (globalThis as unknown as { fetch: unknown }).fetch = jest.fn().mockResolvedValue({ blob: async () => ({}) });
   (Share.open as jest.Mock).mockClear();
 });
 
@@ -23,9 +23,9 @@ test('sends at most 10 photos with the text', async () => {
 });
 
 test('a download that fails reports failed, and a cancelled sheet is not an error', async () => {
-  (global as unknown as { fetch: unknown }).fetch = jest.fn().mockRejectedValue(new Error('offline'));
+  (globalThis as unknown as { fetch: unknown }).fetch = jest.fn().mockRejectedValue(new Error('offline'));
   expect(await sharePhotos(['https://x/1.jpg'], 't')).toBe('failed');
-  (global as unknown as { fetch: unknown }).fetch = jest.fn().mockResolvedValue({ blob: async () => ({}) });
+  (globalThis as unknown as { fetch: unknown }).fetch = jest.fn().mockResolvedValue({ blob: async () => ({}) });
   (Share.open as jest.Mock).mockRejectedValueOnce(new Error('User did not share'));
   expect(await sharePhotos(['https://x/1.jpg'], 't')).toBe('failed');
 });
