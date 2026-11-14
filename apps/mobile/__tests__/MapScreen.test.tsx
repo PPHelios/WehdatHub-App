@@ -26,6 +26,7 @@ test('tapping a pin lists its units and a unit opens', async () => {
   await waitFor(() => expect(screen.getByTestId('map-web')).toBeTruthy());
   fireEvent(screen.getByTestId('map-web'), 'message', { nativeEvent: { data: JSON.stringify({ type: 'pin', id: 'p1', name: 'Mivida' }) } });
   await waitFor(() => expect(screen.getByText('MV-1')).toBeTruthy());
+  expect(screen.getByTestId('pin-deal-MV-1')).toBeTruthy();
   fireEvent.press(screen.getByText('MV-1'));
   expect(mockNavigate).toHaveBeenCalledWith('Unit', { code: 'MV-1' });
 });

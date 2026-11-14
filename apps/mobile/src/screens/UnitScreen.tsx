@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
   flyerBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: spacing.lg, gap: spacing.sm },
-  flyerImg: { flex: 1, width: '100%' },
+  flyerImg: { flex: 1, width: '100%', maxWidth: 420, alignSelf: 'center' },
   flyerButtons: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg },
   actions: { flexDirection: 'row', gap: spacing.sm },
   body: { paddingBottom: spacing.xl },
