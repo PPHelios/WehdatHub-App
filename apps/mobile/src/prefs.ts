@@ -34,3 +34,5 @@ export const usePrefs = create<PrefsState>((set, get) => ({
 }));
 
 export const clientLang = (): Lang => usePrefs.getState().clientLang;
+/** What a client gets: the language set on that lead first, then the broker's own setting. */
+export const leadLang = (lead: { lang?: 'ar' | 'en' | null }): Lang => (lead.lang === 'ar' || lead.lang === 'en' ? lead.lang : clientLang());

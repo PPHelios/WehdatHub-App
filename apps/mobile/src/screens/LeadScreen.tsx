@@ -89,6 +89,8 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
 
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'stage')}</Text>
       <Chips<LeadStage> options={stageOptions} value={lead.stage} onChange={(s) => (s === 'lost' ? setAskLost(true) : run((l) => api.leadStage(l.ref, l.version, s)))} />
+      <Text style={{ color: colors.muted }}>{t(lang, 'leadLangTitle')}</Text>
+      <Chips<'auto' | 'ar' | 'en'> testID="lead-lang" options={[{ value: 'auto', label: t(lang, 'leadLangAuto') }, { value: 'ar', label: 'العربية' }, { value: 'en', label: 'English' }]} value={lead.lang ?? 'auto'} onChange={(v) => run((l) => api.leadLang(l.ref, l.version, v === 'auto' ? null : v))} />
       {askLost ? (
         <View style={styles.box}>
           <Field label={t(lang, 'lostReason')} value={lostReason} onChangeText={setLostReason} />

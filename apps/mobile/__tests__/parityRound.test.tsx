@@ -29,7 +29,17 @@ test('a search is saved under a name', async () => {
   await fireEvent.press(screen.getByTestId('save-search'));
   await fireEvent.changeText(screen.getByTestId('save-search-name'), 'Hyde Park');
   await fireEvent.press(screen.getByTestId('save-search-go'));
-  await waitFor(() => expect(m.saveSearch).toHaveBeenCalledWith('tok', 'Hyde Park'));
+  await waitFor(() => expect(m.saveSearch).toHaveBeenCalledWith('tok', 'Hyde Park', false));
+});
+
+test('a saved search can alert on new matches (a client request)', async () => {
+  m.saveSearch.mockResolvedValue({ ok: true, id: 'x' });
+  await wrap(<SaveSearchButton f="tok" />);
+  await fireEvent.press(screen.getByTestId('save-search'));
+  await fireEvent.changeText(screen.getByTestId('save-search-name'), 'Client A');
+  await fireEvent(screen.getByTestId('save-search-alerts'), 'valueChange', true);
+  await fireEvent.press(screen.getByTestId('save-search-go'));
+  await waitFor(() => expect(m.saveSearch).toHaveBeenCalledWith('tok', 'Client A', true));
 });
 
 test('saved searches list, open and delete', async () => {

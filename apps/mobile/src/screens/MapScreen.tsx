@@ -148,6 +148,7 @@ export function MapScreen() {
                   {item.photo ? <Image testID="map-thumb" source={{ uri: item.photo }} style={[styles.thumb, { backgroundColor: colors.card }]} accessibilityIgnoresInvertColors /> : <View style={[styles.thumb, { backgroundColor: colors.card }]} />}
                   <View style={styles.rowText}>
                     <Text style={[styles.code, { color: colors.text }]}>{item.code}</Text>
+                    {item.listingType === 'sale' || item.listingType === 'rent' ? <Text testID={`pin-deal-${item.code}`} style={{ color: item.listingType === 'rent' ? colors.accent : colors.primary, fontWeight: '700' }}>{t(lang, item.listingType)}</Text> : null}
                     <Text style={{ color: colors.muted }} numberOfLines={1}>{[item.bedrooms !== null ? `${item.bedrooms} ${t(lang, 'roomsN')}` : null, item.area ? `${item.area} m²` : null].filter(Boolean).join(' · ')}</Text>
                     {item.price !== null ? <Text style={[styles.price, { color: colors.text }]}>{formatEgp(item.price)} {t(lang, 'egp')}</Text> : null}
                   </View>

@@ -29,7 +29,7 @@ export function SavedSearchesScreen() {
       {list.data.items.map((s) => (
         <View key={s.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Pressable testID={`saved-${s.id}`} accessibilityRole="button" onPress={() => setOpen(open === s.id ? null : s.id)}>
-            <Text style={[styles.name, { color: colors.text }]}>{s.name}</Text>
+            <Text style={[styles.name, { color: colors.text }]}>{s.alerts ? '🔔 ' : ''}{s.name}</Text>
             <Text style={{ color: colors.muted }}>{s.total} {t(lang, 'results')}{s.fresh ? ` · 🆕 ${s.fresh}` : ''}</Text>
           </Pressable>
           {open === s.id && one.data ? one.data.items.map((u) => <UnitCard key={u.id} unit={u} lang={lang} onPress={() => nav.navigate('Unit', { code: u.code })} />) : null}

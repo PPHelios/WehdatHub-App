@@ -76,12 +76,21 @@ export interface ApiLead {
   assignee: string | null;
   assigneeId?: string | null;
   version: number;
+  /** The language chosen for this client's messages (empty: the broker's own setting). */
+  lang?: 'ar' | 'en' | null;
 }
 export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; offset: number; limit: number }
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
 export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; start: number; end: number; days: number[]; max_jumps: number }; roundRobin: boolean; order: string[]; brokers: { id: string; name: string; role: string; away: boolean; open: number }[] }
 export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
-export interface OwnerRow { id: string; name: string | null; code: string | null; phones: string[]; unit_count: number; flag: string | null; is_private: boolean }
+export interface AskOffer { area: number; floor: string | number | null; price: number; down: number | null; monthly: number | null }
+export interface AskProject { name: string; name_en: string | null; place: string | null; offers: AskOffer[]; client_text: string }
+export interface AskResults { chips: { key: string; value: string }[]; dropped: string[]; total_projects: number; total_offers: number; page: number; pages: number; projects: AskProject[] }
+export interface ClientRequest { id: string; summary: string; summary_en?: string; broker_name?: string; lead: { ref: string; name: string | null } | null; matches: number; alerts: boolean; fulfilled_at: string | null; created_at: string }
+export interface ClientRequestsPage { items: ClientRequest[]; page: number; more?: boolean; pages?: number }
+export interface InboxItem { id: string; kind: string; title: string; body: string; url: string | null; created_at: string; read: boolean }
+export interface InboxPage { items: InboxItem[]; page: number; more: boolean; unread: number }
+export interface OwnerRow { id: string; name: string | null; code: string | null; phones: string[]; /** The list carries only the last four digits ("••••1234"); the full number is on the owner page. */ phones_masked?: boolean; unit_count: number; flag: string | null; is_private: boolean }
 export interface OwnerUnit { code: string; compound: string | null; status: string; is_private: boolean }
 export interface OwnerProfile extends OwnerRow { notes: string | null; canEdit: boolean; units: OwnerUnit[] }
 export interface OwnerEvent { kind: string; data: Record<string, unknown> | null; created_at: string; broker_name: string | null }
@@ -297,6 +306,17 @@ export function createApiClient(opts: ApiClientOptions) {
     sentLinks: (offset = 0) => request<{ offset: number; hasMore: boolean; items: SentLink[] }>('GET', '/links', undefined, { offset: offset || undefined }),
     extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string }>('POST', '/leads/extract', { message }),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
+    askResults: (q: string, page = 1, sort: 'best' | 'cheap' = 'best', drop: string[] = []) => request<AskResults>('GET', '/ask/results', undefined, { q, page, sort, ...(drop.length ? { drop: drop.join(',') } : {}) }),
+    clientRequests: (tab: 'pending' | 'fulfilled', page = 1) => request<ClientRequestsPage>('GET', '/client-requests', undefined, { tab, page }),
+    addClientRequest: (q: string, lead: string | undefined, alerts: boolean) => request<ClientRequest>('POST', '/client-requests', { q, ...(lead ? { lead } : {}), alerts }),
+    clientRequestDelete: (id: string) => request<{ ok: boolean }>('POST', `/client-requests/${encodeURIComponent(id)}/delete`, {}),
+    clientRequestFulfil: (id: string) => request<{ ok: boolean }>('POST', `/client-requests/${encodeURIComponent(id)}/fulfil`, {}),
+    notificationsInbox: (page = 1) => request<InboxPage>('GET', '/notifications', undefined, { page }),
+    notificationRead: (id: string) => request<{ ok: boolean; unread: number }>('POST', `/notifications/${encodeURIComponent(id)}/read`, {}),
+    notificationDelete: (id: string) => request<{ ok: boolean; unread: number }>('POST', `/notifications/${encodeURIComponent(id)}/delete`, {}),
+    notificationsReadAll: () => request<{ ok: boolean; unread: number }>('POST', '/notifications/read-all', {}),
+    notificationsDeleteAll: () => request<{ ok: boolean; unread: number }>('POST', '/notifications/delete-all', {}),
+    leadLang: (ref: string, version: number, lang: 'ar' | 'en' | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/lang`, { lang, version }),
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
     leadStage: (ref: string, version: number, stage: LeadStage, lostReason?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/stage`, { version, stage, lostReason }),
     leadFollowUp: (ref: string, version: number, at: string, kind: 'call' | 'viewing', note?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/follow-up`, { version, at, kind, note }),
@@ -314,7 +334,7 @@ export function createApiClient(opts: ApiClientOptions) {
       return request<{ fields: UnitFields }>('POST', '/units/extract', form);
     },
     /** `code` set (edit): the review also lists what would change. */
-    reviewUnit: (fields: UnitFields, photoCount: number, code?: string) => request<ReviewResult>('POST', '/units/review', { fields, photoCount, ...(code ? { code } : {}) }),
+    reviewUnit: (fields: UnitFields, photoCount: number, code?: string) => request<ReviewResult>('POST', '/units/review', { fields, photoCount, ...(code ? { code } : { new_unit: true }) }),
     /** An error caught inside the app (a screen crash); the server keeps it with the failures and alerts the owner. */
     reportClientError: (body: { message: string; screen?: string; stack?: string; platform: string; appVersion: string }) => request<unknown>('POST', '/client-error', body),
     /** Saves the unit; photos are sent in the broker's order. */
@@ -388,8 +408,8 @@ export function createApiClient(opts: ApiClientOptions) {
     unitLease: (code: string) => request<{ rent: boolean; lease: { startDate: string; months: number; rent: number | null; increasePct: number | null; tenantName: string | null; remind: boolean; done?: boolean } | null }>('GET', `/units/${encodeURIComponent(code)}/lease`),
     createDeal: (b: Record<string, string>) => request<{ ok: true; ref: string; duplicate: boolean }>('POST', '/deals', b),
     correctDeal: (ref: string, b: { commission: string; price?: string; external?: string; version?: number }) => request<{ ok: true }>('POST', `/deals/${encodeURIComponent(ref)}/correct`, b),
-    savedSearches: () => request<{ items: { id: string; name: string; total: number; fresh: number }[]; max: number }>('GET', '/saved-searches'),
-    saveSearch: (f: string, name: string) => request<{ ok: true; id: string }>('POST', '/saved-searches', { f, name }),
+    savedSearches: () => request<{ items: { id: string; name: string; total: number; fresh: number; alerts?: boolean }[]; max: number; max_alerts?: number }>('GET', '/saved-searches'),
+    saveSearch: (f: string, name: string, alerts = false) => request<{ ok: true; id: string }>('POST', '/saved-searches', { f, name, ...(alerts ? { alerts: true } : {}) }),
     savedSearch: (id: string) => request<{ name: string; total: number; items: ApiUnitListItem[] }>('GET', `/saved-searches/${id}`),
     deleteSavedSearch: (id: string) => request<{ ok: true }>('POST', `/saved-searches/${id}/delete`, {}),
     saveDeveloper: (b: Record<string, string>, id?: string) => request<{ ok: true; id: string | null }>('POST', id ? `/catalogue/developers/${id}` : '/catalogue/developers', b),

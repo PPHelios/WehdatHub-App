@@ -1,30 +1,51 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { MAX_WIDTH } from '../layout';
 import { spacing } from '../theme';
 
 interface Photo { id: string; url: string }
 
-/** One photo you can swipe; the count shows below, and a tap opens it full screen. */
+/** The list is written three times over, so swiping past either end lands on a copy of the same photo. */
+function loopData(photos: Photo[]): Photo[] {
+  return photos.length > 1 ? [...photos, ...photos, ...photos] : photos;
+}
+/** Maps any position in the tripled list back to the photo it shows. */
+function realIndex(i: number, n: number): number {
+  return ((i % n) + n) % n;
+}
+
+/** One photo you can swipe; the count shows below, and a tap opens it full screen. Swiping loops. */
 export function PhotoGallery({ photos, closeLabel }: { photos: Photo[]; closeLabel: string }) {
   const width = Math.min(useWindowDimensions().width, MAX_WIDTH);
   const h = Math.round(width * 0.72);
   const [index, setIndex] = useState(0);
   const [full, setFull] = useState<number | null>(null);
+  const listRef = useRef<FlatList<Photo>>(null);
   if (!photos.length) return null;
+  const n = photos.length;
+  const loop = n > 1;
+  const onEnd = (x: number) => {
+    const raw = Math.round(x / width);
+    const r = realIndex(raw, n);
+    // Back into the middle copy without a visible jump, so the next swipe can go either way.
+    if (loop && (raw < n || raw >= 2 * n)) listRef.current?.scrollToIndex({ index: n + r, animated: false });
+    setIndex(r);
+  };
   return (
     <View>
       <FlatList
+        ref={listRef}
         testID="gallery"
         horizontal
         pagingEnabled
-        data={photos}
-        keyExtractor={(p) => p.id}
+        data={loopData(photos)}
+        initialScrollIndex={loop ? n : 0}
+        keyExtractor={(p, i) => `${p.id}-${i}`}
         showsHorizontalScrollIndicator={false}
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-        onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
+        onMomentumScrollEnd={(e) => onEnd(e.nativeEvent.contentOffset.x)}
         renderItem={({ item, index: i }) => (
-          <Pressable accessibilityRole="imagebutton" testID={`photo-${i}`} onPress={() => setFull(i)}>
+          <Pressable accessibilityRole="imagebutton" testID={!loop ? `photo-${i}` : i >= n && i < 2 * n ? `photo-${i - n}` : undefined} onPress={() => setFull(realIndex(i, n))}>
             <Image source={{ uri: item.url }} style={{ width, height: h }} resizeMode="cover" />
           </Pressable>
         )}
@@ -45,16 +66,26 @@ export function PhotoGallery({ photos, closeLabel }: { photos: Photo[]; closeLab
 function FullScreen({ photos, start, onClose, closeLabel }: { photos: Photo[]; start: number; onClose: () => void; closeLabel: string }) {
   const { width, height } = useWindowDimensions();
   const [at, setAt] = useState(start);
+  const n = photos.length;
+  const loop = n > 1;
+  const listRef = useRef<FlatList<Photo>>(null);
+  const onEnd = (x: number) => {
+    const raw = Math.round(x / width);
+    const r = realIndex(raw, n);
+    if (loop && (raw < n || raw >= 2 * n)) listRef.current?.scrollToIndex({ index: n + r, animated: false });
+    setAt(r);
+  };
   return (
     <View style={styles.full}>
       <FlatList
+        ref={listRef}
         horizontal
         pagingEnabled
-        data={photos}
-        initialScrollIndex={start}
-        keyExtractor={(p) => p.id}
+        data={loopData(photos)}
+        initialScrollIndex={loop ? n + start : start}
+        keyExtractor={(p, i) => `${p.id}-${i}`}
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-        onMomentumScrollEnd={(e) => setAt(Math.round(e.nativeEvent.contentOffset.x / width))}
+        onMomentumScrollEnd={(e) => onEnd(e.nativeEvent.contentOffset.x)}
         renderItem={({ item }) => <ZoomPhoto url={item.url} width={width} height={height} />}
       />
       <Text style={styles.fullCount}>{at + 1} / {photos.length}</Text>

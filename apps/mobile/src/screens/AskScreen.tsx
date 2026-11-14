@@ -11,6 +11,7 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
 import { HoldMic } from '../components/HoldMic';
+import { AskResults } from '../components/AskResults';
 
 /** Ask: a question (typed or spoken) answered from the agency's projects, units and the broker's own clients. */
 export function AskScreen() {
@@ -18,6 +19,7 @@ export function AskScreen() {
   const lang = currentLang();
   const [question, setQuestion] = useState('');
   const [out, setOut] = useState<AskAnswer | null>(null);
+  const [asked, setAsked] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const ask = async (text = question, voice = false) => {
@@ -25,6 +27,7 @@ export function AskScreen() {
     if (!text.trim()) return setError(t(lang, 'askEmpty'));
     try {
       setOut(await timed('ask', () => api.ask(text.trim()), { kind: voice ? 'voice' : 'text' }));
+      setAsked(text.trim());
     } catch (e) {
       setOut(null);
       if (e instanceof ApiClientError && e.code === 'ai_blocked' && typeof e.extra.message === 'string') setError(e.extra.message);
@@ -58,6 +61,7 @@ export function AskScreen() {
           <Button testID="ask-copy" variant="secondary" label={t(lang, 'copyAnswer')} onPress={() => { Share.share({ message: out.answer }).catch(() => undefined); }} />
         </View>
       ) : null}
+      {out && asked ? <AskResults q={asked} /> : null}
     </ScrollView>
   );
 }

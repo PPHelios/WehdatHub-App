@@ -12,6 +12,7 @@ import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { ClientLinkModal } from '../components/ClientLinkModal';
 import { PhotoGallery } from '../components/PhotoGallery';
+import { sharePhotos } from '../sharePhotos';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
@@ -144,6 +145,18 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} />
         <ClientLinkModal visible={pickClient} busy={sharing} error={clientErr} onSubmit={shareLink} onCancel={() => setPickClient(false)} />
         <Button testID="share-unit" variant="secondary" label={t(lang, 'shareUnit')} onPress={() => { Share.share({ message: [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n') }).catch(() => undefined); }} />
+        {u.images.length ? (
+          <Button
+            testID="send-photos"
+            variant="secondary"
+            label={`📤 ${t(lang, 'sendPhotos')}`}
+            onPress={async () => {
+              const text = [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n');
+              const r = await sharePhotos(u.images.map((i) => i.url), text);
+              if (r === 'failed') Alert.alert(t(lang, 'sendPhotosFailed'));
+            }}
+          />
+        ) : null}
         {u.features.length ? (
           <View testID="features" style={styles.featBox}>
             <Text style={[styles.featTitle, { color: colors.text }]}>{t(lang, 'features')}</Text>
@@ -179,7 +192,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
   flyerBack: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: spacing.lg, gap: spacing.sm },
-  flyerImg: { flex: 1, width: '100%' },
+  flyerImg: { flex: 1, width: '100%', maxWidth: 420, alignSelf: 'center' },
   flyerButtons: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg },
   actions: { flexDirection: 'row', gap: spacing.sm },
   body: { paddingBottom: spacing.xl },
