@@ -308,6 +308,7 @@ export function createApiClient(opts: ApiClientOptions) {
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
     askResults: (q: string, page = 1, sort: 'best' | 'cheap' = 'best', drop: string[] = []) => request<AskResults>('GET', '/ask/results', undefined, { q, page, sort, ...(drop.length ? { drop: drop.join(',') } : {}) }),
     clientRequests: (tab: 'pending' | 'fulfilled', page = 1) => request<ClientRequestsPage>('GET', '/requests', undefined, { tab, page }),
+    addClientRequest: (filters: string, lead: string | undefined, alerts: boolean) => request<ClientRequest>('POST', '/requests', { filters, ...(lead ? { lead } : {}), alerts }),
     clientRequestDelete: (id: string) => request<{ ok: boolean }>('POST', `/requests/${encodeURIComponent(id)}/delete`, {}),
     clientRequestFulfil: (id: string) => request<{ ok: boolean }>('POST', `/requests/${encodeURIComponent(id)}/fulfil`, {}),
     notificationsInbox: (page = 1) => request<InboxPage>('GET', '/notifications', undefined, { page }),

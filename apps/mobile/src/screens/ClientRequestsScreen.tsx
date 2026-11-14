@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ApiClientError } from '@wehdathub/shared';
 import { api } from '../api';
+import { Field } from '../components/Field';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
@@ -12,6 +14,38 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
+
+function AddRequest({ onDone }: { onDone: () => void }) {
+  const { colors } = useTheme();
+  const lang = currentLang();
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [lead, setLead] = useState('');
+  const [alerts, setAlerts] = useState(true);
+  const [msg, setMsg] = useState<string | null>(null);
+  const save = async () => {
+    try {
+      const r = await api.search(q.trim());
+      if (!r.f) { setMsg(t(lang, 'requestNoFilters')); return; }
+      await api.addClientRequest(r.f, lead.trim() || undefined, alerts);
+      setOpen(false); setQ(''); setLead(''); setMsg(null);
+      onDone();
+    } catch (e) {
+      const c = e instanceof ApiClientError ? e.code : '';
+      setMsg(c === 'lead_not_found' ? t(lang, 'leadNotFound') : c === 'too_many_requests' ? t(lang, 'tooManyRequests') : c === 'too_many_requests_broker' ? t(lang, 'limitAlerts') : errorText(e, lang));
+    }
+  };
+  if (!open) return <Button testID="request-add" label={`➕ ${t(lang, 'addRequest')}`} onPress={() => { setMsg(null); setOpen(true); }} />;
+  return (
+    <View style={{ gap: spacing.sm }}>
+      <Field testID="request-q" label={t(lang, 'requestSearch')} value={q} onChangeText={setQ} />
+      <Field testID="request-lead" label={t(lang, 'requestLead')} value={lead} onChangeText={setLead} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'alertsOn')}</Text><Switch testID="request-alerts" value={alerts} onValueChange={setAlerts} /></View>
+      <Button testID="request-save" label={t(lang, 'save')} onPress={save} disabled={!q.trim()} />
+      {msg ? <Text style={{ color: colors.danger }}>{msg}</Text> : null}
+    </View>
+  );
+}
 
 /** Client requests (a saved search for a client, with alerts): Pending and Fulfilled. Brokers see their own, managers the whole agency. */
 export function ClientRequestsScreen() {
@@ -30,6 +64,7 @@ export function ClientRequestsScreen() {
   const refresh = () => qc.invalidateQueries({ queryKey: ['clientRequests'] });
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
+      <AddRequest onDone={refresh} />
       <Chips<'pending' | 'fulfilled'> testID="requests-tab" value={tab} options={[{ value: 'pending', label: t(lang, 'tabPending') }, { value: 'fulfilled', label: t(lang, 'tabFulfilled') }]} onChange={setTab} />
       {list.isPending ? <Loading label={t(lang, 'loading')} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} /> : (
         <>
