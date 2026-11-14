@@ -12,6 +12,7 @@ import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
 import { PlaceInput } from '../components/PlaceInput';
+import { UnitExtraFields } from '../components/UnitExtraFields';
 import { addPendingPlace } from '../placeList';
 import { SortablePhotos } from '../components/SortablePhotos';
 import { clearDraft, isEmptyDraft, loadDraft, saveDraft } from '../draft';
@@ -74,7 +75,6 @@ export function AddUnitScreen() {
   const [version, setVersion] = useState(0);
   const savedDetails = useRef<string | null>(null);
   const originalIds = useRef<string[]>([]);
-  const [toUnit, setToUnit] = useState('');
 
   const set = (k: string, v: UnitFields[string]) => { dirty.current = true; setAck(false); setFields((f) => ({ ...f, [k]: v })); };
   // A compound picked from the list brings its own area; an area or sub-zone fills the area and leaves the compound empty.
@@ -290,21 +290,6 @@ export function AddUnitScreen() {
     }
   };
 
-  // Photos shared in (or picked) can go to a unit that already exists instead of a new one.
-  const addToExisting = async () => {
-    setError(null);
-    try {
-      const code = toUnit.trim();
-      const keyed = kept.length > 0 && kept.every((p) => p.key);
-      await api.unitPhotos(code, keyed ? { photoKeys: kept.map((p) => p.key as string) } : { add: await compressPhotos(kept) });
-      await clearDraft();
-      await qc.invalidateQueries({ queryKey: ['unit', code] });
-      nav.replace('Unit', { code });
-    } catch (e) {
-      setError(e instanceof ApiClientError && e.status === 404 ? t(lang, 'unitMissing') : e instanceof ApiClientError && e.code === 'too_many_photos' ? t(lang, 'tooManyPhotos') : errorText(e, lang));
-    }
-  };
-
   const discard = async () => {
     await clearDraft();
     setFields({ listing_type: 'sale', market: 'resale' });
@@ -358,6 +343,7 @@ export function AddUnitScreen() {
       {field('owner_name', t(lang, 'fOwnerName'))}
       {field('owner_phone', t(lang, 'fOwnerPhone'), { keyboardType: 'phone-pad', hint: readPhone(str(fields.owner_phone)) })}
       <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'usePhoneAsName')}</Text><Switch value={fields.owner_name_from_phone === '1'} onValueChange={(v) => set('owner_name_from_phone', v ? '1' : '')} /></View>
+      <UnitExtraFields fields={fields} set={set} field={field} lang={lang} rent={fields.listing_type === 'rent'} ready={fields.is_ready === '1'} editing={Boolean(editCode)} />
       {field('notes', t(lang, 'fNotes'), { multiline: true })}
 
       {(
@@ -384,12 +370,6 @@ export function AddUnitScreen() {
             }}
           />
           {editCode ? null : <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'aiOrder')}</Text><Switch value={photoAi} onValueChange={setPhotoAi} /></View>}
-          {!editCode && kept.length ? (
-            <View style={[styles.box, { borderColor: colors.border }]}>
-              <Field testID="to-unit" label={t(lang, 'addToExisting')} value={toUnit} onChangeText={setToUnit} autoCapitalize="characters" autoCorrect={false} />
-              <Button testID="to-unit-go" variant="secondary" label={t(lang, 'addPhotosToUnit')} disabled={!toUnit.trim()} onPress={addToExisting} />
-            </View>
-          ) : null}
         </>
       )}
 

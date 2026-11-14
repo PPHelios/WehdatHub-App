@@ -23,10 +23,12 @@ function Mark({ height }: { height: number }) {
  * The WehdatHub logo from the brand guide: the mark with the name. English reads "WehdatHub" (Hub in azure) with the mark first;
  * Arabic reads "وحدات هب" with the mark on the right. The row flips with the layout direction, so one order serves both.
  */
-export function Logo({ size = 1, compact = false }: { size?: number; compact?: boolean }) {
+export function Logo({ size = 1, compact = false, markOnly = false }: { size?: number; compact?: boolean; markOnly?: boolean }) {
   const { colors } = useTheme();
   const ar = currentLang() === 'ar';
   const fontSize = 34 * size;
+  // In a screen header the name would run into the title: the mark alone is enough.
+  if (markOnly) return <View accessibilityRole="image" accessibilityLabel="WehdatHub" testID="logo"><Mark height={72 * size} /></View>;
   return (
     <View style={[styles.wrap, compact ? styles.compact : styles.stacked]} accessibilityRole="image" accessibilityLabel="WehdatHub" testID="logo">
       <Mark height={(compact ? 72 : 72) * size} />

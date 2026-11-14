@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { timed } from '../usage';
-import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, I18nManager, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useMutation } from '@tanstack/react-query';
@@ -25,6 +25,13 @@ export function SearchScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [text, setText] = useState('');
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  // The keyboard can cover the floating bar (the window is not always resized): lift the bar by the keyboard's height.
+  const [kb, setKb] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', (e) => setKb(e.endCoordinates?.height ?? 0));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKb(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   // The search box and mic float at the bottom like a chat app: they slide away on scrolling down and come back on scrolling up.
   const slide = useRef(new Animated.Value(0)).current;
   const lastY = useRef(0);
@@ -123,6 +130,7 @@ export function SearchScreen() {
     />
   );
 
+  const micBox = <View style={styles.flex}><HoldMic testID="search-mic" label={t(lang, 'mic')} onFile={onVoice} onError={setVoiceError} disabled={search.isPending} /></View>;
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
       {voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{voiceError}</Text> : null}
@@ -136,11 +144,13 @@ export function SearchScreen() {
         </View>
       ) : null}
       <View style={styles.flex}>{body}</View>
-      <Animated.View style={[styles.bar, { backgroundColor: colors.bg, borderColor: colors.border, transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 220] }) }] }]}>
+      <Animated.View style={[styles.bar, { backgroundColor: colors.bg, borderColor: colors.border, bottom: kb, transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 220] }) }] }]}>
       <TextInput testID="search-input" style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'searchPlaceholder')} placeholderTextColor={colors.muted} returnKeyType="search" onSubmitEditing={() => run(text)} multiline={false} />
       <View style={styles.row}>
+        {/* The mic sits on the right in both languages: in a right-to-left layout the first child is on the right. */}
+        {I18nManager.isRTL ? micBox : null}
         <View style={styles.flex}><Button testID="search-go" label={t(lang, 'searchBtn')} loading={search.isPending} onPress={() => run(text)} /></View>
-        <View style={styles.flex}><HoldMic testID="search-mic" label={t(lang, 'mic')} onFile={onVoice} onError={setVoiceError} /></View>
+        {I18nManager.isRTL ? null : micBox}
       </View>
       </Animated.View>
     </View>

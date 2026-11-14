@@ -71,7 +71,7 @@ import { useTheme } from './theme';
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
 export type RootStackParams = { Tabs: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
-type TabParams = Record<TabKey, undefined>;
+type TabParams = Record<TabKey | 'AddUnitTab', undefined>;
 
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tabs = createBottomTabNavigator<TabParams>();
@@ -108,7 +108,7 @@ function TabsScreen() {
       initialRouteName={plan.initial}
       screenOptions={{
         headerTitleAlign: 'center',
-        headerLeft: () => <View style={{ paddingHorizontal: 12 }}><Logo size={0.55} compact /></View>,
+        headerLeft: () => <View style={{ paddingHorizontal: 12 }}><Logo size={0.55} markOnly /></View>,
         headerStyle: { backgroundColor: colors.bg },
         headerTitleStyle: { color: colors.text, fontFamily: FONT_BOLD },
         headerShadowVisible: false,
@@ -122,7 +122,7 @@ function TabsScreen() {
       {plan.tabs.map((k) => (
         <Tabs.Screen
           key={k}
-          name={k}
+          name={k === 'AddUnit' ? 'AddUnitTab' : k}
           component={screens[k]}
           options={{ title: t(lang, TAB_TITLE[k]), tabBarIcon: tabIcon(TAB_ICON[k]) }}
           listeners={k === 'AddUnit' ? { tabPress: (e) => { e.preventDefault(); navigationRef.navigate('AddUnit'); } } : undefined}

@@ -16,6 +16,7 @@ export function ClientLinkModal({ visible, busy, error, onSubmit, onCancel }: { 
   const [contacts, setContacts] = useState<PhoneContact[] | null>(null);
   const [denied, setDenied] = useState(false);
   const [listOpen, setListOpen] = useState(false);
+  const [q, setQ] = useState('');
   useEffect(() => {
     if (visible && contacts === null) loadContacts().then((c) => { setDenied(c === null); setContacts(c ?? []); }).catch(() => setContacts([]));
   }, [visible, contacts]);
@@ -36,13 +37,16 @@ export function ClientLinkModal({ visible, busy, error, onSubmit, onCancel }: { 
             </View>
           ) : null}
           {listOpen && !denied ? (
+            <>
+            <Field testID="client-contact-search" label={t(lang, 'searchContacts')} value={q} onChangeText={setQ} autoCorrect={false} />
             <ScrollView testID="client-contact-list" style={styles.list} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
-              {(contacts ? filterContacts(contacts, looksLikeName ? text : '') : []).slice(0, 60).map((c) => (
-                <Pressable key={c.id} accessibilityRole="button" onPress={() => { setText(c.phone); setListOpen(false); }} style={[styles.match, { borderColor: colors.border }]}>
+              {(contacts ? filterContacts(contacts, q.trim() || (looksLikeName ? text : '')) : []).slice(0, 60).map((c) => (
+                <Pressable key={c.id} accessibilityRole="button" onPress={() => { setText(c.phone); setListOpen(false); setQ(''); }} style={[styles.match, { borderColor: colors.border }]}>
                   <Text style={{ color: colors.text }}>{c.name || c.phone} · {c.phone}</Text>
                 </Pressable>
               ))}
             </ScrollView>
+            </>
           ) : null}
           {!listOpen && matches.map((c) => (
             <Pressable key={c.id} accessibilityRole="button" onPress={() => setText(c.phone)} style={[styles.match, { borderColor: colors.border }]}>

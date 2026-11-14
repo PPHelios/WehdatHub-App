@@ -44,15 +44,17 @@ export function UnitScreen({ code }: { code?: string } = {}) {
       usage('flyer_save', ok);
       Alert.alert(t(lang, ok ? 'savedToGallery' : 'galleryDenied'));
     } catch {
-      Alert.alert(t(lang, 'flyerFailed'));
+      // Saving straight from the web address failed on this phone: the share sheet can still save the picture ("Save to Photos").
+      const r = await sharePhotos([flyer], '');
+      if (r === 'failed') Alert.alert(t(lang, 'flyerFailed'));
     } finally {
       setSaving(false);
     }
   };
-  const makeFlyer = async (unbranded = false) => {
+  const makeFlyer = async (unbranded = false, theme: 'dark' | 'light' = 'dark') => {
     setFlyerBusy(unbranded ? 'nb' : 'main');
     try {
-      setFlyer((await timed('flyer_make', () => api.unitFlyer(unitCode, 'dark', unbranded, clientLang()))).url);
+      setFlyer((await timed('flyer_make', () => api.unitFlyer(unitCode, theme, unbranded, clientLang()))).url);
     } catch (e) {
       Alert.alert(e instanceof ApiClientError && e.status === 503 ? t(lang, 'flyerBusy') : t(lang, 'flyerFailed'));
     } finally {
@@ -124,15 +126,16 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         ) : null}
         {hidden === 'pending' ? <Text testID="access-pending" style={{ color: colors.muted }}>{t(lang, 'accessPending')}</Text> : null}
         {hidden === 'ask' ? <Button testID="request-access" variant="secondary" label={t(lang, 'requestAccess')} loading={asking} onPress={requestAccess} /> : null}
-        <Button testID="flyer" variant="secondary" label={`🖼 ${t(lang, 'flyer')}`} loading={flyerBusy === 'main'} disabled={flyerBusy === 'nb'} onPress={() => makeFlyer(false)} />
-        <Button testID="flyer-nobrand" variant="secondary" label={`🖼 ${t(lang, 'flyer')} · ${t(lang, 'flyerNoBrand')}`} loading={flyerBusy === 'nb'} disabled={flyerBusy === 'main'} onPress={() => makeFlyer(true)} />
+        <Button testID="flyer" variant="secondary" label={`🖼 ${t(lang, 'flyer')}`} loading={flyerBusy === 'main'} disabled={flyerBusy === 'nb'} onPress={() => makeFlyer(false, 'dark')} />
+        <Button testID="flyer-light" variant="secondary" label={`🖼 ${t(lang, 'flyer')} · ${t(lang, 'flyerLight')}`} loading={flyerBusy === 'main'} disabled={flyerBusy === 'nb'} onPress={() => makeFlyer(false, 'light')} />
+        <Button testID="flyer-nobrand" variant="secondary" label={`🖼 ${t(lang, 'flyer')} · ${t(lang, 'flyerNoBrand')}`} loading={flyerBusy === 'nb'} disabled={flyerBusy === 'main'} onPress={() => makeFlyer(true, 'dark')} />
         {flyer ? (
           <Modal visible transparent animationType="fade" onRequestClose={() => setFlyer(null)}>
             <View style={[styles.flyerBack, { paddingTop: spacing.xl, paddingBottom: 64 /* clears the system navigation bar */ }]}>
               <Image testID="flyer-image" source={{ uri: flyer }} style={styles.flyerImg} resizeMode="contain" />
               {/* The buttons sit on a solid card so they read on any theme and clear the system navigation bar. */}
               <View style={[styles.flyerButtons, { backgroundColor: colors.bg }]}>
-                <Button testID="flyer-share" label={t(lang, 'shareFlyer')} onPress={() => { Share.share({ message: flyer }).catch(() => undefined); }} />
+                <Button testID="flyer-share" label={t(lang, 'shareFlyer')} onPress={() => { sharePhotos([flyer], '').catch(() => undefined); }} />
                 <Button testID="flyer-save" variant="secondary" label={t(lang, 'saveToGallery')} loading={saving} onPress={saveFlyer} />
                 <Button label={t(lang, 'closePanel')} variant="secondary" onPress={() => setFlyer(null)} />
               </View>
@@ -144,19 +147,17 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         {u.canEdit ? <UnitPrivateForms code={u.code} prefill={routeParams?.lease} /> : null}
         <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} />
         <ClientLinkModal visible={pickClient} busy={sharing} error={clientErr} onSubmit={shareLink} onCancel={() => setPickClient(false)} />
-        <Button testID="share-unit" variant="secondary" label={t(lang, 'shareUnit')} onPress={() => { Share.share({ message: [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n') }).catch(() => undefined); }} />
-        {u.images.length ? (
-          <Button
-            testID="send-photos"
-            variant="secondary"
-            label={`📤 ${t(lang, 'sendPhotos')}`}
-            onPress={async () => {
-              const text = [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n');
-              const r = await sharePhotos(u.images.map((i) => i.url), text);
-              if (r === 'failed') Alert.alert(t(lang, 'sendPhotosFailed'));
-            }}
-          />
-        ) : null}
+        <Button
+          testID="share-unit"
+          variant="secondary"
+          label={`📤 ${t(lang, 'shareUnit')}`}
+          onPress={async () => {
+            // One button: the unit's text and its pictures together; if the pictures cannot go, the text still does.
+            const text = [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n');
+            const r = u.images.length ? await sharePhotos(u.images.slice(0, 6).map((i) => i.url), text) : 'failed';
+            if (r === 'failed') await Share.share({ message: text }).catch(() => undefined);
+          }}
+        />
         {u.features.length ? (
           <View testID="features" style={styles.featBox}>
             <Text style={[styles.featTitle, { color: colors.text }]}>{t(lang, 'features')}</Text>
@@ -165,7 +166,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
                 const f = featureChip(k, lang);
                 return (
                   <View key={f.key} style={[styles.chip, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <Text style={{ color: colors.text }}>{f.icon} {f.label}</Text>
+                    <Text style={{ color: colors.text }}>{f.label}</Text>
                   </View>
                 );
               })}
