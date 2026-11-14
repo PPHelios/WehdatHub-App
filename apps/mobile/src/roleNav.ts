@@ -16,7 +16,7 @@ export function navPlan(r: Rights): { tabs: TabKey[]; initial: TabKey } {
 export const TAB_ICON: Record<TabKey, IconName> = { Today: 'today', Search: 'search', Leads: 'leads', Map: 'map', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'add', Plan: 'plan' };
 export const TAB_TITLE: Record<TabKey, StringKey> = { Today: 'today', Search: 'searchTab', Leads: 'leadsTab', Map: 'mapTab', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'addUnit', Plan: 'plan' };
 
-export type MoreScreenName = 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Inbox' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Prices' | 'WinLoss' | 'Report' | 'UnitsList' | 'LeadsList' | 'MapList' | 'TodayList' | 'AddUnit' | 'LeadRules' | 'Pipeline' | 'Leases' | 'SavedSearches';
+export type MoreScreenName = 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Inbox' | 'ClientRequests' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Prices' | 'WinLoss' | 'Report' | 'UnitsList' | 'LeadsList' | 'MapList' | 'TodayList' | 'AddUnit' | 'LeadRules' | 'Pipeline' | 'Leases' | 'SavedSearches';
 export interface MoreItem { id: string; icon: string; label: StringKey; screen: MoreScreenName }
 
 /**
@@ -38,6 +38,7 @@ export function moreItems(r: Rights, tabs: TabKey[], platformOwner: boolean): Mo
     [r.team && !tabs.includes('Team'), { id: 'team', icon: '👥', label: 'team', screen: 'Team' }],
     [r.owners && !tabs.includes('Owners'), { id: 'owners', icon: '🗝', label: 'owners', screen: 'Owners' }],
     [manager && !tabs.includes('Dashboard'), { id: 'dashboard', icon: '📊', label: 'dashboard', screen: 'Dashboard' }],
+    [work && r.leads, { id: 'client-requests', icon: '📝', label: 'clientRequests', screen: 'ClientRequests' }],
     [work, { id: 'deals', icon: '🤝', label: 'deals', screen: 'Deals' }],
     [work, { id: 'commissions', icon: '💸', label: 'commissions', screen: 'Commissions' }],
     [manager, { id: 'winloss', icon: '📉', label: 'winLoss', screen: 'WinLoss' }],
