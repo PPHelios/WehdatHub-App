@@ -6,7 +6,7 @@ import { ApiClientError } from '@wehdathub/shared';
 import { LeadScreen } from '../src/screens/LeadScreen';
 import { api } from '../src/api';
 
-jest.mock('../src/api', () => ({ api: { lead: jest.fn(), leadCalled: jest.fn(), leadStage: jest.fn(), leadFollowUp: jest.fn(), leadNote: jest.fn(), leadDraft: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { lead: jest.fn(), leadCalled: jest.fn(), leadStage: jest.fn(), leadFollowUp: jest.fn(), leadNote: jest.fn(), leadDraft: jest.fn(), leadLang: jest.fn() } }));
 jest.mock('@react-navigation/native', () => ({ useRoute: () => ({ params: { ref: 'L-0001' } }), useNavigation: () => ({ goBack: jest.fn() }) }));
 const m = api as unknown as Record<string, jest.Mock>;
 const lead = { ref: 'L-0001', name: 'Sara', phones: ['201012345678'], kind: 'buyer', stage: 'new', lostReason: null, source: 'Web', notes: null, nextFollowUpAt: null, followUpKind: null, followUpNote: null, lastContactAt: null, assignee: null, version: 3 };
@@ -23,6 +23,14 @@ test('I called sends the version the screen shows', async () => {
   await waitFor(() => expect(screen.getByTestId('lead-called')).toBeTruthy());
   await fireEvent.press(screen.getByTestId('lead-called'));
   await waitFor(() => expect(m.leadCalled).toHaveBeenCalledWith('L-0001', 3));
+});
+
+test('the language chip saves the lead language with the version the screen shows', async () => {
+  m.leadLang.mockResolvedValue({ lead: { ...lead, lang: 'en', version: 4 } });
+  await wrap();
+  await waitFor(() => expect(screen.getByTestId('lead-lang')).toBeTruthy());
+  await fireEvent.press(screen.getByText('English'));
+  await waitFor(() => expect(m.leadLang).toHaveBeenCalledWith('L-0001', 3, 'en'));
 });
 
 test('a change made elsewhere shows a clear message and reloads', async () => {

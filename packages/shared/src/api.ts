@@ -76,6 +76,8 @@ export interface ApiLead {
   assignee: string | null;
   assigneeId?: string | null;
   version: number;
+  /** The language chosen for this client's messages (empty: the broker's own setting). */
+  lang?: 'ar' | 'en' | null;
 }
 export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; offset: number; limit: number }
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
@@ -297,6 +299,7 @@ export function createApiClient(opts: ApiClientOptions) {
     sentLinks: (offset = 0) => request<{ offset: number; hasMore: boolean; items: SentLink[] }>('GET', '/links', undefined, { offset: offset || undefined }),
     extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string }>('POST', '/leads/extract', { message }),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
+    leadLang: (ref: string, version: number, lang: 'ar' | 'en' | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/lang`, { lang, version }),
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
     leadStage: (ref: string, version: number, stage: LeadStage, lostReason?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/stage`, { version, stage, lostReason }),
     leadFollowUp: (ref: string, version: number, at: string, kind: 'call' | 'viewing', note?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/follow-up`, { version, at, kind, note }),
@@ -314,7 +317,7 @@ export function createApiClient(opts: ApiClientOptions) {
       return request<{ fields: UnitFields }>('POST', '/units/extract', form);
     },
     /** `code` set (edit): the review also lists what would change. */
-    reviewUnit: (fields: UnitFields, photoCount: number, code?: string) => request<ReviewResult>('POST', '/units/review', { fields, photoCount, ...(code ? { code } : {}) }),
+    reviewUnit: (fields: UnitFields, photoCount: number, code?: string) => request<ReviewResult>('POST', '/units/review', { fields, photoCount, ...(code ? { code } : { new_unit: true }) }),
     /** An error caught inside the app (a screen crash); the server keeps it with the failures and alerts the owner. */
     reportClientError: (body: { message: string; screen?: string; stack?: string; platform: string; appVersion: string }) => request<unknown>('POST', '/client-error', body),
     /** Saves the unit; photos are sent in the broker's order. */

@@ -7,7 +7,7 @@ import { api } from '../api';
 import { currentLang } from '../auth';
 import { errorText } from '../errors';
 import { t } from '../i18n';
-import { clientLang } from '../prefs';
+import { leadLang } from '../prefs';
 import { useTheme } from '../theme';
 import { Button } from './Button';
 import { Field } from './Field';
@@ -38,8 +38,8 @@ export function LeadActions({ lead, manager }: { lead: ApiLead; manager: boolean
       setBusy(false);
     }
   };
-  const makeDraft = () => guard(async () => setDraft((await api.leadDraft(lead.ref, clientLang())).text), t(lang, 'leadDraftFail'));
-  const send = () => guard(async () => { const r = await api.leadSend(lead.ref, code.trim(), clientLang()); await Linking.openURL(r.url); }, t(lang, 'sendFail'));
+  const makeDraft = () => guard(async () => setDraft((await api.leadDraft(lead.ref, leadLang(lead))).text), t(lang, 'leadDraftFail'));
+  const send = () => guard(async () => { const r = await api.leadSend(lead.ref, code.trim(), leadLang(lead)); await Linking.openURL(r.url); }, t(lang, 'sendFail'));
   const merge = () => guard(async () => { await api.leadMerge(lead.ref, other.trim(), mergeConfirm.trim()); setOther(''); setMergeConfirm(''); await qc.invalidateQueries({ queryKey: ['lead', lead.ref] }); }, t(lang, 'mergeFail'));
   const erase = () =>
     Alert.alert(t(lang, 'eraseLead'), undefined, [
