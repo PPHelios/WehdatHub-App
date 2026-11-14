@@ -25,14 +25,12 @@ function AddRequest({ onDone }: { onDone: () => void }) {
   const [msg, setMsg] = useState<string | null>(null);
   const save = async () => {
     try {
-      const r = await api.search(q.trim());
-      if (!r.f) { setMsg(t(lang, 'requestNoFilters')); return; }
-      await api.addClientRequest(r.f, lead.trim() || undefined, alerts);
+      await api.addClientRequest(q.trim(), lead.trim() || undefined, alerts);
       setOpen(false); setQ(''); setLead(''); setMsg(null);
       onDone();
     } catch (e) {
       const c = e instanceof ApiClientError ? e.code : '';
-      setMsg(c === 'lead_not_found' ? t(lang, 'leadNotFound') : c === 'too_many_requests' ? t(lang, 'tooManyRequests') : c === 'too_many_requests_broker' ? t(lang, 'limitAlerts') : errorText(e, lang));
+      setMsg(c === 'no_filters' ? t(lang, 'requestNoFilters') : c === 'lead_not_found' ? t(lang, 'leadNotFound') : c === 'too_many_requests' ? t(lang, 'tooManyRequests') : c === 'too_many_requests_broker' ? t(lang, 'limitAlerts') : errorText(e, lang));
     }
   };
   if (!open) return <Button testID="request-add" label={`➕ ${t(lang, 'addRequest')}`} onPress={() => { setMsg(null); setOpen(true); }} />;

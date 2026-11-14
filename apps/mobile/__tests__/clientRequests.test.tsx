@@ -33,13 +33,12 @@ test('a request can be marked fulfilled, and the Fulfilled tab asks for that tab
   await waitFor(() => expect(m.clientRequests).toHaveBeenCalledWith('fulfilled', 1));
 });
 
-test('adding a request turns the description into filters and sends it with the lead', async () => {
-  m.search.mockResolvedValue({ f: 'tok' });
+test('adding a request sends the description with the lead', async () => {
   m.addClientRequest.mockResolvedValue({ id: 'r2' });
   await wrap();
   await fireEvent.press(screen.getByTestId('request-add'));
   await fireEvent.changeText(screen.getByTestId('request-q'), '3 beds Obour');
   await fireEvent.changeText(screen.getByTestId('request-lead'), 'L-0007');
   await fireEvent.press(screen.getByTestId('request-save'));
-  await waitFor(() => expect(m.addClientRequest).toHaveBeenCalledWith('tok', 'L-0007', true));
+  await waitFor(() => expect(m.addClientRequest).toHaveBeenCalledWith('3 beds Obour', 'L-0007', true));
 });
