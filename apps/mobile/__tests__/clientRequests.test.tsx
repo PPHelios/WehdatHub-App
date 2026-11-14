@@ -29,7 +29,7 @@ test('a request can be marked fulfilled, and the Fulfilled tab asks for that tab
   await waitFor(() => expect(screen.getByTestId('request-fulfil-r1')).toBeTruthy());
   await fireEvent.press(screen.getByTestId('request-fulfil-r1'));
   await waitFor(() => expect(m.clientRequestFulfil).toHaveBeenCalledWith('r1'));
-  await fireEvent.press(screen.getAllByText('Fulfilled')[0]);
+  await fireEvent.press(screen.getByText('اتنفذت'));
   await waitFor(() => expect(m.clientRequests).toHaveBeenCalledWith('fulfilled', 1));
 });
 
