@@ -81,7 +81,7 @@ export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; off
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
 export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; start: number; end: number; days: number[]; max_jumps: number }; roundRobin: boolean; order: string[]; brokers: { id: string; name: string; role: string; away: boolean; open: number }[] }
 export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
-export interface OwnerRow { id: string; name: string | null; code: string | null; phones: string[]; unit_count: number; flag: string | null; is_private: boolean }
+export interface OwnerRow { id: string; name: string | null; code: string | null; phones: string[]; /** The list carries only the last four digits ("••••1234"); the full number is on the owner page. */ phones_masked?: boolean; unit_count: number; flag: string | null; is_private: boolean }
 export interface OwnerUnit { code: string; compound: string | null; status: string; is_private: boolean }
 export interface OwnerProfile extends OwnerRow { notes: string | null; canEdit: boolean; units: OwnerUnit[] }
 export interface OwnerEvent { kind: string; data: Record<string, unknown> | null; created_at: string; broker_name: string | null }

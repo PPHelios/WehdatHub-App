@@ -49,7 +49,7 @@ export function OwnersScreen() {
             <Pressable testID={`owner-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('Owner', { id: item.id, name: item.name || ot(lang, 'noName') })} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.name, { color: colors.text }]}>{item.name || ot(lang, 'noName')}{item.is_private ? ' ⭐' : ''}</Text>
               <Text style={{ color: colors.muted }}>{item.code} · {item.unit_count} {ot(lang, 'unit')}</Text>
-              {item.phones?.length ? <Text style={{ color: colors.muted }}>{item.phones.map((p) => `+${p}`).join(' · ')}</Text> : null}
+              {item.phones?.length ? <Text style={{ color: colors.muted }}>{item.phones.map((p) => (item.phones_masked ? p : `+${p}`)).join(' · ')}</Text> : null}
               {item.flag ? <Text style={{ color: colors.danger }}>⚠️ {item.flag}</Text> : null}
             </Pressable>
           )}

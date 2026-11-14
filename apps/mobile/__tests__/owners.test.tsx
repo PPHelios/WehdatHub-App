@@ -28,6 +28,12 @@ test('the owners list shows each owner', async () => {
   await waitFor(() => expect(screen.getByText(/Hassan/)).toBeTruthy());
 });
 
+test('the list shows a masked phone as sent, with no plus sign', async () => {
+  m.owners.mockResolvedValue({ items: [{ ...owner, phones: ['••••0001'], phones_masked: true }], more: false });
+  wrap(<OwnersScreen />);
+  await waitFor(() => expect(screen.getByText('••••0001')).toBeTruthy());
+});
+
 test('only the agency owner sees the VIP switch', async () => {
   wrap(<OwnerScreen />);
   await waitFor(() => expect(screen.getByText(/A-1/)).toBeTruthy());
