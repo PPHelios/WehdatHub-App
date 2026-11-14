@@ -1,0 +1,8 @@
+import type { Lang } from '@wehdathub/shared';
+
+const TEXT = {
+  ar: { code: 'كود الوحدة (اختياري)', currency: 'العملة', rentPeriod: 'الإيجار', monthly: 'شهري', yearly: 'سنوي', land: 'مساحة الأرض م²', garden: 'الجنينة م²', roof: 'الروف م²', quarter: 'الربع', payment: 'السداد والمشروع', installment: 'قيمة القسط', freq: 'دورية القسط', last: 'آخر قسط (YYYY-MM)', cash: 'سعر الكاش', maintPct: 'الصيانة %', maintTerms: 'شروط الصيانة', project: 'المشروع', developer: 'المطور', ownerLead: 'كود العميل لو المالك عميل عندك (L-0042)', more: 'تفاصيل أكتر', commission: 'العمولة', coBroker: 'وسيط مشارك', features: 'المميزات', featuresOther: 'مميزات تانية (بفاصلة)', m: 'شهري', q: 'ربع سنوي', s: 'نصف سنوي', a: 'سنوي', g: { orientation: 'الاتجاه', layout: 'التقسيم', outdoor: 'الخارجي', view: 'الإطلالة', equipment: 'التجهيزات', building: 'المبنى' } },
+  en: { code: 'Unit code (optional)', currency: 'Currency', rentPeriod: 'Rent', monthly: 'Monthly', yearly: 'Yearly', land: 'Land m²', garden: 'Garden m²', roof: 'Roof m²', quarter: 'Quarter', payment: 'Payment and project', installment: 'Installment amount', freq: 'Frequency', last: 'Last installment (YYYY-MM)', cash: 'Cash price', maintPct: 'Maintenance %', maintTerms: 'Maintenance terms', project: 'Project', developer: 'Developer', ownerLead: 'Lead code if the owner is your client (L-0042)', more: 'More details', commission: 'Commission', coBroker: 'Co-broker', features: 'Features', featuresOther: 'Other features (comma separated)', m: 'Monthly', q: 'Quarterly', s: 'Semi-annual', a: 'Annual', g: { orientation: 'Orientation', layout: 'Layout', outdoor: 'Outdoor', view: 'View', equipment: 'Equipment', building: 'Building' } },
+};
+
+export const ux = (lang: Lang) => TEXT[lang];

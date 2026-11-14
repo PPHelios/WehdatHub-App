@@ -21,10 +21,12 @@ export function AskScreen() {
   const [out, setOut] = useState<AskAnswer | null>(null);
   const [asked, setAsked] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const ask = async (text = question, voice = false) => {
     setError(null);
     if (!text.trim()) return setError(t(lang, 'askEmpty'));
+    setBusy(true);
     try {
       setOut(await timed('ask', () => api.ask(text.trim()), { kind: voice ? 'voice' : 'text' }));
       setAsked(text.trim());
@@ -32,6 +34,8 @@ export function AskScreen() {
       setOut(null);
       if (e instanceof ApiClientError && e.code === 'ai_blocked' && typeof e.extra.message === 'string') setError(e.extra.message);
       else setError(e instanceof ApiClientError && e.status === 503 ? t(lang, 'aiBlocked') : errorText(e, lang));
+    } finally {
+      setBusy(false);
     }
   };
   const onVoice = async (file: VoiceFile) => {
@@ -49,8 +53,8 @@ export function AskScreen() {
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Field testID="ask-input" label={t(lang, 'askHint')} value={question} onChangeText={setQuestion} multiline />
       <View style={styles.row}>
-        <View style={styles.flex}><Button testID="ask-go" label={t(lang, 'askBtn')} onPress={() => ask()} /></View>
-        <View style={styles.flex}><HoldMic testID="ask-mic" label={t(lang, 'micAsk')} onFile={onVoice} onError={setError} /></View>
+        <View style={styles.flex}><Button testID="ask-go" label={t(lang, 'askBtn')} loading={busy} onPress={() => ask()} /></View>
+        <View style={styles.flex}><HoldMic testID="ask-mic" label={t(lang, 'micAsk')} onFile={onVoice} onError={setError} disabled={busy} /></View>
       </View>
       {error ? <Text testID="ask-error" style={{ color: colors.danger }}>{error}</Text> : null}
       {out ? (

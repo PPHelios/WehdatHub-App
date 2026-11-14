@@ -29,7 +29,13 @@ export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRe
   const live = useRef({ photos, onChange, onDragging });
   live.current = { photos, onChange, onDragging };
 
-  const responder = (index: number) =>
+  // One handler per row, kept between renders: a new one on every render dropped the grab the moment the row moved.
+  const cache = useRef<Record<number, ReturnType<typeof PanResponder.create>>>({});
+  const responder = (index: number) => {
+    if (!cache.current[index]) cache.current[index] = makeResponder(index);
+    return cache.current[index];
+  };
+  const makeResponder = (index: number) =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       // Claim the drag before the page's scroll view does, so a small finger move never turns into a scroll.

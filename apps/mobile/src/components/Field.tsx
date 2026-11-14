@@ -8,8 +8,8 @@ export function Field({ label, required, invalid, hint, ...props }: { label: str
   const { colors } = useTheme();
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.label, { color: colors.muted }]}>{label}{required ? <Text style={{ color: colors.danger }}> *</Text> : null}</Text>
-      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : required ? colors.accent : colors.border, backgroundColor: colors.card }, props.multiline && styles.multi, props.style]} />
+      <Text style={[styles.label, { color: colors.muted }]}>{label}{required ? <Text style={{ color: colors.primary }}> *</Text> : null}</Text>
+      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : required ? colors.primary : colors.border, backgroundColor: colors.card }, props.multiline && styles.multi, props.style]} />
       {hint ? <Text testID="field-hint" style={[styles.label, { color: colors.accent }]}>{`\u202A${hint}\u202C`}</Text> : null}
     </View>
   );

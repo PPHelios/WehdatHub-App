@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import { errorCodes, isErrorWithCode, pick, types } from '@react-native-documents/picker';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import type { Asset, ImagePickerResponse } from 'react-native-image-picker';
 import type { UploadFile } from '@wehdathub/shared';
@@ -14,6 +16,16 @@ const toFiles = (r: ImagePickerResponse): UploadFile[] =>
 
 export async function pickPhotos(room: number): Promise<UploadFile[]> {
   if (room <= 0) return [];
+  // Android: the system file chooser always allows picking many photos at once. Some phones' own gallery (Xiaomi) picks one at a time.
+  if (Platform.OS === 'android') {
+    try {
+      const got = await pick({ type: [types.images], allowMultiSelection: true });
+      return got.slice(0, room).map((a, i) => ({ uri: a.uri, name: a.name || `photo_${Date.now()}_${i}.jpg`, type: a.type || 'image/jpeg' }));
+    } catch (e) {
+      if (isErrorWithCode(e) && e.code === errorCodes.OPERATION_CANCELED) return [];
+      throw e;
+    }
+  }
   return toFiles(await launchImageLibrary({ ...OPTIONS, selectionLimit: room }));
 }
 

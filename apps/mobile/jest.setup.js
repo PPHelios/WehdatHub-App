@@ -21,6 +21,7 @@ jest.mock('@react-native-async-storage/async-storage', () => {
   };
 });
 jest.mock('react-native-image-picker', () => ({ launchImageLibrary: jest.fn().mockResolvedValue({ assets: [] }), launchCamera: jest.fn().mockResolvedValue({ assets: [] }) }));
+jest.mock('@react-native-documents/picker', () => ({ pick: jest.fn().mockResolvedValue([]), types: { images: 'image/*' }, isErrorWithCode: jest.fn(() => false), errorCodes: { OPERATION_CANCELED: 'OPERATION_CANCELED' } }));
 jest.mock('react-native-share', () => ({ __esModule: true, default: { open: jest.fn().mockResolvedValue({}) } }));
 jest.mock('@notifee/react-native', () => ({ __esModule: true, default: { cancelAllNotifications: jest.fn().mockResolvedValue(null), setBadgeCount: jest.fn().mockResolvedValue(null) } }));
 jest.mock('react-native-audio-recorder-player', () => ({ __esModule: true, default: { startRecorder: jest.fn(), stopRecorder: jest.fn() } }));

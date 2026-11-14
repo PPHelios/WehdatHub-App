@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { MAX_WIDTH } from '../layout';
 import { spacing } from '../theme';
@@ -21,9 +21,15 @@ export function PhotoGallery({ photos, closeLabel }: { photos: Photo[]; closeLab
   const [index, setIndex] = useState(0);
   const [full, setFull] = useState<number | null>(null);
   const listRef = useRef<FlatList<Photo>>(null);
-  if (!photos.length) return null;
   const n = photos.length;
   const loop = n > 1;
+  // Some phones ignore the start position: put the list on the middle copy once it is laid out, so a swipe back has room.
+  useEffect(() => {
+    if (!loop) return undefined;
+    const tm = setTimeout(() => listRef.current?.scrollToOffset({ offset: width * n, animated: false }), 50);
+    return () => clearTimeout(tm);
+  }, [loop, n, width]);
+  if (!photos.length) return null;
   const onEnd = (x: number) => {
     const raw = Math.round(x / width);
     const r = realIndex(raw, n);
@@ -69,6 +75,11 @@ function FullScreen({ photos, start, onClose, closeLabel }: { photos: Photo[]; s
   const n = photos.length;
   const loop = n > 1;
   const listRef = useRef<FlatList<Photo>>(null);
+  useEffect(() => {
+    if (!loop) return undefined;
+    const tm = setTimeout(() => listRef.current?.scrollToOffset({ offset: width * (n + start), animated: false }), 50);
+    return () => clearTimeout(tm);
+  }, [loop, n, width, start]);
   const onEnd = (x: number) => {
     const raw = Math.round(x / width);
     const r = realIndex(raw, n);
