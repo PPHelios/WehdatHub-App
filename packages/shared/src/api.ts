@@ -83,6 +83,9 @@ export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; off
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
 export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; start: number; end: number; days: number[]; max_jumps: number }; roundRobin: boolean; order: string[]; brokers: { id: string; name: string; role: string; away: boolean; open: number }[] }
 export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
+export interface AskOffer { area: number; floor: string | number | null; price: number; down: number | null; monthly: number | null }
+export interface AskProject { name: string; name_en: string | null; place: string | null; offers: AskOffer[]; client_text: string }
+export interface AskResults { chips: { key: string; value: string }[]; dropped: string[]; total_projects: number; total_offers: number; page: number; pages: number; projects: AskProject[] }
 export interface InboxItem { id: string; kind: string; title: string; body: string; url: string | null; created_at: string; read: boolean }
 export interface InboxPage { items: InboxItem[]; page: number; more: boolean; unread: number }
 export interface OwnerRow { id: string; name: string | null; code: string | null; phones: string[]; /** The list carries only the last four digits ("••••1234"); the full number is on the owner page. */ phones_masked?: boolean; unit_count: number; flag: string | null; is_private: boolean }
@@ -301,6 +304,7 @@ export function createApiClient(opts: ApiClientOptions) {
     sentLinks: (offset = 0) => request<{ offset: number; hasMore: boolean; items: SentLink[] }>('GET', '/links', undefined, { offset: offset || undefined }),
     extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string }>('POST', '/leads/extract', { message }),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
+    askResults: (q: string, page = 1, sort: 'best' | 'cheap' = 'best', drop: string[] = []) => request<AskResults>('GET', '/ask/results', undefined, { q, page, sort, ...(drop.length ? { drop: drop.join(',') } : {}) }),
     notificationsInbox: (page = 1) => request<InboxPage>('GET', '/notifications', undefined, { page }),
     notificationRead: (id: string) => request<{ ok: boolean; unread: number }>('POST', `/notifications/${encodeURIComponent(id)}/read`, {}),
     notificationDelete: (id: string) => request<{ ok: boolean; unread: number }>('POST', `/notifications/${encodeURIComponent(id)}/delete`, {}),
