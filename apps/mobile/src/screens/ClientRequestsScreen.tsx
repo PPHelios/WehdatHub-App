@@ -76,7 +76,7 @@ export function ClientRequestsScreen() {
                 <Pressable testID={`request-lead-${r.id}`} accessibilityRole="button" onPress={() => nav.navigate('Lead', { ref: r.lead!.ref })}>
                   <Text style={{ color: colors.primary }}>👤 {r.lead.name || r.lead.ref}</Text>
                 </Pressable>
-              ) : null}
+              ) : <Text testID={`request-nolead-${r.id}`} style={{ color: colors.muted }}>{t(lang, 'noLead')}</Text>}
               <Text style={{ color: colors.muted }}>{r.matches} {t(lang, 'matchesN')}</Text>
               <View style={styles.row}>
                 {tab === 'pending' ? <View style={styles.flex}><Button testID={`request-fulfil-${r.id}`} variant="secondary" label={t(lang, 'markFulfilled')} onPress={async () => { await api.clientRequestFulfil(r.id); await refresh(); }} /></View> : null}
