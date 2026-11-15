@@ -1,0 +1,7 @@
+// React Native packages are resolved with node so hoisted monorepo installs work
+pluginManagement { includeBuild(["node", "--print", "require('path').dirname(require.resolve('@react-native/gradle-plugin/package.json'))"].execute(null, rootDir).text.trim()) }
+plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+rootProject.name = 'WehdatHub'
+include ':app'
+includeBuild(["node", "--print", "require('path').dirname(require.resolve('@react-native/gradle-plugin/package.json'))"].execute(null, rootDir).text.trim())

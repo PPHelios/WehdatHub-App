@@ -1,0 +1,39 @@
+# Resolve react_native_pods.rb with node to allow for hoisting
+require Pod::Executable.execute_command('node', ['-p',
+  'require.resolve(
+    "react-native/scripts/react_native_pods.rb",
+    {paths: [process.argv[1]]},
+  )', __dir__]).strip
+
+platform :ios, min_ios_version_supported
+prepare_react_native_project!
+
+# React Native Firebase (alerts and crash reports) needs dynamic frameworks.
+use_frameworks! :linkage => :dynamic
+
+target 'WehdatHub' do
+  config = use_native_modules!
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  post_install do |installer|
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      # :ccache_enabled => true
+    )
+
+    # With dynamic frameworks (needed by Firebase) a pod must link what it uses itself: the image picker uses the UTType functions.
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'react-native-image-picker'
+      target.build_configurations.each do |config|
+        config.build_settings['OTHER_LDFLAGS'] = '$(inherited) -framework UniformTypeIdentifiers -framework MobileCoreServices'
+      end
+    end
+  end
+end
