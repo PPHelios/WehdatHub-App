@@ -15,6 +15,7 @@ import type { IconName } from './components/Icon';
 import { Logo } from './components/Logo';
 import { FONT_BOLD } from './fonts';
 import { AddUnitScreen } from './screens/AddUnitScreen';
+import { WhatsAppImportScreen } from './screens/WhatsAppImportScreen';
 import { LeadScreen } from './screens/LeadScreen';
 import { LeadsScreen } from './screens/LeadsScreen';
 import { NewLeadScreen } from './screens/NewLeadScreen';
@@ -70,11 +71,17 @@ const UnitNarrow = narrow(UnitScreen);
 const LeadNarrow = narrow(LeadScreen);
 const NewLeadNarrow = narrow(NewLeadScreen);
 const AddUnitNarrow = narrow(AddUnitScreen);
+const WhatsAppImportNarrow = narrow(WhatsAppImportScreen);
 import { t } from './i18n';
 import { useTheme } from './theme';
 
-export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
-export type RootStackParams = { Tabs: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
+export type AddUnitParams = {
+  text?: string; photos?: UploadFile[]; voice?: UploadFile;
+  /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string;
+  /** Opened from the WhatsApp import: start empty (the person's own saved draft is left alone), and when saved go back to the import list. */ fresh?: boolean; importId?: string;
+  /** The import's AI switch is off: the message is read by rules only (place and features), never sent to AI. */ noAi?: boolean;
+};
+export type RootStackParams = { Tabs: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = Record<TabKey | 'AddUnitTab', undefined>;
 
@@ -193,6 +200,7 @@ export function RootNavigation() {
           <Stack.Screen name="TodayList" component={TodayNarrow} options={{ title: t(currentLang(), 'today') }} />
           <Stack.Screen name="Ask" component={AskNarrow} options={{ title: t(currentLang(), 'ask') }} />
           <Stack.Screen name="AddUnit" component={AddUnitNarrow} options={{ title: t(currentLang(), 'addUnit') }} />
+          <Stack.Screen name="WhatsAppImport" component={WhatsAppImportNarrow} options={{ title: t(currentLang(), 'whatsappImport') }} />
         </Stack.Navigator>
       )}
     </NavigationContainer>

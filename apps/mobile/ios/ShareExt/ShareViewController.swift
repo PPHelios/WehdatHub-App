@@ -47,11 +47,16 @@ class ShareViewController: UIViewController {
         var name = "shared_\(i)"
         var mime = match.1
         if let url = item as? URL {
-          data = try? Data(contentsOf: url)
           name = url.lastPathComponent
           let ext = url.pathExtension.lowercased()
           if let t = UTType(filenameExtension: ext), let m = t.preferredMIMEType { mime = m }
           if ext == "opus" || ext == "ogg" { mime = "audio/ogg" }
+          // A file is copied, never read into memory: a WhatsApp chat export (a zip with photos) can be hundreds of MB, far more than a share extension may hold.
+          let copy = dir.appendingPathComponent("\(i)_\(name.replacingOccurrences(of: "/", with: "_"))")
+          if (try? FileManager.default.copyItem(at: url, to: copy)) != nil {
+            lock.lock(); self.files.append(["path": copy.path, "mimeType": ext == "zip" ? "application/zip" : mime, "name": name]); lock.unlock()
+          }
+          return
         } else if let img = item as? UIImage {
           data = img.jpegData(compressionQuality: 0.85)
           name = "shared_\(i).jpg"

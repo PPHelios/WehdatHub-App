@@ -16,7 +16,7 @@ export function navPlan(r: Rights): { tabs: TabKey[]; initial: TabKey } {
 export const TAB_ICON: Record<TabKey, IconName> = { Today: 'today', Search: 'search', Leads: 'leads', Map: 'map', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'add', Plan: 'plan' };
 export const TAB_TITLE: Record<TabKey, StringKey> = { Today: 'today', Search: 'searchTab', Leads: 'leadsTab', Map: 'mapTab', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'addUnit', Plan: 'plan' };
 
-export type MoreScreenName = 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Inbox' | 'ClientRequests' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Prices' | 'WinLoss' | 'Report' | 'UnitsList' | 'LeadsList' | 'MapList' | 'TodayList' | 'AddUnit' | 'LeadRules' | 'Pipeline' | 'Leases' | 'SavedSearches';
+export type MoreScreenName = 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Inbox' | 'ClientRequests' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Prices' | 'WinLoss' | 'Report' | 'UnitsList' | 'LeadsList' | 'MapList' | 'TodayList' | 'AddUnit' | 'WhatsAppImport' | 'LeadRules' | 'Pipeline' | 'Leases' | 'SavedSearches';
 export interface MoreItem { id: string; icon: string; label: StringKey; screen: MoreScreenName }
 
 /**
@@ -29,6 +29,7 @@ export function moreItems(r: Rights, tabs: TabKey[], platformOwner: boolean): Mo
   const rows: [boolean, MoreItem, TabKey?][] = [
     [work, { id: 'links', icon: '👁', label: 'sentLinks', screen: 'SentLinks' }],
     [!tabs.includes('AddUnit') && r.addUnits, { id: 'add-unit', icon: '＋', label: 'addUnit', screen: 'AddUnit' }],
+    [(manager || r.dataEntry) && r.addUnits, { id: 'whatsapp-import', icon: '💬', label: 'whatsappImport', screen: 'WhatsAppImport' }],
     [!tabs.includes('Units'), { id: 'units', icon: '▤', label: 'units', screen: 'UnitsList' }],
     [work && r.leads && !tabs.includes('Today'), { id: 'today', icon: '🏠', label: 'today', screen: 'TodayList' }],
     [work && r.leads && !tabs.includes('Leads'), { id: 'leads', icon: '👤', label: 'leadsTab', screen: 'LeadsList' }],

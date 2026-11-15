@@ -1,0 +1,61 @@
+import type { Lang } from '@wehdathub/shared';
+
+// Strings of the WhatsApp import screen (a chat export zip shared into the app, read on the phone).
+const TEXT = {
+  ar: {
+    title: 'استيراد من واتساب',
+    intro: 'من واتساب: الجروب ← المزيد ← تصدير الشات ← «إرفاق الوسائط»، وشاركه مع التطبيق. الملف بيتقري على تليفونك بس، والفيديوهات مش بتتحمل.',
+    pick: 'اختار ملف الـ zip',
+    from: 'من تاريخ',
+    days7: '٧ أيام', days14: '١٤ يوم', days30: '٣٠ يوم', days90: '٩٠ يوم',
+    ai: 'استخدم الذكاء الاصطناعي لملء اللي ناقص',
+    aiHint: 'من غيره بتتقرا الرسالة بالقواعد بس، واللي ناقص بتكمله بإيدك في شاشة التعديل.',
+    read: 'اقرأ الملف',
+    cancel: 'إلغاء',
+    stageList: 'فتح الملف', stageChat: 'قراءة الشات', stagePhotos: 'تجهيز الصور', stageMatch: 'توزيع الصور على البوستات', stageCodes: 'مراجعة الأكواد',
+    keepOpen: 'سيب التطبيق مفتوح لحد ما يخلص.',
+    notAllowed: 'استيراد واتساب للمديرين ومدخلي البيانات. تقدر تضيف وحدة من الشات بنفسك.',
+    addOne: 'إضافة وحدة',
+    errNotZip: 'الملف مش zip سليم.', errPassword: 'الملف عليه باسورد.', errBig: 'الملف أكبر من 1 جيجا.', errSpace: 'مفيش مساحة كفاية على التليفون.', errNoChat: 'مفيش ملف الشات (.txt) جوه الـ zip.', errCancelled: 'اتلغت القراءة.', errFailed: 'مقدرناش نقرا الملف. جرب تاني.',
+    noPosts: 'ملقيناش بوستات فيها وحدات من التاريخ ده.',
+    summary: '{n} بوست · {p} صورة', videos: '{n} فيديو اتتخطى (مش بيتحمل)', videosPost: '🎞 {n} فيديو اتتخطى (مش بيتحمل)', missing: '{n} صورة مش موجودة في الملف',
+    kept: '{k} / 15 صورة', pickNote: 'اختار 15 صورة بس: أول 15 معلّمين، دوس على صورة عشان تحتفظ بيها أو تسيبها.',
+    badgeUpdate: 'تحديث للوحدة {c}', badgeHas: 'فيها {n} صورة', badgeNew: 'وحدة جديدة {c}', badgeTaken: 'الكود ده لوحدة مش من حقك تعدلها', badgeDup: 'نفس الكود في بوست {n}', badgeChecking: 'بنراجع الأكواد…', badgeFailed: 'مقدرناش نراجع الأكواد دلوقتي.',
+    edit: 'تعديل', editUpdate: 'افتح الوحدة', select: 'تحديد',
+    addSelected: 'ضيف المختار', aiUpTo: 'ذكاء اصطناعي: حتى {n} رصيد', aiOff: 'من غير ذكاء اصطناعي',
+    stateWorking: 'بنضيف…', stateSaved: 'اتضافت', stateFailed: 'فشلت', stateNeedsEdit: 'محتاجة تعديل',
+    noteNoAi: 'من غير ذكاء اصطناعي: كمّل البيانات بإيدك.', noteDuplicate: 'شكلها نفس الوحدة {c}.', noteUpdate: 'الكود ده لوحدة موجودة: افتحها وراجع التعديل.', noteAiBlocked: 'الذكاء الاصطناعي مش متاح دلوقتي.', noteUploadFailed: 'الصور مارفعتش: جرب تاني.', noteFailed: 'حصلت مشكلة وقت الحفظ.',
+    doneLine: 'اتضافت {a} · محتاجة تعديل {b}', openUnit: 'افتح',
+    leaveWarn: 'لو قفلت الشاشة دلوقتي الإضافة هتقف.',
+  },
+  en: {
+    title: 'Import from WhatsApp',
+    intro: 'In WhatsApp: the group → More → Export chat → “Attach media”, then share it with this app. The file is read on your phone only, and videos are not uploaded.',
+    pick: 'Choose the zip file',
+    from: 'From date',
+    days7: '7 days', days14: '14 days', days30: '30 days', days90: '90 days',
+    ai: 'Use AI to fill what is missing',
+    aiHint: 'Without it each message is read by rules only, and you finish the missing details by hand in the edit screen.',
+    read: 'Read the file',
+    cancel: 'Cancel',
+    stageList: 'Opening the file', stageChat: 'Reading the chat', stagePhotos: 'Preparing the photos', stageMatch: 'Placing photos on posts', stageCodes: 'Checking the codes',
+    keepOpen: 'Keep the app open until it finishes.',
+    notAllowed: 'WhatsApp import is for managers and data entry. You can still add a unit from a message yourself.',
+    addOne: 'Add a unit',
+    errNotZip: 'That is not a readable zip.', errPassword: 'The zip is password-protected.', errBig: 'The file is bigger than 1 GB.', errSpace: 'Not enough space on the phone.', errNoChat: 'No chat text (.txt) inside the zip.', errCancelled: 'Reading was cancelled.', errFailed: 'Could not read the file. Try again.',
+    noPosts: 'No posts describing a unit were found from that date.',
+    summary: '{n} posts · {p} photos', videos: '{n} videos skipped (not uploaded)', videosPost: '🎞 {n} videos skipped (not uploaded)', missing: '{n} photos missing from the file',
+    kept: '{k} / 15 photos', pickNote: 'Keep 15 photos only: the first 15 are kept, tap a photo to keep it or leave it out.',
+    badgeUpdate: 'Updates unit {c}', badgeHas: 'already has {n} photos', badgeNew: 'New unit {c}', badgeTaken: "Code belongs to a unit you can't change", badgeDup: 'Same code as post {n}', badgeChecking: 'Checking the codes…', badgeFailed: 'Could not check the codes now.',
+    edit: 'Edit', editUpdate: 'Open the unit', select: 'Select',
+    addSelected: 'Add selected', aiUpTo: 'AI: up to {n} credits', aiOff: 'no AI',
+    stateWorking: 'Adding…', stateSaved: 'Added', stateFailed: 'Failed', stateNeedsEdit: 'Needs edit',
+    noteNoAi: 'No AI: finish the details by hand.', noteDuplicate: 'Looks like unit {c}.', noteUpdate: 'This code is an existing unit: open it and check the change.', noteAiBlocked: 'AI is unavailable now.', noteUploadFailed: 'Photos did not upload: try again.', noteFailed: 'Something went wrong while saving.',
+    doneLine: '{a} added · {b} need an edit', openUnit: 'Open',
+    leaveWarn: 'Leaving this screen now stops the adding.',
+  },
+} as const;
+
+export type ImportText = Record<keyof (typeof TEXT)['en'], string>;
+export const wi = (lang: Lang): ImportText => (TEXT[lang === 'en' ? 'en' : 'ar'] as unknown) as ImportText;
+export const fill = (s: string, vars: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));

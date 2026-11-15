@@ -1,7 +1,8 @@
 import { AppState, NativeModules, Platform } from 'react-native';
 import type { UploadFile } from '@wehdathub/shared';
+import { looksLikeZip } from './whatsappImport';
 
-export interface SharedItems { text?: string; photos?: UploadFile[]; voice?: UploadFile }
+export interface SharedItems { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** A WhatsApp "Export chat" zip: opens the import screen instead of Add unit. */ zip?: UploadFile }
 interface RawShare { text?: string | null; files?: { uri: string; mimeType?: string | null; name?: string | null }[] }
 interface ShareModule { getPending(): Promise<RawShare | null>; clear(): Promise<void> }
 
@@ -12,16 +13,19 @@ export function classifyShare(raw: RawShare | null): SharedItems | null {
   if (!raw) return null;
   const photos: UploadFile[] = [];
   let voice: UploadFile | undefined;
+  let zip: UploadFile | undefined;
   (raw.files ?? []).forEach((f, i) => {
     const type = (f.mimeType || '').toLowerCase();
     const name = f.name || `shared_${i}`;
-    if (type.startsWith('image/')) photos.push({ uri: f.uri, name, type: type || 'image/jpeg' });
+    // WhatsApp's "Export chat" with media is a .zip (some phones give no type, so the name counts too).
+    if (looksLikeZip({ name: f.name, type })) { if (!zip) zip = { uri: f.uri, name, type: 'application/zip' }; }
+    else if (type.startsWith('image/')) photos.push({ uri: f.uri, name, type: type || 'image/jpeg' });
     // WhatsApp voice notes arrive as .opus/.ogg; the server's voice reader accepts ogg, m4a, mp4, mpeg, aac and wav.
     else if (type.startsWith('audio/') && !voice) voice = { uri: f.uri, name, type: type === 'audio/opus' ? 'audio/ogg' : type };
   });
   const text = (raw.text || '').trim();
-  if (!photos.length && !voice && !text) return null;
-  return { text: text || undefined, photos: photos.length ? photos : undefined, voice };
+  if (!photos.length && !voice && !text && !zip) return null;
+  return { text: text || undefined, photos: photos.length ? photos : undefined, voice, zip };
 }
 
 /** Reads what another app shared into this one (Android: Share menu; iPhone: the Share extension) and clears it. */

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { startUsage } from './src/usage';
+import { startUsage, usage } from './src/usage';
 import { Alert, AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient } from '@tanstack/react-query';
@@ -72,7 +72,9 @@ export default function App() {
   useEffect(() => {
     if (status !== 'signedIn') return;
     return watchShares((s) => {
-      const go = () => navigationRef.navigate('AddUnit', s);
+      // A WhatsApp chat export (a zip) opens the import screen; everything else opens Add unit.
+      if (s.zip) usage('wa_import_share', true);
+      const go = () => (s.zip ? navigationRef.navigate('WhatsAppImport', { zip: s.zip }) : navigationRef.navigate('AddUnit', s));
       if (navigationRef.isReady()) go();
       else setTimeout(go, 800);
     });

@@ -80,6 +80,9 @@ export function AddUnitScreen() {
   const dirty = useRef(false);
   const shared = useRef(route.params);
   const editCode = route.params?.edit;
+  // Opened from the WhatsApp import: its own draft, not the person's saved one; saving goes back to the import list.
+  const importId = route.params?.importId;
+  const fresh = Boolean(route.params?.fresh);
   const [version, setVersion] = useState(0);
   const savedDetails = useRef<string | null>(null);
   const originalIds = useRef<string[]>([]);
@@ -150,6 +153,10 @@ export function AddUnitScreen() {
           setVersion(r.version);
           setPhotos(u.images.map((i) => ({ uri: i.url, name: i.id, type: EXISTING })));
           originalIds.current = u.images.map((i) => i.id);
+          // From the WhatsApp import: the post's photos join the unit's own (the first 15 are kept), and its message fills in.
+          const sh = shared.current;
+          if (sh?.photos?.length) setPhotos((p) => addPicked(p, sh.photos!));
+          if (sh?.text) { setDescribe(sh.text); if (!sh.noAi) await runFill({ describe: sh.text }); }
         } catch (e) {
           setError(errorText(e, lang));
         }
@@ -157,7 +164,7 @@ export function AddUnitScreen() {
         return;
       }
       const d = await loadDraft();
-      if (d && !isEmptyDraft(d)) {
+      if (!fresh && d && !isEmptyDraft(d)) {
         setFields(d.fields);
         descAuto.current = isAutoDraft(str(d.fields.clean_summary));
         setDescribe(d.describe);
@@ -172,17 +179,18 @@ export function AddUnitScreen() {
         if (s.text) setDescribe((cur) => (cur ? `${cur}\n${s.text}` : s.text!));
       }
       setReady(true);
-      if (s?.text || s?.voice) await runFill({ describe: s.text, voice: s.voice });
+      if (s?.noAi && s.text) readMessage(s.text, {}).then((p) => { if (Object.keys(p).length) { patch(p); setNotice(L.boxFromText); } }).catch(() => undefined);
+      else if (s?.text || s?.voice) await runFill({ describe: s.text, voice: s.voice });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Save the draft as the broker types (after a short pause).
   useEffect(() => {
-    if (!ready || editCode) return;
+    if (!ready || editCode || fresh) return;
     const h = setTimeout(() => saveDraft({ fields, photos, describe, photoAi }), 600);
     return () => clearTimeout(h);
-  }, [fields, photos, describe, photoAi, ready, editCode]);
+  }, [fields, photos, describe, photoAi, ready, editCode, fresh]);
 
   // The server checks the form as the broker types: what is missing, warnings, a duplicate and (edit) what changes.
   useEffect(() => {
@@ -304,6 +312,7 @@ export function AddUnitScreen() {
         tick();
         saved.current = true;
         await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] })]);
+        if (importId) return nav.navigate('WhatsAppImport', { saved: { id: importId, code: editCode } });
         return nav.goBack();
       }
       const sent = { ...body, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
@@ -319,8 +328,9 @@ export function AddUnitScreen() {
       track('unit_saved', { photos: files.length });
       // A compound the list does not know is saved as pending on the server; show it on this phone straight away.
       if (fields.compound_new === '1' && str(fields.compound)) addPendingPlace(str(fields.compound)).catch(() => undefined);
-      await clearDraft();
+      if (!fresh) await clearDraft();
       await qc.invalidateQueries({ queryKey: ['units'] });
+      if (importId) return nav.navigate('WhatsAppImport', { saved: { id: importId, code: r.code } });
       nav.replace('Unit', { code: r.code });
     } catch (e) {
       track('unit_save_refused', { reason: e instanceof ApiClientError ? String(e.code || e.status) : 'error' });

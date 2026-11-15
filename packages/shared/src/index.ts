@@ -4,3 +4,4 @@ export * from './api';
 export * from './validation';
 export * from './list';
 export * from './placeMatch';
+export * from './chat';

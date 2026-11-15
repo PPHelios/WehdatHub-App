@@ -221,6 +221,9 @@ export interface AppConfig {
 }
 /** key: set once the photo is stored (direct upload); pct: upload progress 0 to 100; failed: the upload stopped and can be retried. */
 export interface UploadFile { uri: string; name: string; type: string; key?: string; pct?: number; failed?: boolean; /** Picked but not one of the 15 kept: never uploaded or saved. */ notKept?: boolean }
+/** One code of a WhatsApp post: an update of a unit the person may change, a free code, or a unit they may not change (nothing else shown). */
+export type CodeState = { state: 'update'; code: string; photos: number; status: string } | { state: 'new' } | { state: 'taken' };
+export interface CodeCheck { codes: Record<string, CodeState>; max_photos: number; /** AI credits one post may cost. */ ai_cost: number }
 export interface PhotoUploadLink { key: string; upload_url: string; thumb_key: string; thumb_upload_url: string | null }
 export interface SearchAsk { terms: string[]; numbers?: unknown[]; aiDown?: boolean; withoutTotal: number }
 export interface SearchResult {
@@ -558,6 +561,8 @@ export function createApiClient(opts: ApiClientOptions) {
     unitEditFields: (code: string) => request<{ code: string; version: number; fields: UnitFields }>('GET', `/units/${encodeURIComponent(code)}/edit`),
     saveUnitEdit: (code: string, version: number, fields: UnitFields, saveKey?: string) => request<{ code: string; version: number }>('POST', `/units/${encodeURIComponent(code)}/edit`, { version, fields, ...(saveKey ? { save_key: saveKey } : {}) }),
     /** Was the save with this key stored? Asked once when a save has not answered for 60 seconds. */
+    /** The codes a WhatsApp chat's posts write: update, new or taken, in one call (also the AI credit cost of a post). */
+    codeCheck: (codes: string[]) => request<CodeCheck>('POST', '/units/code-check', { codes }),
     unitSaveStatus: (key: string) => request<{ saved: boolean; code?: string }>('GET', '/units/save-status', undefined, { key }),
     placeSuggest: (q: string) => request<{ items: PlaceSuggestion[] }>('GET', '/places/suggest', undefined, { q }),
     /** The box's suggestions: places first, then features. */

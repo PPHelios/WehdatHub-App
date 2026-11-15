@@ -36,6 +36,9 @@
             <data android:mimeType="text/plain" />
             <data android:mimeType="image/*" />
             <data android:mimeType="audio/*" />
+            <!-- A WhatsApp "Export chat" (with media) is a zip: it opens the import screen. -->
+            <data android:mimeType="application/zip" />
+            <data android:mimeType="application/x-zip-compressed" />
         </intent-filter>
         <intent-filter>
             <action android:name="android.intent.action.SEND_MULTIPLE" />
