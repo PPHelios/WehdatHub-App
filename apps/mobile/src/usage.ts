@@ -6,7 +6,7 @@ import { useAuth } from './auth';
  * Feature use and timings, sent to the server in small batches (POST /usage-events). Never a name, phone or free text:
  * only an event name, ok/failed, milliseconds and short codes. Sending is quiet and never blocks or breaks the app.
  */
-export type UsageEvent = 'ask' | 'search' | 'voice_search' | 'open_unit' | 'flyer_make' | 'flyer_save' | 'flyer_share' | 'client_link' | 'call_tap' | 'whatsapp_tap' | 'lead_assign' | 'lead_paste' | 'unit_save' | 'photo_upload' | 'screen_slow';
+export type UsageEvent = 'ask' | 'search' | 'voice_search' | 'open_unit' | 'flyer_make' | 'flyer_share' | 'client_link' | 'call_tap' | 'whatsapp_tap' | 'lead_assign' | 'lead_paste' | 'unit_save' | 'unit_share' | 'photo_upload' | 'screen_slow';
 
 type Item = { event: UsageEvent; ok: boolean; ms?: number; meta?: Record<string, string | number | boolean> };
 

@@ -83,9 +83,95 @@ export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; off
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
 export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; start: number; end: number; days: number[]; max_jumps: number }; roundRobin: boolean; order: string[]; brokers: { id: string; name: string; role: string; away: boolean; open: number }[] }
 export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
-export interface AskOffer { area: number; floor: string | number | null; price: number; down: number | null; monthly: number | null }
-export interface AskProject { name: string; name_en: string | null; place: string | null; offers: AskOffer[]; client_text: string }
-export interface AskResults { chips: { key: string; value: string }[]; dropped: string[]; total_projects: number; total_offers: number; page: number; pages: number; projects: AskProject[] }
+/** One matching offer of a project (Ask): a unit type with its numbers. */
+export interface AskOffer { type?: string | null; area: number | null; floor: string | number | null; bedrooms?: number | null; price: number | null; down: number | null; monthly: number | null; years?: number | null; discount_pct?: number | null }
+/**
+ * One project card, the same in the catalogue and in Ask. The Ask answer carries the readable fields (developer, place, governorate, delivery,
+ * facts); the catalogue list may carry the project's raw columns instead (district, city, developer_name, bedroom_options, units, plans ...).
+ */
+export interface ProjectCard {
+  id?: string;
+  name: string;
+  name_en?: string | null;
+  developer?: string | null;
+  developer_name?: string | null;
+  developer_name_en?: string | null;
+  place?: string | null;
+  governorate?: string | null;
+  district?: string | null;
+  city?: string | null;
+  status?: string | null;
+  delivery?: string | null;
+  delivery_year?: number | null;
+  delivery_quarter?: number | null;
+  delivery_raw?: string | null;
+  price_from?: number | string | null;
+  area_acres?: number | string | null;
+  down_pct_min?: number | string | null;
+  years_max?: number | string | null;
+  bedroom_options?: number[] | null;
+  facts?: { label: string; value: string }[];
+  cover_url?: string | null;
+  units?: number;
+  plans?: number;
+  offers?: AskOffer[];
+  /** How many offers match in all (offers lists at most 5). */
+  offers_total?: number;
+  /** A project without offers: the notes lines that fit, never invented. */
+  free_text?: string | null;
+  /** What to send a client on WhatsApp. */
+  client_text?: string;
+  /** Why the project is listed: place, features, developer, price, area, bedrooms, down, installment. */
+  matched?: string[];
+}
+export type ProjectSort = 'best' | 'cheap' | 'pricey' | 'small' | 'big' | 'down';
+/** The filters of a project list (the catalogue and Ask): the server answers one list for both. */
+export interface ProjectFilters { pmin?: number; pmax?: number; amin?: number; amax?: number; dmax?: number; imax?: number; bed?: number }
+export interface AskResults {
+  chips: { key: string; value: string | Record<string, unknown> }[];
+  dropped: string[];
+  filters?: ProjectFilters;
+  sort?: ProjectSort;
+  total_projects: number;
+  total_options?: number;
+  /** The old name of total_options. */
+  total_offers?: number;
+  page: number;
+  pages: number;
+  per_page?: number;
+  projects: ProjectCard[];
+  /** Send back as `f` (with `log_id` as `sl`) on every later page, sort and filter: the question is then not read or logged again. */
+  token?: string;
+  log_id?: string | null;
+  read?: { source: 'ai' | 'parser' | 'fallback' | 'link'; disagree: unknown[] };
+  /** A short summary written from the results by code. */
+  answer_line?: string;
+}
+export interface AskQuery extends ProjectFilters { q: string; page?: number; per?: number; sort?: ProjectSort; drop?: string[]; /** Only projects with unit details. */ units?: boolean; token?: string; logId?: string }
+export type AskAction = 'filter' | 'sort' | 'chip_drop' | 'page' | 'open' | 'send'
+export type ProjectImageRole = 'shared' | 'layout' | 'hidden'
+export interface ProjectImage { id: string; url: string; role?: ProjectImageRole; kind?: string; mime?: string; match_status?: string | null; listing_ids?: string[] }
+/** The catalogue list: filters are one place, features (all must match), one developer, bedrooms and a price ceiling. */
+export interface CatalogueQuery { q?: string; page?: number; place?: string; features?: string[]; developer?: string; bed?: number; max?: number; archived?: boolean }
+export interface CatalogueList { projects: { items: ProjectCard[]; total: number; pages: number; page?: number }; developers: { items: { id: string; name: string; name_en?: string | null; projects?: number }[] }; canEdit: boolean }
+/** The catalogue search box: places and features (as the unit box) plus developers and projects. */
+export type CatalogueBoxItem = BoxItem | { kind: 'developer'; id: string; label: string } | { kind: 'project'; id: string; label: string };
+/** What a pasted launch message was read as (free, no AI). */
+export interface ProjectRead {
+  name: string | null;
+  name_en: string | null;
+  name_candidates: string[];
+  developer: { id: string; name: string } | { global_id: string; name: string; new: true } | { name: string; new: true } | null;
+  place: BoxPlace | null;
+  features: { key: string; label: string }[];
+  existing: { id: string; name: string } | null;
+  fields: { area_acres?: number | null; delivery_raw?: string | null; delivery_year?: number | null; status?: string | null; price_from?: number | null; down_pct_min?: number | null; years_max?: number | null; discount_pct?: number | null; bedrooms?: number[]; property_types?: string[] };
+  offers: unknown[];
+  facts: unknown[];
+  found: string[];
+}
+export type DeveloperPick = { id: string; name: string; name_en?: string | null } | { global_id: string; name: string; name_en?: string | null };
+export interface ProjectDetail { project: Row; developer: Row | null; phases: Row[]; plans: Row[]; materials: Row[]; units: Row[]; facts?: Row[]; images?: ProjectImage[]; cover_url?: string | null; canEdit: boolean }
 export interface ClientRequest { id: string; summary: string; summary_en?: string; broker_name?: string; lead: { ref: string; name: string | null } | null; matches: number; alerts: boolean; fulfilled_at: string | null; created_at: string }
 export interface ClientRequestsPage { items: ClientRequest[]; page: number; more?: boolean; pages?: number }
 export interface InboxItem { id: string; kind: string; title: string; body: string; url: string | null; created_at: string; read: boolean }
@@ -105,7 +191,7 @@ export type Row = Record<string, unknown>;
 export interface DealsData { items: Row[]; more: boolean; totals: Row[]; statuses: string[] }
 export interface CommissionsData { kind: string; period: string; items: Row[]; total: number; totals: Row | null; statuses: string[] }
 export interface SourcesData { month: string; rows: { source: string; leads: number; deals: number; commission: number; spend: number | null; perLead: number | null; perDeal: number | null }[]; totals: Row }
-export interface AskAnswer { answer: string; found: boolean; lang: Lang; dataDates: string | null }
+export interface AskAnswer { answer: string; found: boolean; lang: Lang; dataDates: string | null; /** "local": the AI was off, out of credit or failed, and the answer is the line written from the data. */ source?: 'ai' | 'local'; log_id?: string | null }
 export interface UnitImage { id: string; url: string; position: number }
 export interface ApiViewing { id: string; startsAt: string; place: string | null; status: string; proposedAt: string | null; clientNote: string | null; leadRef: string; leadName: string | null; unitCode: string | null }
 export interface SentLink { createdAt: string; unitCode: string; compound: string | null; opens: number; lastOpenedAt: string | null; recipientPhone: string | null; leadRef: string | null; leadName: string | null; note: string | null }
@@ -115,9 +201,15 @@ export interface NewLead { phone1: string; phone2?: string; name?: string; kind?
 /** The fields of the add-unit form use the website form's names (strings, features as an array). */
 /** One entry of the place suggestion list: a compound (or its other name), an area, or a sub-zone. area_id and subzone_id are what a unit stores when it is picked. */
 export interface PlaceSuggestion { kind: 'compound' | 'area' | 'subzone'; id: string; name_en: string | null; name_ar: string | null; path: string; via: 'name' | 'alias' | 'alike'; area_id: string | null; subzone_id: string | null }
-export interface PlaceList { version: string; places: import('./placeMatch').ListPlace[]; areas: import('./placeMatch').ListArea[] }
+/** zones (a compound's extra areas) and features (the dictionary) came with the unit box: a list saved before them has neither. */
+export interface PlaceList { version: string; places: import('./placeMatch').ListPlace[]; areas: import('./placeMatch').ListArea[]; zones?: import('./placeMatch').ListZone[]; features?: import('./placeMatch').ListFeature[] }
 export type PlaceListReply = PlaceList | { version: string; unchanged: true };
 export type UnitFields = Record<string, string | string[] | boolean | undefined>;
+/** The unit box (docs/plans/unified-unit-box.md): a place (its parents and zones are shown under the box) or a feature. */
+export interface BoxPlace extends PlaceSuggestion { label: string; zones: string[] }
+export interface BoxFeature { kind: 'feature'; key: string; label: string }
+export type BoxItem = BoxPlace | BoxFeature;
+export interface BoxResolve { place: BoxPlace | null; features: { key: string; label: string }[] }
 export interface UnitChange { field: string; ar: string; en: string; from: string; to: string }
 export interface ReviewResult { ok: boolean; blockers: { field: string; label: string }[]; warnings: { field: string; text: string }[]; duplicate: string | null; /** Edit only: the main fields that would change. */ changes?: UnitChange[] }
 export interface FirebaseClientConfig { apiKey: string; appId: string; projectId: string; messagingSenderId: string }
@@ -241,11 +333,12 @@ export interface ApiClientOptions {
 export function createApiClient(opts: ApiClientOptions) {
   const doFetch = opts.fetchImpl ?? fetch;
 
-  async function request<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, query?: Record<string, string | number | boolean | undefined>): Promise<T> {
+  async function request<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>): Promise<T> {
+    // An array repeats the key (f=roof&f=garden), as the server reads it.
     const qs = query
       ? Object.entries(query)
           .filter(([, v]) => v !== undefined && v !== '' && v !== false)
-          .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v === true ? '1' : String(v))}`)
+          .flatMap(([k, v]) => (Array.isArray(v) ? v : [v]).map((x) => `${encodeURIComponent(k)}=${encodeURIComponent(x === true ? '1' : String(x))}`))
           .join('&')
       : '';
     const token = opts.getToken();
@@ -259,7 +352,7 @@ export function createApiClient(opts: ApiClientOptions) {
     } catch {
       throw new ApiClientError(0, 'network');
     }
-    if (res.ok) return (await res.json()) as T;
+    if (res.ok) return (res.status === 204 ? undefined : await res.json()) as T;
     let code = 'error';
     let extra: Record<string, unknown> = {};
     try {
@@ -306,7 +399,10 @@ export function createApiClient(opts: ApiClientOptions) {
     sentLinks: (offset = 0) => request<{ offset: number; hasMore: boolean; items: SentLink[] }>('GET', '/links', undefined, { offset: offset || undefined }),
     extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string }>('POST', '/leads/extract', { message }),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
-    askResults: (q: string, page = 1, sort: 'best' | 'cheap' = 'best', drop: string[] = []) => request<AskResults>('GET', '/ask/results', undefined, { q, page, sort, ...(drop.length ? { drop: drop.join(',') } : {}) }),
+    askResults: (a: AskQuery) => request<AskResults>('GET', '/ask/results', undefined, { q: a.q, page: a.page ?? 1, per: a.per, sort: a.sort ?? 'best', drop: a.drop?.length ? a.drop.join(',') : undefined, pmin: a.pmin, pmax: a.pmax, amin: a.amin, amax: a.amax, dmax: a.dmax, imax: a.imax, bed: a.bed, units: a.units, f: a.token, sl: a.token ? a.logId : undefined }),
+    /** What the broker did next, for the search log. Never blocks the screen. */
+    askAction: (logId: string, action: AskAction, detail?: string) => request<void>('POST', '/ask/action', { log_id: logId, action, detail }),
+    askReport: (logId: string, note: string) => request<{ ok: true }>('POST', '/ask/report', { log_id: logId, note }),
     clientRequests: (tab: 'pending' | 'fulfilled', page = 1) => request<ClientRequestsPage>('GET', '/client-requests', undefined, { tab, page }),
     addClientRequest: (q: string, lead: string | undefined, alerts: boolean) => request<ClientRequest>('POST', '/client-requests', { q, ...(lead ? { lead } : {}), alerts }),
     clientRequestDelete: (id: string) => request<{ ok: boolean }>('POST', `/client-requests/${encodeURIComponent(id)}/delete`, {}),
@@ -384,8 +480,30 @@ export function createApiClient(opts: ApiClientOptions) {
     assignEnquiry: (id: string, b: { phone: string; brokerId?: string }) => request<{ ok: true; outcome: string }>('POST', `/portal-enquiries/${id}/assign`, b),
     linkEnquiry: (id: string, unitCode: string) => request<{ ok: true }>('POST', `/portal-enquiries/${id}/link`, { unitCode }),
     openedLinks: (status?: string, page?: number, q?: string, days?: number) => request<{ rows: Row[]; total: number; pages: number; page: number }>('GET', '/opened-links', undefined, { status, page, q, days }),
-    catalogue: (q?: string, page = 0) => request<{ projects: { items: Row[]; total: number; pages: number }; developers: { items: Row[] }; canEdit: boolean }>('GET', '/catalogue', undefined, { q, page }),
-    project: (id: string) => request<{ project: Row; developer: Row | null; phases: Row[]; plans: Row[]; materials: Row[]; units: Row[]; canEdit: boolean }>('GET', `/catalogue/projects/${id}`),
+    catalogue: (c: CatalogueQuery = {}) => request<CatalogueList>('GET', '/catalogue', undefined, { q: c.q, page: c.page, pl: c.place, f: c.features?.length ? c.features : undefined, dev: c.developer, bed: c.bed, max: c.max, archived: c.archived }),
+    /** The catalogue box's developers and projects (the answer also carries places and features, as the website's). */
+    catalogueSearch: (q: string) => request<{ items: CatalogueBoxItem[] }>('GET', '/catalogue/search-box', undefined, { q }),
+    project: (id: string) => request<ProjectDetail>('GET', `/catalogue/projects/${id}`),
+    /** A pasted launch message read for the add-project form: free, no AI, nothing saved. */
+    readProject: (text: string) => request<ProjectRead>('POST', '/catalogue/projects/read', { text }),
+    /** Photos of a project (up to 10, all shared; no AI). The API twin of the website's `doc` upload. */
+    projectPhotos: (id: string, photos: UploadFile[]) => {
+      const form = new FormData();
+      for (const p of photos) form.append('doc', p as unknown as Blob);
+      return request<{ ok: true; added?: number }>('POST', `/catalogue/projects/${id}/photos`, form);
+    },
+    /** The explicit gallery upload. `sort` spends pages of the month's allowance on the AI sort; errors: OFF, SORT_PDF, ALLOWANCE (with left and needed). */
+    projectGallery: (id: string, files: UploadFile[], o: { sort?: boolean; pages?: string } = {}) => {
+      const form = new FormData();
+      for (const p of files) form.append('doc', p as unknown as Blob);
+      if (o.sort) form.append('sort', '1');
+      if (o.pages) form.append('pages', o.pages);
+      return request<Record<string, unknown>>('POST', `/catalogue/projects/${id}/gallery`, form);
+    },
+    projectImageRole: (id: string, imageId: string, role: ProjectImageRole) => request<Record<string, unknown>>('POST', `/catalogue/projects/${id}/gallery/${imageId}`, { role }),
+    deleteProjectImage: (id: string, imageId: string) => request<Record<string, unknown>>('POST', `/catalogue/projects/${id}/gallery/${imageId}/delete`, {}),
+    /** Developers of the agency, then global names, that match what is typed. */
+    developerSuggest: (q: string) => request<{ items: DeveloperPick[] }>('GET', '/catalogue/developers/suggest', undefined, { q }),
     archiveProject: (id: string, archived: boolean) => request<{ ok: true }>('POST', `/catalogue/projects/${id}/archive`, { archived }),
     library: (q?: string, page = 0) => request<{ items: Row[]; pages: number }>('GET', '/library', undefined, { q, page }),
     useLibrary: (id: string) => request<{ ok: true; projectId: string }>('POST', `/library/${id}/use`, {}),
@@ -413,7 +531,7 @@ export function createApiClient(opts: ApiClientOptions) {
     savedSearch: (id: string) => request<{ name: string; total: number; items: ApiUnitListItem[] }>('GET', `/saved-searches/${id}`),
     deleteSavedSearch: (id: string) => request<{ ok: true }>('POST', `/saved-searches/${id}/delete`, {}),
     saveDeveloper: (b: Record<string, string>, id?: string) => request<{ ok: true; id: string | null }>('POST', id ? `/catalogue/developers/${id}` : '/catalogue/developers', b),
-    saveProject: (b: Record<string, string>, id?: string) => request<{ ok: true; id: string | null }>('POST', id ? `/catalogue/projects/${id}` : '/catalogue/projects', b),
+    saveProject: (b: Record<string, string | string[]>, id?: string) => request<{ ok: true; id: string | null }>('POST', id ? `/catalogue/projects/${id}` : '/catalogue/projects', b),
     uploadLogo: (file: UploadFile) => {
       const form = new FormData();
       form.append('logo', file as unknown as Blob);
@@ -442,6 +560,10 @@ export function createApiClient(opts: ApiClientOptions) {
     /** Was the save with this key stored? Asked once when a save has not answered for 60 seconds. */
     unitSaveStatus: (key: string) => request<{ saved: boolean; code?: string }>('GET', '/units/save-status', undefined, { key }),
     placeSuggest: (q: string) => request<{ items: PlaceSuggestion[] }>('GET', '/places/suggest', undefined, { q }),
+    /** The box's suggestions: places first, then features. */
+    placeBox: (q: string, lang: 'ar' | 'en', scope?: 'areas') => request<{ items: BoxItem[] }>('GET', '/places/box', undefined, { q, lang, scope }),
+    /** What a pasted message names: one place and its features. No AI, no credits. */
+    placeBoxResolve: (text: string) => request<BoxResolve>('POST', '/places/box/resolve', { text }),
     placeList: (since?: string) => request<PlaceListReply>('GET', '/places/list', undefined, since ? { since } : undefined),
     unitCompounds: (q: string) => request<{ items: { name: string; n: number }[] }>('GET', '/units/compounds', undefined, { q }),
     unitAccessRequest: (code: string) => request<{ ok: true; already: boolean; access: 'granted' | 'pending' }>('POST', `/units/${encodeURIComponent(code)}/access-request`, {}),

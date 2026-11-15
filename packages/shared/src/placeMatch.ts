@@ -1,6 +1,6 @@
 // Place matching for the phone. A line-for-line copy of the server's rules (domain/areas.js, domain/mapPlaces.js,
 // domain/placeNames.js, domain/searchText.js). tests/fixtures/place-suggest.json is checked on both sides, so they cannot drift.
-import type { PlaceSuggestion } from './api';
+import type { BoxFeature, BoxItem, BoxPlace, PlaceSuggestion } from './api';
 
 export interface ListPlace { id: string; name_en: string | null; name_ar: string | null; aliases?: string[] | null; area_id: string | null; subzone_id: string | null; lat: number | null; lng: number | null }
 export interface ListArea { id: string; parent_id: string | null; name_en: string | null; name_ar: string | null; aliases?: string[] | null; lat: number | null; lng: number | null }
@@ -102,4 +102,43 @@ export function suggestPlaces(text: string, { places, areas }: { places: ListPla
     .sort((a, b) => b.score - a.score || KIND_RANK[a.kind] - KIND_RANK[b.kind] || String(a.name_en || a.name_ar).localeCompare(String(b.name_en || b.name_ar)))
     .slice(0, limit)
     .map(({ score: _score, ...rest }) => rest);
+}
+
+// ---- the unit box (docs/plans/unified-unit-box.md): the same suggestions as GET /places/box, answered on the phone ----
+export interface ListZone { place_id: string; area_id: string }
+/** One dictionary feature as the list carries it: its two labels and its strict match words (syn). */
+export interface ListFeature { key: string; ar: string; en: string; group?: string; syn: string[] }
+
+/** Features whose label or a match word starts with (or holds) the typed text. The server's rules (domain/unitBox.js suggestFeatures). */
+export function suggestFeatures(text: string, features: ListFeature[], lang: 'ar' | 'en' = 'ar', limit = 6): BoxFeature[] {
+  const q = normalizeSearch(text);
+  if (q.length < 2) return [];
+  const out: (BoxFeature & { score: number })[] = [];
+  for (const f of features) {
+    const words = [f.ar, f.en, ...f.syn].map(normalizeSearch).filter(Boolean);
+    const score = words.some((w) => w === q) ? 3 : words.some((w) => w.startsWith(q) || w.split(' ').some((p) => p.startsWith(q))) ? 2 : words.some((w) => w.includes(q)) ? 1 : 0;
+    if (score) out.push({ kind: 'feature', key: f.key, label: lang === 'en' ? f.en : f.ar, score });
+  }
+  return out.sort((a, b) => b.score - a.score).slice(0, limit).map(({ score: _score, ...rest }) => rest);
+}
+
+/**
+ * The box's list for the typed text: places first (labels, parents and zones in the person's language), then features.
+ * Same shape as the server's GET /places/box, so the box works offline from the saved list.
+ */
+export function boxSuggest(
+  text: string,
+  list: { places: ListPlace[]; areas: ListArea[]; zones?: ListZone[]; features?: ListFeature[] },
+  lang: 'ar' | 'en' = 'ar',
+  limit = 6,
+): BoxItem[] {
+  const nm = (r: { name_en?: string | null; name_ar?: string | null }) => (lang === 'en' ? r.name_en || r.name_ar : r.name_ar || r.name_en) || '';
+  const byId = new Map(list.areas.map((a) => [a.id, a]));
+  const known = (ids: (string | null | undefined)[]) => ids.map((i) => (i ? byId.get(i) : undefined)).filter((a): a is ListArea => !!a);
+  const places = suggestPlaces(text, { places: list.places, areas: list.areas }, limit).map((p): BoxPlace => {
+    const parents = p.kind === 'compound' ? known([p.area_id, p.subzone_id]) : chain(list.areas, p.id).slice(0, -1);
+    const zones = p.kind === 'compound' ? known((list.zones ?? []).filter((z) => z.place_id === p.id).map((z) => z.area_id)).map(nm) : [];
+    return { ...p, label: nm(p), path: parents.map(nm).join(' › '), zones };
+  });
+  return [...places, ...suggestFeatures(text, list.features ?? [], lang, limit)];
 }

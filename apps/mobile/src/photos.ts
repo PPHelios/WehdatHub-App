@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import { errorCodes, isErrorWithCode, pick, types } from '@react-native-documents/picker';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import type { Asset, ImagePickerResponse } from 'react-native-image-picker';
+import { moveItem } from '@wehdathub/shared';
 import type { UploadFile } from '@wehdathub/shared';
 
 export const MAX_PHOTOS = 15; // kept per unit
@@ -41,6 +42,17 @@ export function addPicked(prev: UploadFile[], got: UploadFile[]): UploadFile[] {
     return { ...g, notKept: true };
   });
   return [...prev, ...next].slice(0, MAX_POOL);
+}
+
+/** Reorder by drag. The first 15 positions are kept, so a photo dropped into them is kept and the last kept one is dropped to make room. */
+export function moveKept(prev: UploadFile[], from: number, to: number): UploadFile[] {
+  const next = moveItem(prev, from, to);
+  const at = Math.max(0, Math.min(prev.length - 1, to));
+  const top = at < MAX_PHOTOS;
+  const fixed = next.map((x, i) => (i === at ? { ...x, notKept: !top } : x));
+  if (!top || fixed.filter((x) => !x.notKept).length <= MAX_PHOTOS) return fixed;
+  const last = fixed.map((x, i) => (!x.notKept && i !== at ? i : -1)).filter((i) => i >= 0).pop() as number;
+  return fixed.map((x, i) => (i === last ? { ...x, notKept: true } : x));
 }
 
 /** Keep or drop one picked photo. Keeping is refused (the list is returned as it was) while 15 are kept. */

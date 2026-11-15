@@ -56,6 +56,15 @@ test('ask shows the answer and the data dates; a blocked AI shows the server mes
   expect(screen.queryByTestId('ask-answer')).toBeNull();
 });
 
+test('a local answer (AI off) is shown with a note, not as an error', async () => {
+  m.ask.mockResolvedValueOnce({ answer: '3 projects fit.', found: true, lang: 'en', dataDates: null, source: 'local', log_id: 'l1' });
+  await wrap(<AskScreen />);
+  await fireEvent.changeText(screen.getByTestId('ask-input'), 'cheap in obour');
+  await fireEvent.press(screen.getByTestId('ask-go'));
+  await waitFor(() => expect(screen.getByTestId('ask-local')).toBeTruthy());
+  expect(screen.queryByTestId('ask-error')).toBeNull();
+});
+
 test('the team lists each broker with the open and overdue counts', async () => {
   m.team.mockResolvedValue({ items: [{ id: 'b1', name: 'Sara', role: 'broker', me: false, away: false, open: 4, overdue: 2, soon: 1 }] });
   await wrap(<TeamScreen />);

@@ -49,9 +49,3 @@ export function featureChip(key: string, lang: Lang): { key: string; icon: strin
   return { key, icon: GROUP_ICON[f[2]] ?? '•', label: lang === 'ar' ? f[0] : f[1] };
 }
 
-/** Every feature the server knows, by group, for the add-unit picker. Labels only: the icons are left out. */
-export function featureGroups(lang: Lang): { group: string; items: { key: string; label: string }[] }[] {
-  const groups: Record<string, { key: string; label: string }[]> = {};
-  for (const [key, f] of Object.entries(FEATURES)) (groups[f[2]] ||= []).push({ key, label: lang === 'ar' ? f[0] : f[1] });
-  return Object.entries(groups).map(([group, items]) => ({ group, items }));
-}

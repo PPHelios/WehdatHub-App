@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError } from '@wehdathub/shared';
 import type { AskAnswer, VoiceFile } from '@wehdathub/shared';
 import { timed } from '../usage';
@@ -9,14 +11,17 @@ import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { pt } from '../projectText';
 import { radius, spacing, useTheme } from '../theme';
 import { HoldMic } from '../components/HoldMic';
 import { AskResults } from '../components/AskResults';
+import type { RootStackParams } from '../navigation';
 
 /** Ask: a question (typed or spoken) answered from the agency's projects, units and the broker's own clients. */
 export function AskScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [question, setQuestion] = useState('');
   const [out, setOut] = useState<AskAnswer | null>(null);
   const [asked, setAsked] = useState('');
@@ -60,12 +65,13 @@ export function AskScreen() {
       {out ? (
         <View testID="ask-answer" style={[styles.box, { borderColor: out.found ? colors.accent : colors.border, backgroundColor: colors.card }]}>
           <Text selectable style={{ color: colors.text, fontSize: 16 }}>{out.answer}</Text>
+          {out.source === 'local' ? <Text testID="ask-local" style={{ color: colors.muted }}>{pt(lang).localAnswer}</Text> : null}
           {out.dataDates ? <Text style={{ color: colors.muted }}>{out.dataDates}</Text> : null}
           {/* The share sheet has Copy, WhatsApp and the rest; pressing and holding the text also selects a part of it. */}
           <Button testID="ask-copy" variant="secondary" label={t(lang, 'copyAnswer')} onPress={() => { Share.share({ message: out.answer }).catch(() => undefined); }} />
         </View>
       ) : null}
-      {out && asked ? <AskResults q={asked} /> : null}
+      {out && asked ? <AskResults key={asked} q={asked} onOpenProject={(id, name) => nav.navigate('Project', { id, name })} /> : null}
     </ScrollView>
   );
 }

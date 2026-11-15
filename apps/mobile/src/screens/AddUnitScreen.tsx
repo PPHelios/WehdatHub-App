@@ -1,18 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError } from '@wehdathub/shared';
-import type { PlaceSuggestion, ReviewResult, UnitFields, UploadFile, VoiceFile } from '@wehdathub/shared';
+import type { ReviewResult, UnitFields, UploadFile, VoiceFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
-import { PlaceInput } from '../components/PlaceInput';
-import { UnitExtraFields } from '../components/UnitExtraFields';
+import { UnitBox, featureKeys, placeLabel, readMessage, PASTE_MIN } from '../components/UnitBox';
+import { DeliverySection, OwnerSection, SectionHead, SizeSection, SwitchRow } from '../components/UnitSections';
 import { addPendingPlace } from '../placeList';
 import { SortablePhotos } from '../components/SortablePhotos';
 import { clearDraft, isEmptyDraft, loadDraft, saveDraft } from '../draft';
@@ -23,12 +24,16 @@ import { MAX_PHOTOS, MAX_POOL, addPicked, pickPhotos, takePhoto, toggleKeep } fr
 import { compressPhotos } from '../compress';
 import { usePhotoUploads } from '../usePhotoUploads';
 import { SaveNotConfirmed, newSaveKey, withSaveCheck } from '../saveKey';
-import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
+import { FINISHING, FURNISHING, PROPERTY_TYPES, labelOf, options } from '../unitOptions';
 import { radius, spacing, useTheme } from '../theme';
 import { tick } from '../haptics';
 import { track } from '../analytics';
-import { plain, readPhone, readPrice, withCommas } from '../readback';
 import { HoldMic } from '../components/HoldMic';
+import { featureChip } from '../featureLabels';
+import { draftText, isAutoDraft } from '../unitDraft';
+import { uf } from '../unitFormText';
+import { sendable, stepOf, stepsFor, withImpliedFeatures } from '../unitRules';
+import type { Step } from '../unitRules';
 
 const str = (v: UnitFields[string]): string => (typeof v === 'string' ? v : '');
 /** In edit mode a photo already on the unit is listed with this type and its image id as name. */
@@ -41,13 +46,16 @@ export const photoChanges = (original: string[], list: UploadFile[]) => {
   return { add, remove, order: kept, changed: add.length > 0 || remove.length > 0 || reordered };
 };
 
+type Blocker = { field: string; label: string };
+
 export function AddUnitScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
+  const L = uf(lang);
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const route = useRoute<RouteProp<RootStackParams, 'AddUnit'>>();
   const qc = useQueryClient();
-  const [fields, setFields] = useState<UnitFields>({ listing_type: 'sale', market: 'resale' });
+  const [fields, setFields] = useState<UnitFields>({ listing_type: 'sale' });
   const [describe, setDescribe] = useState('');
   const [photos, setPhotos] = useState<UploadFile[]>([]);
   const uploads = usePhotoUploads(photos, setPhotos);
@@ -60,7 +68,7 @@ export function AddUnitScreen() {
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [blockers, setBlockers] = useState<{ field: string; label: string }[]>([]);
+  const [blockers, setBlockers] = useState<Blocker[]>([]);
   const [duplicate, setDuplicate] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [review, setReview] = useState<ReviewResult | null>(null);
@@ -75,28 +83,56 @@ export function AddUnitScreen() {
   const [version, setVersion] = useState(0);
   const savedDetails = useRef<string | null>(null);
   const originalIds = useRef<string[]>([]);
+  // One page with four sections: the links on top scroll to them.
+  const scroll = useRef<ScrollViewInstance>(null);
+  const anchors = useRef<Partial<Record<Step, number>>>({});
+  // The client description follows the fields while it is empty or still the draft (web: unitFields.js).
+  const descAuto = useRef(true);
 
-  const set = (k: string, v: UnitFields[string]) => { dirty.current = true; setAck(false); setFields((f) => ({ ...f, [k]: v })); };
-  // A compound picked from the list brings its own area; an area or sub-zone fills the area and leaves the compound empty.
-  const pickPlace = (p: PlaceSuggestion) =>
-    setFields((f) => ({
-      ...f,
-      compound: p.kind === 'compound' ? (p.name_ar || p.name_en || '') : '',
-      area_id: p.area_id ?? '',
-      subzone_id: p.subzone_id ?? '',
-      area_path: p.kind === 'compound' ? p.path : [p.path, p.name_ar || p.name_en].filter(Boolean).join(' › '),
-    }));
-  const REQUIRED = ['owner_phone', 'price_value', ...(fields.owner_name_from_phone === '1' ? [] : ['owner_name'])];
-  const missing = (k: string) => (review?.blockers ?? blockers).some((b) => b.field === k);
+  const patch = (p: UnitFields) => {
+    dirty.current = true;
+    setAck(false);
+    setFields((f) => withImpliedFeatures({ ...f, ...p }));
+  };
+  const set = (k: string, v: UnitFields[string]) => {
+    if (k === 'clean_summary') descAuto.current = isAutoDraft(String(v ?? ''));
+    patch({ [k]: v });
+  };
+  // Mandatory fields have their own border (blue, red once a check has failed). A studio, shop, office or land has no bedrooms.
+  const noBedrooms = ['studio', 'office', 'shop', 'clinic', 'commercial', 'land'].includes(str(fields.property_type));
+  const REQUIRED = ['owner_phone', 'price_value', 'area_value', ...(noBedrooms ? [] : ['bedrooms']), ...(fields.owner_name_from_phone === '1' ? [] : ['owner_name'])];
+  // The place (a compound, or an area) is mandatory: checked here at once, and again by the server's review.
+  const placeMissing = !placeLabel(fields) && !str(fields.compound) && !str(fields.area_id) && !str(fields.subzone_id);
+  const fromServer = review?.blockers ?? blockers;
+  const allBlockers: Blocker[] = [...(placeMissing && !fromServer.some((b) => b.field === 'location') ? [{ field: 'location', label: L.boxNoPlace }] : []), ...fromServer];
+  const missing = (k: string) => allBlockers.some((b) => b.field === k);
   const field = (k: string, label: string, extra: object = {}) => <Field key={k} testID={`f-${k}`} label={label} value={str(fields[k])} onChangeText={(v) => set(k, v)} required={REQUIRED.includes(k)} invalid={failedCheck && missing(k)} {...extra} />;
 
+  const draftLabels = (f: UnitFields) => ({
+    type: labelOf(PROPERTY_TYPES, str(f.property_type), lang) ?? '',
+    place: placeLabel(f),
+    finishing: labelOf(FINISHING, str(f.finishing), lang) ?? '',
+    furnishing: labelOf(FURNISHING, str(f.furnishing), lang) ?? '',
+    features: featureKeys(f).map((k) => featureChip(k, lang).label),
+  });
+  useEffect(() => {
+    if (!ready || !descAuto.current) return;
+    const text = draftText(fields, draftLabels(fields), lang === 'en');
+    if (text !== str(fields.clean_summary)) setFields((f) => ({ ...f, clean_summary: text }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields, ready, lang]);
+  const writeDraftAgain = () => {
+    descAuto.current = true;
+    patch({ clean_summary: draftText(fields, draftLabels(fields), lang === 'en') });
+  };
+
   // Fill from a message and/or a voice note. What the form already says is sent along and kept.
-  const fill = useCallback(async (o: { describe?: string; voice?: UploadFile }) => {
+  const runFill = useCallback(async (o: { describe?: string; voice?: UploadFile }) => {
     setError(null);
     setNotice(null);
     try {
-      const r = await api.extractUnit({ describe: o.describe, voice: o.voice, fields });
-      setFields((f) => ({ ...f, ...Object.fromEntries(Object.entries(r.fields).filter(([, v]) => v !== '' && v !== undefined && v !== null)) }));
+      const r = await api.extractUnit({ describe: o.describe, voice: o.voice, fields: sendable(fields) });
+      setFields((f) => withImpliedFeatures({ ...f, ...Object.fromEntries(Object.entries(r.fields).filter(([, v]) => v !== '' && v !== undefined && v !== null)) }));
       setNotice(t(lang, 'filled'));
     } catch (e) {
       setError(e instanceof ApiClientError && (e.status === 402 || e.status === 503) ? t(lang, 'aiBlocked') : errorText(e, lang));
@@ -110,6 +146,7 @@ export function AddUnitScreen() {
         try {
           const [r, u] = await Promise.all([api.unitEditFields(editCode), api.unit(editCode)]);
           setFields(r.fields);
+          descAuto.current = isAutoDraft(str(r.fields.clean_summary));
           setVersion(r.version);
           setPhotos(u.images.map((i) => ({ uri: i.url, name: i.id, type: EXISTING })));
           originalIds.current = u.images.map((i) => i.id);
@@ -122,6 +159,7 @@ export function AddUnitScreen() {
       const d = await loadDraft();
       if (d && !isEmptyDraft(d)) {
         setFields(d.fields);
+        descAuto.current = isAutoDraft(str(d.fields.clean_summary));
         setDescribe(d.describe);
         setPhotos(d.photos);
         setPhotoAi(d.photoAi);
@@ -134,7 +172,7 @@ export function AddUnitScreen() {
         if (s.text) setDescribe((cur) => (cur ? `${cur}\n${s.text}` : s.text!));
       }
       setReady(true);
-      if (s?.text || s?.voice) await fill({ describe: s.text, voice: s.voice });
+      if (s?.text || s?.voice) await runFill({ describe: s.text, voice: s.voice });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -151,9 +189,10 @@ export function AddUnitScreen() {
     if (!ready) return;
     let live = true;
     const h = setTimeout(() => {
-      api.reviewUnit(fields, kept.length, editCode).then((r) => { if (live) setReview(r); }).catch(() => undefined);
+      api.reviewUnit(sendable(fields), kept.length, editCode).then((r) => { if (live) setReview(r); }).catch(() => undefined);
     }, 700);
     return () => { live = false; clearTimeout(h); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, kept.length, ready, editCode]);
 
   // Leaving with unsaved edits asks first (a new unit keeps its draft, so only edits ask).
@@ -169,10 +208,17 @@ export function AddUnitScreen() {
   const onVoice = async (file: VoiceFile) => {
     setError(null);
     try {
-      await fill({ voice: file });
+      await runFill({ voice: file });
     } catch (e) {
       setError(errorText(e, lang));
     }
+  };
+
+  // Pasting a message into the top box reads its place and features at once (no AI); the text stays for "Fill".
+  const onDescribe = (v: string) => {
+    const pasted = v.length - describe.length >= PASTE_MIN;
+    setDescribe(v);
+    if (pasted) readMessage(v, fields).then((p) => { if (Object.keys(p).length) { patch(p); setNotice(L.boxFromText); } }).catch(() => undefined);
   };
 
   const addPhotos = async (fn: () => Promise<UploadFile[]>) => {
@@ -184,9 +230,20 @@ export function AddUnitScreen() {
     }
   };
 
+  // A rental has no delivery and payment section.
+  const flow = stepsFor(fields);
+  const jump = (s: Step) => scroll.current?.scrollTo({ y: anchors.current[s] ?? 0, animated: true });
+
+  // After a refused save, scrolls to the earliest section that still has a blocker, so the person lands where the fix is.
+  const toBlocked = (list: Blocker[]) => {
+    if (!list.length) return;
+    const first = Math.min(...list.map((x) => stepOf(x.field))) as Step;
+    jump(flow.includes(first) ? first : flow[flow.length - 1]);
+  };
+
   const save = async (force = false) => {
     if (saving) return;
-    if (review?.blockers.length) { setFailedCheck(true); setBlockers(review.blockers); return; }
+    if (allBlockers.length) { setFailedCheck(true); setBlockers(allBlockers); toBlocked(allBlockers); return; }
     // A look-alike unit asks before anything is uploaded; accepting it once (the switch or Save anyway) is never asked again.
     const accepted = force || dupAck;
     if (!editCode && !accepted && review?.duplicate) return setDuplicate(review.duplicate);
@@ -222,13 +279,14 @@ export function AddUnitScreen() {
     setBlockers([]);
     setFailedCheck(false);
     setDuplicate(null);
+    const body = sendable(fields);
     try {
       if (editCode) {
         // The details and the photos are two calls. If the photos fail, the details are already saved: a second Save then only
         // retries the photos, so it never meets "changed elsewhere" from its own first save.
-        const key = JSON.stringify(fields);
+        const key = JSON.stringify(body);
         if (savedDetails.current !== key) {
-          const saved = await api.saveUnitEdit(editCode, version, fields, saveKey.current);
+          const saved = await api.saveUnitEdit(editCode, version, body, saveKey.current);
           setVersion(saved.version);
           savedDetails.current = key;
         }
@@ -248,7 +306,7 @@ export function AddUnitScreen() {
         await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] })]);
         return nav.goBack();
       }
-      const sent = { ...fields, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
+      const sent = { ...body, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
       // Photos already stored by their own upload go as keys; on an old server they are prepared and sent here as before.
       const keyed = files.length > 0 && files.every((p) => p.key);
       const prepared = keyed ? [] : await compressPhotos(files, (d, n) => setProgress(0.6 * (d / Math.max(1, n))));
@@ -269,14 +327,15 @@ export function AddUnitScreen() {
       if (e instanceof SaveNotConfirmed) return setError(t(lang, 'saveNotConfirmed'));
       if (!(e instanceof ApiClientError)) return setError(errorText(e, lang));
       if (editCode && e.code === 'conflict') return setError(t(lang, 'changedElsewhere'));
-      if (editCode && e.code === 'incomplete') { setFailedCheck(true); return setBlockers((e.extra.blockers as { field: string; label: string }[]) ?? []); }
+      if (editCode && e.code === 'incomplete') { setFailedCheck(true); return setBlockers((e.extra.blockers as Blocker[]) ?? []); }
       if (e.code === 'incomplete') {
-        const rv = await api.reviewUnit(fields, files.length).catch(() => null);
+        const rv = await api.reviewUnit(body, files.length).catch(() => null);
         setFailedCheck(true);
+        toBlocked(rv?.blockers ?? []);
         return setBlockers(rv?.blockers ?? []);
       }
       if (e.code === 'duplicate') {
-        const rv = await api.reviewUnit(fields, files.length).catch(() => null);
+        const rv = await api.reviewUnit(body, files.length).catch(() => null);
         return setDuplicate(rv?.duplicate ?? '');
       }
       if (e.code === 'owner_name_required') return setError(t(lang, 'ownerNameNeeded'));
@@ -292,62 +351,72 @@ export function AddUnitScreen() {
 
   const discard = async () => {
     await clearDraft();
-    setFields({ listing_type: 'sale', market: 'resale' });
+    setFields({ listing_type: 'sale' });
+    descAuto.current = true;
     setDescribe('');
     setPhotos([]);
     setNotice(null);
   };
 
-  const resale = fields.market !== 'primary';
+  const stepName = (s: Step) => (s === 1 ? L.step1 : s === 2 ? L.step2 : s === 3 ? L.step3 : L.step4);
+  const anchor = (s: Step) => ({ onLayout: (e: { nativeEvent: { layout: { y: number } } }) => { anchors.current[s] = e.nativeEvent.layout.y; } });
+  const saveDisabled = saving || Boolean(review?.warnings.length && !review.blockers.length && !ack);
+
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.content, saving && styles.locked]} keyboardShouldPersistTaps="handled" scrollEnabled={!dragging} pointerEvents={saving ? 'none' : 'auto'}>
-      {(
-        <>
-          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fillFrom')}</Text>
-          <Field testID="describe" label={t(lang, 'describePlaceholder')} value={describe} onChangeText={setDescribe} multiline />
+    <View style={[styles.screen, { backgroundColor: colors.bg }]}>
+      <ScrollView ref={scroll} style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.content, saving && styles.locked]} keyboardShouldPersistTaps="handled" scrollEnabled={!dragging} pointerEvents={saving ? 'none' : 'auto'}>
+        <View style={styles.jump}>
+          {flow.map((n) => <Pressable key={n} testID={`jump-${n}`} accessibilityRole="link" onPress={() => jump(n)} style={[styles.jumpChip, { borderColor: colors.border }]}><Text style={{ color: colors.text, fontWeight: '600' }}>{stepName(n)}</Text></Pressable>)}
+        </View>
+
+        {/* A refused save and a look-alike unit show at the top. */}
+        {failedCheck && allBlockers.length ? (
+          <View testID="blockers" style={[styles.box, { borderColor: colors.danger }]}>
+            <Text style={{ color: colors.danger, fontWeight: '700' }}>{t(lang, 'stillNeeded')}</Text>
+            {allBlockers.map((b) => <Text key={b.field} style={{ color: colors.text }}>• {b.label}</Text>)}
+          </View>
+        ) : null}
+        {(duplicate ?? (editCode ? null : review?.duplicate ?? null)) !== null ? (
+          <View testID="duplicate" style={[styles.box, { borderColor: colors.accent }]}>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'duplicateAsk')} {duplicate ?? review?.duplicate}</Text>
+            <SwitchRow label={t(lang, 'dupOk')} value={dupAck} onChange={setDupAck} testID="dup-ack" />
+            <Button label={t(lang, 'saveAnyway')} onPress={() => save(true)} />
+            {duplicate !== null ? <Button label={t(lang, 'cancel')} variant="secondary" onPress={() => setDuplicate(null)} /> : null}
+          </View>
+        ) : null}
+
+        <View style={styles.stack} {...anchor(1)}>
+          <SectionHead n={1} title={L.step1} />
+          <Field testID="describe" label={t(lang, 'describePlaceholder')} value={describe} onChangeText={onDescribe} multiline />
           <View style={styles.row}>
-            <View style={styles.flex}><Button testID="fill" label={t(lang, 'fillBtn')} onPress={() => fill({ describe })} disabled={!describe.trim()} /></View>
+            <View style={styles.flex}><Button testID="fill" label={t(lang, 'fillBtn')} onPress={() => runFill({ describe })} disabled={!describe.trim()} /></View>
             <View style={styles.flex}><HoldMic testID="unit-mic" label={t(lang, 'mic')} onFile={onVoice} onError={setError} /></View>
           </View>
-        </>
-      )}
-      {notice ? <Text testID="unit-notice" style={{ color: colors.accent }}>{notice}</Text> : null}
-
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fDeal')}</Text>
-      <Chips options={[{ value: 'sale', label: t(lang, 'sale') }, { value: 'rent', label: t(lang, 'rent') }]} value={str(fields.listing_type)} onChange={(v) => set('listing_type', v)} />
-      {fields.market === 'primary' ? <Chips options={[{ value: 'resale', label: t(lang, 'resale') }, { value: 'primary', label: t(lang, 'primary') }]} value={str(fields.market)} onChange={(v) => set('market', v)} /> : null}
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fType')}</Text>
-      <Chips options={options(PROPERTY_TYPES, lang)} value={str(fields.property_type)} onChange={(v) => set('property_type', v)} />
-
-      <Text style={{ color: colors.muted }}>{t(lang, 'placeRule')}</Text>
-      <PlaceInput testID="f-compound" label={t(lang, 'fCompound')} value={str(fields.compound)} onChangeText={(v) => set('compound', v)} onPick={pickPlace} />
-      <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'placeNew')}</Text><Switch testID="place-new" value={fields.compound_new === '1'} onValueChange={(v) => set('compound_new', v ? '1' : '')} /></View>
-      {fields.compound_new === '1' ? <><Text style={{ color: colors.muted }}>{t(lang, 'placeBoth')}</Text>{field('district', t(lang, 'fPlaceArea'))}</> : null}
-      {fields.area_id ? (
-        <View style={styles.switchRow}>
-          <Text testID="picked-area" style={[styles.flex, { color: colors.text }]}>{t(lang, 'fPlaceArea')}: {str(fields.area_path)}</Text>
-          <Button testID="clear-area" label={t(lang, 'clear')} variant="secondary" onPress={() => setFields((f) => ({ ...f, area_id: '', subzone_id: '', area_path: '' }))} />
+          {notice ? <Text testID="unit-notice" style={{ color: colors.accent }}>{notice}</Text> : null}
+          <UnitBox fields={fields} patch={patch} lang={lang} invalid={failedCheck && missing('location')} />
+          {editCode ? null : field('code', lang === 'en' ? 'Unit code (optional)' : 'كود الوحدة (اختياري)', { autoCapitalize: 'characters', autoCorrect: false })}
+          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fDeal')}</Text>
+          <Chips options={[{ value: 'sale', label: t(lang, 'sale') }, { value: 'rent', label: t(lang, 'rent') }]} value={str(fields.listing_type)} onChange={(v) => set('listing_type', v)} testID="f-listing_type" required invalid={failedCheck && missing('listing_type')} />
+          <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fType')}</Text>
+          <Chips options={options(PROPERTY_TYPES, lang)} value={str(fields.property_type)} onChange={(v) => set('property_type', v)} testID="f-property_type" required invalid={failedCheck && missing('property_type')} />
         </View>
-      ) : null}
-      <View style={styles.row}><View style={styles.flex}>{field('city', t(lang, 'fCity'))}</View>{fields.compound_new === '1' ? null : <View style={styles.flex}>{field('district', t(lang, 'fDistrict'))}</View>}</View>
-      {field('price_value', t(lang, 'fPrice'), { keyboardType: 'numbers-and-punctuation', hint: readPrice(str(fields.price_value), lang), value: withCommas(str(fields.price_value)), onChangeText: (v: string) => set('price_value', plain(v)) })}
-      <View style={styles.row}><View style={styles.flex}>{field('area_value', t(lang, 'fArea'), { keyboardType: 'decimal-pad' })}</View><View style={styles.flex}>{field('floor_level', t(lang, 'fFloor'), { keyboardType: 'number-pad' })}</View></View>
-      <View style={styles.row}><View style={styles.flex}>{field('bedrooms', t(lang, 'fBedrooms'), { keyboardType: 'number-pad' })}</View><View style={styles.flex}>{field('bathrooms', t(lang, 'fBathrooms'), { keyboardType: 'number-pad' })}</View></View>
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fFinishing')}</Text>
-      <Chips options={options(FINISHING, lang)} value={str(fields.finishing)} onChange={(v) => set('finishing', v)} />
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fFurnishing')}</Text>
-      <Chips options={options(FURNISHING, lang)} value={str(fields.furnishing)} onChange={(v) => set('furnishing', v)} />
-      <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'fReady')}</Text><Switch value={fields.is_ready === '1'} onValueChange={(v) => set('is_ready', v ? '1' : '')} /></View>
-      {fields.is_ready === '1' ? null : field('delivery_year', t(lang, 'fDelivery'), { keyboardType: 'number-pad' })}
-      {resale && fields.listing_type !== 'rent' ? <View style={styles.row}><View style={styles.flex}>{field('down_payment_value', t(lang, 'fDown'), { keyboardType: 'numbers-and-punctuation', value: withCommas(str(fields.down_payment_value)), onChangeText: (v: string) => set('down_payment_value', plain(v)) })}</View><View style={styles.flex}>{field('remaining_amount', t(lang, 'fRemaining'), { keyboardType: 'numbers-and-punctuation', value: withCommas(str(fields.remaining_amount)), onChangeText: (v: string) => set('remaining_amount', plain(v)) })}</View></View> : null}
-      {field('owner_name', t(lang, 'fOwnerName'))}
-      {field('owner_phone', t(lang, 'fOwnerPhone'), { keyboardType: 'phone-pad', hint: readPhone(str(fields.owner_phone)) })}
-      <View style={styles.switchRow}><Text style={{ color: colors.text }}>{t(lang, 'usePhoneAsName')}</Text><Switch value={fields.owner_name_from_phone === '1'} onValueChange={(v) => set('owner_name_from_phone', v ? '1' : '')} /></View>
-      <UnitExtraFields fields={fields} set={set} field={field} lang={lang} rent={fields.listing_type === 'rent'} ready={fields.is_ready === '1'} editing={Boolean(editCode)} />
-      {field('notes', t(lang, 'fNotes'), { multiline: true })}
 
-      {(
-        <>
+        <View style={styles.stack} {...anchor(2)}>
+          <SectionHead n={2} title={L.step2} />
+          <SizeSection fields={fields} set={set} field={field} lang={lang} />
+        </View>
+
+        {fields.listing_type !== 'rent' ? (
+          <View style={styles.stack} {...anchor(3)}>
+            <SectionHead n={3} title={L.step3} />
+            <DeliverySection fields={fields} set={set} field={field} lang={lang} />
+          </View>
+        ) : null}
+
+        <View style={styles.stack} {...anchor(4)}>
+          <SectionHead n={4} title={L.step4} />
+          <OwnerSection fields={fields} set={set} field={field} lang={lang} expanded={Boolean(fields.commission || fields.co_broker || fields.unit_no || fields.address || fields.pin)} onDescribeAgain={writeDraftAgain} />
+
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'photosTitle')} ({kept.length}/{MAX_PHOTOS})</Text>
           <View style={styles.row}>
             <View style={styles.flex}><Button testID="add-photos" label={t(lang, 'addPhotos')} variant="secondary" onPress={() => addPhotos(() => pickPhotos(MAX_POOL - photos.length))} /></View>
@@ -369,51 +438,51 @@ export function AddUnitScreen() {
               else setPhotos(next);
             }}
           />
-          {editCode ? null : <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'aiOrder')}</Text><Switch value={photoAi} onValueChange={setPhotoAi} /></View>}
-        </>
-      )}
+          {editCode ? null : <SwitchRow label={t(lang, 'aiOrder')} value={photoAi} onChange={setPhotoAi} />}
+        </View>
 
-      {failedCheck && (review?.blockers ?? blockers).length ? (
-        <View testID="blockers" style={[styles.box, { borderColor: colors.danger }]}>
-          <Text style={{ color: colors.danger, fontWeight: '700' }}>{t(lang, 'stillNeeded')}</Text>
-          {(review?.blockers ?? blockers).map((b) => <Text key={b.field} style={{ color: colors.text }}>• {b.label}</Text>)}
+        <View style={styles.stack}>
+          {editCode && review?.changes?.length ? (
+            <View testID="changes" style={[styles.box, { borderColor: colors.border }]}>
+              <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'willChange')}</Text>
+              {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {c.from || '—'} ← {c.to || '—'}</Text>)}
+            </View>
+          ) : null}
+          {review && !review.warnings.length && !review.blockers.length ? <Text testID="no-warnings" style={{ color: colors.muted }}>✓ {t(lang, 'noWarnings')}</Text> : null}
+          {review?.warnings.length && !review.blockers.length ? (
+            <View testID="warnings" style={[styles.box, { borderColor: colors.accent }]}>
+              {review.warnings.map((w) => <Text key={w.field + w.text} style={{ color: colors.text }}>• {w.text}</Text>)}
+              <SwitchRow label={t(lang, 'warnOk')} value={ack} onChange={setAck} testID="ack" />
+            </View>
+          ) : null}
         </View>
-      ) : null}
-      {editCode && review?.changes?.length ? (
-        <View testID="changes" style={[styles.box, { borderColor: colors.border }]}>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'willChange')}</Text>
-          {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {c.from || '—'} ← {c.to || '—'}</Text>)}
+        {error ?<Text testID="unit-error" style={{ color: colors.danger }}>{error}</Text> : null}
+        {slow ? <Text testID="slow-net" style={{ color: colors.accent, fontWeight: '700' }}>🐢 {slow}</Text> : null}
+        {editCode ? null : <Button label={t(lang, 'discardDraft')} variant="secondary" onPress={discard} />}
+      </ScrollView>
+
+      {/* The fixed Save bar. */}
+      <View style={[styles.bar, { backgroundColor: colors.card, borderTopColor: colors.border }]} testID="unit-bar">
+        <View style={[styles.barBtn, styles.barSave]}>
+          <Button testID="save-unit" label={saving ? `${t(lang, 'saving')} ${Math.round(progress * 100)}%` : t(lang, 'saveUnit')} progress={saving ? progress : undefined} onPress={() => save(false)} loading={saving} disabled={saveDisabled} />
         </View>
-      ) : null}
-      {review && !review.warnings.length && !review.blockers.length ? <Text testID="no-warnings" style={{ color: colors.muted }}>✓ {t(lang, 'noWarnings')}</Text> : null}
-      {review?.warnings.length && !review.blockers.length ? (
-        <View testID="warnings" style={[styles.box, { borderColor: colors.accent }]}>
-          {review.warnings.map((w) => <Text key={w.field + w.text} style={{ color: colors.text }}>• {w.text}</Text>)}
-          <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'warnOk')}</Text><Switch testID="ack" value={ack} onValueChange={setAck} /></View>
-        </View>
-      ) : null}
-      {(duplicate ?? (editCode ? null : review?.duplicate ?? null)) !== null ? (
-        <View testID="duplicate" style={[styles.box, { borderColor: colors.accent }]}>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'duplicateAsk')} {duplicate ?? review?.duplicate}</Text>
-          <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'dupOk')}</Text><Switch testID="dup-ack" value={dupAck} onValueChange={setDupAck} /></View>
-          <Button label={t(lang, 'saveAnyway')} onPress={() => save(true)} />
-          {duplicate !== null ? <Button label={t(lang, 'cancel')} variant="secondary" onPress={() => setDuplicate(null)} /> : null}
-        </View>
-      ) : null}
-      {error ? <Text testID="unit-error" style={{ color: colors.danger }}>{error}</Text> : null}
-      {slow ? <Text testID="slow-net" style={{ color: colors.accent, fontWeight: '700' }}>🐢 {slow}</Text> : null}
-      <Button testID="save-unit" label={saving ? `${t(lang, 'saving')} ${Math.round(progress * 100)}%` : t(lang, 'saveUnit')} progress={saving ? progress : undefined} onPress={() => save(false)} loading={saving} disabled={saving || Boolean(review?.warnings.length && !review.blockers.length && !ack)} />
-      {editCode ? null : <Button label={t(lang, 'discardDraft')} variant="secondary" onPress={discard} />}
-    </ScrollView>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xl * 2 },
+  screen: { flex: 1 },
+  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 120 },
+  stack: { gap: spacing.md },
   h: { fontSize: 16, fontWeight: '700', marginTop: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   locked: { opacity: 0.6 },
   box: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  jump: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  jumpChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, minHeight: 36, justifyContent: 'center' },
+  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: spacing.sm, padding: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
+  barBtn: { flex: 1 },
+  barSave: { flex: 1 },
 });

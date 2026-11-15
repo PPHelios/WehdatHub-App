@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
-import { CatalogueForms } from '../components/CatalogueForms';
 import { Field } from '../components/Field';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
@@ -29,68 +27,6 @@ function Gate<T>({ q, children }: { q: { isPending: boolean; isError: boolean; e
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
   if (q.isError || !q.data) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
   return children(q.data);
-}
-
-/** The project catalogue. Managers add developers and projects here; uploads and price sheets stay on the website. */
-export function ProjectsScreen() {
-  const { colors } = useTheme();
-  const lang = currentLang();
-  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const [q, setQ] = useState('');
-  const query = useQuery({ queryKey: ['catalogue', q], queryFn: () => api.catalogue(q || undefined) });
-  return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
-      <Field label={lang === 'ar' ? 'ابحث في المشاريع' : 'Search projects'} value={q} onChangeText={setQ} testID="project-search" />
-      <Gate q={query}>
-        {(d) => (
-          <View style={styles.gap}>
-            {d.canEdit ? <CatalogueForms /> : null}
-            {d.projects.items.map((p) => (
-              <Pressable key={str(p.id)} testID={`project-${str(p.id)}`} accessibilityRole="button" onPress={() => nav.navigate('Project', { id: str(p.id), name: str(p.name) })}>
-                <Card>
-                  <Text style={[styles.h, { color: colors.text }]}>{str(p.name)}</Text>
-                  <Text style={{ color: colors.muted }}>{str(p.district)} {str(p.city)} · {num(p.units)} {lang === 'ar' ? 'وحدة' : 'units'}</Text>
-                </Card>
-              </Pressable>
-            ))}
-          </View>
-        )}
-      </Gate>
-    </ScrollView>
-  );
-}
-
-/** One project: facts, notes, plans, materials and units. Managers can archive it. */
-export function ProjectScreen() {
-  const { colors } = useTheme();
-  const lang = currentLang();
-  const ar = lang === 'ar';
-  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const qc = useQueryClient();
-  const id = useRoute<RouteProp<RootStackParams, 'Project'>>().params.id;
-  const query = useQuery({ queryKey: ['project', id], queryFn: () => api.project(id) });
-  const archive = async (on: boolean) => {
-    try { await api.archiveProject(id, on); await qc.invalidateQueries({ queryKey: ['catalogue'] }); nav.goBack(); } catch (e) { Alert.alert(errorText(e, lang)); }
-  };
-  return (
-    <Gate q={query}>
-      {(d) => (
-        <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
-          <Card>
-            <Text style={[styles.h, { color: colors.text }]}>{str(d.project.name)}</Text>
-            <Text style={{ color: colors.muted }}>{str(d.project.district)} {str(d.project.city)} {d.project.delivery_year ? `· ${str(d.project.delivery_year)}` : ''}</Text>
-            {d.project.notes ? <Text style={{ color: colors.text }}>{str(d.project.notes)}</Text> : null}
-          </Card>
-          {d.plans.length ? <Card><Text style={[styles.h, { color: colors.text }]}>{ar ? 'خطط الدفع' : 'Payment plans'}</Text>{d.plans.map((p) => <Text key={str(p.id)} style={{ color: colors.text }}>{str(p.name)} · {str(p.down_payment_pct)}% · {str(p.years)} {ar ? 'سنين' : 'years'}</Text>)}</Card> : null}
-          {d.materials.length ? <Card><Text style={[styles.h, { color: colors.text }]}>{ar ? 'الملفات واللينكات' : 'Files and links'}</Text>{d.materials.map((m) => <Text key={str(m.id)} style={{ color: colors.text }}>{str(m.title ?? m.name)}</Text>)}</Card> : null}
-          <Card><Text style={[styles.h, { color: colors.text }]}>{ar ? 'الوحدات' : 'Units'} ({d.units.length})</Text>{d.units.map((u) => (
-            <Pressable key={str(u.id)} accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: str(u.code) })}><Text style={{ color: colors.primary }}>{str(u.code)} · {num(u.price_value)} · {str(u.status)}</Text></Pressable>
-          ))}</Card>
-          {d.canEdit ? <Button testID="project-archive" variant="secondary" label={ar ? 'أرشفة المشروع' : 'Archive project'} onPress={() => archive(true)} /> : null}
-        </ScrollView>
-      )}
-    </Gate>
-  );
 }
 
 /** The shared project library: managers copy a project into their own. */

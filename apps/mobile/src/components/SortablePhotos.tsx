@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
-import { dropIndex, moveItem } from '@wehdathub/shared';
+import { dropIndex } from '@wehdathub/shared';
 import type { UploadFile } from '@wehdathub/shared';
+import { moveKept } from '../photos';
 import { radius, spacing, useTheme } from '../theme';
 import { SmartImage } from './SmartImage';
 
@@ -60,7 +61,7 @@ export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRe
     dy.setValue(0);
     setActive(null);
     live.current.onDragging?.(false);
-    if (to !== index) live.current.onChange(moveItem(live.current.photos, index, to));
+    if (to !== index) live.current.onChange(moveKept(live.current.photos, index, to));
   };
 
   // A row between the old and the new place of the dragged photo slides one step to make room.

@@ -18,14 +18,17 @@ const ICONS = {
   plan: [{ r: [2, 5, 20, 14, 2] }, { d: 'M2 10h20' }],
   mic: [{ r: [9, 2, 6, 11, 3] }, { d: 'M19 10v2a7 7 0 0 1-14 0v-2M12 19v3' }],
   trash: [{ d: 'M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6' }],
+  bell: [{ d: 'M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9' }, { d: 'M13.7 21a2 2 0 0 1-3.4 0' }],
+  edit: [{ d: 'M12 20h9' }, { d: 'M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z' }],
   download: [{ d: 'M12 3v12M7 10l5 5 5-5M5 21h14' }],
 } satisfies Record<string, Part[]>;
 
 export type IconName = keyof typeof ICONS;
 
-export function Icon({ name, color, size = 24 }: { name: IconName; color: string; size?: number }) {
+/** `fill` shades the inside of the shapes (the active tab); without it the icon is a plain line drawing. */
+export function Icon({ name, color, size = 24, fill }: { name: IconName; color: string; size?: number; fill?: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" testID={`icon-${name}`}>
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={fill ?? 'none'} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" testID={`icon-${name}`}>
       {(ICONS[name] as Part[]).map((p, i) =>
         'd' in p ? <Path key={i} d={p.d} /> : 'c' in p ? <Circle key={i} cx={p.c[0]} cy={p.c[1]} r={p.c[2]} /> : <Rect key={i} x={p.r[0]} y={p.r[1]} width={p.r[2]} height={p.r[3]} rx={p.r[4]} />,
       )}

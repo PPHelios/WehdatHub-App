@@ -1,50 +1,116 @@
-import React, { useState } from 'react';
-import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
-import { formatEgp } from '@wehdathub/shared';
+import React, { useRef, useState } from 'react';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { ApiClientError } from '@wehdathub/shared';
+import type { AskAction, ProjectFilters, ProjectSort } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
-import { t } from '../i18n';
+import { numberOf } from '../projectRules';
+import { fill, pt } from '../projectText';
+import { plain, withCommas } from '../readback';
 import { radius, spacing, useTheme } from '../theme';
+import { useDebounced } from '../useDebounced';
 import { Button } from './Button';
 import { Chips } from './Chips';
+import { Field } from './Field';
+import { Count, Pager, ProjectCardView } from './ProjectList';
 
-/** Ask's project results: offers grouped by project, a chip per filter that can be dropped, a sort, and pages. */
-export function AskResults({ q }: { q: string }) {
+const SORTS: ProjectSort[] = ['best', 'cheap', 'pricey', 'small', 'big', 'down'];
+const SORT_KEY = { best: 'sortBest', cheap: 'sortCheap', pricey: 'sortPricey', small: 'sortSmall', big: 'sortBig', down: 'sortDown' } as const;
+const RANGES = ['pmin', 'pmax', 'amin', 'amax', 'dmax'] as const;
+type Range = (typeof RANGES)[number];
+
+/** A chip's value as one line: a plain value, or the numbers of the filter it stands for. */
+export const chipText = (v: unknown): string => (v && typeof v === 'object' ? Object.values(v as Record<string, unknown>).flat().filter((x) => x !== null && x !== '').join(' · ') : String(v ?? ''));
+
+/**
+ * Ask's results, grouped by project: a count, a chip per filter read from the question (each can be dropped), sort pills, a filter row
+ * (price range, area range, max down payment, bedrooms), project cards with their offers or the notes that fit, WhatsApp, and pages.
+ * The same cards as the catalogue list.
+ */
+export function AskResults({ q, onOpenProject }: { q: string; onOpenProject?: (id: string, name: string) => void }) {
   const { colors } = useTheme();
   const lang = currentLang();
+  const T = pt(lang);
   const [page, setPage] = useState(1);
-  const [sort, setSort] = useState<'best' | 'cheap'>('best');
+  const [sort, setSort] = useState<ProjectSort>('best');
   const [drop, setDrop] = useState<string[]>([]);
-  const r = useQuery({ queryKey: ['askResults', q, page, sort, drop.join(',')], queryFn: () => api.askResults(q, page, sort, drop) });
-  if (!r.data || (!r.data.projects.length && !drop.length)) return null;
+  const [range, setRange] = useState<Record<Range, string>>({ pmin: '', pmax: '', amin: '', amax: '', dmax: '' });
+  const [bed, setBed] = useState<number | undefined>(undefined);
+  const [unitsOnly, setUnitsOnly] = useState(false);
+  const [report, setReport] = useState<'closed' | 'open' | 'done' | 'again'>('closed');
+  const [note, setNote] = useState('');
+  // The first answer's token and log id ride along on every later page, sort and filter, so the question is read and logged once.
+  const link = useRef<{ token?: string; logId?: string }>({});
+  const typed = useDebounced(range, 500);
+  const filters: ProjectFilters = { ...Object.fromEntries(RANGES.map((k) => [k, numberOf(typed[k])]).filter(([, v]) => v !== undefined)), ...(bed ? { bed } : {}) };
+  const active = Object.keys(filters).length > 0;
+  const r = useQuery({
+    queryKey: ['askResults', q, page, sort, drop.join(','), JSON.stringify(filters), unitsOnly],
+    queryFn: async () => {
+      const r = await api.askResults({ q, page, sort, drop, ...filters, ...(unitsOnly ? { units: true } : {}), ...link.current });
+      if (!link.current.token && r.token) link.current = { token: r.token, logId: r.log_id ?? undefined };
+      return r;
+    },
+    placeholderData: keepPreviousData,
+  });
+  if (!r.data || (!r.data.projects.length && !drop.length && !active)) return null;
   const d = r.data;
+  const reset = () => setPage(1);
+  // What the broker does next goes to the search log; a failure never shows.
+  const log = (action: AskAction, detail?: string) => { const id = link.current.logId ?? d.log_id; if (id) api.askAction(id, action, detail)?.catch?.(() => undefined); };
+  const sendReport = async () => {
+    const id = link.current.logId ?? d.log_id;
+    if (!id) return;
+    try { await api.askReport(id, note.trim()); setReport('done'); } catch (e) { setReport(e instanceof ApiClientError && e.status === 409 ? 'again' : 'open'); }
+  };
+  const box = (k: Range, label: string) => (
+    <View style={styles.flex} key={k}><Field testID={`ask-${k}`} label={label} value={withCommas(range[k])} onChangeText={(v) => { setRange({ ...range, [k]: plain(v) }); reset(); }} onEndEditing={() => log('filter', k)} keyboardType="number-pad" /></View>
+  );
   return (
     <View testID="ask-results" style={styles.wrap}>
-      <Text style={[styles.title, { color: colors.text }]}>{t(lang, 'askResultsTitle')}: {d.total_projects} {t(lang, 'totalProjects')} · {d.total_offers} {t(lang, 'totalOffers')}</Text>
-      <View style={styles.chips}>
-        {d.chips.map((c) => (
-          <Pressable key={c.key} testID={`ask-chip-${c.key}`} accessibilityRole="button" onPress={() => { setDrop([...drop, c.key]); setPage(1); }} style={[styles.chip, { borderColor: colors.border, backgroundColor: colors.card }]}>
-            <Text style={{ color: colors.text }}>{c.value} ✕</Text>
-          </Pressable>
-        ))}
-      </View>
-      <Chips<'best' | 'cheap'> testID="ask-sort" value={sort} options={[{ value: 'best', label: t(lang, 'sortBest') }, { value: 'cheap', label: t(lang, 'sortCheap') }]} onChange={(v) => { setSort(v); setPage(1); }} />
-      {d.projects.map((p) => (
-        <View key={p.name} testID="ask-project" style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }}>{lang === 'en' && p.name_en ? p.name_en : p.name}{p.place ? ` · ${p.place}` : ''}</Text>
-          {p.offers.map((o, i) => (
-            <Text key={i} style={{ color: colors.text }}>{[`${o.area} m²`, o.floor !== null && o.floor !== undefined && o.floor !== '' ? String(o.floor) : null, `${formatEgp(o.price)} ${t(lang, 'egp')}`, o.down ? `↓ ${formatEgp(o.down)}` : null, o.monthly ? `${formatEgp(o.monthly)}/${lang === 'ar' ? 'شهر' : 'mo'}` : null].filter(Boolean).join(' · ')}</Text>
-          ))}
-          <Button variant="secondary" label={t(lang, 'copyAnswer')} onPress={() => { Share.share({ message: p.client_text }).catch(() => undefined); }} />
-        </View>
-      ))}
-      {d.pages > 1 ? (
+      <Text style={[styles.title, { color: colors.text }]}>{T.askResults}</Text>
+      {d.answer_line ? <Text testID="ask-line" style={{ color: colors.text }}>{d.answer_line}</Text> : null}
+      <Count projects={d.total_projects} options={d.total_options ?? d.total_offers} lang={lang} />
+      {d.chips.length ? (
         <View style={styles.chips}>
-          <View style={styles.flex}><Button testID="ask-prev" variant="secondary" label={t(lang, 'prevPage')} disabled={d.page <= 1} onPress={() => setPage(d.page - 1)} /></View>
-          <View style={styles.flex}><Button testID="ask-next" variant="secondary" label={t(lang, 'nextPage')} disabled={d.page >= d.pages} onPress={() => setPage(d.page + 1)} /></View>
+          {d.chips.map((c) => (
+            <Pressable key={c.key} testID={`ask-chip-${c.key}`} accessibilityRole="button" accessibilityLabel={fill(T.removeChip, { s: chipText(c.value) })} onPress={() => { log('chip_drop', c.key); setDrop([...drop, c.key]); reset(); }} style={[styles.chip, { borderColor: colors.border, backgroundColor: colors.card }]}>
+              <Text style={{ color: colors.text }}>{chipText(c.value)}  ×</Text>
+            </Pressable>
+          ))}
         </View>
       ) : null}
+      <Text style={[styles.label, { color: colors.muted }]}>{T.sortBy}</Text>
+      <Chips<ProjectSort> testID="ask-sort" value={sort} options={SORTS.map((s) => ({ value: s, label: T[SORT_KEY[s]] }))} onChange={(v) => { log('sort', v); setSort(v); reset(); }} />
+      <View testID="ask-filters" style={styles.filters}>
+        <Text style={[styles.label, { color: colors.muted }]}>{T.priceRange}</Text>
+        <View style={styles.row}>{box('pmin', T.min)}{box('pmax', T.max)}</View>
+        <Text style={[styles.label, { color: colors.muted }]}>{T.areaRange}</Text>
+        <View style={styles.row}>{box('amin', T.min)}{box('amax', T.max)}</View>
+        {box('dmax', T.maxDown)}
+        <View style={styles.row}>
+          <Text style={[styles.flex, { color: colors.text }]}>{T.unitsOnly}</Text>
+          <Switch testID="ask-units" value={unitsOnly} onValueChange={(v) => { log('filter', 'units'); setUnitsOnly(v); reset(); }} />
+        </View>
+        <Text style={[styles.label, { color: colors.muted }]}>{T.bedrooms}</Text>
+        <Chips<string> testID="ask-bed" value={bed ? String(bed) : ''} options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))} onChange={(v) => { log('filter', 'bed'); setBed(bed === Number(v) ? undefined : Number(v)); reset(); }} />
+      </View>
+      {d.projects.length ? d.projects.map((p, i) => (
+        <ProjectCardView key={p.id ?? `${p.name}-${i}`} p={p} lang={lang} onOpen={p.id && onOpenProject ? () => { log('open', p.id); onOpenProject(p.id as string, p.name); } : undefined} onSend={() => log('send', p.id)} />
+      )) : <Text testID="ask-none" style={{ color: colors.muted }}>{T.noResults}</Text>}
+      <View style={styles.filters}>
+        {report === 'closed' ? <Button testID="ask-wrong" variant="secondary" label={T.wrongResults} onPress={() => setReport('open')} /> : null}
+        {report === 'open' ? (
+          <>
+            <Field testID="ask-report-note" label={T.reportNote} value={note} onChangeText={setNote} multiline />
+            <Button testID="ask-report-send" label={T.reportSend} onPress={sendReport} />
+          </>
+        ) : null}
+        {report === 'done' ? <Text testID="ask-report-done" style={{ color: colors.accent }}>{T.reportDone}</Text> : null}
+        {report === 'again' ? <Text style={{ color: colors.muted }}>{T.reportAgain}</Text> : null}
+      </View>
+      <Pager page={d.page} pages={d.pages} onPage={(n) => { log('page', String(n)); setPage(n); }} lang={lang} />
     </View>
   );
 }
@@ -52,8 +118,10 @@ export function AskResults({ q }: { q: string }) {
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
   title: { fontSize: 16, fontWeight: '800' },
+  label: { fontSize: 13, fontWeight: '600' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  card: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  chip: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, minHeight: 44, justifyContent: 'center' },
+  filters: { gap: spacing.sm },
+  row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
 });

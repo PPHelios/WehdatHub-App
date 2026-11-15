@@ -12,16 +12,18 @@ import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { ClientLinkModal } from '../components/ClientLinkModal';
 import { PhotoGallery } from '../components/PhotoGallery';
+import { Pill } from '../components/Pill';
 import { sharePhotos } from '../sharePhotos';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import { featureChip } from '../featureLabels';
-import { saveToGallery } from '../saveImage';
 import { FINISHING, FURNISHING, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 import { clientLang } from '../prefs';
+
+type FlyerKind = 'dark' | 'light' | 'nobrand';
 
 export function UnitScreen({ code }: { code?: string } = {}) {
   const { colors } = useTheme();
@@ -34,31 +36,28 @@ export function UnitScreen({ code }: { code?: string } = {}) {
   // The owner's number comes only when the agency's privacy rules let this broker see it; otherwise the buttons stay hidden.
   const contact = useQuery({ queryKey: ['unit', unitCode, 'contact'], queryFn: () => api.unitContact(unitCode), retry: false, enabled: unit.isSuccess });
   const [flyer, setFlyer] = useState<string | null>(null);
-  const [flyerBusy, setFlyerBusy] = useState<'main' | 'nb' | null>(null); // each flyer button spins on its own
-  const [saving, setSaving] = useState(false);
-  const saveFlyer = async () => {
-    if (!flyer) return;
-    setSaving(true);
+  // One flyer is made at a time: while one is being made, every flyer button is disabled and only the chosen one spins.
+  const [flyerBusy, setFlyerBusy] = useState<FlyerKind | null>(null);
+  const [sharingFlyer, setSharingFlyer] = useState(false);
+  const [flyerKind, setFlyerKind] = useState<FlyerKind>('dark');
+  const makeFlyer = async (kind: FlyerKind) => {
+    setFlyerBusy(kind);
     try {
-      const ok = await saveToGallery(flyer);
-      usage('flyer_save', ok);
-      Alert.alert(t(lang, ok ? 'savedToGallery' : 'galleryDenied'));
-    } catch {
-      // Saving straight from the web address failed on this phone: the share sheet can still save the picture ("Save to Photos").
-      const r = await sharePhotos([flyer], '');
-      if (r === 'failed') Alert.alert(t(lang, 'flyerFailed'));
-    } finally {
-      setSaving(false);
-    }
-  };
-  const makeFlyer = async (unbranded = false, theme: 'dark' | 'light' = 'dark') => {
-    setFlyerBusy(unbranded ? 'nb' : 'main');
-    try {
-      setFlyer((await timed('flyer_make', () => api.unitFlyer(unitCode, theme, unbranded, clientLang()))).url);
+      setFlyer((await timed('flyer_make', () => api.unitFlyer(unitCode, kind === 'light' ? 'light' : 'dark', kind === 'nobrand', clientLang()), { kind })).url);
+      setFlyerKind(kind);
     } catch (e) {
       Alert.alert(e instanceof ApiClientError && e.status === 503 ? t(lang, 'flyerBusy') : t(lang, 'flyerFailed'));
     } finally {
       setFlyerBusy(null);
+    }
+  };
+  const shareFlyer = async () => {
+    if (!flyer) return;
+    setSharingFlyer(true);
+    try {
+      if ((await sharePhotos([flyer], '', 'flyer_share', { kind: flyerKind })) === 'failed') Alert.alert(t(lang, 'flyerFailed'));
+    } finally {
+      setSharingFlyer(false);
     }
   };
   const [asking, setAsking] = useState(false);
@@ -112,37 +111,42 @@ export function UnitScreen({ code }: { code?: string } = {}) {
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.body}>
       <PhotoGallery photos={u.images} closeLabel={t(lang, 'closePanel')} />
       <View style={styles.info}>
-        <Text style={[styles.code, { color: colors.primary }]}>{u.code}</Text>
+        <View style={styles.head}>
+          {u.dealType === 'sale' || u.dealType === 'rent' ? <Pill solid tone={u.dealType === 'rent' ? 'accent' : 'primary'} label={t(lang, u.dealType)} /> : null}
+          <Text style={[styles.code, { color: colors.muted }]}>{u.code}</Text>
+        </View>
         {u.compound ? <Text style={[styles.title, { color: colors.text }]}>{u.compound}</Text> : null}
-        {u.price !== null ? <Text style={[styles.price, { color: colors.text }]}>{formatEgp(u.price)} {t(lang, 'egp')}</Text> : null}
-        {rows.filter(([, v]) => v).map(([k, v], i) => (
-          <Text key={i} style={[styles.row, { color: colors.muted }]}>{k ? `${k}: ` : ''}{v}</Text>
+        {u.price !== null ? <Text style={[styles.price, { color: colors.primary }]}>{formatEgp(u.price)} {t(lang, 'egp')}</Text> : null}
+        <View style={styles.chips}>
+          {rows.slice(0, 3).filter(([, v]) => v).map(([k, v]) => <Pill key={k} label={`${v} ${k}`} />)}
+        </View>
+        {rows.slice(3).filter(([, v]) => v).map(([, v], i) => (
+          <Text key={i} style={[styles.row, { color: colors.muted }]}>{v}</Text>
         ))}
         {contact.data?.phone ? (
           <View style={styles.actions}>
-            <View style={styles.flex}><Button testID="call-owner" label={`📞 ${t(lang, 'callOwner')}`} onPress={() => { Linking.openURL(`tel:${contact.data?.phone}`).catch(() => undefined); }} /></View>
-            <View style={styles.flex}><Button testID="whatsapp-owner" variant="secondary" label={`💬 ${t(lang, 'whatsappOwner')}`} onPress={() => { usage('whatsapp_tap', true, undefined, { kind: 'owner' }); Linking.openURL(`https://wa.me/${waNumber(contact.data?.phone ?? '')}`).catch(() => undefined); }} /></View>
+            <View style={styles.flex}><Button testID="call-owner" label={`${t(lang, 'callOwner')}`} onPress={() => { Linking.openURL(`tel:${contact.data?.phone}`).catch(() => undefined); }} /></View>
+            <View style={styles.flex}><Button testID="whatsapp-owner" variant="secondary" label={`${t(lang, 'whatsappOwner')}`} onPress={() => { usage('whatsapp_tap', true, undefined, { kind: 'owner' }); Linking.openURL(`https://wa.me/${waNumber(contact.data?.phone ?? '')}`).catch(() => undefined); }} /></View>
           </View>
         ) : null}
         {hidden === 'pending' ? <Text testID="access-pending" style={{ color: colors.muted }}>{t(lang, 'accessPending')}</Text> : null}
         {hidden === 'ask' ? <Button testID="request-access" variant="secondary" label={t(lang, 'requestAccess')} loading={asking} onPress={requestAccess} /> : null}
-        <Button testID="flyer" variant="secondary" label={`🖼 ${t(lang, 'flyer')}`} loading={flyerBusy === 'main'} disabled={flyerBusy === 'nb'} onPress={() => makeFlyer(false, 'dark')} />
-        <Button testID="flyer-light" variant="secondary" label={`🖼 ${t(lang, 'flyer')} · ${t(lang, 'flyerLight')}`} loading={flyerBusy === 'main'} disabled={flyerBusy === 'nb'} onPress={() => makeFlyer(false, 'light')} />
-        <Button testID="flyer-nobrand" variant="secondary" label={`🖼 ${t(lang, 'flyer')} · ${t(lang, 'flyerNoBrand')}`} loading={flyerBusy === 'nb'} disabled={flyerBusy === 'main'} onPress={() => makeFlyer(true, 'dark')} />
+        <Button testID="flyer" variant="secondary" label={`${t(lang, 'flyer')}`} loading={flyerBusy === 'dark'} disabled={flyerBusy !== null} onPress={() => makeFlyer('dark')} />
+        <Button testID="flyer-light" variant="secondary" label={`${t(lang, 'flyer')} · ${t(lang, 'flyerLight')}`} loading={flyerBusy === 'light'} disabled={flyerBusy !== null} onPress={() => makeFlyer('light')} />
+        <Button testID="flyer-nobrand" variant="secondary" label={`${t(lang, 'flyer')} · ${t(lang, 'flyerNoBrand')}`} loading={flyerBusy === 'nobrand'} disabled={flyerBusy !== null} onPress={() => makeFlyer('nobrand')} />
         {flyer ? (
           <Modal visible transparent animationType="fade" onRequestClose={() => setFlyer(null)}>
             <View style={[styles.flyerBack, { paddingTop: spacing.xl, paddingBottom: 64 /* clears the system navigation bar */ }]}>
               <Image testID="flyer-image" source={{ uri: flyer }} style={styles.flyerImg} resizeMode="contain" />
               {/* The buttons sit on a solid card so they read on any theme and clear the system navigation bar. */}
               <View style={[styles.flyerButtons, { backgroundColor: colors.bg }]}>
-                <Button testID="flyer-share" label={t(lang, 'shareFlyer')} onPress={() => { sharePhotos([flyer], '').catch(() => undefined); }} />
-                <Button testID="flyer-save" variant="secondary" label={t(lang, 'saveToGallery')} loading={saving} onPress={saveFlyer} />
+                <Button testID="flyer-share" label={t(lang, 'shareFlyer')} loading={sharingFlyer} disabled={sharingFlyer} onPress={shareFlyer} />
                 <Button label={t(lang, 'closePanel')} variant="secondary" onPress={() => setFlyer(null)} />
               </View>
             </View>
           </Modal>
         ) : null}
-        {u.canEdit ? <Button testID="edit-unit" variant="secondary" label={`✎ ${t(lang, 'editUnit')}`} onPress={() => nav.navigate('AddUnit', { edit: u.code })} /> : null}
+        {u.canEdit ? <Button testID="edit-unit" variant="secondary" label={`${t(lang, 'editUnit')}`} onPress={() => nav.navigate('AddUnit', { edit: u.code })} /> : null}
         {u.canEdit ? <UnitLifecycle code={u.code} status={u.status} /> : null}
         {u.canEdit ? <UnitPrivateForms code={u.code} prefill={routeParams?.lease} /> : null}
         <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} />
@@ -150,11 +154,11 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         <Button
           testID="share-unit"
           variant="secondary"
-          label={`📤 ${t(lang, 'shareUnit')}`}
+          label={`${t(lang, 'shareUnit')}`}
           onPress={async () => {
             // One button: the unit's text and its pictures together; if the pictures cannot go, the text still does.
             const text = [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n');
-            const r = u.images.length ? await sharePhotos(u.images.slice(0, 6).map((i) => i.url), text) : 'failed';
+            const r = u.images.length ? await sharePhotos(u.images.slice(0, 6).map((i) => i.url), text, 'unit_share') : 'failed';
             if (r === 'failed') await Share.share({ message: text }).catch(() => undefined);
           }}
         />
@@ -196,6 +200,7 @@ const styles = StyleSheet.create({
   flyerImg: { flex: 1, width: '100%', maxWidth: 420, alignSelf: 'center' },
   flyerButtons: { gap: spacing.sm, padding: spacing.md, borderRadius: radius.lg },
   actions: { flexDirection: 'row', gap: spacing.sm },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   body: { paddingBottom: spacing.xl },
   info: { padding: spacing.lg, gap: spacing.sm },
   code: { fontSize: 16, fontWeight: '800' },

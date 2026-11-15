@@ -53,17 +53,12 @@ test('saved searches list, open and delete', async () => {
   await waitFor(() => expect(m.deleteSavedSearch).toHaveBeenCalledWith('s1'));
 });
 
-test('managers add a developer and a project', async () => {
+test('managers add a developer here (projects have their own form)', async () => {
   m.saveDeveloper.mockResolvedValue({ ok: true, id: 'd' });
-  m.saveProject.mockResolvedValue({ ok: true, id: 'p' });
   await wrap(<CatalogueForms />);
   await fireEvent.press(screen.getByText('إضافة مطور'));
-  await fireEvent.press(screen.getByText('إضافة مشروع'));
-  const names = screen.getAllByLabelText('الاسم');
-  await fireEvent.changeText(names[0], 'Talaat');
+  await fireEvent.changeText(screen.getByLabelText('الاسم'), 'Talaat');
   await fireEvent.press(screen.getByTestId('developer-save'));
   await waitFor(() => expect(m.saveDeveloper).toHaveBeenCalledWith(expect.objectContaining({ name: 'Talaat' })));
-  await fireEvent.changeText(names[1], 'Hyde Park');
-  await fireEvent.press(screen.getByTestId('project-save'));
-  await waitFor(() => expect(m.saveProject).toHaveBeenCalledWith(expect.objectContaining({ name: 'Hyde Park' })));
+  expect(screen.queryByTestId('project-save')).toBeNull();
 });

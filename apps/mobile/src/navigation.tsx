@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import type { LeadTab, UploadFile } from '@wehdathub/shared';
 import { trackScreen } from './analytics';
 import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation } from '@react-navigation/native';
@@ -9,6 +9,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, currentLang } from './auth';
 import { BottomSafe } from './components/BottomSafe';
 import { Icon } from './components/Icon';
+import { FloatingTabBar } from './components/FloatingTabBar';
+import { NotificationBell } from './components/NotificationBell';
 import type { IconName } from './components/Icon';
 import { Logo } from './components/Logo';
 import { FONT_BOLD } from './fonts';
@@ -32,7 +34,10 @@ import { ActivityLogScreen, RequestsScreen } from './screens/RequestsScreen';
 import { InviteScreen } from './screens/InviteScreen';
 import { LeadRulesScreen } from './screens/LeadRulesScreen';
 import { PipelineScreen } from './screens/PipelineScreen';
-import { CompareScreen, LibraryScreen, PlanScreen, PlatformScreen, ProjectScreen, ProjectsScreen, UsageScreen } from './screens/MoreScreens';
+import { CompareScreen, LibraryScreen, PlanScreen, PlatformScreen, UsageScreen } from './screens/MoreScreens';
+import { ProjectScreen, ProjectsScreen } from './screens/CatalogueScreens';
+import { ProjectFormScreen } from './screens/ProjectFormScreen';
+import { pt } from './projectText';
 import { CommissionsScreen, DealsScreen, LinksScreen, PortalScreen, SourcesScreen } from './screens/DealsScreens';
 import { DashboardScreen, PricesScreen, ReportScreen, WinLossScreen } from './screens/InsightsScreens';
 import { AskScreen } from './screens/AskScreen';
@@ -69,23 +74,15 @@ import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type AddUnitParams = { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string };
-export type RootStackParams = { Tabs: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
+export type RootStackParams = { Tabs: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = Record<TabKey | 'AddUnitTab', undefined>;
 
 const Stack = createNativeStackNavigator<RootStackParams>();
 const Tabs = createBottomTabNavigator<TabParams>();
 
-/** Tab bar icon: the line icon, with a soft brand-colour pill behind the active tab. */
-function TabIcon({ name, color, focused }: { name: IconName; color: string; focused: boolean }) {
-  const { colors } = useTheme();
-  return (
-    <View style={{ width: 52, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? `${colors.primary}26` : 'transparent' }}>
-      <Icon name={name} color={color} size={22} />
-    </View>
-  );
-}
-const tabIcon = (name: IconName) => ({ color, focused }: { color: string; focused: boolean }) => <TabIcon name={name} color={color} focused={focused} />;
+/** Tab bar icon: the line icon; the active tab's icon is filled with the brand colour. */
+const tabIcon = (name: IconName) => ({ color, focused }: { color: string; focused: boolean }) => <Icon name={name} color={color} size={22} fill={focused ? `${color}44` : undefined} />;
 
 /** Add unit on the tab bar is a button, not a screen: pressing it opens the form on top of the tabs. */
 const NothingHere = () => null;
@@ -105,18 +102,17 @@ function TabsScreen() {
   const screens: Record<TabKey, React.ComponentType> = { Today: TodayNarrow, Search: SearchNarrow, Leads: LeadsScreen, Map: MapScreen, Units: UnitsScreen, More: MoreNarrow, Team: TeamNarrow, Dashboard: DashboardScreen, Owners: OwnersScreen, AddUnit: NothingHere, Plan: PlanScreen };
   return (
     <Tabs.Navigator
+      tabBar={(p) => <FloatingTabBar {...p} />}
       initialRouteName={plan.initial}
       screenOptions={{
         headerTitleAlign: 'center',
-        headerLeft: () => <View style={{ paddingHorizontal: 12 }}><Logo size={0.55} markOnly /></View>,
+        headerLeft: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View>,
         headerStyle: { backgroundColor: colors.bg },
         headerTitleStyle: { color: colors.text, fontFamily: FONT_BOLD },
         headerShadowVisible: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 12, fontFamily: FONT_BOLD },
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth, height: 64 },
-        tabBarItemStyle: { paddingVertical: 4 },
+        headerRight: () => <NotificationBell onPress={() => navigationRef.navigate('Inbox')} />,
       }}
     >
       {plan.tabs.map((k) => (
@@ -140,7 +136,7 @@ export function RootNavigation() {
   if (status === 'loading') {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: 32 }}>
-        <Logo />
+        <Logo bilingual />
         <ActivityIndicator color={colors.primary} />
       </View>
     );
@@ -152,7 +148,7 @@ export function RootNavigation() {
           <Stack.Screen name="Tabs" component={LoginScreen} />
         </Stack.Navigator>
       ) : (
-        <Stack.Navigator screenLayout={({ children }) => <BottomSafe>{children}</BottomSafe>} screenOptions={{ headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerShadowVisible: false }}>
+        <Stack.Navigator screenLayout={({ children }) => <BottomSafe>{children}</BottomSafe>} screenOptions={{ headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerShadowVisible: false, headerRight: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View> }}>
           <Stack.Screen name="Tabs" component={TabsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Unit" component={UnitNarrow} options={{ title: t(currentLang(), 'unit') }} />
           <Stack.Screen name="Lead" component={LeadNarrow} options={{ title: t(currentLang(), 'leadsTab') }} />
@@ -185,6 +181,7 @@ export function RootNavigation() {
           <Stack.Screen name="Links" component={LinksScreen} options={{ title: t(currentLang(), 'links') }} />
           <Stack.Screen name="Projects" component={ProjectsScreen} options={{ title: t(currentLang(), 'projects') }} />
           <Stack.Screen name="Project" component={ProjectScreen} options={({ route }) => ({ title: route.params.name })} />
+          <Stack.Screen name="ProjectForm" component={ProjectFormScreen} options={({ route }) => ({ title: route.params?.id ? pt(currentLang()).editProject : pt(currentLang()).newProject })} />
           <Stack.Screen name="Library" component={LibraryScreen} options={{ title: t(currentLang(), 'library') }} />
           <Stack.Screen name="Compare" component={CompareScreen} options={{ title: t(currentLang(), 'compare') }} />
           <Stack.Screen name="Plan" component={PlanScreen} options={{ title: t(currentLang(), 'plan') }} />

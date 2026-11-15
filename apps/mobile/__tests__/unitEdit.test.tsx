@@ -6,7 +6,7 @@ import { AddUnitScreen } from '../src/screens/AddUnitScreen';
 import { UnitScreen } from '../src/screens/UnitScreen';
 import { api } from '../src/api';
 
-jest.mock('../src/api', () => ({ api: { unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unit: jest.fn(), unitContact: jest.fn(), unitAccessRequest: jest.fn(), unitShareLink: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unit: jest.fn(), unitContact: jest.fn(), unitAccessRequest: jest.fn(), unitShareLink: jest.fn(), reviewUnit: jest.fn().mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null }) } }));
 const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
 let mockParams: object | undefined = { edit: 'A-1' };
@@ -27,7 +27,7 @@ test('edit mode loads the unit, saves with its version and goes back', async () 
   m.unitEditFields.mockResolvedValue({ code: 'A-1', version: 4, fields: { compound: 'Mivida', price_value: '9000000' } });
   m.saveUnitEdit.mockResolvedValue({ code: 'A-1', version: 5 });
   await render(<QueryClientProvider client={client()}><AddUnitScreen /></QueryClientProvider>);
-  await waitFor(() => expect(screen.getByTestId('f-compound').props.value).toBe('Mivida'));
+  await waitFor(() => expect(screen.getByText(/Mivida/)).toBeTruthy());
   expect(screen.getByTestId('add-photos')).toBeTruthy();
   await fireEvent.changeText(screen.getByTestId('f-price_value'), '8500000');
   await fireEvent.press(screen.getByTestId('save-unit'));
@@ -35,12 +35,22 @@ test('edit mode loads the unit, saves with its version and goes back', async () 
   await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
 });
 
+test('edit shows all four sections at once, and a description with no text is written from the fields', async () => {
+  m.unit.mockResolvedValue({ images: [] });
+  m.unitEditFields.mockResolvedValue({ code: 'A-1', version: 4, fields: { listing_type: 'sale', property_type: 'apartment', bedrooms: '3', clean_summary: '' } });
+  await render(<QueryClientProvider client={client()}><AddUnitScreen /></QueryClientProvider>);
+  await waitFor(() => expect(screen.getByTestId('f-price_value')).toBeTruthy()); // step 2
+  expect(screen.getByTestId('clean-summary')).toBeTruthy(); // step 4
+  expect(screen.queryByTestId('step-bar')).toBeNull(); // the jump links, not the step bar
+  await waitFor(() => expect(screen.getByTestId('clean-summary').props.value).toMatch(/3 (bedrooms|غرف)/));
+});
+
 test('a stale version says the unit changed elsewhere', async () => {
   m.unit.mockResolvedValue({ images: [] });
   m.unitEditFields.mockResolvedValue({ code: 'A-1', version: 4, fields: { compound: 'Mivida' } });
   m.saveUnitEdit.mockRejectedValue(new ApiClientError(409, 'conflict'));
   await render(<QueryClientProvider client={client()}><AddUnitScreen /></QueryClientProvider>);
-  await waitFor(() => expect(screen.getByTestId('f-compound').props.value).toBe('Mivida'));
+  await waitFor(() => expect(screen.getByText(/Mivida/)).toBeTruthy());
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(screen.getByTestId('unit-error')).toBeTruthy());
   expect(mockGoBack).not.toHaveBeenCalled();

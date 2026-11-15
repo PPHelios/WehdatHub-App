@@ -6,13 +6,13 @@ import { AddUnitScreen } from '../src/screens/AddUnitScreen';
 import { api } from '../src/api';
 import * as draft from '../src/draft';
 
-jest.mock('../src/api', () => ({ api: { extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), placeBox: jest.fn(), placeBoxResolve: jest.fn(), placeSuggest: jest.fn() } }));
 const mockReplace = jest.fn();
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ replace: mockReplace }), useRoute: () => ({ params: undefined }) }));
 jest.mock('../src/voice', () => ({ ensureMic: jest.fn().mockResolvedValue(true), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
-const m = api as unknown as { extractUnit: jest.Mock; reviewUnit: jest.Mock; createUnit: jest.Mock };
+const m = api as unknown as { extractUnit: jest.Mock; reviewUnit: jest.Mock; createUnit: jest.Mock; placeBox: jest.Mock };
 
-const wrap = () => render(<QueryClientProvider client={new QueryClient()}><AddUnitScreen /></QueryClientProvider>);
+const wrap = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AddUnitScreen /></QueryClientProvider>);
 beforeEach(async () => {
   jest.clearAllMocks();
   await draft.clearDraft();
@@ -20,18 +20,22 @@ beforeEach(async () => {
 
 test('a pasted message fills the fields', async () => {
   m.extractUnit.mockResolvedValue({ fields: { property_type: 'apartment', bedrooms: '3', area_value: '150' } });
+  await draft.saveDraft({ fields: { listing_type: 'sale', compound: 'Mivida' }, photos: [], describe: '', photoAi: false });
   await wrap();
   await fireEvent.changeText(screen.getByTestId('describe'), 'شقة 3 غرف');
   await fireEvent.press(screen.getByTestId('fill'));
   await waitFor(() => expect(screen.getByTestId('f-bedrooms').props.value).toBe('3'));
 });
 
-test('saving an incomplete unit lists what is missing and keeps the form', async () => {
+test('saving an incomplete unit lists what is missing, opens the step that needs it, and keeps the form', async () => {
   m.createUnit.mockRejectedValue(new ApiClientError(422, 'incomplete'));
   m.reviewUnit.mockResolvedValue({ ok: false, blockers: [{ field: 'area_value', label: 'Area' }], warnings: [], duplicate: null });
+  await draft.saveDraft({ fields: { listing_type: 'sale', compound: 'Mivida' }, photos: [], describe: '', photoAi: false });
   await wrap();
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(screen.getByTestId('blockers')).toBeTruthy());
+  expect(screen.getByText('• Area')).toBeTruthy();
+  expect(screen.getByTestId('f-area_value')).toBeTruthy(); // the size step is open now
   expect(mockReplace).not.toHaveBeenCalled();
 });
 
@@ -39,6 +43,7 @@ test('a duplicate asks before saving again', async () => {
   m.createUnit.mockRejectedValueOnce(new ApiClientError(409, 'duplicate'));
   m.reviewUnit.mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: 'NH-V12' });
   m.createUnit.mockResolvedValueOnce({ code: 'NH-V13', photos: 0, photosFailed: 0 });
+  await draft.saveDraft({ fields: { listing_type: 'sale', compound: 'Mivida' }, photos: [], describe: '', photoAi: false });
   await wrap();
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(screen.getByTestId('duplicate')).toBeTruthy());
@@ -47,9 +52,60 @@ test('a duplicate asks before saving again', async () => {
   expect(m.createUnit.mock.calls[1][0]).toMatchObject({ force: '1' });
 });
 
-test('a saved draft comes back when the screen opens again', async () => {
+test('a saved draft comes back when the screen opens again, with its place as the chip', async () => {
   await draft.saveDraft({ fields: { listing_type: 'rent', compound: 'Mivida' }, photos: [], describe: 'x', photoAi: false });
   await wrap();
-  await waitFor(() => expect(screen.getByTestId('f-compound').props.value).toBe('Mivida'));
+  await waitFor(() => expect(screen.getByTestId('ubox-place')).toBeTruthy());
+  expect(screen.getByText(/Mivida/)).toBeTruthy();
   expect(screen.getByTestId('unit-notice')).toBeTruthy();
+});
+
+test('it is one page: every section is there, and a rental has no delivery and payment section', async () => {
+  await wrap();
+  expect(screen.queryByTestId('step-next')).toBeNull();
+  expect(screen.getByTestId('f-price_value')).toBeTruthy(); // size and price
+  expect(screen.getByTestId('f-delivery_year')).toBeTruthy(); // a sale has delivery and payment
+  expect(screen.getByTestId('jump-3')).toBeTruthy();
+  expect(screen.getByTestId('f-owner_phone')).toBeTruthy(); // owner
+});
+
+test('a rental has no delivery and payment section, and no link to it', async () => {
+  await draft.saveDraft({ fields: { listing_type: 'rent' }, photos: [], describe: '', photoAi: false });
+  await wrap();
+  await waitFor(() => expect(screen.queryByTestId('jump-3')).toBeNull());
+  expect(screen.queryByTestId('f-delivery_year')).toBeNull();
+  expect(screen.getByTestId('jump-4')).toBeTruthy();
+});
+
+test('the code comes right after the place picker, before sale or rent', async () => {
+  await wrap();
+  const tree = JSON.stringify(screen.toJSON());
+  const at = (id: string) => tree.indexOf(id);
+  expect(at('unit-box-input')).toBeGreaterThan(-1);
+  expect(at('unit-box-input')).toBeLessThan(at('f-code'));
+  expect(at('f-code')).toBeLessThan(at('f-listing_type'));
+});
+
+test('the client description is written from the unit fields while nobody has typed in it', async () => {
+  await draft.saveDraft({ fields: { listing_type: 'sale', compound: 'Mivida', property_type: 'apartment', bedrooms: '3', area_value: '150' }, photos: [], describe: '', photoAi: false });
+  await wrap();
+  await waitFor(() => expect(screen.getByTestId('clean-summary').props.value).toMatch(/3 (bedrooms|غرف)/));
+});
+
+test('the place is mandatory: a save without one is refused at once, and the box is outlined', async () => {
+  m.reviewUnit.mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null });
+  await wrap();
+  await fireEvent.press(screen.getByTestId('save-unit'));
+  await waitFor(() => expect(screen.getByTestId('blockers')).toBeTruthy());
+  expect(screen.getByText(/Pick a place from the list|اختار مكان من القايمة/)).toBeTruthy();
+  expect(m.createUnit).not.toHaveBeenCalled();
+});
+
+test('a place picked in the box lets the save through', async () => {
+  m.reviewUnit.mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null });
+  m.createUnit.mockResolvedValue({ code: 'NH-V14', photos: 0, photosFailed: 0 });
+  await draft.saveDraft({ fields: { listing_type: 'sale', area_id: 'a1', place_label: 'New Cairo' }, photos: [], describe: '', photoAi: false });
+  await wrap();
+  await fireEvent.press(screen.getByTestId('save-unit'));
+  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('Unit', { code: 'NH-V14' }));
 });

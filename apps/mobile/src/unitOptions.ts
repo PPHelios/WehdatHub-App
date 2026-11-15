@@ -5,7 +5,7 @@ export const PROPERTY_TYPES: Opt[] = [
   { value: 'apartment', ar: 'شقة', en: 'Apartment' }, { value: 'duplex', ar: 'دوبلكس', en: 'Duplex' }, { value: 'penthouse', ar: 'بنتهاوس', en: 'Penthouse' },
   { value: 'studio', ar: 'ستوديو', en: 'Studio' }, { value: 'chalet', ar: 'شاليه', en: 'Chalet' }, { value: 'villa', ar: 'فيلا', en: 'Villa' },
   { value: 'townhouse', ar: 'تاون هاوس', en: 'Townhouse' }, { value: 'twin_villa', ar: 'توين هاوس', en: 'Twin house' }, { value: 'i_villa', ar: 'آي فيلا', en: 'i-Villa' },
-  { value: 'office', ar: 'مكتب', en: 'Office' }, { value: 'shop', ar: 'محل', en: 'Shop' }, { value: 'clinic', ar: 'عيادة', en: 'Clinic' }, { value: 'land', ar: 'أرض', en: 'Land' },
+  { value: 'office', ar: 'مكتب', en: 'Office' }, { value: 'shop', ar: 'محل', en: 'Shop' }, { value: 'clinic', ar: 'عيادة', en: 'Clinic' }, { value: 'land', ar: 'أرض', en: 'Land' }, { value: 'roof', ar: 'روف', en: 'Roof' },
 ];
 export const FINISHING: Opt[] = [
   { value: 'core_and_shell', ar: 'بدون تشطيب', en: 'Core & shell' }, { value: 'semi_finished', ar: 'نصف تشطيب', en: 'Semi-finished' }, { value: 'fully_finished', ar: 'تشطيب كامل', en: 'Fully finished' },
