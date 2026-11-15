@@ -18,3 +18,12 @@ export async function stopRecording(): Promise<VoiceFile> {
   const uri = await AudioRecorderPlayer.stopRecorder();
   return { uri: uri.startsWith('file://') || uri.startsWith('content://') ? uri : `file://${uri}`, name: 'search.m4a', type: 'audio/mp4' };
 }
+
+/** Stops the recorder and throws the note away (the finger slid off, or the hold was too short). */
+export async function cancelRecording(): Promise<void> {
+  try {
+    await AudioRecorderPlayer.stopRecorder();
+  } catch {
+    /* nothing was recording */
+  }
+}

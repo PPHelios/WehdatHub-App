@@ -7,6 +7,8 @@ export type StatusCounts = Record<UnitStatus, number>;
 export interface Rights { addUnits: boolean; editUnits: boolean; leads: boolean; search: boolean; team: boolean; owners: boolean; manager: boolean; agencyOwner: boolean; dataEntry: boolean; teamLead: boolean }
 export interface ApiBroker { id: string; name: string; role: string; lang: Lang }
 export interface ApiAgency { id: string; name: string; slug: string; logoUrl: string | null }
+/** Present only for the test number: its roles, its own role, and whether it may view NCH (read only). */
+export interface ApiTestSwitch { roles: string[]; role: string; canView: boolean; viewing: boolean }
 export interface LoginResult { token: string; expiresAt: string; broker: ApiBroker; agency: ApiAgency }
 
 export interface ApiUnit {
@@ -44,7 +46,17 @@ export interface ApiUnitDetail extends ApiUnit {
 }
 export type TodayTaskKind = 'late' | 'viewing' | 'hot' | 'call' | 'matches';
 export interface TodayTask { ref: string; name: string | null; kind: TodayTaskKind; at: string | null; unitCode: string | null; phone: string | null; matches: number | null }
-export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number }
+export interface TodayOldUnit { code: string; line: string; days: number; hidden: boolean }
+/** The cards under the task list, by role. A card with nothing in it is null. */
+export interface TodayCards {
+  oldUnits: { total: number; items: TodayOldUnit[] } | null;
+  target: { deals: number; commission: number; targetDeals: number | null; targetCommission: number | null; daysLeft: number } | null;
+  ops: { unassigned: number; uncontactedOld: number; overdue: number; team: boolean } | null;
+  commissions: { overdue: number; registrations: number } | null;
+  approvals: { access: number; names: number } | null;
+}
+export interface LeaseRow { code: string; tenant_name: string | null; tenant_ref: string | null; broker_name: string | null; rent: number | null; end: string; daysLeft: number; done: boolean; doneKind: string | null }
+export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number; leases?: { code: string; tenant: string | null; end: string; daysLeft: number }[]; cards?: TodayCards }
 export type LeadStage = 'new' | 'contacted' | 'interested' | 'viewing' | 'negotiation' | 'won' | 'lost';
 export const LEAD_STAGES: LeadStage[] = ['new', 'contacted', 'interested', 'viewing', 'negotiation', 'won', 'lost'];
 export type LeadTab = 'all' | LeadStage | 'due_today' | 'overdue' | 'no_next_step';
@@ -64,10 +76,35 @@ export interface ApiLead {
   assignee: string | null;
   assigneeId?: string | null;
   version: number;
+  /** The language chosen for this client's messages (empty: the broker's own setting). */
+  lang?: 'ar' | 'en' | null;
 }
 export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; offset: number; limit: number }
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
+export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; start: number; end: number; days: number[]; max_jumps: number }; roundRobin: boolean; order: string[]; brokers: { id: string; name: string; role: string; away: boolean; open: number }[] }
 export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
+export interface AskOffer { area: number; floor: string | number | null; price: number; down: number | null; monthly: number | null }
+export interface AskProject { name: string; name_en: string | null; place: string | null; offers: AskOffer[]; client_text: string }
+export interface AskResults { chips: { key: string; value: string }[]; dropped: string[]; total_projects: number; total_offers: number; page: number; pages: number; projects: AskProject[] }
+export interface ClientRequest { id: string; summary: string; summary_en?: string; broker_name?: string; lead: { ref: string; name: string | null } | null; matches: number; alerts: boolean; fulfilled_at: string | null; created_at: string }
+export interface ClientRequestsPage { items: ClientRequest[]; page: number; more?: boolean; pages?: number }
+export interface InboxItem { id: string; kind: string; title: string; body: string; url: string | null; created_at: string; read: boolean }
+export interface InboxPage { items: InboxItem[]; page: number; more: boolean; unread: number }
+export interface OwnerRow { id: string; name: string | null; code: string | null; phones: string[]; /** The list carries only the last four digits ("••••1234"); the full number is on the owner page. */ phones_masked?: boolean; unit_count: number; flag: string | null; is_private: boolean }
+export interface OwnerUnit { code: string; compound: string | null; status: string; is_private: boolean }
+export interface OwnerProfile extends OwnerRow { notes: string | null; canEdit: boolean; units: OwnerUnit[] }
+export interface OwnerEvent { kind: string; data: Record<string, unknown> | null; created_at: string; broker_name: string | null }
+export interface OwnerRename { id: number; code: string; old_value: string | null; new_value: string; requested_by_name: string | null; created_at: string }
+export interface AccessRequest { id: number; status: 'pending' | 'approved' | 'declined'; created_at: string; code: string; broker_name: string; decided_by_name: string | null }
+export interface ActivityRow { id: string | number; at: string; who: string; text: string; device: string }
+export interface DashboardData { days: number; weekly: number[]; sources: { source: string; n: number }[]; pipeline: Record<string, number>; unassigned: number; uncontacted: number; overdue: number; units: { active: number; stale: number }; deals: { n: number; commission: number; value: number }; leads: number; board: { id: string; name: string; leads: number; contacted: number; forward: number; deals: number; commission: number }[] }
+export interface PriceRow { place: string; listing_type: 'sale' | 'rent'; units: number; median: number; low: number; high: number }
+export interface WinLossGroup { key: string; name?: string; won: number; lost: number; rate: number | null; top: string | null }
+export interface WinLossData { days: number; won: number; lost: number; rate: number | null; reasons: { key: string; n: number; pct: number }[]; brokers: WinLossGroup[]; sources: WinLossGroup[] }
+export type Row = Record<string, unknown>;
+export interface DealsData { items: Row[]; more: boolean; totals: Row[]; statuses: string[] }
+export interface CommissionsData { kind: string; period: string; items: Row[]; total: number; totals: Row | null; statuses: string[] }
+export interface SourcesData { month: string; rows: { source: string; leads: number; deals: number; commission: number; spend: number | null; perLead: number | null; perDeal: number | null }[]; totals: Row }
 export interface AskAnswer { answer: string; found: boolean; lang: Lang; dataDates: string | null }
 export interface UnitImage { id: string; url: string; position: number }
 export interface ApiViewing { id: string; startsAt: string; place: string | null; status: string; proposedAt: string | null; clientNote: string | null; leadRef: string; leadName: string | null; unitCode: string | null }
@@ -78,8 +115,11 @@ export interface NewLead { phone1: string; phone2?: string; name?: string; kind?
 /** The fields of the add-unit form use the website form's names (strings, features as an array). */
 /** One entry of the place suggestion list: a compound (or its other name), an area, or a sub-zone. area_id and subzone_id are what a unit stores when it is picked. */
 export interface PlaceSuggestion { kind: 'compound' | 'area' | 'subzone'; id: string; name_en: string | null; name_ar: string | null; path: string; via: 'name' | 'alias' | 'alike'; area_id: string | null; subzone_id: string | null }
+export interface PlaceList { version: string; places: import('./placeMatch').ListPlace[]; areas: import('./placeMatch').ListArea[] }
+export type PlaceListReply = PlaceList | { version: string; unchanged: true };
 export type UnitFields = Record<string, string | string[] | boolean | undefined>;
-export interface ReviewResult { ok: boolean; blockers: { field: string; label: string }[]; warnings: { field: string; text: string }[]; duplicate: string | null }
+export interface UnitChange { field: string; ar: string; en: string; from: string; to: string }
+export interface ReviewResult { ok: boolean; blockers: { field: string; label: string }[]; warnings: { field: string; text: string }[]; duplicate: string | null; /** Edit only: the main fields that would change. */ changes?: UnitChange[] }
 export interface FirebaseClientConfig { apiKey: string; appId: string; projectId: string; messagingSenderId: string }
 export interface AppConfig {
   minAppVersion: string;
@@ -87,7 +127,9 @@ export interface AppConfig {
   /** The phone's public Firebase identifiers; null until the server has them. Alerts and crash reports stay off without them. */
   firebase?: { android?: FirebaseClientConfig; ios?: FirebaseClientConfig } | null;
 }
-export interface UploadFile { uri: string; name: string; type: string }
+/** key: set once the photo is stored (direct upload); pct: upload progress 0 to 100; failed: the upload stopped and can be retried. */
+export interface UploadFile { uri: string; name: string; type: string; key?: string; pct?: number; failed?: boolean; /** Picked but not one of the 15 kept: never uploaded or saved. */ notKept?: boolean }
+export interface PhotoUploadLink { key: string; upload_url: string; thumb_key: string; thumb_upload_url: string | null }
 export interface SearchAsk { terms: string[]; numbers?: unknown[]; aiDown?: boolean; withoutTotal: number }
 export interface SearchResult {
   status: 'results' | 'none' | 'ask' | 'small_talk' | 'listing' | 'other';
@@ -100,6 +142,10 @@ export interface SearchResult {
   limit?: number;
   relaxed?: boolean;
   ignoredTerms?: string[];
+  /** The search's filters as a token the server can save (saved searches). */
+  f?: string | null;
+  /** What the server understood, in the broker's language (e.g. "شقة · بيع أو إيجار · هايد بارك"). */
+  reading?: string;
   ask?: SearchAsk;
 }
 export interface VoiceFile { uri: string; name: string; type: string }
@@ -141,6 +187,7 @@ export interface MapUnit {
   area: number | null;
   price: number | null;
   priceText: string | null;
+  photo?: string | null;
 }
 export interface MapUnits {
   place: { id: string; name_en: string | null; name_ar: string | null };
@@ -155,6 +202,8 @@ export interface UnitsQuery {
   deal?: string;
   mine?: boolean;
   staleDays?: number;
+  /** Units nobody has confirmed for 21 days (Today's "units to check"). */
+  old?: boolean;
   bedrooms?: number;
   furnishing?: string;
   finishing?: string;
@@ -184,13 +233,15 @@ export interface ApiClientOptions {
   getToken: () => string | null;
   /** Called when the server says the session is over (HTTP 401 on a call that sent a token). */
   onUnauthorized?: () => void;
+  /** Sent with every call (the app's platform and version), so the server's failure log can tell the phones apart. */
+  headers?: Record<string, string>;
   fetchImpl?: typeof fetch;
 }
 
 export function createApiClient(opts: ApiClientOptions) {
   const doFetch = opts.fetchImpl ?? fetch;
 
-  async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown, query?: Record<string, string | number | boolean | undefined>): Promise<T> {
+  async function request<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, query?: Record<string, string | number | boolean | undefined>): Promise<T> {
     const qs = query
       ? Object.entries(query)
           .filter(([, v]) => v !== undefined && v !== '' && v !== false)
@@ -198,7 +249,7 @@ export function createApiClient(opts: ApiClientOptions) {
           .join('&')
       : '';
     const token = opts.getToken();
-    const headers: Record<string, string> = { Accept: 'application/json' };
+    const headers: Record<string, string> = { Accept: 'application/json', ...(opts.headers ?? {}) };
     const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
     if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -223,15 +274,21 @@ export function createApiClient(opts: ApiClientOptions) {
   }
 
   return {
+    notificationSettings: () => request<NotificationSettings>('GET', '/notification-settings'),
+    saveNotificationSettings: (body: NotificationSettingsInput) => request<NotificationSettings>('PUT', '/notification-settings', body),
+    appSettings: () => request<{ draftStyle: string; quietLine: boolean; switches: { brokersMayWrite: boolean; dataEntryOwners: boolean } | null }>('GET', '/settings'),
+    saveAppSettings: (body: { draftStyle?: string; quietLine?: boolean; switches?: { brokersMayWrite?: boolean; dataEntryOwners?: boolean } }) => request<{ ok: true }>('POST', '/settings', body),
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
-    me: () => request<{ broker: ApiBroker; agency: ApiAgency; rights: Rights; expiresAt: string }>('GET', '/me'),
+    me: () => request<{ broker: ApiBroker; agency: ApiAgency; rights: Rights; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me'),
+    testRole: (role: string) => request<{ ok: true; role: string }>('POST', '/test-role', { role }),
+    testView: (view: 'home' | 'other') => request<{ ok: true; viewing: boolean }>('POST', '/test-view', { view }),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
     map: (f: MapFilters = {}) => request<MapData>('GET', '/map', undefined, { ...f }),
     mapUnits: (placeId: string, f: MapFilters = {}) => request<MapUnits>('GET', `/map/places/${encodeURIComponent(placeId)}/units`, undefined, { ...f }),
     search: (q: string, o: { ai?: boolean; drop?: boolean; status?: UnitStatus; offset?: number } = {}) => request<SearchResult>('GET', '/search', undefined, { q, ai: o.ai, drop: o.drop, status: o.status, offset: o.offset }),
-    leadCounts: (q?: string) => request<{ counts: Record<string, number> }>('GET', '/leads/counts', undefined, { q }),
+    leadCounts: (q?: string, broker?: string) => request<{ counts: Record<string, number> }>('GET', '/leads/counts', undefined, { q, broker }),
     /** Sends a recorded note; the server writes it down and answers the text to search. */
     voiceToText: (file: VoiceFile) => {
       const form = new FormData();
@@ -247,10 +304,26 @@ export function createApiClient(opts: ApiClientOptions) {
     setViewing: (ref: string, o: { version: number; at: string; unitCode?: string; place?: string; lang: Lang }) => request<ViewingSet>('POST', `/leads/${encodeURIComponent(ref)}/viewing`, o),
     viewings: (o: { from?: string; to?: string } = {}) => request<{ items: ApiViewing[] }>('GET', '/viewings', undefined, { from: o.from, to: o.to }),
     sentLinks: (offset = 0) => request<{ offset: number; hasMore: boolean; items: SentLink[] }>('GET', '/links', undefined, { offset: offset || undefined }),
+    extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string }>('POST', '/leads/extract', { message }),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
+    askResults: (q: string, page = 1, sort: 'best' | 'cheap' = 'best', drop: string[] = []) => request<AskResults>('GET', '/ask/results', undefined, { q, page, sort, ...(drop.length ? { drop: drop.join(',') } : {}) }),
+    clientRequests: (tab: 'pending' | 'fulfilled', page = 1) => request<ClientRequestsPage>('GET', '/client-requests', undefined, { tab, page }),
+    addClientRequest: (q: string, lead: string | undefined, alerts: boolean) => request<ClientRequest>('POST', '/client-requests', { q, ...(lead ? { lead } : {}), alerts }),
+    clientRequestDelete: (id: string) => request<{ ok: boolean }>('POST', `/client-requests/${encodeURIComponent(id)}/delete`, {}),
+    clientRequestFulfil: (id: string) => request<{ ok: boolean }>('POST', `/client-requests/${encodeURIComponent(id)}/fulfil`, {}),
+    notificationsInbox: (page = 1) => request<InboxPage>('GET', '/notifications', undefined, { page }),
+    notificationRead: (id: string) => request<{ ok: boolean; unread: number }>('POST', `/notifications/${encodeURIComponent(id)}/read`, {}),
+    notificationDelete: (id: string) => request<{ ok: boolean; unread: number }>('POST', `/notifications/${encodeURIComponent(id)}/delete`, {}),
+    notificationsReadAll: () => request<{ ok: boolean; unread: number }>('POST', '/notifications/read-all', {}),
+    notificationsDeleteAll: () => request<{ ok: boolean; unread: number }>('POST', '/notifications/delete-all', {}),
+    leadLang: (ref: string, version: number, lang: 'ar' | 'en' | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/lang`, { lang, version }),
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
     leadStage: (ref: string, version: number, stage: LeadStage, lostReason?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/stage`, { version, stage, lostReason }),
     leadFollowUp: (ref: string, version: number, at: string, kind: 'call' | 'viewing', note?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/follow-up`, { version, at, kind, note }),
+    leadDraft: (ref: string, lang: 'ar' | 'en') => request<{ text: string; wa: string | null }>('POST', `/leads/${encodeURIComponent(ref)}/draft`, { lang }),
+    leadSend: (ref: string, code: string, lang: 'ar' | 'en') => request<{ url: string }>('POST', `/leads/${encodeURIComponent(ref)}/send`, { code, lang }),
+    leadMerge: (ref: string, other: string, confirm: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/merge`, { other, confirm }),
+    leadErase: (ref: string, confirm: string) => request<{ ok: true }>('POST', `/leads/${encodeURIComponent(ref)}/erase`, { confirm }),
     leadNote: (ref: string, version: number, text: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/note`, { version, text }),
     /** Reads a pasted/shared message and/or a voice note into the add-unit fields. Nothing is saved. */
     extractUnit: (o: { describe?: string; voice?: UploadFile; fields?: UnitFields }) => {
@@ -260,11 +333,16 @@ export function createApiClient(opts: ApiClientOptions) {
       if (o.fields) form.append('fields', JSON.stringify(o.fields));
       return request<{ fields: UnitFields }>('POST', '/units/extract', form);
     },
-    reviewUnit: (fields: UnitFields, photoCount: number) => request<ReviewResult>('POST', '/units/review', { fields, photoCount }),
+    /** `code` set (edit): the review also lists what would change. */
+    reviewUnit: (fields: UnitFields, photoCount: number, code?: string) => request<ReviewResult>('POST', '/units/review', { fields, photoCount, ...(code ? { code } : { new_unit: true }) }),
+    /** An error caught inside the app (a screen crash); the server keeps it with the failures and alerts the owner. */
+    reportClientError: (body: { message: string; screen?: string; stack?: string; platform: string; appVersion: string }) => request<unknown>('POST', '/client-error', body),
     /** Saves the unit; photos are sent in the broker's order. */
-    createUnit: (fields: UnitFields, photos: UploadFile[]) => {
+    createUnit: (fields: UnitFields, photos: UploadFile[], saveKey?: string, photoKeys?: string[]) => {
       const form = new FormData();
       form.append('fields', JSON.stringify(fields));
+      if (saveKey) form.append('save_key', saveKey);
+      if (photoKeys?.length) form.append('photo_keys', JSON.stringify(photoKeys));
       for (const p of photos) form.append('photos', p as unknown as Blob);
       return request<{ code: string; photos: number; photosFailed: number }>('POST', '/units', form);
     },
@@ -274,23 +352,105 @@ export function createApiClient(opts: ApiClientOptions) {
     /** `to` is a lead ref (L-0042) or a mobile number; leave it out to share without a client. */
     unitShareLink: (code: string, lang: Lang, to?: string) => request<{ url: string; recipientPhone: string | null; leadLinked: boolean }>('POST', `/units/${encodeURIComponent(code)}/share-link`, { lang, ...(to ? { to } : {}) }),
     team: () => request<{ items: TeamMember[] }>('GET', '/team'),
+    teamRules: () => request<TeamRules>('GET', '/team/rules'),
+    saveTeamRules: (b: { enabled: boolean; wait_minutes: string; start: string; end: string; days: number[]; max_jumps: number }) => request<{ rules: TeamRules['rules'] }>('POST', '/team/rules', b),
+    saveTeamRouting: (b: { roundRobin: boolean; order: string[] }) => request<{ roundRobin: boolean; order: string[] }>('POST', '/team/routing', b),
+    setTeamAway: (id: string, until: string | null) => request<{ id: string; awayUntil: string | null }>('POST', `/team/${encodeURIComponent(id)}/away`, { until }),
+    invite: (b: { name: string; phone: string; role: string }) => request<{ ok: true; created: boolean; url: string | null }>('POST', '/team/invite', b),
+    changeRole: (id: string, role: string) => request<{ ok: true }>('POST', `/team/${id}/role`, { role }),
+    deactivate: (id: string) => request<{ ok: true }>('POST', `/team/${id}/deactivate`, {}),
+    owners: (q: { q?: string; page?: number; private?: boolean } = {}) => request<{ items: OwnerRow[]; more: boolean }>('GET', '/owners', undefined, { q: q.q, page: q.page, private: q.private ? '1' : undefined }),
+    owner: (id: string) => request<{ owner: OwnerProfile; events: OwnerEvent[]; lead: { ref: number } | null }>('GET', `/owners/${id}`),
+    editOwner: (id: string, b: { name?: string; phone?: string; notes?: string; flag?: string }) => request<{ ok: true; nameRequested: boolean }>('POST', `/owners/${id}`, b),
+    deleteOwner: (id: string) => request<{ ok: true }>('POST', `/owners/${id}/delete`, {}),
+    ownerPrivate: (id: string, value: boolean, units: string[] = []) => request<{ ok: true }>('POST', `/owners/${id}/portfolio`, { value, units }),
+    ownerRenames: () => request<{ items: OwnerRename[] }>('GET', '/owners/requests'),
+    decideRename: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/owners/requests/${id}`, { decision: approve ? 'approve' : 'reject' }),
+    accessRequests: (status: string, page = 0) => request<{ items: AccessRequest[]; total: number }>('GET', '/access-requests', undefined, { status, page }),
+    answerAccess: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/access-requests/${id}`, { decision: approve ? 'approve' : 'decline' }),
+    dashboard: (days = 30) => request<DashboardData>('GET', '/dashboard', undefined, { days }),
+    pricePerM2: () => request<{ minUnits: number; items: PriceRow[] }>('GET', '/insights/prices'),
+    winLoss: (days = 30) => request<WinLossData>('GET', '/insights/winloss', undefined, { days }),
+    report: (text: string, extra?: { type?: 'bug' | 'suggestion' | 'request'; device?: Record<string, unknown> }) => request<{ ok: true; id: number }>('POST', '/report', { text, ...(extra ?? {}) }),
+    setLang: (lang: Lang) => request<{ ok: true; lang: Lang }>('POST', '/me/lang', { lang }),
+    deals: (status?: string, page = 0) => request<DealsData>('GET', '/deals', undefined, { status, page }),
+    dealStatus: (ref: string, status: string, version?: number) => request<{ ok: true }>('POST', `/deals/${ref}/status`, { status, version }),
+    commissions: (kind: 'resale' | 'developers', status?: string, page = 0) => request<CommissionsData>('GET', '/commissions', undefined, { kind, status, page }),
+    commission: (id: string) => request<{ commission: Row }>('GET', `/commissions/${id}`),
+    commissionMove: (id: string, body: Row) => request<{ ok: true }>('POST', `/commissions/${id}`, body),
+    sources: (month?: string) => request<SourcesData>('GET', '/sources', undefined, { month }),
+    saveSpend: (month: string, spend: Record<string, string>) => request<{ ok: true }>('POST', '/sources/spend', { month, spend }),
+    portalEnquiries: () => request<{ items: Row[] }>('GET', '/portal-enquiries'),
+    assignEnquiry: (id: string, b: { phone: string; brokerId?: string }) => request<{ ok: true; outcome: string }>('POST', `/portal-enquiries/${id}/assign`, b),
+    linkEnquiry: (id: string, unitCode: string) => request<{ ok: true }>('POST', `/portal-enquiries/${id}/link`, { unitCode }),
+    openedLinks: (status?: string, page?: number, q?: string, days?: number) => request<{ rows: Row[]; total: number; pages: number; page: number }>('GET', '/opened-links', undefined, { status, page, q, days }),
+    catalogue: (q?: string, page = 0) => request<{ projects: { items: Row[]; total: number; pages: number }; developers: { items: Row[] }; canEdit: boolean }>('GET', '/catalogue', undefined, { q, page }),
+    project: (id: string) => request<{ project: Row; developer: Row | null; phases: Row[]; plans: Row[]; materials: Row[]; units: Row[]; canEdit: boolean }>('GET', `/catalogue/projects/${id}`),
+    archiveProject: (id: string, archived: boolean) => request<{ ok: true }>('POST', `/catalogue/projects/${id}/archive`, { archived }),
+    library: (q?: string, page = 0) => request<{ items: Row[]; pages: number }>('GET', '/library', undefined, { q, page }),
+    useLibrary: (id: string) => request<{ ok: true; projectId: string }>('POST', `/library/${id}/use`, {}),
+    compare: (codes: string[], lang: 'ar' | 'en') => request<{ url: string; codes: string[] }>('POST', '/compare', { codes, lang }),
+    plan: () => request<{ allowance: Row; payTo: Row; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean }>('GET', '/plan'),
+    creditRequest: (credits: number, note: string) => request<{ ok: true }>('POST', '/plan/credit-request', { credits, note }),
+    usage: () => request<{ state: Row; allowance: Row; mine: Row; agency: Row | null }>('GET', '/usage'),
+    platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean }>('GET', '/platform'),
+    platformAgency: (id: string, action: 'suspend' | 'resume') => request<{ ok: boolean }>('POST', `/platform/agencies/${id}/${action}`, {}),
+    platformSignup: (open: boolean) => request<{ ok: true }>('POST', '/platform/signup', { open }),
+    platformAnnounce: (title: string, body: string) => request<{ ok: true; sent: number }>('POST', '/platform/announce', { title, body }),
+    platformNewAgency: (b: { agency: string; ownerName: string; ownerPhone: string; plan?: string }) => request<{ ok: true; url: string | null }>('POST', '/platform/agencies', b),
+    activityLog: (page = 0) => request<{ items: ActivityRow[]; more: boolean }>('GET', '/activity-log', undefined, { page }),
     /** Moves a lead to a broker of the team, or back to the managers with null. */
     assignLead: (ref: string, version: number, brokerId: string | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/assign`, { version, brokerId }),
     ask: (question: string) => request<AskAnswer>('POST', '/ask', { question }),
-    unitFlyer: (code: string, theme: 'dark' | 'light' = 'dark') => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/flyer`, { theme }),
-    /** Photos of an existing unit: new files to add, ids to remove, and the order of the kept ones (first is the cover). */
-    unitPhotos: (code: string, o: { add?: UploadFile[]; remove?: string[]; order?: string[] }) => {
+    unitStatus: (code: string, status: 'active' | 'sold' | 'archived') => request<{ ok: true; status: string }>('POST', `/units/${encodeURIComponent(code)}/status`, { status }),
+    unitDelete: (code: string) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/delete`, {}),
+    unitRestore: (code: string) => request<{ ok: true; code: string }>('POST', `/units/${encodeURIComponent(code)}/restore`, {}),
+    unitLease: (code: string) => request<{ rent: boolean; lease: { startDate: string; months: number; rent: number | null; increasePct: number | null; tenantName: string | null; remind: boolean; done?: boolean } | null }>('GET', `/units/${encodeURIComponent(code)}/lease`),
+    createDeal: (b: Record<string, string>) => request<{ ok: true; ref: string; duplicate: boolean }>('POST', '/deals', b),
+    correctDeal: (ref: string, b: { commission: string; price?: string; external?: string; version?: number }) => request<{ ok: true }>('POST', `/deals/${encodeURIComponent(ref)}/correct`, b),
+    savedSearches: () => request<{ items: { id: string; name: string; total: number; fresh: number; alerts?: boolean }[]; max: number; max_alerts?: number }>('GET', '/saved-searches'),
+    saveSearch: (f: string, name: string, alerts = false) => request<{ ok: true; id: string }>('POST', '/saved-searches', { f, name, ...(alerts ? { alerts: true } : {}) }),
+    savedSearch: (id: string) => request<{ name: string; total: number; items: ApiUnitListItem[] }>('GET', `/saved-searches/${id}`),
+    deleteSavedSearch: (id: string) => request<{ ok: true }>('POST', `/saved-searches/${id}/delete`, {}),
+    saveDeveloper: (b: Record<string, string>, id?: string) => request<{ ok: true; id: string | null }>('POST', id ? `/catalogue/developers/${id}` : '/catalogue/developers', b),
+    saveProject: (b: Record<string, string>, id?: string) => request<{ ok: true; id: string | null }>('POST', id ? `/catalogue/projects/${id}` : '/catalogue/projects', b),
+    uploadLogo: (file: UploadFile) => {
       const form = new FormData();
+      form.append('logo', file as unknown as Blob);
+      return request<{ ok: true; url: string }>('POST', '/settings/logo', form);
+    },
+    removeLogo: () => request<{ ok: true }>('POST', '/settings/logo/remove', {}),
+    leases: (soon = false) => request<{ items: LeaseRow[] }>('GET', `/leases${soon ? '?soon=1' : ''}`),
+    unitLeaseDone: (code: string, kind: 'renewed' | 'leaving' | 'relist') => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease/done`, { kind }),
+    unitLeaseContacts: (code: string) => request<{ tenant: { name: string | null; ref: string; phone: string } | null; owner: { name: string | null; phone: string } | null }>('GET', `/units/${encodeURIComponent(code)}/lease/contacts`),
+    saveUnitLease: (code: string, l: { startDate: string; months: string; rent: string; increasePct: string; tenantName: string } | { remove: true }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease`, l),
+    saveUnitPrivate: (code: string, p: { pin: string; unitNo: string; address: string }) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/private`, p),
+    unitFlyer: (code: string, theme: 'dark' | 'light' = 'dark', unbranded = false, lang?: Lang) => request<{ url: string }>('POST', `/units/${encodeURIComponent(code)}/flyer`, { theme, unbranded, ...(lang ? { lang } : {}) }),
+    /** Photos of an existing unit: new files to add, ids to remove, and the order of the kept ones (first is the cover). */
+    /** One-time links so each photo goes straight to storage; then send the returned keys as photoKeys. */
+    photoUploadLinks: (count: number) => request<{ uploads: PhotoUploadLink[]; expires_in: number }>('POST', '/units/photo-upload', { count }),
+    unitPhotos: (code: string, o: { add?: UploadFile[]; remove?: string[]; order?: string[]; photoKeys?: string[] }) => {
+      const form = new FormData();
+      if (o.photoKeys?.length) form.append('photo_keys', JSON.stringify(o.photoKeys));
       for (const p of o.add ?? []) form.append('photos', p as unknown as Blob);
       if (o.remove?.length) form.append('remove', JSON.stringify(o.remove));
       if (o.order?.length) form.append('order', JSON.stringify(o.order));
       return request<{ images: UnitImage[]; failed: number }>('POST', `/units/${encodeURIComponent(code)}/photos`, form);
     },
     unitEditFields: (code: string) => request<{ code: string; version: number; fields: UnitFields }>('GET', `/units/${encodeURIComponent(code)}/edit`),
-    saveUnitEdit: (code: string, version: number, fields: UnitFields) => request<{ code: string; version: number }>('POST', `/units/${encodeURIComponent(code)}/edit`, { version, fields }),
+    saveUnitEdit: (code: string, version: number, fields: UnitFields, saveKey?: string) => request<{ code: string; version: number }>('POST', `/units/${encodeURIComponent(code)}/edit`, { version, fields, ...(saveKey ? { save_key: saveKey } : {}) }),
+    /** Was the save with this key stored? Asked once when a save has not answered for 60 seconds. */
+    unitSaveStatus: (key: string) => request<{ saved: boolean; code?: string }>('GET', '/units/save-status', undefined, { key }),
     placeSuggest: (q: string) => request<{ items: PlaceSuggestion[] }>('GET', '/places/suggest', undefined, { q }),
+    placeList: (since?: string) => request<PlaceListReply>('GET', '/places/list', undefined, since ? { since } : undefined),
     unitCompounds: (q: string) => request<{ items: { name: string; n: number }[] }>('GET', '/units/compounds', undefined, { q }),
     unitAccessRequest: (code: string) => request<{ ok: true; already: boolean; access: 'granted' | 'pending' }>('POST', `/units/${encodeURIComponent(code)}/access-request`, {}),
   };
 }
 export type ApiClient = ReturnType<typeof createApiClient>;
+
+export type NotifyChannel = 'both' | 'telegram' | 'web' | 'whatsapp';
+export type NotifyFrequency = 'immediate' | 'hourly' | 'daily';
+export interface NotifyKind { label: { ar: string; en: string }; on: boolean; channel: NotifyChannel; frequency: NotifyFrequency; locked: 'owner' | 'manager' | null; urgent: boolean }
+export interface NotificationSettings { kinds: Record<string, NotifyKind>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number }; telegramLinked: boolean }
+export interface NotificationSettingsInput { kinds: Record<string, { on?: boolean; channel?: NotifyChannel; frequency?: NotifyFrequency }>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number } }

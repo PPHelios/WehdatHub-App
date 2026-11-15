@@ -6,7 +6,7 @@ import { api } from '../src/api';
 import { useAuth } from '../src/auth';
 
 jest.mock('../src/api', () => ({ api: { units: jest.fn(), me: jest.fn() } }));
-jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));
+jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn() }), useRoute: () => ({ params: undefined }) }));
 const mocked = api as unknown as { units: jest.Mock; me: jest.Mock };
 
 const page = { total: 1, counts: { active: 4, sold: 2, archived: 1 }, limit: 20, offset: 0, items: [{ id: 'u1', code: 'A-1', compound: 'Mivida', price: 9000000, bedrooms: 3, bathrooms: 2, area: 150, mine: true, photo: null }] };

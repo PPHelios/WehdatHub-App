@@ -49,3 +49,13 @@ test('a wrong code shows a plain message and keeps the form usable', async () =>
   expect(useAuth.getState().status).toBe('signedOut');
   expect(screen.queryByTestId('button-spinner')).toBeNull();
 });
+
+test('leaving the phone field with a wrong number shows the note at once, and a good number shows none', async () => {
+  await render(<LoginScreen />);
+  await fireEvent.changeText(screen.getByTestId('phone-input'), '12');
+  await fireEvent(screen.getByTestId('phone-input'), 'blur');
+  expect(screen.getByTestId('login-message')).toBeTruthy();
+  await fireEvent.changeText(screen.getByTestId('phone-input'), '01012345678');
+  expect(screen.queryByTestId('login-message')).toBeNull();
+  expect(screen.getByTestId('logo')).toBeTruthy();
+});

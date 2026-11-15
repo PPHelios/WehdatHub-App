@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
+import { startUsage } from './src/usage';
+import { Alert, AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -13,27 +14,46 @@ import { LockScreen } from './src/components/LockScreen';
 import { UpdateScreen } from './src/components/UpdateScreen';
 import { APP_VERSION } from './src/config';
 import { LOCK_AFTER_MS, useLock } from './src/lock';
+import { clearPlaces, syncPlaces } from './src/placeList';
 import { RootNavigation, navigationRef } from './src/navigation';
+import { startAnalytics } from './src/analytics';
+import { installErrorReporting } from './src/errorReport';
 import { startCrashReports, startFirebase, startPush } from './src/push';
 import { watchShares } from './src/share';
+import { syncDirection } from './src/direction';
+import { usePrefs } from './src/prefs';
+import { installBrandFont } from './src/fonts';
+import { t } from './src/i18n';
 
 I18nManager.allowRTL(true);
+installBrandFont();
 
 const queries = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000, gcTime: DAY } } });
 
 export default function App() {
+  useEffect(() => installErrorReporting(), []);
+  useEffect(() => startUsage(), []);
   const restore = useAuth((s) => s.restore);
   const status = useAuth((s) => s.status);
   const locked = useLock((s) => s.locked);
-  const scheme = useColorScheme();
+  const systemScheme = useColorScheme();
+  const appearance = usePrefs((s) => s.appearance);
+  const scheme = appearance === 'system' ? systemScheme : appearance;
   const [tooOld, setTooOld] = useState<AppConfig | null>(null);
 
   useEffect(() => {
     restore();
     useLock.getState().load();
+    void usePrefs.getState().load();
     // The server says the lowest app version it supports. A failure to ask never blocks the app.
     api.config().then((c) => isOutdated(APP_VERSION, c.minAppVersion) && setTooOld(c)).catch(() => undefined);
   }, [restore]);
+
+  // The layout direction follows the app language; a change only shows after the app is reopened.
+  const lang = useAuth((s) => s.broker?.lang);
+  useEffect(() => {
+    if (status === 'signedIn' && lang && syncDirection(lang)) Alert.alert(t(lang, 'restartForLayout'));
+  }, [status, lang]);
 
   // Lock after 30 seconds in the background.
   useEffect(() => {
@@ -58,6 +78,20 @@ export default function App() {
     });
   }, [status]);
 
+  // The place list is kept on the phone: checked on sign-in, when the app comes back, and cleared on sign-out.
+  useEffect(() => {
+    if (status === 'signedOut') {
+      clearPlaces().catch(() => undefined);
+      return;
+    }
+    if (status !== 'signedIn') return;
+    syncPlaces().catch(() => undefined);
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') syncPlaces().catch(() => undefined);
+    });
+    return () => sub.remove();
+  }, [status]);
+
   // Alerts and crash reports start once signed in, if the server has the phone's Firebase identifiers.
   useEffect(() => {
     if (status !== 'signedIn') return;
@@ -69,6 +103,7 @@ export default function App() {
         if (gone || !(await startFirebase(c.firebase))) return;
         const id = useAuth.getState().broker?.id;
         if (id) startCrashReports(String(id)).catch(() => undefined);
+        startAnalytics().catch(() => undefined);
         const off = await startPush((s) => {
           const go = () => navigationRef.navigate(s.name, s.params as never);
           if (navigationRef.isReady()) go();
@@ -90,7 +125,7 @@ export default function App() {
       {tooOld ? (
         <UpdateScreen config={tooOld} />
       ) : (
-        <PersistQueryClientProvider client={queries} persistOptions={{ persister: listsStore, maxAge: DAY, buster: 'v1', dehydrateOptions: { shouldDehydrateQuery: (q) => q.state.status === 'success' && KEPT.includes(String(q.queryKey[0])) } }}>
+        <PersistQueryClientProvider client={queries} persistOptions={{ persister: listsStore, maxAge: DAY, buster: 'v2', dehydrateOptions: { shouldDehydrateQuery: (q) => q.state.status === 'success' && KEPT.includes(String(q.queryKey[0])) } }}>
           <RootNavigation />
           {locked && status === 'signedIn' ? <LockScreen /> : null}
           <OfflineBanner />

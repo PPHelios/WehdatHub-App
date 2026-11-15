@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { ApiClientError } from '@wehdathub/shared';
-import type { AskAnswer } from '@wehdathub/shared';
+import type { AskAnswer, VoiceFile } from '@wehdathub/shared';
+import { timed } from '../usage';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
@@ -9,7 +10,8 @@ import { Field } from '../components/Field';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
-import { ensureMic, startRecording, stopRecording } from '../voice';
+import { HoldMic } from '../components/HoldMic';
+import { AskResults } from '../components/AskResults';
 
 /** Ask: a question (typed or spoken) answered from the agency's projects, units and the broker's own clients. */
 export function AskScreen() {
@@ -17,34 +19,32 @@ export function AskScreen() {
   const lang = currentLang();
   const [question, setQuestion] = useState('');
   const [out, setOut] = useState<AskAnswer | null>(null);
+  const [asked, setAsked] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [recording, setRecording] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const ask = async (text = question) => {
+  const ask = async (text = question, voice = false) => {
     setError(null);
     if (!text.trim()) return setError(t(lang, 'askEmpty'));
+    setBusy(true);
     try {
-      setOut(await api.ask(text.trim()));
+      setOut(await timed('ask', () => api.ask(text.trim()), { kind: voice ? 'voice' : 'text' }));
+      setAsked(text.trim());
     } catch (e) {
       setOut(null);
       if (e instanceof ApiClientError && e.code === 'ai_blocked' && typeof e.extra.message === 'string') setError(e.extra.message);
       else setError(e instanceof ApiClientError && e.status === 503 ? t(lang, 'aiBlocked') : errorText(e, lang));
+    } finally {
+      setBusy(false);
     }
   };
-  const toggleMic = async () => {
+  const onVoice = async (file: VoiceFile) => {
     setError(null);
     try {
-      if (!recording) {
-        if (!(await ensureMic())) return setError(t(lang, 'micDenied'));
-        await startRecording();
-        return setRecording(true);
-      }
-      setRecording(false);
-      const heard = (await api.voiceToText(await stopRecording())).q;
+      const heard = (await api.voiceToText(file)).q;
       setQuestion(heard);
-      await ask(heard);
+      await ask(heard, true);
     } catch (e) {
-      setRecording(false);
       setError(errorText(e, lang));
     }
   };
@@ -53,16 +53,19 @@ export function AskScreen() {
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Field testID="ask-input" label={t(lang, 'askHint')} value={question} onChangeText={setQuestion} multiline />
       <View style={styles.row}>
-        <View style={styles.flex}><Button testID="ask-go" label={t(lang, 'askBtn')} onPress={() => ask()} /></View>
-        <View style={styles.flex}><Button testID="ask-mic" variant="secondary" label={recording ? t(lang, 'micStop') : t(lang, 'micAsk')} onPress={toggleMic} /></View>
+        <View style={styles.flex}><Button testID="ask-go" label={t(lang, 'askBtn')} loading={busy} onPress={() => ask()} /></View>
+        <View style={styles.flex}><HoldMic testID="ask-mic" label={t(lang, 'micAsk')} onFile={onVoice} onError={setError} disabled={busy} /></View>
       </View>
       {error ? <Text testID="ask-error" style={{ color: colors.danger }}>{error}</Text> : null}
       {out ? (
         <View testID="ask-answer" style={[styles.box, { borderColor: out.found ? colors.accent : colors.border, backgroundColor: colors.card }]}>
-          <Text style={{ color: colors.text, fontSize: 16 }}>{out.answer}</Text>
+          <Text selectable style={{ color: colors.text, fontSize: 16 }}>{out.answer}</Text>
           {out.dataDates ? <Text style={{ color: colors.muted }}>{out.dataDates}</Text> : null}
+          {/* The share sheet has Copy, WhatsApp and the rest; pressing and holding the text also selects a part of it. */}
+          <Button testID="ask-copy" variant="secondary" label={t(lang, 'copyAnswer')} onPress={() => { Share.share({ message: out.answer }).catch(() => undefined); }} />
         </View>
       ) : null}
+      {out && asked ? <AskResults q={asked} /> : null}
     </ScrollView>
   );
 }

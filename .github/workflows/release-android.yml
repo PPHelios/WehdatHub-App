@@ -1,9 +1,6 @@
 name: Release Android
 # Manual: builds the signed app bundle (.aab) for Google Play. Needs the secrets UPLOAD_KEYSTORE_B64, UPLOAD_STORE_PASSWORD, UPLOAD_KEY_ALIAS, UPLOAD_KEY_PASSWORD.
 on:
-  push:
-    branches: [main]
-    paths: ["apps/mobile/android/**", "apps/mobile/src/**", "packages/shared/**", ".github/workflows/release-android.yml"]
   workflow_dispatch:
     inputs:
       version_code:
@@ -35,6 +32,19 @@ jobs:
           UPLOAD_KEYSTORE_B64: ${{ secrets.UPLOAD_KEYSTORE_B64 }}
         run: |
           echo "$UPLOAD_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+      - name: Write Firebase config
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON_B64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > apps/mobile/android/app/google-services.json
+          fi
+      - name: Stamp the app version (shown in More and sent with reports)
+        env:
+          VERSION_NAME: ${{ inputs.version_name || '1.0.0' }}
+          VERSION_CODE: ${{ inputs.version_code || github.run_number }}
+        run: |
+          sed -i "s/^export const APP_VERSION = .*/export const APP_VERSION = '${VERSION_NAME}';/; s/^export const APP_BUILD = .*/export const APP_BUILD = '${VERSION_CODE}';/" apps/mobile/src/config.ts
       - name: Build bundle
         working-directory: apps/mobile/android
         env:
@@ -56,6 +66,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.wehdathub
           releaseFiles: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          mappingFile: apps/mobile/android/app/build/outputs/mapping/release/mapping.txt
           track: internal
           status: completed
       - uses: actions/upload-artifact@v4

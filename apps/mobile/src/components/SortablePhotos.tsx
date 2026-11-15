@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { Animated, Image, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { dropIndex, moveItem } from '@wehdathub/shared';
 import type { UploadFile } from '@wehdathub/shared';
 import { radius, spacing, useTheme } from '../theme';
+import { SmartImage } from './SmartImage';
 
 const ROW = 76;
 
@@ -12,19 +13,33 @@ interface Props {
   /** Lets the page stop scrolling while a photo is held, so the drag never fights the scroll. */
   onDragging?: (dragging: boolean) => void;
   removeLabel: string;
+  /** A failed upload can be tried again. */
+  onRetry?: (uri: string) => void;
+  /** Picked photos are kept or dropped here (only 15 are kept); the label shows the state. */
+  onToggle?: (uri: string) => void;
+  keepLabel?: string;
+  skipLabel?: string;
 }
 
 /** Drag-and-drop photo order: hold the ⋮⋮ handle, move the photo up or down, let go. The first photo is the cover. */
-export function SortablePhotos({ photos, onChange, onDragging, removeLabel }: Props) {
+export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRetry, onToggle, keepLabel, skipLabel }: Props) {
   const { colors } = useTheme();
   const [active, setActive] = useState<{ from: number; to: number } | null>(null);
   const dy = useRef(new Animated.Value(0)).current;
   const live = useRef({ photos, onChange, onDragging });
   live.current = { photos, onChange, onDragging };
 
-  const responder = (index: number) =>
+  // One handler per row, kept between renders: a new one on every render dropped the grab the moment the row moved.
+  const cache = useRef<Record<number, ReturnType<typeof PanResponder.create>>>({});
+  const responder = (index: number) => {
+    if (!cache.current[index]) cache.current[index] = makeResponder(index);
+    return cache.current[index];
+  };
+  const makeResponder = (index: number) =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
+      // Claim the drag before the page's scroll view does, so a small finger move never turns into a scroll.
+      onMoveShouldSetPanResponderCapture: () => true,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         dy.setValue(0);
@@ -68,13 +83,26 @@ export function SortablePhotos({ photos, onChange, onDragging, removeLabel }: Pr
               styles.row,
               { backgroundColor: colors.card, borderColor: dragged ? colors.primary : colors.border, zIndex: dragged ? 10 : 0, elevation: dragged ? 6 : 0 },
               dragged ? { transform: [{ translateY: dy }] } : { transform: [{ translateY: shift(i) }] },
+              p.notKept ? { opacity: 0.55 } : null,
             ]}
           >
             <View {...responder(i).panHandlers} testID={`photo-handle-${i}`} style={styles.handle} accessibilityRole="adjustable" accessibilityLabel={`${i + 1}`}>
               <Text style={[styles.grip, { color: colors.muted }]}>⋮⋮</Text>
             </View>
-            <Image source={{ uri: p.uri }} style={styles.thumb} />
+            <SmartImage uri={p.uri} style={styles.thumb} />
             <Text style={[styles.pos, { color: colors.text }]}>{i === 0 ? '★ 1' : String(i + 1)}</Text>
+            {p.failed ? (
+              <Pressable testID={`photo-retry-${i}`} accessibilityRole="button" onPress={() => onRetry?.(p.uri)} style={styles.remove}><Text style={{ color: colors.danger, fontWeight: '700' }}>↻</Text></Pressable>
+            ) : p.key ? (
+              <Text testID={`photo-done-${i}`} style={{ color: colors.accent, fontWeight: '700' }}>✓</Text>
+            ) : p.pct !== undefined ? (
+              <Text testID={`photo-pct-${i}`} style={{ color: colors.muted, fontWeight: '700' }}>{p.pct}%</Text>
+            ) : null}
+            {onToggle && p.type !== 'existing' ? (
+              <Pressable testID={`photo-keep-${i}`} accessibilityRole="button" onPress={() => onToggle(p.uri)} style={styles.remove}>
+                <Text style={{ color: p.notKept ? colors.muted : colors.accent, fontWeight: '700' }}>{p.notKept ? skipLabel : keepLabel}</Text>
+              </Pressable>
+            ) : null}
             <Pressable testID={`photo-remove-${i}`} accessibilityRole="button" onPress={() => onChange(photos.filter((_x, j) => j !== i))} style={styles.remove}>
               <Text style={{ color: colors.danger, fontWeight: '700' }}>{removeLabel}</Text>
             </Pressable>

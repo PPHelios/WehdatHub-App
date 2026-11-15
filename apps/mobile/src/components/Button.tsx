@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { radius, spacing, useTheme } from '../theme';
 
 interface Props {
@@ -9,41 +9,51 @@ interface Props {
   disabled?: boolean;
   variant?: 'primary' | 'secondary';
   testID?: string;
+  /** 0 to 1: a fill that moves across the button while a long action runs. */
+  progress?: number;
 }
 
 /** Every button shows a spinner while its action runs and ignores taps until it ends (no double submits). */
-export function Button({ label, onPress, loading = false, disabled = false, variant = 'primary', testID }: Props) {
+export function Button({ label, onPress, loading = false, disabled = false, variant = 'primary', testID, progress }: Props) {
   const { colors } = useTheme();
   const busy = useRef(false);
-  const blocked = loading || disabled;
+  const alive = useRef(true);
+  const [running, setRunning] = useState(false);
+  useEffect(() => () => { alive.current = false; }, []);
+  const spin = loading || running;
+  const blocked = spin || disabled;
   const primary = variant === 'primary';
   const handle = async () => {
     if (blocked || busy.current) return;
     busy.current = true;
+    setRunning(true); // the spinner shows while any action that calls the server is running, even when the screen passes no `loading`
     try {
       await onPress();
     } finally {
       busy.current = false;
+      if (alive.current) setRunning(false);
     }
   };
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
-      accessibilityState={{ busy: loading, disabled: blocked }}
+      accessibilityState={{ busy: spin, disabled: blocked }}
       onPress={handle}
       style={({ pressed }) => [
         styles.base,
         { backgroundColor: primary ? colors.primary : 'transparent', borderColor: primary ? colors.primary : colors.border, opacity: blocked ? 0.6 : pressed ? 0.85 : 1 },
       ]}
     >
-      {loading ? <ActivityIndicator testID="button-spinner" color={primary ? colors.onPrimary : colors.primary} /> : null}
+      {progress !== undefined ? <View testID="button-progress" pointerEvents="none" style={[styles.fill, { width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`, backgroundColor: primary ? colors.onPrimary : colors.primary }]} /> : null}
+      {spin && progress === undefined ? <ActivityIndicator testID="button-spinner" color={primary ? colors.onPrimary : colors.primary} /> : null}
       <Text style={[styles.label, { color: primary ? colors.onPrimary : colors.text }]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  base: { minHeight: 52, borderRadius: radius.md, borderWidth: 1, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  base: { overflow: 'hidden', minHeight: 52, borderRadius: radius.md, borderWidth: 1, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   label: { fontSize: 16, fontWeight: '700' },
+  fill: { position: 'absolute', start: 0, top: 0, bottom: 0, opacity: 0.22 },
 });

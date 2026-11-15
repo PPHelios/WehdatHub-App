@@ -33,14 +33,19 @@ export const useLock = create<LockState>((set) => ({
     }
   },
   async enable() {
-    try {
-      await Keychain.setGenericPassword('lock', '1', { service: SERVICE, accessControl: Keychain.ACCESS_CONTROL.BIOMETRY_ANY_OR_DEVICE_PASSCODE, accessible: Keychain.ACCESSIBLE.WHEN_PASSCODE_SET_THIS_DEVICE_ONLY });
-      await AsyncStorage.setItem(FLAG, '1');
-      set({ enabled: true, locked: false });
-      return true;
-    } catch {
-      return false;
+    // Some phones refuse the biometric-or-passcode rule; fall back to the screen lock alone before giving up.
+    const rules = [Keychain.ACCESS_CONTROL.BIOMETRY_ANY_OR_DEVICE_PASSCODE, Keychain.ACCESS_CONTROL.DEVICE_PASSCODE];
+    for (const accessControl of rules) {
+      try {
+        await Keychain.setGenericPassword('lock', '1', { service: SERVICE, accessControl, accessible: Keychain.ACCESSIBLE.WHEN_PASSCODE_SET_THIS_DEVICE_ONLY });
+        await AsyncStorage.setItem(FLAG, '1');
+        set({ enabled: true, locked: false });
+        return true;
+      } catch {
+        /* try the next rule */
+      }
     }
+    return false;
   },
   async disable() {
     await Keychain.resetGenericPassword({ service: SERVICE }).catch(() => {});
@@ -61,3 +66,13 @@ export const useLock = create<LockState>((set) => ({
     return false;
   },
 }));
+
+/** Whether this phone has a fingerprint, face or screen lock to protect the app with (unknown counts as yes, so the switch is not hidden by mistake). */
+export async function lockAvailable(): Promise<boolean> {
+  try {
+    if (await Keychain.isPasscodeAuthAvailable()) return true;
+    return (await Keychain.getSupportedBiometryType()) !== null;
+  } catch {
+    return true;
+  }
+}

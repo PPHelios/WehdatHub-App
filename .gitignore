@@ -38,3 +38,6 @@ next-env.d.ts
 # monorepo
 node_modules/
 .turbo/
+
+# Firebase config (added in CI from a secret)
+apps/mobile/android/app/google-services.json

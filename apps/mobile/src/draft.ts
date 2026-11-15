@@ -18,7 +18,7 @@ export async function loadDraft(): Promise<UnitDraft | null> {
     const raw = await AsyncStorage.getItem(KEY);
     if (!raw) return null;
     const d = JSON.parse(raw) as UnitDraft;
-    return d && typeof d === 'object' && d.fields ? { fields: d.fields, photos: Array.isArray(d.photos) ? d.photos : [], describe: d.describe || '', photoAi: Boolean(d.photoAi) } : null;
+    return d && typeof d === 'object' && d.fields ? { fields: d.fields, photos: Array.isArray(d.photos) ? d.photos.map(({ pct: _pct, failed: _failed, ...p }) => p) : [], describe: d.describe || '', photoAi: Boolean(d.photoAi) } : null;
   } catch {
     return null;
   }

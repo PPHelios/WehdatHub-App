@@ -11,7 +11,7 @@ const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
 let mockParams: object | undefined = { edit: 'A-1' };
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate, replace: jest.fn() }), useRoute: () => ({ params: mockParams }) }));
-jest.mock('../src/voice', () => ({ ensureMic: jest.fn(), startRecording: jest.fn(), stopRecording: jest.fn() }));
+jest.mock('../src/voice', () => ({ ensureMic: jest.fn(), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
 const m = api as unknown as Record<string, jest.Mock>;
 
 const client = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -31,7 +31,7 @@ test('edit mode loads the unit, saves with its version and goes back', async () 
   expect(screen.getByTestId('add-photos')).toBeTruthy();
   await fireEvent.changeText(screen.getByTestId('f-price_value'), '8500000');
   await fireEvent.press(screen.getByTestId('save-unit'));
-  await waitFor(() => expect(m.saveUnitEdit).toHaveBeenCalledWith('A-1', 4, expect.objectContaining({ price_value: '8500000' })));
+  await waitFor(() => expect(m.saveUnitEdit).toHaveBeenCalledWith('A-1', 4, expect.objectContaining({ price_value: '8500000' }), expect.any(String)));
   await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
 });
 

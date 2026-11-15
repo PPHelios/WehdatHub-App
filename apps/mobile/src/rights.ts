@@ -12,3 +12,10 @@ export function useRights(): Rights {
   const q = useQuery({ queryKey: ['me'], queryFn: () => api.me(), enabled: signedIn, staleTime: 5 * 60_000 });
   return q.data?.rights ?? PLAIN;
 }
+
+/** Rights plus whether the first answer has arrived (or failed), so the tab bar is built once, for the right role. */
+export function useRightsState(): { rights: Rights; ready: boolean } {
+  const signedIn = useAuth((s) => s.status === 'signedIn');
+  const q = useQuery({ queryKey: ['me'], queryFn: () => api.me(), enabled: signedIn, staleTime: 5 * 60_000 });
+  return { rights: q.data?.rights ?? PLAIN, ready: !q.isPending };
+}

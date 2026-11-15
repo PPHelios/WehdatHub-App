@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { usage } from '../usage';
 import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { tick } from '../haptics';
@@ -12,12 +13,15 @@ import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
 import { Section } from '../components/Section';
+import { LeadActions } from '../components/LeadActions';
 import { ViewingForm } from '../components/ViewingForm';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
-import { t, type StringKey } from '../i18n';
+import { stageLabel, t } from '../i18n';
+import { eventText } from '../leadEvents';
 import type { RootStackParams } from '../navigation';
 import { useRights } from '../rights';
+import { waNumber } from './UnitScreen';
 import { radius, spacing, useTheme } from '../theme';
 
 type FollowUp = { at: Date; kind: 'call' | 'viewing' };
@@ -67,7 +71,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
   if (q.isError || !q.data) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
   const { lead, timeline } = q.data;
   const followUp = (f: FollowUp) => run((l) => api.leadFollowUp(l.ref, l.version, f.at.toISOString(), f.kind));
-  const stageOptions = LEAD_STAGES.map((s) => ({ value: s, label: t(lang, `st_${s}` as StringKey) }));
+  const stageOptions = LEAD_STAGES.map((s) => ({ value: s, label: stageLabel(lang, s) }));
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={async () => { await q.refetch(); }} />}>
@@ -76,12 +80,17 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
       {message ? <Text testID="lead-message" style={{ color: colors.danger }}>{message}</Text> : null}
 
       {lead.phones.map((p) => (
-        <Button key={p} label={`📞 ${t(lang, 'call')} ${p}`} variant="secondary" onPress={() => Linking.openURL(`tel:${p.startsWith('+') ? p : `+${p}`}`)} />
+        <View key={p} style={styles.phoneRow}>
+          <View style={styles.phoneBtn}><Button label={`📞 ${t(lang, 'call')} ${p}`} variant="secondary" onPress={() => { usage('call_tap', true, undefined, { kind: 'lead' }); Linking.openURL(`tel:${p.startsWith('+') ? p : `+${p}`}`); }} /></View>
+          <View style={styles.phoneBtn}><Button testID={`whatsapp-${p}`} label={`💬 ${t(lang, 'whatsappClient')}`} variant="secondary" onPress={() => { usage('whatsapp_tap', true, undefined, { kind: 'lead' }); Linking.openURL(`https://wa.me/${waNumber(p)}`).catch(() => undefined); }} /></View>
+        </View>
       ))}
       <Button testID="lead-called" label={`✓ ${t(lang, 'iCalled')}`} loading={act.isPending} onPress={() => run((l) => api.leadCalled(l.ref, l.version))} />
 
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'stage')}</Text>
       <Chips<LeadStage> options={stageOptions} value={lead.stage} onChange={(s) => (s === 'lost' ? setAskLost(true) : run((l) => api.leadStage(l.ref, l.version, s)))} />
+      <Text style={{ color: colors.muted }}>{t(lang, 'leadLangTitle')}</Text>
+      <Chips<'auto' | 'ar' | 'en'> testID="lead-lang" options={[{ value: 'auto', label: t(lang, 'leadLangAuto') }, { value: 'ar', label: 'العربية' }, { value: 'en', label: 'English' }]} value={lead.lang ?? 'auto'} onChange={(v) => run((l) => api.leadLang(l.ref, l.version, v === 'auto' ? null : v))} />
       {askLost ? (
         <View style={styles.box}>
           <Field label={t(lang, 'lostReason')} value={lostReason} onChangeText={setLostReason} />
@@ -116,11 +125,13 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
         <ViewingForm lead={lead} />
       </Section>
 
+      <LeadActions lead={lead} manager={rights.team} />
+
       <Section testID="sec-history" title={t(lang, 'history')}>
       {timeline.map((e) => (
         <View key={e.id} style={[styles.event, { borderColor: colors.border }]}>
           <Text style={{ color: colors.muted, fontSize: 12 }}>{new Date(e.at).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}{e.by ? ` · ${e.by}` : ''}</Text>
-          <Text style={{ color: colors.text }}>{e.text || (e.stage ? t(lang, `st_${e.stage}` as StringKey) : e.kind)}</Text>
+          <Text style={{ color: colors.text }}>{eventText(e, lang)}</Text>
         </View>
       ))}
       </Section>
@@ -129,6 +140,8 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
 }
 
 const styles = StyleSheet.create({
+  phoneRow: { flexDirection: 'row', gap: spacing.sm },
+  phoneBtn: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md },
   title: { fontSize: 22, fontWeight: '800' },
   h: { fontSize: 16, fontWeight: '700', marginTop: spacing.md },

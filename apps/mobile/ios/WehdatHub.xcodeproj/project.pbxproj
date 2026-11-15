@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CA1A0002A1B2C3D4E5F60002 /* Cairo-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CA1A0001A1B2C3D4E5F60001 /* Cairo-Regular.ttf */; };
+		CA1A0004A1B2C3D4E5F60004 /* Cairo-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CA1A0003A1B2C3D4E5F60003 /* Cairo-Bold.ttf */; };
 		07F40D6DD81DC251ECE93F8A /* ShareIntent.m in Sources */ = {isa = PBXBuildFile; fileRef = A656AE08A9AEE350D1435D3B /* ShareIntent.m */; };
 		0C80B921A6F3F58F76C31292 /* libPods-WehdatHub.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-WehdatHub.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
@@ -43,6 +45,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		CA1A0001A1B2C3D4E5F60001 /* Cairo-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Cairo-Regular.ttf; path = WehdatHub/Fonts/Cairo-Regular.ttf; sourceTree = "<group>"; };
+		CA1A0003A1B2C3D4E5F60003 /* Cairo-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Cairo-Bold.ttf; path = WehdatHub/Fonts/Cairo-Bold.ttf; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* WehdatHub.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WehdatHub.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = WehdatHub/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = WehdatHub/Info.plist; sourceTree = "<group>"; };
@@ -87,6 +91,8 @@
 			isa = PBXGroup;
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
+				CA1A0001A1B2C3D4E5F60001 /* Cairo-Regular.ttf */,
+				CA1A0003A1B2C3D4E5F60003 /* Cairo-Bold.ttf */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				761780EE2CA45674006654EF /* SceneDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -255,6 +261,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
+				CA1A0002A1B2C3D4E5F60002 /* Cairo-Regular.ttf in Resources */,
+				CA1A0004A1B2C3D4E5F60004 /* Cairo-Bold.ttf in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

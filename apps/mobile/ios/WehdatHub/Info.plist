@@ -11,7 +11,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>WehdatHub</string>
+	<string>Wehdat Hub</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -53,6 +53,8 @@
 	<string>Used only when you tap Take photo to add a photo to a unit.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Used only to choose unit photos you pick.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Used only to save a unit flyer to your photos when you tap Save to gallery.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Used to unlock the app with Face ID.</string>
 	<key>NSContactsUsageDescription</key>
@@ -80,6 +82,11 @@
 			</array>
 		</dict>
 	</dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Cairo-Regular.ttf</string>
+		<string>Cairo-Bold.ttf</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
@@ -99,5 +106,10 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>ar</string>
+	</array>
 </dict>
 </plist>

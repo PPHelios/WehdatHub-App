@@ -14,6 +14,11 @@ test('shows the count and opens a photo full screen', async () => {
   expect(screen.queryByTestId('photo-close')).toBeNull();
 });
 
+test('the carousel loops: its list holds three copies so a swipe past either end lands on a photo', async () => {
+  await render(<PhotoGallery photos={photos} closeLabel="Close" />);
+  expect(screen.getByTestId('gallery').props.data).toHaveLength(9);
+});
+
 test('renders nothing without photos', async () => {
   await render(<PhotoGallery photos={[]} closeLabel="Close" />);
   expect(screen.queryByTestId('gallery')).toBeNull();

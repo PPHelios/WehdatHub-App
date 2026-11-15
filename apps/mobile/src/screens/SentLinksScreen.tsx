@@ -41,6 +41,10 @@ export function SentLinksScreen() {
           <Text style={{ color: colors.muted }}>
             {[item.leadName || item.leadRef, item.recipientPhone, new Date(item.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB')].filter(Boolean).join(' · ')}
           </Text>
+          <Text style={{ color: colors.muted }}>
+            {item.lastOpenedAt ? `${t(lang, 'lastOpened')}: ${new Date(item.lastOpenedAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}` : t(lang, 'notOpenedYet')}
+          </Text>
+          {item.note ? <Text style={{ color: colors.text }}>{item.note}</Text> : null}
         </View>
       )}
     />

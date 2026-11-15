@@ -1,10 +1,8 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
 import type { PlaceSuggestion } from '@wehdathub/shared';
-import { api } from '../api';
 import { currentLang } from '../auth';
-import { useDebounced } from '../useDebounced';
+import { usePlaceSuggestions } from '../usePlaceSuggestions';
 import { radius, spacing, useTheme } from '../theme';
 import { Field } from './Field';
 
@@ -17,13 +15,15 @@ const name = (p: PlaceSuggestion, lang: string) => (lang === 'en' ? p.name_en ||
 export function PlaceInput({ label, value, onChangeText, onPick, testID }: { label: string; value: string; onChangeText: (v: string) => void; onPick: (p: PlaceSuggestion) => void; testID?: string }) {
   const { colors } = useTheme();
   const lang = currentLang();
-  const typed = useDebounced(value.trim(), 250);
-  const found = useQuery({ queryKey: ['place-suggest', typed], queryFn: () => api.placeSuggest(typed), enabled: typed.length >= 2, staleTime: 60_000 });
+  // The list shows only for text the person typed: picking an entry or filling by voice changes the value without typing, and closes it.
+  const typed = useRef<string | null>(value);
+  const open = typed.current === value;
+  const found = usePlaceSuggestions(open ? value : '');
   // The list closes once the typed text is exactly one entry's name.
-  const items = (found.data?.items ?? []).filter((p) => name(p, lang) !== value.trim());
+  const items = !open ? [] : found.filter((p) => name(p, lang) !== value.trim());
   return (
     <View style={styles.wrap}>
-      <Field testID={testID} label={label} value={value} onChangeText={onChangeText} autoCorrect={false} />
+      <Field testID={testID} label={label} value={value} onChangeText={(v) => { typed.current = v; onChangeText(v); }} autoCorrect={false} />
       {items.length ? (
         <View testID="place-suggestions" style={[styles.list, { borderColor: colors.border, backgroundColor: colors.card }]}>
           {items.map((p) => (

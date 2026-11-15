@@ -1,11 +1,14 @@
 import { useColorScheme } from 'react-native';
 import { brand } from '@wehdathub/shared';
+import { usePrefs } from './prefs';
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 } as const;
 export const radius = { sm: 8, md: 12, lg: 16 } as const;
 
 export function useTheme() {
-  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const system = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const appearance = usePrefs((s) => s.appearance);
+  const scheme = appearance === 'system' ? system : appearance;
   const c = brand[scheme];
   const dark = scheme === 'dark';
   return {
