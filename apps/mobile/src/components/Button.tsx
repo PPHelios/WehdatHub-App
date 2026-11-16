@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useBusy } from '../busy';
 import { buttonHeight, buttonRadius, spacing, useTheme } from '../theme';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
@@ -25,8 +26,12 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
   const alive = useRef(true);
   const [running, setRunning] = useState(false);
   useEffect(() => () => { alive.current = false; }, []);
+  const { busy: anyBusy, begin } = useBusy();
   const spin = loading || running;
-  const blocked = spin || disabled;
+  // A button whose screen passes `loading` also locks the rest of the screen while it is loading.
+  useEffect(() => (loading ? begin() : undefined), [loading, begin]);
+  // Another call is running (not this one): this button cannot be pressed, and it does not spin.
+  const blocked = spin || disabled || anyBusy;
   // Filled buttons (primary, danger) carry an "on" colour; secondary has an edge; quiet has neither.
   const filled = variant === 'primary' || variant === 'danger';
   const fill = variant === 'danger' ? colors.danger : colors.primary;
@@ -34,11 +39,13 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
   const handle = async () => {
     if (blocked || busy.current) return;
     busy.current = true;
+    const end = begin();
     setRunning(true); // the spinner shows while any action that calls the server is running, even when the screen passes no `loading`
     try {
       await onPress();
     } finally {
       busy.current = false;
+      end();
       if (alive.current) setRunning(false);
     }
   };
@@ -47,6 +54,7 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
       testID={testID}
       accessibilityRole="button"
       accessibilityState={{ busy: spin, disabled: blocked }}
+      disabled={blocked}
       onPress={handle}
       style={({ pressed }) => [
         styles.base,

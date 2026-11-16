@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { startUsage, usage } from './src/usage';
 import { Alert, AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
+import { BusyProvider } from './src/busy';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -128,7 +129,9 @@ export default function App() {
         <UpdateScreen config={tooOld} />
       ) : (
         <PersistQueryClientProvider client={queries} persistOptions={{ persister: listsStore, maxAge: DAY, buster: 'v2', dehydrateOptions: { shouldDehydrateQuery: (q) => q.state.status === 'success' && KEPT.includes(String(q.queryKey[0])) } }}>
-          <RootNavigation />
+          <BusyProvider>
+            <RootNavigation />
+          </BusyProvider>
           {locked && status === 'signedIn' ? <LockScreen /> : null}
           <OfflineBanner />
         </PersistQueryClientProvider>

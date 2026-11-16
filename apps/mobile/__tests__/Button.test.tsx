@@ -25,4 +25,3 @@ test('a second tap while the action runs is ignored', async () => {
   await fireEvent.press(button);
   expect(onPress).toHaveBeenCalledTimes(2);
 });
-
