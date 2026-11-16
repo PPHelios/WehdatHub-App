@@ -90,12 +90,21 @@ live('matches the server menu', () => {
   test('every icon the server menu names is in the app', () => {
     for (const name of spec().iconNames()) expect(ICON_NAMES).toContain(iconFor(name));
   });
-  test('each role gets five tabs with Add in the centre, and every tab opens a screen the app has', () => {
-    for (const role of ['broker', 'team_lead', 'manager', 'owner', 'data_entry']) {
+  test('each role gets five tabs with its own shortcut in the centre, and every tab opens a screen the app has', () => {
+    const centre: Record<string, string> = { broker: 'Search', team_lead: 'Search', manager: 'Leads', owner: 'Dashboard', data_entry: 'AddUnit' };
+    for (const role of Object.keys(centre)) {
       const nav = spec().forBroker(who(role));
       const p = tabPlan(nav, { ...base, dataEntry: role === 'data_entry' });
       expect(p.tabs).toHaveLength(nav.tabs.length);
-      expect(p.tabs[2].key).toBe('AddUnit');
+      expect([role, p.tabs[2].key, p.tabs[2].fab]).toEqual([role, centre[role], true]);
+      expect(p.tabs.filter((t) => t.fab)).toHaveLength(1);
+    }
+  });
+  test('broker and team lead bars open on Today and Add is the first row of More', () => {
+    for (const role of ['broker', 'team_lead']) {
+      expect(tabPlan(spec().forBroker(who(role)), base).initial).toBe('Today');
+      const rows = (moreSections(spec().forBroker(who(role)), base) ?? []).flatMap((g) => g.rows);
+      expect(rows[0]).toMatchObject({ id: 'add', screen: 'AddUnit' });
     }
   });
   test('the More list per role has rows with Arabic and English text and a screen', () => {

@@ -9,7 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, currentLang } from './auth';
 import { BottomSafe } from './components/BottomSafe';
 import { Icon } from './components/Icon';
-import { FloatingTabBar } from './components/FloatingTabBar';
+import { FAB_TEST_ID, FloatingTabBar } from './components/FloatingTabBar';
 import { MenuButton } from './components/MenuButton';
 import { NotificationBell } from './components/NotificationBell';
 import type { IconName } from './components/Icon';
@@ -143,7 +143,7 @@ function TabsScreen() {
             key={k}
             name={k === 'AddUnit' ? 'AddUnitTab' : k}
             component={screens[k]}
-            options={{ title: spec.label ? spec.label[lang] : t(lang, TAB_TITLE[k]), tabBarIcon: tabIcon(spec.icon) }}
+            options={{ title: spec.label ? spec.label[lang] : t(lang, TAB_TITLE[k]), tabBarIcon: tabIcon(spec.icon), tabBarButtonTestID: spec.fab ? FAB_TEST_ID : undefined }}
             listeners={k === 'AddUnit' ? { tabPress: (e) => { e.preventDefault(); navigationRef.navigate('AddUnit'); } } : undefined}
           />
         );

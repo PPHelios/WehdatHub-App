@@ -11,7 +11,7 @@ import type { MoreScreenName, TabKey } from './roleNav';
  */
 
 /** The server's tab names the app can open (anything else is skipped, never crashes). */
-const TAB_BY_APP: Record<string, TabKey> = { Today: 'Today', Search: 'Search', AddUnit: 'AddUnit', Leads: 'Leads', Units: 'Units', Team: 'Team', Owners: 'Owners', Settings: 'Settings' };
+const TAB_BY_APP: Record<string, TabKey> = { Today: 'Today', Search: 'Search', AddUnit: 'AddUnit', Leads: 'Leads', Units: 'Units', Team: 'Team', Owners: 'Owners', Settings: 'Settings', Dashboard: 'Dashboard', More: 'More' };
 
 /** The screens a More row can open. */
 const SCREENS: ReadonlySet<string> = new Set<MoreScreenName>([
@@ -30,7 +30,8 @@ export function iconFor(name: string): IconName {
   return ICONS.has(name) ? (name as IconName) : 'more';
 }
 
-export interface TabSpec { key: TabKey; icon: IconName; label?: NavLabel }
+/** `fab` marks the centre shortcut (drawn as a filled circle): Search, Leads, Dashboard or Add unit, whichever the role's bar makes its main one. */
+export interface TabSpec { key: TabKey; icon: IconName; label?: NavLabel; fab?: boolean }
 
 /** Groups that start open before the person's own choice. */
 export const GROUP_OPEN: ReadonlySet<string> = new Set(['clients', 'listings']);
@@ -46,12 +47,12 @@ export function tabPlan(nav: Nav | undefined | null, rights: Rights): { tabs: Ta
   const n = usableNav(nav);
   if (!n) {
     const p = navPlan(rights);
-    return { tabs: p.tabs.map((key) => ({ key, icon: LEGACY_ICON[key] })), initial: p.initial };
+    return { tabs: p.tabs.map((key) => ({ key, icon: LEGACY_ICON[key], fab: key === 'AddUnit' })), initial: p.initial };
   }
   const tabs: TabSpec[] = [];
   for (const t of n.tabs) {
     const key = t.app ? TAB_BY_APP[t.app] : undefined;
-    if (key) tabs.push({ key, icon: iconFor(t.icon), label: t.label });
+    if (key) tabs.push({ key, icon: iconFor(t.icon), label: t.label, fab: Boolean(t.fab) });
   }
   const initial: TabKey = tabs.some((t) => t.key === 'Today') ? 'Today' : tabs.some((t) => t.key === 'Units') ? 'Units' : tabs[0].key;
   return { tabs, initial };

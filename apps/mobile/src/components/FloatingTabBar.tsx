@@ -6,6 +6,8 @@ import { FONT_BOLD } from '../fonts';
 import { tick } from '../haptics';
 import { useTheme } from '../theme';
 
+/** The tab option that marks the centre shortcut; the bar draws that tab as a filled circle. */
+export const FAB_TEST_ID = 'tab-fab';
 const BAR = 68;
 const INSET = 5;
 
@@ -18,6 +20,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
   const { bottom } = useSafeAreaInsets();
   const [width, setWidth] = useState(0);
   const n = state.routes.length;
+  const isFab = (key: string) => descriptors[key]?.options.tabBarButtonTestID === FAB_TEST_ID;
   const slot = width / Math.max(1, n);
   const index = I18nManager.isRTL ? n - 1 - state.index : state.index;
   const x = useRef(new Animated.Value(index * slot)).current;
@@ -28,13 +31,13 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
   return (
     <View style={[styles.wrap, { backgroundColor: colors.bg, paddingBottom: Math.max(bottom, 10) }]}>
       <View testID="tab-bar" onLayout={(e) => setWidth(e.nativeEvent.layout.width - INSET * 2)} style={[styles.bar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {width > 0 && state.routes[state.index]?.name !== 'AddUnitTab' ? (
+        {width > 0 && !isFab(state.routes[state.index]?.key) ? (
           <Animated.View testID="tab-highlight" pointerEvents="none" style={[styles.pill, { width: slot, backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.38)' : `${colors.primary}1F`, transform: [{ translateX: x }] }]} />
         ) : null}
         {state.routes.map((route, i) => {
           const { options } = descriptors[route.key];
           const focused = state.index === i;
-          const isAdd = route.name === 'AddUnitTab'; // the centre + button: a filled circle, never the sliding highlight
+          const isAdd = isFab(route.key); // the centre shortcut: a filled circle, never the sliding highlight
           const color = isAdd ? colors.onPrimary : focused ? colors.primary : colors.muted;
           const label = typeof options.title === 'string' ? options.title : route.name;
           const press = () => {
