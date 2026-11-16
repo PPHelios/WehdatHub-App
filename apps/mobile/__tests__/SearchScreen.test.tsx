@@ -101,6 +101,16 @@ test('ignored words are shown under the results', async () => {
   await waitFor(() => expect(screen.getByTestId('ignored-note')).toBeTruthy());
 });
 
+test('a guessed spelling is shown as "could not find, did you mean", and what the filters cannot say is listed', async () => {
+  mocked.search.mockResolvedValue({ status: 'results', source: 'parser', total: 2, items: [], guesses: [{ typed: 'hyde', as: 'hyde park' }], unapplied: ['near the mall'], reading: 'apartment · Hyde Park', counts: { active: 2, sold: 0, archived: 0 } });
+  await wrap();
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'apartment in hyde near the mall');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(screen.getByTestId('guess-note')).toBeTruthy());
+  expect(screen.getByTestId('guess-note').props.children).toContain('hyde park');
+  expect(screen.getByTestId('unapplied-note')).toBeTruthy();
+});
+
 test('Sold and Archived show their counts from the start and one tap searches them', async () => {
   const counts = { active: 3, sold: 2, archived: 0 };
   mocked.search.mockResolvedValueOnce({ status: 'results', source: 'parser', total: 3, items: [], unitStatus: 'active', counts });

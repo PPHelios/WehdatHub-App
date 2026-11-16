@@ -117,6 +117,8 @@ export function SearchScreen() {
           {data.f && data.total > 0 ? <SaveSearchButton f={data.f} /> : null}
           {data.reading ? <Text testID="reading-line" style={[styles.count, { color: colors.text }]}>{data.reading}</Text> : null}
           <Text style={[styles.count, { color: colors.muted }]}>{data.total} {t(lang, 'results')}{data.relaxed ? ` · ${t(lang, 'relaxedNote')}` : ''}</Text>
+          {data.guesses?.length ? <Text testID="guess-note" style={[styles.count, { color: colors.accent }]}>{data.guesses.map((g) => t(lang, 'guessNote').replace('{typed}', g.typed).replace('{as}', g.as)).join(' ')}</Text> : null}
+          {data.unapplied?.length ? <Text testID="unapplied-note" style={[styles.count, { color: colors.accent }]}>{t(lang, 'unappliedNote')} {data.unapplied.join(' · ')}</Text> : null}
           {data.ignoredTerms?.length ? <Text testID="ignored-note" style={[styles.count, { color: colors.accent }]}>{t(lang, 'ignoredNote')} {data.ignoredTerms.join(' · ')}</Text> : null}
         </View>
       }

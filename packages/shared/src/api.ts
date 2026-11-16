@@ -252,6 +252,9 @@ export interface SearchResult {
   limit?: number;
   relaxed?: boolean;
   ignoredTerms?: string[];
+  /** Spellings the server guessed ("Couldn't find X, showing Y"), and what the filters cannot say ("near the mall"). */
+  guesses?: { typed: string; as: string }[];
+  unapplied?: string[];
   /** The search's filters as a token the server can save (saved searches). */
   f?: string | null;
   /** What the server understood, in the broker's language (e.g. "شقة · بيع أو إيجار · هايد بارك"). */
