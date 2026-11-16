@@ -175,6 +175,7 @@ test('a place this broker just added shows at once from the saved list', async (
 });
 
 test('a list saved before features existed still asks the server', async () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- dropping two keys to build an old saved shape
   const { features: _f, zones: _z, ...old } = saved;
   usePlaces.setState({ list: old, checkedAt: Date.now() });
   m.placeBox.mockResolvedValue({ items: [{ kind: 'feature', key: 'roof', label: 'Roof' }] });

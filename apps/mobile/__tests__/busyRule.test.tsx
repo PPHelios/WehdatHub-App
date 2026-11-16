@@ -32,7 +32,7 @@ describe('the busy rule', () => {
   test('a failing call does not leave the screen locked', async () => {
     const onBoom = jest.fn();
     function Boom() {
-      return <Button label="Boom" testID="boom" onPress={async () => { try { throw new Error('x'); } catch (e) { onBoom(); } }} />;
+      return <Button label="Boom" testID="boom" onPress={async () => { try { throw new Error('x'); } catch { onBoom(); } }} />;
     }
     await render(<BusyProvider><Boom /><Button label="Other" testID="other" onPress={() => undefined} /></BusyProvider>);
     await act(async () => { fireEvent.press(screen.getByTestId('boom')); });
