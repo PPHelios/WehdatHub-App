@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../api';
+import type { AiUsage } from '@wehdathub/shared';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
@@ -137,6 +138,44 @@ export function PlanScreen() {
 type UsageBlock = { total?: number; today?: number; actions?: { action: string; n: number; today: number }[] } | null;
 
 /** This month's use: AI credits, the agency's message credits, and your own messages (the agency's for managers). */
+/**
+ * My AI use (read only; the settings are changed on the website). In the agency's per-person mode it says the person's own
+ * limit and use; in the shared-pool mode just the use. Managers also see everyone's use and whether the owner lets them edit.
+ */
+export function AiUsageCard({ ai, ar }: { ai: AiUsage; ar: boolean }) {
+  const { colors } = useTheme();
+  const own = ai.mine;
+  return (
+    <Card testID="usage-ai">
+      <Text style={[styles.h, { color: colors.text }]}>{ar ? 'استهلاكي للذكاء الاصطناعي' : 'My AI use'}</Text>
+      {ai.mode === 'per_user' && own.allowance != null ? (
+        <>
+          <Text testID="ai-own-limit" style={{ color: colors.text, fontWeight: '700' }}>
+            {ar ? `حدك في الذكاء الاصطناعي: ${num(own.allowance)} الشهر ده، استهلكت ${num(own.used)}` : `Your AI limit: ${num(own.allowance)} this month, used ${num(own.used)}`}
+          </Text>
+          <Meter testID="meter-ai-own" label={ar ? 'حدي' : 'My limit'} used={own.used} limit={own.allowance} />
+        </>
+      ) : ai.mode === 'per_user' ? (
+        <Text testID="ai-own-none" style={{ color: colors.muted }}>{ar ? `مفيش حد شخصي ليك. استهلكت ${num(own.used)} الشهر ده.` : `You have no personal limit. Used ${num(own.used)} this month.`}</Text>
+      ) : (
+        <Text testID="ai-own-pool" style={{ color: colors.muted }}>{ar ? `استهلكت ${num(own.used)} الشهر ده، من رصيد الشركة المشترك.` : `You used ${num(own.used)} this month, from the agency's shared pool.`}</Text>
+      )}
+      {ai.people ? (
+        <View testID="ai-people">
+          {ai.people.map((p) => (
+            <Text key={p.id} style={{ color: colors.text }}>{p.name}: {num(p.used)}{p.allowance != null ? ` / ${num(p.allowance)}` : ''}</Text>
+          ))}
+          <Text style={{ color: colors.muted }}>
+            {ai.canEdit
+              ? ar ? 'غيّر الإعدادات من الموقع.' : 'Change these settings on the website.'
+              : ar ? 'مالك الشركة لم يسمح للمديرين بتغيير ده.' : 'The agency owner has not allowed managers to change this'}
+          </Text>
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
 export function UsageScreen() {
   const { colors } = useTheme();
   const ar = currentLang() === 'ar';
@@ -159,6 +198,7 @@ export function UsageScreen() {
               {meters(d.allowance as Allowance, ar)}
               {typeof st.limit === 'number' ? <Meter testID="meter-messages" label={ar ? 'رسايل البوت للشركة (الشهر ده)' : 'Agency bot messages (this month)'} used={st.used ?? 0} limit={st.limit} /> : null}
             </Card>
+            {d.ai ? <AiUsageCard ai={d.ai} ar={ar} /> : null}
             {block(d.mine as UsageBlock, 'usage-mine', ar ? 'رسايلي' : 'My messages')}
             {block(d.agency as UsageBlock, 'usage-agency', ar ? 'رسايل الشركة' : 'Agency messages')}
           </ScrollView>

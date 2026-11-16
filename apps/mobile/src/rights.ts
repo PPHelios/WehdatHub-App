@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { Rights } from '@wehdathub/shared';
+import type { Rights, Nav } from '@wehdathub/shared';
 import { api } from './api';
 import { useAuth } from './auth';
 
@@ -14,8 +14,8 @@ export function useRights(): Rights {
 }
 
 /** Rights plus whether the first answer has arrived (or failed), so the tab bar is built once, for the right role. */
-export function useRightsState(): { rights: Rights; ready: boolean } {
+export function useRightsState(): { rights: Rights; ready: boolean; nav: Nav | undefined } {
   const signedIn = useAuth((s) => s.status === 'signedIn');
   const q = useQuery({ queryKey: ['me'], queryFn: () => api.me(), enabled: signedIn, staleTime: 5 * 60_000 });
-  return { rights: q.data?.rights ?? PLAIN, ready: !q.isPending };
+  return { rights: q.data?.rights ?? PLAIN, ready: !q.isPending, nav: q.data?.nav };
 }

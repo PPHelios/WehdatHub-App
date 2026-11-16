@@ -5,6 +5,21 @@ export type UnitStatus = 'active' | 'sold' | 'archived';
 export type StatusCounts = Record<UnitStatus, number>;
 /** What this person may do. The server decides; the app hides what is not allowed. */
 export interface Rights { addUnits: boolean; editUnits: boolean; leads: boolean; search: boolean; team: boolean; owners: boolean; manager: boolean; agencyOwner: boolean; dataEntry: boolean; teamLead: boolean }
+/** The menu the server builds for this role (lib/navSpec.js on the server): the bottom tabs and the grouped More list. */
+export interface NavLabel { ar: string; en: string }
+export interface NavTab { key: string; label: NavLabel; icon: string; web: string | null; app: string | null; fab?: boolean }
+export interface NavItem { key: string; label: NavLabel; icon: string; web: string | null; app: string | null; onBar: boolean }
+export interface NavGroup { key: string; label: NavLabel; items: NavItem[] }
+export interface Nav { role: string; tabs: NavTab[]; groups: NavGroup[] }
+/** AI use per person (read only in the app): the agency's mode, this person's own allowance and use, and (managers) everyone. */
+export interface AiUsage {
+  mode: 'pool' | 'per_user';
+  defaultCredits: number | null;
+  managerCanEdit: boolean;
+  canEdit: boolean;
+  mine: { allowance: number | null; used: number; remaining: number | null };
+  people?: { id: string; name: string; role: string; override: number | null; allowance: number | null; used: number }[];
+}
 export interface ApiBroker { id: string; name: string; role: string; lang: Lang }
 export interface ApiAgency { id: string; name: string; slug: string; logoUrl: string | null }
 /** Present only for the test number: its roles, its own role, and whether it may view NCH (read only). */
@@ -377,7 +392,7 @@ export function createApiClient(opts: ApiClientOptions) {
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
-    me: () => request<{ broker: ApiBroker; agency: ApiAgency; rights: Rights; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me'),
+    me: () => request<{ broker: ApiBroker; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me'),
     testRole: (role: string) => request<{ ok: true; role: string }>('POST', '/test-role', { role }),
     testView: (view: 'home' | 'other') => request<{ ok: true; viewing: boolean }>('POST', '/test-view', { view }),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
@@ -513,7 +528,7 @@ export function createApiClient(opts: ApiClientOptions) {
     compare: (codes: string[], lang: 'ar' | 'en') => request<{ url: string; codes: string[] }>('POST', '/compare', { codes, lang }),
     plan: () => request<{ allowance: Row; payTo: Row; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean }>('GET', '/plan'),
     creditRequest: (credits: number, note: string) => request<{ ok: true }>('POST', '/plan/credit-request', { credits, note }),
-    usage: () => request<{ state: Row; allowance: Row; mine: Row; agency: Row | null }>('GET', '/usage'),
+    usage: () => request<{ state: Row; allowance: Row; mine: Row; agency: Row | null; ai?: AiUsage }>('GET', '/usage'),
     platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean }>('GET', '/platform'),
     platformAgency: (id: string, action: 'suspend' | 'resume') => request<{ ok: boolean }>('POST', `/platform/agencies/${id}/${action}`, {}),
     platformSignup: (open: boolean) => request<{ ok: true }>('POST', '/platform/signup', { open }),

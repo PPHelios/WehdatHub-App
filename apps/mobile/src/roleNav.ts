@@ -2,7 +2,7 @@ import type { Rights } from '@wehdathub/shared';
 import type { StringKey } from './i18n';
 import type { IconName } from './components/Icon';
 
-export type TabKey = 'Today' | 'Search' | 'Leads' | 'Map' | 'Units' | 'More' | 'Team' | 'Dashboard' | 'Owners' | 'AddUnit' | 'Plan';
+export type TabKey = 'Today' | 'Search' | 'Leads' | 'Map' | 'Units' | 'More' | 'Team' | 'Dashboard' | 'Owners' | 'AddUnit' | 'Plan' | 'Settings';
 
 /** The tabs each role gets, left to right in English (the layout flips in Arabic), and the tab the app opens on. */
 export function navPlan(r: Rights): { tabs: TabKey[]; initial: TabKey } {
@@ -13,8 +13,8 @@ export function navPlan(r: Rights): { tabs: TabKey[]; initial: TabKey } {
   return { tabs: ['Search', 'Leads', 'Today', 'Map', 'More'], initial: 'Today' };
 }
 
-export const TAB_ICON: Record<TabKey, IconName> = { Today: 'today', Search: 'search', Leads: 'leads', Map: 'map', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'add', Plan: 'plan' };
-export const TAB_TITLE: Record<TabKey, StringKey> = { Today: 'today', Search: 'searchTab', Leads: 'leadsTab', Map: 'mapTab', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'addUnit', Plan: 'plan' };
+export const TAB_ICON: Record<TabKey, IconName> = { Today: 'today', Search: 'search', Leads: 'leads', Map: 'map', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'add', Plan: 'plan', Settings: 'settings' };
+export const TAB_TITLE: Record<TabKey, StringKey> = { Today: 'today', Search: 'searchTab', Leads: 'leadsTab', Map: 'mapTab', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'addUnit', Plan: 'plan', Settings: 'more' };
 
 export type MoreScreenName = 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Inbox' | 'ClientRequests' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Prices' | 'WinLoss' | 'Report' | 'UnitsList' | 'LeadsList' | 'MapList' | 'TodayList' | 'AddUnit' | 'WhatsAppImport' | 'LeadRules' | 'Pipeline' | 'Leases' | 'SavedSearches';
 export interface MoreItem { id: string; icon: string; label: StringKey; screen: MoreScreenName }

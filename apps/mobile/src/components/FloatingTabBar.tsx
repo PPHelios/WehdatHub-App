@@ -28,13 +28,14 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
   return (
     <View style={[styles.wrap, { backgroundColor: colors.bg, paddingBottom: Math.max(bottom, 10) }]}>
       <View testID="tab-bar" onLayout={(e) => setWidth(e.nativeEvent.layout.width - INSET * 2)} style={[styles.bar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {width > 0 ? (
+        {width > 0 && state.routes[state.index]?.name !== 'AddUnitTab' ? (
           <Animated.View testID="tab-highlight" pointerEvents="none" style={[styles.pill, { width: slot, backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.38)' : `${colors.primary}1F`, transform: [{ translateX: x }] }]} />
         ) : null}
         {state.routes.map((route, i) => {
           const { options } = descriptors[route.key];
           const focused = state.index === i;
-          const color = focused ? colors.primary : colors.muted;
+          const isAdd = route.name === 'AddUnitTab'; // the centre + button: a filled circle, never the sliding highlight
+          const color = isAdd ? colors.onPrimary : focused ? colors.primary : colors.muted;
           const label = typeof options.title === 'string' ? options.title : route.name;
           const press = () => {
             const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -43,8 +44,8 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
           };
           return (
             <Pressable key={route.key} testID={`tab-${route.name}`} accessibilityRole="tab" accessibilityState={{ selected: focused }} accessibilityLabel={label} onPress={press} onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })} style={({ pressed }) => [styles.item, { opacity: pressed ? 0.6 : 1 }]}>
-              {options.tabBarIcon?.({ focused, color, size: 22 })}
-              <Text numberOfLines={1} allowFontScaling={false} style={[styles.label, { color, fontFamily: FONT_BOLD, fontWeight: focused ? '800' : '600' }]}>{label}</Text>
+              {isAdd ? <View testID="tab-add-fab" style={[styles.fab, { backgroundColor: colors.primary }]}>{options.tabBarIcon?.({ focused: false, color, size: 26 })}</View> : options.tabBarIcon?.({ focused, color, size: 22 })}
+              <Text numberOfLines={1} allowFontScaling={false} style={[styles.label, { color: isAdd ? colors.muted : color, fontFamily: FONT_BOLD, fontWeight: focused && !isAdd ? '800' : '600' }]}>{label}</Text>
             </Pressable>
           );
         })}
@@ -59,4 +60,5 @@ const styles = StyleSheet.create({
   pill: { position: 'absolute', top: INSET, bottom: INSET, left: INSET, borderRadius: (BAR - INSET * 2) / 2 },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
   label: { fontSize: 11 },
+  fab: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
 });
