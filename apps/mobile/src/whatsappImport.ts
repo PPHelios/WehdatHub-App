@@ -1,5 +1,5 @@
 import { ChatMatch } from '@wehdathub/shared';
-import type { ChatPost, CodeState, UploadFile } from '@wehdathub/shared';
+import type { ChatPost, CodeState, UnitFields, UploadFile } from '@wehdathub/shared';
 
 /** A unit keeps 15 photos; a post offers up to 60 to choose from (same numbers as the add-unit screen and the website). */
 export const KEEP = 15;
@@ -45,6 +45,10 @@ export interface ImportPost {
   state: PostState;
   /** Why the post was not added on its own (what to fix in the edit screen). */
   note?: string;
+  /** The post read by the rules (the server's reader, same as the website): the add-unit form's fields. */
+  fields?: UnitFields;
+  /** The mandatory things the reading could not find (same rules as the add-unit form): the post is not added until they are filled in the edit screen. */
+  missing?: string[];
   savedCode?: string;
 }
 
@@ -86,8 +90,8 @@ export function codeBadge(list: ImportPost[], index: number, info: Record<string
 /** A post whose code is taken by a unit the person may not change, or repeats an earlier post, is never added in bulk. */
 export const blockedByCode = (b: CodeBadge) => b.kind === 'taken' || b.kind === 'dup';
 
-/** The most AI may cost for the ticked posts: the credits one post may use times the ticked posts (only a post the reader cannot finish is sent). */
-export const aiMaxCredits = (list: ImportPost[], perPost: number) => list.filter((p) => p.picked && p.state !== 'saved').length * Math.max(0, perPost);
+/** A post with a mandatory field missing is never added in bulk: it is opened in the edit screen, which marks what is missing. */
+export const incomplete = (p: ImportPost) => Boolean(p.missing && p.missing.length);
 
 /** One bar for the whole read: listing and the chat 0 to 15%, the photos 15 to 85%, reading the posts 85 to 95%, the codes to 100%. */
 export function stagePct(stage: 'list' | 'chat' | 'photos' | 'match' | 'codes', frac = 0): number {

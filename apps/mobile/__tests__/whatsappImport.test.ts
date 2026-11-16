@@ -1,4 +1,4 @@
-import { KEEP, aiMaxCredits, blockedByCode, buildImportPosts, codeBadge, findChatText, looksLikeZip, photoEntriesFor, readPosts, stagePct } from '../src/whatsappImport';
+import { KEEP, blockedByCode, incomplete, buildImportPosts, codeBadge, findChatText, looksLikeZip, photoEntriesFor, readPosts, stagePct } from '../src/whatsappImport';
 
 const T = (hh: number, mm: number) => `24/10/2026, ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 const photo = (n: string, at = T(10, 1)) => `${at} - Ahmed: IMG-${n}.jpg (file attached)`;
@@ -52,10 +52,11 @@ describe('whatsapp import helpers', () => {
     expect(blockedByCode({ kind: 'update', code: 'x', photos: 0 })).toBe(false);
   });
 
-  it('the AI cost is the ticked posts times the credits per post; the bar only goes forward; zip files are recognised', () => {
+  it('a post missing a mandatory field is incomplete (never added in bulk); the bar only goes forward; zip files are recognised', () => {
     const list = buildImportPosts(posts, '/c', new Map());
-    expect(aiMaxCredits(list, 1)).toBe(list.length);
-    expect(aiMaxCredits([{ ...list[0], picked: false }], 3)).toBe(0);
+    expect(incomplete(list[0])).toBe(false);
+    expect(incomplete({ ...list[0], missing: [] })).toBe(false);
+    expect(incomplete({ ...list[0], missing: ['owner_phone'] })).toBe(true);
     expect([stagePct('list', 1), stagePct('chat', 0.5), stagePct('photos', 0.5), stagePct('match', 1), stagePct('codes', 1)]).toEqual([5, 10, 50, 95, 100]);
     expect(looksLikeZip({ name: 'WhatsApp Chat - Group.zip' })).toBe(true);
     expect(looksLikeZip({ name: 'x', type: 'application/x-zip-compressed' })).toBe(true);

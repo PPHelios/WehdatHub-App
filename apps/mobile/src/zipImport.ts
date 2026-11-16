@@ -6,7 +6,8 @@ import type { ChatPost } from '@wehdathub/shared';
 
 export type ZipFailure = 'not_zip' | 'password' | 'too_big' | 'no_space' | 'no_chat' | 'cancelled' | 'failed';
 export class ZipImportError extends Error {
-  constructor(public reason: ZipFailure) { super(reason); }
+  /** `detail`: the native error's words with any path removed (kept for the usage log, never shown). */
+  constructor(public reason: ZipFailure, public detail?: string) { super(reason); }
 }
 
 export interface Unpacked {
@@ -23,6 +24,15 @@ export interface Unpacked {
 }
 
 const plain = (uri: string) => decodeURI(uri.replace(/^file:\/\//, ''));
+const isContent = (uri: string) => /^content:\/\//i.test(uri);
+/** The native error's words without paths or file names (a path can hold the group's name). */
+const scrub = (msg: string) => msg.replace(/(^|\s)(?:\/|[A-Za-z]:\\|content:\/\/|file:\/\/)[^:]*/g, '$1<path>').replace(/\S*[\\/]\S*/g, '<path>').slice(0, 160);
+
+/**
+ * Whether an error says the file itself is not a readable zip. Only the zip format's own words count: a message that merely
+ * mentions a ".zip" path (a missing file, no permission) is something else, never "not a zip".
+ */
+export const saysNotZip = (msg: string) => /(not a (valid )?zip|invalid (zip|archive)|bad zip|corrupt|end of central directory|EOCD|signature|unsupported (zip|archive)|zip (file )?(is )?(empty|truncated|corrupt))/i.test(msg) && !/(no such file|does not exist|ENOENT|permission|denied|EACCES|ENOSPC)/i.test(msg);
 const base = (p: string) => p.split('/').pop() || p;
 
 /**
@@ -31,8 +41,15 @@ const base = (p: string) => p.split('/').pop() || p;
  * Throws ZipImportError with the reason (the screen says it in words).
  */
 export async function unpackChat(zipUri: string, since: string | null, onPct: (pct: number, stage: 'list' | 'chat' | 'photos' | 'match') => void): Promise<Unpacked> {
-  const zip = plain(zipUri);
+  let zip = plain(zipUri);
+  // The Android file picker gives a content:// address the zip library cannot open: the file is copied into the app's cache first.
+  let copy: string | null = null;
   try {
+    if (isContent(zipUri)) {
+      copy = `${RNFS.CachesDirectoryPath}/wa-import-${Date.now()}.zip`;
+      await RNFS.copyFile(zipUri, copy);
+      zip = copy;
+    }
     const st = await RNFS.stat(zip);
     if (Number(st.size) > MAX_ZIP_BYTES) throw new ZipImportError('too_big');
     // The photos are a part of the zip; twice the zip's size is more than enough room for what is unpacked.
@@ -69,10 +86,14 @@ export async function unpackChat(zipUri: string, since: string | null, onPct: (p
   } catch (e) {
     if (e instanceof ZipImportError) throw e;
     const msg = String((e as { message?: string })?.message || e);
-    if (/cancel/i.test(msg)) throw new ZipImportError('cancelled');
-    if (/password|encrypt/i.test(msg)) throw new ZipImportError('password');
-    if (/zip|format|corrupt|signature/i.test(msg)) throw new ZipImportError('not_zip');
-    throw new ZipImportError('failed');
+    const detail = scrub(msg);
+    if (/cancel/i.test(msg)) throw new ZipImportError('cancelled', detail);
+    if (/password|encrypt/i.test(msg)) throw new ZipImportError('password', detail);
+    if (/ENOSPC|no space/i.test(msg)) throw new ZipImportError('no_space', detail);
+    if (saysNotZip(msg)) throw new ZipImportError('not_zip', detail);
+    throw new ZipImportError('failed', detail);
+  } finally {
+    if (copy) RNFS.unlink(copy).catch(() => undefined);
   }
 }
 

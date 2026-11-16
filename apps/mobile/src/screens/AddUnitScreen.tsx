@@ -160,6 +160,7 @@ export function AddUnitScreen() {
           const sh = shared.current;
           if (sh?.photos?.length) setPhotos((p) => addPicked(p, sh.photos!));
           if (sh?.text) { setDescribe(sh.text); if (!sh.noAi) await runFill({ describe: sh.text }); }
+          if (sh?.fields) setFields((f) => withImpliedFeatures({ ...f, ...Object.fromEntries(Object.entries(sh.fields!).filter(([k, v]) => k !== 'code' && v !== '' && v !== undefined && v !== null)) }));
         } catch (e) {
           setError(errorText(e, lang));
         }
@@ -182,7 +183,9 @@ export function AddUnitScreen() {
         if (s.text) setDescribe((cur) => (cur ? `${cur}\n${s.text}` : s.text!));
       }
       setReady(true);
-      if (s?.noAi && s.text) readMessage(s.text, {}).then((p) => { if (Object.keys(p).length) { patch(p); setNotice(L.boxFromText); } }).catch(() => undefined);
+      if (s?.fields) { patch(Object.fromEntries(Object.entries(s.fields).filter(([, v]) => v !== '' && v !== undefined && v !== null))); setNotice(L.boxFromText); }
+      if (s?.code && !s.fields?.code && !s.edit) patch({ code: s.code });
+      else if (s?.noAi && s.text) readMessage(s.text, {}).then((p) => { if (Object.keys(p).length) { patch(p); setNotice(L.boxFromText); } }).catch(() => undefined);
       else if (s?.text || s?.voice) await runFill({ describe: s.text, voice: s.voice });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -403,10 +406,12 @@ export function AddUnitScreen() {
         <View style={styles.stack} {...anchor(1)}>
           <SectionHead n={1} title={L.step1} />
           <Field testID="describe" label={t(lang, 'describePlaceholder')} value={describe} onChangeText={onDescribe} multiline />
-          <View style={styles.row}>
-            <View style={styles.flex}><Button testID="fill" label={t(lang, 'fillBtn')} onPress={() => runFill({ describe })} disabled={!describe.trim()} /></View>
-            <View style={styles.flex}><HoldMic testID="unit-mic" label={t(lang, 'mic')} onFile={onVoice} onError={setError} /></View>
-          </View>
+          {importId ? null : (
+            <View style={styles.row}>
+              <View style={styles.flex}><Button testID="fill" label={t(lang, 'fillBtn')} onPress={() => runFill({ describe })} disabled={!describe.trim()} /></View>
+              <View style={styles.flex}><HoldMic testID="unit-mic" label={t(lang, 'mic')} onFile={onVoice} onError={setError} /></View>
+            </View>
+          )}
           {notice ? <Text testID="unit-notice" style={{ color: colors.accent }}>{notice}</Text> : null}
           <UnitBox fields={fields} patch={patch} lang={lang} invalid={failedCheck && missing('location')} />
           {editCode ? null : field('code', lang === 'en' ? 'Unit code (optional)' : 'كود الوحدة (اختياري)', { autoCapitalize: 'characters', autoCorrect: false })}

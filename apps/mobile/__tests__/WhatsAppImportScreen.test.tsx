@@ -5,7 +5,7 @@ import { api } from '../src/api';
 import { unpackChat } from '../src/zipImport';
 import { usage } from '../src/usage';
 
-jest.mock('../src/api', () => ({ api: { codeCheck: jest.fn(), extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { codeCheck: jest.fn(), chatRead: jest.fn(), extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn() } }));
 jest.mock('../src/zipImport', () => {
   class ZipImportError extends Error { reason: string; constructor(reason: string) { super(reason); this.reason = reason; } }
   return { ZipImportError, unpackChat: jest.fn(), cancelUnpack: jest.fn(), cleanUp: jest.fn() };
@@ -39,6 +39,14 @@ beforeEach(() => {
     return { dir: '/cache/wa', posts, present, skipped: 3, missing: 0, stats: {} };
   });
   m.codeCheck.mockResolvedValue({ codes: { 'HP-1': { state: 'update', code: 'HP-1', photos: 4, status: 'active' }, 'HP-2': { state: 'taken' }, 'HP-3': { state: 'new' } }, max_photos: 15, ai_cost: 2 });
+  // The server's rules reader: post 4 has no owner phone and no place, so it is incomplete; the others are complete.
+  const complete = { listing_type: 'sale', property_type: 'apartment', compound: 'Hyde Park', price_value: '8000000', area_value: '150', bedrooms: '3', owner_phone: '01012345678' };
+  m.chatRead.mockResolvedValue({ posts: [
+    { fields: { ...complete, code: 'HP-1' }, missing: [] },
+    { fields: { ...complete, code: 'HP-2' }, missing: [] },
+    { fields: { ...complete, code: 'HP-3' }, missing: [] },
+    { fields: { listing_type: 'sale', property_type: 'apartment', price_value: '8000000', area_value: '150', bedrooms: '3' }, missing: ['compound', 'owner_phone'] },
+  ] });
 });
 
 const open = async () => {
@@ -63,38 +71,49 @@ test('a post with more than 15 photos keeps the first 15; tapping a photo change
   expect(screen.getByTestId('wa-count-1').props.children.join('')).toMatch(/15 \/ 15|15 \/ 15/);
 });
 
-test('the button shows the most the AI may cost: only the posts that can be added in bulk, times the per-post credits', async () => {
+test('every post is read by the server reader once: a summary shows, and a post missing mandatory fields shows them in red and is not counted as ready', async () => {
   await open();
-  // Of 4 posts the update and the taken one are opened by hand: 2 posts x 2 credits.
-  expect(screen.getByText(/AI: up to 4 credits|حتى 4 رصيد/)).toBeTruthy();
+  expect(m.chatRead).toHaveBeenCalledTimes(1);
+  expect(m.chatRead.mock.calls[0][0]).toHaveLength(4);
+  expect(screen.getByTestId('wa-summary-3')).toBeTruthy();
+  expect(screen.getByTestId('wa-missing-4-compound')).toBeTruthy();
+  expect(screen.getByTestId('wa-missing-4-owner_phone')).toBeTruthy();
+  expect(screen.getByTestId('wa-missing-note-4')).toBeTruthy();
+  // The update (HP-1), the taken (HP-2) and the incomplete post (4) are opened by hand: only HP-3 is ready.
+  expect(screen.getByTestId('wa-ready').props.children).toMatch(/1 ready to add · 1 missing details|1 جاهزة للإضافة · 1 ناقصة بيانات/);
+  expect(screen.queryByTestId('wa-ai-review')).toBeNull();
 });
 
 test('adding the selected posts saves only the ones that can be added, with their photos as keys, and marks them added', async () => {
-  m.extractUnit.mockResolvedValue({ fields: { property_type: 'apartment', area_value: '150', price_value: '8000000', bedrooms: '3', owner_phone: '01012345678', compound: 'Hyde Park' } });
   m.reviewUnit.mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null });
   m.photoUploadLinks.mockImplementation(async () => ({ uploads: [{ key: 'k1', upload_url: 'u', thumb_key: 't', thumb_upload_url: null }] }));
   m.createUnit.mockResolvedValue({ code: 'HP-3', photos: 1, photosFailed: 0 });
   await open();
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
-  await waitFor(() => expect(screen.getAllByText(/Added HP-3|اتضافت HP-3/)).toHaveLength(2));
-  // HP-1 (an update) and HP-2 (taken) are not added in bulk; HP-3 and the post with no code are.
-  expect(m.createUnit).toHaveBeenCalledTimes(2);
+  await waitFor(() => expect(screen.getAllByText(/Added HP-3|اتضافت HP-3/)).toHaveLength(1));
+  // HP-1 (an update), HP-2 (taken) and the incomplete post are not added in bulk; only HP-3 is, with the reader's fields.
+  expect(m.createUnit).toHaveBeenCalledTimes(1);
   expect(m.createUnit.mock.calls[0][3]).toEqual(['k1']);
+  expect(m.createUnit.mock.calls[0][0]).toMatchObject({ property_type: 'apartment', compound: 'Hyde Park', owner_phone: '01012345678' });
+  expect(m.extractUnit).not.toHaveBeenCalled();
 });
 
-test('with the AI off the message is read by rules only: AI is never called and a post that is not complete is left for the edit screen', async () => {
+test('the unit form check still decides: a post the form rules reject is left for the edit screen, and AI is never called', async () => {
   m.reviewUnit.mockResolvedValue({ ok: false, blockers: [{ field: 'area_value', label: 'Area' }], warnings: [], duplicate: null });
   await open();
-  await act(async () => { fireEvent(screen.getByTestId('wa-ai-review'), 'valueChange', false); });
-  await waitFor(() => expect(screen.getByText(/no AI|من غير ذكاء اصطناعي/)).toBeTruthy());
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
   await waitFor(() => expect(screen.getAllByText(/Needs edit|محتاجة تعديل/).length).toBeGreaterThan(0));
   expect(m.extractUnit).not.toHaveBeenCalled();
   expect(m.createUnit).not.toHaveBeenCalled();
 });
 
+test('Edit opens the add-unit form with the fields the reader found, never AI', async () => {
+  await open();
+  await act(async () => { fireEvent.press(screen.getAllByText(/^Edit$|^تعديل$/).slice(-1)[0]); });
+  expect(mockNavigate).toHaveBeenCalledWith('AddUnit', expect.objectContaining({ noAi: true, importId: '4', fields: expect.objectContaining({ property_type: 'apartment' }) }));
+});
+
 test('every step is logged: the read, the code check, and each added post with its outcome (no names, phones or text)', async () => {
-  m.extractUnit.mockResolvedValue({ fields: { property_type: 'apartment', area_value: '150', price_value: '8000000', bedrooms: '3', owner_phone: '01012345678', compound: 'Hyde Park' } });
   m.reviewUnit.mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null });
   m.photoUploadLinks.mockImplementation(async () => ({ uploads: [{ key: 'k1', upload_url: 'u', thumb_key: 't', thumb_upload_url: null }] }));
   m.createUnit.mockResolvedValue({ code: 'HP-3', photos: 1, photosFailed: 0 });
@@ -103,8 +122,9 @@ test('every step is logged: the read, the code check, and each added post with i
   expect(u).toHaveBeenCalledWith('wa_import_read', true, expect.any(Number), expect.objectContaining({ posts: 4, videos: 3 }));
   expect(u).toHaveBeenCalledWith('wa_import_codes', true, expect.any(Number), { count: 3 });
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
-  await waitFor(() => expect(u.mock.calls.filter((c) => c[0] === 'wa_import_add')).toHaveLength(2));
-  expect(u).toHaveBeenCalledWith('wa_import_add', true, expect.any(Number), expect.objectContaining({ outcome: 'saved', ai: true }));
+  await waitFor(() => expect(u.mock.calls.filter((c) => c[0] === 'wa_import_add')).toHaveLength(1));
+  expect(u).toHaveBeenCalledWith('wa_import_reader', true, expect.any(Number), { posts: 4, incomplete: 1 });
+  expect(u).toHaveBeenCalledWith('wa_import_add', true, expect.any(Number), expect.objectContaining({ outcome: 'saved', ai: false }));
   const sent = JSON.stringify(u.mock.calls);
   expect(sent).not.toMatch(/01012345678|Ahmed|شقة/);
 });
@@ -115,4 +135,30 @@ test('a failed read is logged with its reason', async () => {
   await act(async () => { render(<WhatsAppImportScreen />); });
   await waitFor(() => expect(screen.getByTestId('wa-error')).toBeTruthy());
   expect(usage).toHaveBeenCalledWith('wa_import_read', false, expect.any(Number), expect.objectContaining({ reason: 'password' }));
+});
+
+test('when the reader cannot be reached the list says so and a retry fills the summaries; Edit still passes the post\'s own code', async () => {
+  m.chatRead.mockRejectedValueOnce(new Error('network'));
+  await open();
+  expect(screen.getByTestId('wa-read-failed')).toBeTruthy();
+  expect(screen.queryByTestId('wa-summary-3')).toBeNull();
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-read-retry')); });
+  await waitFor(() => expect(screen.getByTestId('wa-summary-3')).toBeTruthy());
+  expect(screen.queryByTestId('wa-read-failed')).toBeNull();
+});
+
+test('Edit passes the code written in the post, even when the reader found nothing', async () => {
+  m.chatRead.mockRejectedValueOnce(new Error('network'));
+  await open();
+  await act(async () => { fireEvent.press(screen.getAllByText(/^Edit$|^تعديل$/)[1]); });
+  expect(mockNavigate).toHaveBeenCalledWith('AddUnit', expect.objectContaining({ code: 'HP-3', noAi: true }));
+});
+
+test('the photos have no arrows (the order is set in the edit screen) and the description opens in full', async () => {
+  await open();
+  expect(screen.queryByText('›')).toBeNull();
+  expect(screen.queryByText('‹')).toBeNull();
+  expect(screen.getAllByText(/Show the full description|عرض الوصف كامل/).length).toBe(4);
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-desc-3')); });
+  expect(screen.getAllByText(/Hide|إخفاء/).length).toBe(1);
 });

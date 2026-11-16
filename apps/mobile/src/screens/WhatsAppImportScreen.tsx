@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, I18nManager, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BusySwitch } from '../components/BusySwitch';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,9 +11,10 @@ import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { SmartImage } from '../components/SmartImage';
-import { readMessage } from '../components/UnitBox';
+import { placeLabel } from '../components/UnitBox';
+import { FINISHING, FURNISHING, PROPERTY_TYPES, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
-import { moveKept, toggleKeep } from '../photos';
+import { toggleKeep } from '../photos';
 import { uploadPhoto } from '../photoUpload';
 import { compressPhotos } from '../compress';
 import { reportError } from '../errorReport';
@@ -23,7 +23,7 @@ import { newSaveKey, withSaveCheck } from '../saveKey';
 import { radius, spacing, useTheme } from '../theme';
 import { usage } from '../usage';
 import { sendable, withImpliedFeatures } from '../unitRules';
-import { buildImportPosts, aiMaxCredits, blockedByCode, codeBadge, keptOf, looksLikeZip, stagePct } from '../whatsappImport';
+import { buildImportPosts, blockedByCode, codeBadge, incomplete, keptOf, looksLikeZip, stagePct } from '../whatsappImport';
 import type { CodeBadge, ImportPost } from '../whatsappImport';
 import { fill, wi } from '../whatsappImportText';
 import { ZipImportError, cancelUnpack, cleanUp, unpackChat } from '../zipImport';
@@ -50,7 +50,6 @@ export function WhatsAppImportScreen() {
 
   const [zip, setZip] = useState<UploadFile | null>(route.params?.zip ?? null);
   const [since, setSince] = useState(ChatParse.defaultSince());
-  const [useAi, setUseAi] = useState(true);
   const [phase, setPhase] = useState<Phase>('pick');
   const [pct, setPct] = useState(0);
   const [stage, setStage] = useState<Stage>('list');
@@ -60,8 +59,9 @@ export function WhatsAppImportScreen() {
   const [missing, setMissing] = useState(0);
   const [codes, setCodes] = useState<Record<string, CodeState> | null>(null);
   const [codeStatus, setCodeStatus] = useState<'checking' | 'done' | 'failed'>('checking');
-  const [aiCost, setAiCost] = useState(1);
   const [adding, setAdding] = useState(false);
+  const [readFailed, setReadFailed] = useState(false);
+  const [openText, setOpenText] = useState<Record<string, boolean>>({});
   const [progress, setProgress] = useState(0);
   const dir = useRef<string | null>(null);
   const started = useRef(false);
@@ -105,7 +105,6 @@ export function WhatsAppImportScreen() {
           const r = await api.codeCheck(wanted);
           usage('wa_import_codes', true, Date.now() - tc, { count: wanted.length });
           setCodes(r.codes);
-          setAiCost(r.ai_cost);
           setCodeStatus('done');
         } catch {
           usage('wa_import_codes', false, Date.now() - tc, { count: wanted.length });
@@ -116,12 +115,24 @@ export function WhatsAppImportScreen() {
         setCodes({});
         setCodeStatus('done');
       }
+      // Every post is read by the server's rules reader (the same one as the website's import: no AI, no credits), so the list
+      // shows a summary and what is still missing, and a post that lacks a mandatory field is not added until it is edited.
+      const tr = Date.now();
+      try {
+        const rd = await api.chatRead(posts.map((p) => p.post.text));
+        rd.posts.forEach((r, k) => { if (posts[k]) { posts[k].fields = r.fields; posts[k].missing = r.missing; } });
+        setReadFailed(false);
+        usage('wa_import_reader', true, Date.now() - tr, { posts: posts.length, incomplete: posts.filter(incomplete).length });
+      } catch {
+        setReadFailed(true);
+        usage('wa_import_reader', false, Date.now() - tr, { posts: posts.length });
+      }
       setPct(100);
       setList(posts);
       setPhase('review');
     } catch (e) {
       // Why it failed (a zip problem, or something unexpected that is also reported as an error) goes to the usage log.
-      usage('wa_import_read', false, Date.now() - t0, { reason: e instanceof ZipImportError ? e.reason : 'unexpected', stage: stage });
+      usage('wa_import_read', false, Date.now() - t0, { reason: e instanceof ZipImportError ? e.reason : 'unexpected', stage: stage, ...(e instanceof ZipImportError && e.detail ? { detail: e.detail } : {}) });
       if (!(e instanceof ZipImportError)) reportError(e, 'WhatsAppImport.read');
       setPhase('pick');
       setError(reasonText(e));
@@ -155,35 +166,33 @@ export function WhatsAppImportScreen() {
 
   const badges = useMemo(() => list.map((_, i) => codeBadge(list, i, codes, codeStatus)), [list, codes, codeStatus]);
   const totalPhotos = list.reduce((n, p) => n + p.photos.length, 0);
-  // Only a post that can be added in bulk may use AI: a taken or repeated code, or an update of a unit, is opened by hand.
-  const addable = (p: ImportPost, i: number) => p.picked && p.state !== 'saved' && !blockedByCode(badges[i]) && badges[i].kind !== 'update';
-  const credits = aiMaxCredits(list.filter(addable), aiCost);
+  // The reader could not be reached (a network problem, or a server without it): the list says so and offers to try again.
+  const retryDetails = async () => {
+    try {
+      const rd = await api.chatRead(list.map((p) => p.post.text));
+      setList((l) => l.map((p, k) => (rd.posts[k] ? { ...p, fields: rd.posts[k].fields, missing: rd.posts[k].missing } : p)));
+      setReadFailed(false);
+    } catch {
+      setReadFailed(true);
+    }
+  };
+  // Added in bulk: picked, not added yet, a free code, and every mandatory field read (the rest is opened by hand in the edit screen).
+  const addable = (p: ImportPost, i: number) => p.picked && p.state !== 'saved' && !blockedByCode(badges[i]) && badges[i].kind !== 'update' && !incomplete(p) && Boolean(p.fields);
 
   const edit = (p: ImportPost, badge: CodeBadge) => {
-    usage('wa_import_edit', true, undefined, { kind: badge.kind, ai: useAi });
+    usage('wa_import_edit', true, undefined, { kind: badge.kind, missing: p.missing?.length ?? 0 });
     const ordered = [...keptOf(p), ...p.photos.filter((x) => x.notKept)];
-    nav.navigate('AddUnit', { text: p.post.text, photos: ordered, fresh: true, noAi: !useAi, importId: p.id, ...(badge.kind === 'update' ? { edit: badge.code } : {}) });
+    nav.navigate('AddUnit', { text: p.post.text, photos: ordered, fresh: true, noAi: true, fields: p.fields, ...(p.post.code ? { code: p.post.code } : {}), importId: p.id, ...(badge.kind === 'update' ? { edit: badge.code } : {}) });
   };
 
   // One post, added without opening it: read, review, upload its 15 photos, save. Anything that needs a person is left for the edit screen.
   const addOne = async (p: ImportPost): Promise<'saved' | 'needs_edit' | 'blocked'> => {
-    let fields: UnitFields = { listing_type: 'sale' };
-    if (p.post.code) fields.code = p.post.code;
-    if (useAi) {
-      try {
-        const r = await api.extractUnit({ describe: p.post.text, fields: sendable(fields) });
-        fields = { ...fields, ...nonEmpty(r.fields) };
-      } catch (e) {
-        if (e instanceof ApiClientError && (e.status === 402 || e.status === 503)) { patchPost(p.id, { state: 'needs_edit', note: W.noteAiBlocked }); return 'blocked'; }
-        throw e;
-      }
-    } else {
-      fields = { ...fields, ...(await readMessage(p.post.text, fields).catch(() => ({}))) };
-    }
+    const fields: UnitFields = { ...nonEmpty(p.fields ?? {}) };
+    if (p.post.code && !fields.code) fields.code = p.post.code;
     const body = sendable(withImpliedFeatures(fields));
     const kept = keptOf(p);
     const rv = await api.reviewUnit(body, kept.length);
-    if (rv.blockers.length) { patchPost(p.id, { state: 'needs_edit', note: useAi ? rv.blockers.map((b) => b.label).join(' · ') : `${W.noteNoAi} ${rv.blockers.map((b) => b.label).join(' · ')}` }); return 'needs_edit'; }
+    if (rv.blockers.length) { patchPost(p.id, { state: 'needs_edit', note: rv.blockers.map((b) => b.label).join(' · ') }); return 'needs_edit'; }
     if (rv.duplicate) { patchPost(p.id, { state: 'needs_edit', note: fill(W.noteDuplicate, { c: rv.duplicate }) }); return 'needs_edit'; }
     const key = newSaveKey();
     let keys: string[] | undefined;
@@ -222,10 +231,10 @@ export function WhatsAppImportScreen() {
       const photos = keptOf(p).length;
       try {
         const r = await addOne(p);
-        usage('wa_import_add', r === 'saved', Date.now() - t0, { outcome: r, ai: useAi, photos });
+        usage('wa_import_add', r === 'saved', Date.now() - t0, { outcome: r, ai: false, photos });
         if (r === 'blocked') break;
       } catch (e) {
-        usage('wa_import_add', false, Date.now() - t0, { outcome: 'failed', ai: useAi, photos, reason: e instanceof ApiClientError ? String(e.code || e.status) : 'unexpected' });
+        usage('wa_import_add', false, Date.now() - t0, { outcome: 'failed', ai: false, photos, reason: e instanceof ApiClientError ? String(e.code || e.status) : 'unexpected' });
         if (!(e instanceof ApiClientError)) reportError(e, 'WhatsAppImport.add');
         patchPost(p.id, { state: 'failed', note: e instanceof ApiClientError && e.code === 'plan_limit' ? undefined : W.noteFailed });
         if (e instanceof ApiClientError && e.code === 'plan_limit') { Alert.alert(W.title, lang === 'en' ? "You reached your plan's unit limit." : 'وصلت للحد الأقصى للوحدات في باقتك.'); break; }
@@ -236,9 +245,9 @@ export function WhatsAppImportScreen() {
     setAdding(false);
   };
 
-  const buttonLabel = `${W.addSelected}${useAi ? ` · ${fill(W.aiUpTo, { n: credits })}` : ` · ${W.aiOff}`}`;
-  const earlier = I18nManager.isRTL ? '›' : '‹';
-  const later = I18nManager.isRTL ? '‹' : '›';
+  const readyCount = list.filter(addable).length;
+  const incompleteCount = list.filter((p) => p.state !== 'saved' && incomplete(p)).length;
+  const buttonLabel = `${W.addSelected} (${readyCount})`;
 
   if (!allowed) {
     return (
@@ -273,11 +282,7 @@ export function WhatsAppImportScreen() {
             <Pressable key={String(d)} accessibilityRole="button" onPress={() => setSince(plainDate(Number(d)))} style={[styles.chip, { borderColor: colors.border }]}><Text style={{ color: colors.text }}>{label}</Text></Pressable>
           ))}
         </View>
-        <View style={styles.row}>
-          <BusySwitch testID="wa-ai" value={useAi} onValueChange={setUseAi} />
-          <Text style={{ color: colors.text, flex: 1 }}>{W.ai}</Text>
-        </View>
-        {!useAi ? <Text style={{ color: colors.muted }}>{W.aiHint}</Text> : null}
+        <Text style={{ color: colors.muted }}>{W.rulesHint}</Text>
         <Button label={zip ? zip.name : W.pick} variant="secondary" onPress={choose} />
         <Button testID="wa-read" label={W.read} disabled={!zip} onPress={() => (zip ? read(zip) : undefined)} />
       </ScrollView>
@@ -293,38 +298,45 @@ export function WhatsAppImportScreen() {
         {videos ? <Text style={{ color: colors.muted }}>🎞 {fill(W.videos, { n: videos })}</Text> : null}
         {missing ? <Text style={{ color: colors.muted }}>{fill(W.missing, { n: missing })}</Text> : null}
         {added || needs ? <Text style={{ color: colors.text }}>{fill(W.doneLine, { a: added, b: needs })}</Text> : null}
+        {readFailed ? (
+          <View testID="wa-read-failed" style={[styles.card, { borderColor: colors.danger, backgroundColor: colors.card }]}>
+            <Text style={{ color: colors.danger, fontWeight: '700' }}>{W.readFailed}</Text>
+            <Button testID="wa-read-retry" label={W.retry} variant="secondary" onPress={retryDetails} />
+          </View>
+        ) : null}
         {list.map((p, i) => {
           const badge = badges[i];
           const kept = keptOf(p).length;
           const locked = p.state === 'saved' || p.state === 'working';
+          const open = Boolean(openText[p.id]);
           return (
-            <View key={p.id} testID={`wa-post-${p.id}`} style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+            <View key={p.id} testID={`wa-post-${p.id}`} style={[styles.card, { borderColor: p.missing?.length ? colors.danger : colors.border, backgroundColor: colors.card }]}>
               <View style={styles.row}>
                 <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: p.picked }} onPress={() => patchPost(p.id, { picked: !p.picked })} style={[styles.box, { borderColor: colors.primary, backgroundColor: p.picked ? colors.primary : 'transparent' }]}>
                   <Text style={{ color: p.picked ? colors.onPrimary : 'transparent' }}>✓</Text>
                 </Pressable>
-                <Text style={[styles.flex, { color: colors.muted }]} numberOfLines={1}>{p.post.sender || ''} {p.post.at || ''}</Text>
+                <View style={styles.flex}>
+                  <BadgeLine W={W} badge={badge} colors={colors} />
+                  <Text style={[styles.small, { color: colors.muted }]} numberOfLines={1}>{[p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
+                </View>
                 {p.state === 'working' ? <ActivityIndicator color={colors.primary} /> : null}
-                {p.state === 'saved' ? <Text style={{ color: colors.accent, fontWeight: '700' }}>✓ {W.stateSaved}{p.savedCode ? ` ${p.savedCode}` : ''}</Text> : null}
+                {p.state === 'saved' ? <Text style={[styles.bold, { color: colors.accent }]}>✓ {W.stateSaved}{p.savedCode ? ` ${p.savedCode}` : ''}</Text> : null}
               </View>
-              <BadgeLine W={W} badge={badge} colors={colors} />
-              <Text style={{ color: colors.text }} numberOfLines={4}>{p.post.text}</Text>
+              <SummaryGrid W={W} lang={lang} post={p} colors={colors} />
+              <Pressable testID={`wa-desc-${p.id}`} accessibilityRole="button" onPress={() => setOpenText((o) => ({ ...o, [p.id]: !o[p.id] }))}>
+                <Text style={[styles.small, { color: colors.muted }]} numberOfLines={open ? undefined : 3}>{p.post.text}</Text>
+                <Text style={[styles.small, { color: colors.primary }]}>{open ? W.showLess : W.showMore}</Text>
+              </Pressable>
               {p.photos.length ? (
-                <View>
-                  <Text testID={`wa-count-${p.id}`} style={{ color: colors.muted }}>{fill(W.kept, { k: kept })}{p.post.videos ? `  ·  ${fill(W.videosPost, { n: p.post.videos })}` : ''}</Text>
+                <View style={styles.photos}>
+                  <Text testID={`wa-count-${p.id}`} style={{ color: colors.muted }}>📷 {fill(W.kept, { k: kept })}{p.post.videos ? `  ·  ${fill(W.videosPost, { n: p.post.videos })}` : ''}</Text>
                   {p.photos.length > 15 ? <Text style={{ color: colors.accent }}>{W.pickNote}</Text> : null}
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
-                    {p.photos.map((f, k) => (
-                      <View key={f.uri} style={styles.thumbBox}>
-                        <Pressable disabled={locked} onPress={() => setPhotos(p.id, (ph) => toggleKeep(ph, f.uri))} style={f.notKept ? styles.dim : undefined}>
-                          <SmartImage uri={f.uri} style={styles.thumb} />
-                          <Text style={[styles.tick, { backgroundColor: f.notKept ? colors.border : colors.primary }]}>{f.notKept ? '–' : '✓'}</Text>
-                        </Pressable>
-                        <View style={styles.row}>
-                          <Pressable disabled={locked || k === 0} onPress={() => setPhotos(p.id, (ph) => moveKept(ph, k, k - 1))} style={styles.move}><Text style={{ color: colors.text }}>{earlier}</Text></Pressable>
-                          <Pressable disabled={locked || k === p.photos.length - 1} onPress={() => setPhotos(p.id, (ph) => moveKept(ph, k, k + 1))} style={styles.move}><Text style={{ color: colors.text }}>{later}</Text></Pressable>
-                        </View>
-                      </View>
+                    {p.photos.map((f) => (
+                      <Pressable key={f.uri} disabled={locked} onPress={() => setPhotos(p.id, (ph) => toggleKeep(ph, f.uri))} style={f.notKept ? styles.dim : undefined}>
+                        <SmartImage uri={f.uri} style={styles.thumb} />
+                        <Text style={[styles.tick, { backgroundColor: f.notKept ? colors.border : colors.primary }]}>{f.notKept ? '–' : '✓'}</Text>
+                      </Pressable>
                     ))}
                   </ScrollView>
                 </View>
@@ -337,13 +349,54 @@ export function WhatsAppImportScreen() {
         })}
       </ScrollView>
       <View style={[styles.bottom, { borderColor: colors.border, backgroundColor: colors.bg }]}>
-        <View style={styles.row}>
-          <BusySwitch testID="wa-ai-review" value={useAi} onValueChange={setUseAi} disabled={adding} />
-          <Text style={{ color: colors.text, flex: 1 }}>{W.ai}</Text>
-        </View>
+        <Text testID="wa-ready" style={{ color: colors.muted, textAlign: 'center' }}>{fill(W.addableLine, { n: readyCount, m: incompleteCount })}</Text>
         <Button testID="wa-add" label={buttonLabel} progress={adding ? progress : undefined} disabled={adding || !list.some(addable)} onPress={addSelected} />
         {adding ? <Text style={{ color: colors.muted, textAlign: 'center' }}>{Math.round(progress * 100)}% · {W.leaveWarn}</Text> : null}
       </View>
+    </View>
+  );
+}
+
+type SummaryColors = { text: string; muted: string; border: string; danger: string; card: string };
+const str = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '');
+
+/** The unit read from the post as an organised summary (type, place, price, rooms, finishing...), the mandatory things it lacks in red. */
+function SummaryGrid({ W, lang, post, colors }: { W: ReturnType<typeof wi>; lang: string; post: ImportPost; colors: SummaryColors }) {
+  const f = post.fields;
+  if (!f) return null;
+  const L2 = lang === 'en' ? 'en' : 'ar';
+  const miss = new Set(post.missing ?? []);
+  const lt = str(f.listing_type);
+  const price = str(f.price_value);
+  const cells: { k: string; label: string; value: string }[] = [
+    { k: 'listing_type', label: W.f_listing_type, value: lt === 'sale' ? W.sale : lt === 'rent' ? W.rent : '' },
+    { k: 'property_type', label: W.f_property_type, value: labelOf(PROPERTY_TYPES, str(f.property_type), L2) ?? '' },
+    { k: 'compound', label: W.f_compound, value: placeLabel(f) },
+    { k: 'price_value', label: W.f_price_value, value: price ? `${Number(price).toLocaleString('en')}${str(f.currency) === 'USD' ? ` ${W.usd}` : ''}` : '' },
+    { k: 'area_value', label: W.f_area_value, value: str(f.area_value) ? `${str(f.area_value)} ${W.sqm}` : '' },
+    { k: 'bedrooms', label: W.f_bedrooms, value: str(f.bedrooms) },
+    { k: 'bathrooms', label: W.baths, value: str(f.bathrooms) },
+    { k: 'finishing', label: L2 === 'en' ? 'Finishing' : 'التشطيب', value: labelOf(FINISHING, str(f.finishing), L2) ?? '' },
+    { k: 'furnishing', label: L2 === 'en' ? 'Furnishing' : 'الفرش', value: labelOf(FURNISHING, str(f.furnishing), L2) ?? '' },
+    { k: 'owner_phone', label: W.f_owner_phone, value: str(f.owner_phone) },
+  ];
+  const alwaysShown = ['listing_type', 'property_type', 'compound', 'price_value', 'area_value', 'owner_phone'];
+  const shown = cells.filter((c) => c.value || miss.has(c.k) || alwaysShown.includes(c.k));
+  const missingNames = [...miss].map((k) => (W as unknown as Record<string, string>)[`f_${k}`] ?? k);
+  return (
+    <View testID={`wa-summary-${post.id}`} style={{ gap: 6 }}>
+      <View style={styles.grid}>
+        {shown.map((c) => {
+          const bad = miss.has(c.k);
+          return (
+            <View key={c.k} testID={bad ? `wa-missing-${post.id}-${c.k}` : undefined} style={[styles.cell, { backgroundColor: bad ? '#fdecec' : colors.card, borderColor: bad ? '#d64545' : colors.border }]}>
+              <Text style={{ color: bad ? '#8f1d1d' : colors.muted, fontSize: 11 }}>{c.label}</Text>
+              <Text style={{ color: bad ? '#8f1d1d' : colors.text, fontWeight: '700' }}>{bad && !c.value ? `⚠️ ${L2 === 'en' ? 'Missing' : 'ناقص'}` : c.value}</Text>
+            </View>
+          );
+        })}
+      </View>
+      {missingNames.length ? <Text testID={`wa-missing-note-${post.id}`} style={{ color: '#8f1d1d', fontWeight: '600' }}>⛔ {fill(W.missingNote, { list: missingNames.join('، ') })}</Text> : null}
     </View>
   );
 }
@@ -369,15 +422,18 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  cell: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4, minWidth: 96 },
   bar: { height: 12, borderRadius: 6, alignSelf: 'stretch', overflow: 'hidden' },
   barFill: { height: 12 },
   card: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
   box: { width: 26, height: 26, borderWidth: 2, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   strip: { gap: spacing.sm, paddingVertical: spacing.sm },
-  thumbBox: { alignItems: 'center', gap: 4 },
-  thumb: { width: 84, height: 84, borderRadius: 10 },
+  photos: { gap: 4 },
+  small: { fontSize: 12 },
+  bold: { fontWeight: '700' },
+  thumb: { width: 76, height: 76, borderRadius: 10 },
   dim: { opacity: 0.4 },
   tick: { position: 'absolute', top: 4, end: 4, color: '#fff', fontSize: 12, paddingHorizontal: 5, borderRadius: 8, overflow: 'hidden' },
-  move: { paddingHorizontal: 10, paddingVertical: 2 },
   bottom: { position: 'absolute', start: 0, end: 0, bottom: 0, padding: spacing.md, gap: spacing.sm, borderTopWidth: 1 },
 });
