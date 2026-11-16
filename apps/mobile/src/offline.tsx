@@ -22,7 +22,7 @@ export function OfflineBanner() {
   }, []);
   if (!offline) return null;
   return (
-    <Text accessibilityRole="alert" style={[styles.bar, { backgroundColor: colors.danger, color: '#FFFFFF', paddingTop: insets.top + spacing.xs }]}>
+    <Text accessibilityRole="alert" style={[styles.bar, { backgroundColor: colors.danger, color: colors.onDanger, paddingTop: insets.top + spacing.xs }]}>
       {t(currentLang(), 'offlineBanner')}
     </Text>
   );

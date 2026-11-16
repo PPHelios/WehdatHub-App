@@ -300,7 +300,7 @@ export function WhatsAppImportScreen() {
             <View key={p.id} testID={`wa-post-${p.id}`} style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
               <View style={styles.row}>
                 <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: p.picked }} onPress={() => patchPost(p.id, { picked: !p.picked })} style={[styles.box, { borderColor: colors.primary, backgroundColor: p.picked ? colors.primary : 'transparent' }]}>
-                  <Text style={{ color: p.picked ? '#fff' : 'transparent' }}>✓</Text>
+                  <Text style={{ color: p.picked ? colors.onPrimary : 'transparent' }}>✓</Text>
                 </Pressable>
                 <Text style={[styles.flex, { color: colors.muted }]} numberOfLines={1}>{p.post.sender || ''} {p.post.at || ''}</Text>
                 {p.state === 'working' ? <ActivityIndicator color={colors.primary} /> : null}

@@ -17,7 +17,7 @@ export function NotificationBell({ onPress }: { onPress: () => void }) {
       <Icon name="bell" color={colors.text} size={24} />
       {unread > 0 ? (
         <View testID="bell-badge" style={[styles.badge, { backgroundColor: colors.danger }]}>
-          <Text style={styles.count}>{unread > 99 ? '99+' : unread}</Text>
+          <Text style={[styles.count, { color: colors.onDanger }]}>{unread > 99 ? '99+' : unread}</Text>
         </View>
       ) : null}
     </Pressable>
