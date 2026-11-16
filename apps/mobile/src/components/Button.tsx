@@ -1,20 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { radius, spacing, useTheme } from '../theme';
+import { buttonHeight, buttonRadius, spacing, useTheme } from '../theme';
+
+export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
+export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface Props {
   label: string;
   onPress: () => void | Promise<unknown>;
   loading?: boolean;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary';
+  variant?: ButtonVariant;
+  /** sm 40, md 48 (default), lg 56. */
+  size?: ButtonSize;
   testID?: string;
   /** 0 to 1: a fill that moves across the button while a long action runs. */
   progress?: number;
 }
 
 /** Every button shows a spinner while its action runs and ignores taps until it ends (no double submits). */
-export function Button({ label, onPress, loading = false, disabled = false, variant = 'primary', testID, progress }: Props) {
+export function Button({ label, onPress, loading = false, disabled = false, variant = 'primary', size = 'md', testID, progress }: Props) {
   const { colors } = useTheme();
   const busy = useRef(false);
   const alive = useRef(true);
@@ -22,7 +27,10 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
   useEffect(() => () => { alive.current = false; }, []);
   const spin = loading || running;
   const blocked = spin || disabled;
-  const primary = variant === 'primary';
+  // Filled buttons (primary, danger) carry an "on" colour; secondary has an edge; quiet has neither.
+  const filled = variant === 'primary' || variant === 'danger';
+  const fill = variant === 'danger' ? colors.danger : colors.primary;
+  const ink = filled ? (variant === 'danger' ? colors.onDanger : colors.onPrimary) : variant === 'quiet' ? colors.primary : colors.text;
   const handle = async () => {
     if (blocked || busy.current) return;
     busy.current = true;
@@ -42,18 +50,18 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
       onPress={handle}
       style={({ pressed }) => [
         styles.base,
-        { backgroundColor: primary ? colors.primary : 'transparent', borderColor: primary ? colors.primary : colors.border, opacity: blocked ? 0.6 : pressed ? 0.85 : 1 },
+        { minHeight: buttonHeight[size], backgroundColor: filled ? fill : 'transparent', borderColor: filled ? fill : variant === 'quiet' ? 'transparent' : colors.border, opacity: blocked ? 0.6 : pressed ? 0.85 : 1 },
       ]}
     >
-      {progress !== undefined ? <View testID="button-progress" pointerEvents="none" style={[styles.fill, { width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`, backgroundColor: primary ? colors.onPrimary : colors.primary }]} /> : null}
-      {spin && progress === undefined ? <ActivityIndicator testID="button-spinner" color={primary ? colors.onPrimary : colors.primary} /> : null}
-      <Text style={[styles.label, { color: primary ? colors.onPrimary : colors.text }]}>{label}</Text>
+      {progress !== undefined ? <View testID="button-progress" pointerEvents="none" style={[styles.fill, { width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`, backgroundColor: filled ? ink : colors.primary }]} /> : null}
+      {spin && progress === undefined ? <ActivityIndicator testID="button-spinner" color={filled ? ink : colors.primary} /> : null}
+      <Text style={[styles.label, { color: ink, fontSize: size === 'sm' ? 14 : 16 }]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  base: { overflow: 'hidden', minHeight: 52, borderRadius: radius.md, borderWidth: 1, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  base: { overflow: 'hidden', borderRadius: buttonRadius, borderWidth: 1, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   label: { fontSize: 16, fontWeight: '700' },
   fill: { position: 'absolute', start: 0, top: 0, bottom: 0, opacity: 0.22 },
 });
