@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BusySwitch } from '../components/BusySwitch';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -38,7 +39,7 @@ function AddRequest({ onDone }: { onDone: () => void }) {
     <View style={{ gap: spacing.sm }}>
       <Field testID="request-q" label={t(lang, 'requestSearch')} value={q} onChangeText={setQ} />
       <Field testID="request-lead" label={t(lang, 'requestLead')} value={lead} onChangeText={setLead} />
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'alertsOn')}</Text><Switch testID="request-alerts" value={alerts} onValueChange={setAlerts} /></View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'alertsOn')}</Text><BusySwitch testID="request-alerts" value={alerts} onValueChange={setAlerts} /></View>
       <Button testID="request-save" label={t(lang, 'save')} onPress={save} disabled={!q.trim()} />
       {msg ? <Text style={{ color: colors.danger }}>{msg}</Text> : null}
     </View>

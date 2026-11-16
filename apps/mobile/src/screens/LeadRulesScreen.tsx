@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BusySwitch } from '../components/BusySwitch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -61,9 +62,9 @@ export function LeadRulesScreen() {
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'rrTitle')}</Text>
-      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'rrOn')}</Text><Switch testID="rr-switch" value={rr} onValueChange={setRr} /></View>
+      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'rrOn')}</Text><BusySwitch testID="rr-switch" value={rr} onValueChange={setRr} /></View>
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'ruleTitle')}</Text>
-      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'ruleOn')}</Text><Switch testID="rule-switch" value={on} onValueChange={setOn} /></View>
+      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'ruleOn')}</Text><BusySwitch testID="rule-switch" value={on} onValueChange={setOn} /></View>
       <Field label={t(lang, 'ruleWait')} value={wait} onChangeText={setWait} keyboardType="number-pad" testID="rule-wait" />
       <View style={styles.row}>
         <View style={styles.flex}><Field label={t(lang, 'ruleFrom')} value={start} onChangeText={setStart} keyboardType="number-pad" /></View>

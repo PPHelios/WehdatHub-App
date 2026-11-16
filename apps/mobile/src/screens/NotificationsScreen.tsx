@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BusySwitch } from '../components/BusySwitch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NotificationSettings, NotifyChannel, NotifyFrequency } from '@wehdathub/shared';
 import { api } from '../api';
@@ -84,7 +85,7 @@ export function NotificationsScreen() {
           <View key={k} testID={`kind-${k}`} style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
             <View style={styles.row}>
               <Text style={[styles.flex, styles.kind, { color: colors.text }]}>{v.label[lang]}</Text>
-              {v.urgent ? null : <Switch testID={`on-${k}`} value={v.on} disabled={fixed} onValueChange={(on) => setKind(k, { on })} />}
+              {v.urgent ? null : <BusySwitch testID={`on-${k}`} value={v.on} disabled={fixed} onValueChange={(on) => setKind(k, { on })} />}
             </View>
             {v.urgent ? <Text style={{ color: colors.muted }}>{t(lang, 'notifAlways')}</Text> : null}
             {fixed ? <Text style={{ color: colors.muted }}>🔒 {t(lang, 'notifLockedBy')}</Text> : null}
@@ -115,7 +116,7 @@ export function NotificationsScreen() {
       <Text style={[styles.h, { color: colors.text }]}>🌙 {t(lang, 'quietTitle')}</Text>
       <View style={styles.row}>
         <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'quietHold')}</Text>
-        <Switch testID="quiet-switch" value={draft.quiet.enabled} onValueChange={(enabled) => setQuiet({ enabled })} />
+        <BusySwitch testID="quiet-switch" value={draft.quiet.enabled} onValueChange={(enabled) => setQuiet({ enabled })} />
       </View>
       {(['start', 'end'] as const).map((key) => (
         <View key={key} style={styles.row}>

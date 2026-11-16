@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Switch, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { BusySwitch } from './BusySwitch';
 import { ApiClientError } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -31,7 +32,7 @@ export function SaveSearchButton({ f }: { f: string }) {
       {open ? (
         <>
           <Field testID="save-search-name" label={t(lang, 'savedSearchName')} value={name} onChangeText={setName} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'alertsOn')}</Text><Switch testID="save-search-alerts" value={alerts} onValueChange={setAlerts} /></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'alertsOn')}</Text><BusySwitch testID="save-search-alerts" value={alerts} onValueChange={setAlerts} /></View>
           <Button testID="save-search-go" label={t(lang, 'save')} onPress={save} disabled={!name.trim()} />
         </>
       ) : (

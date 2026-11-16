@@ -345,6 +345,8 @@ export interface ApiClientOptions {
   onUnauthorized?: () => void;
   /** Sent with every call (the app's platform and version), so the server's failure log can tell the phones apart. */
   headers?: Record<string, string>;
+  /** Called before a write (POST or PUT); the function it returns is called when the call ends. The app uses it to lock the screen while a write runs (busy rule). Return nothing to skip. */
+  onWrite?: (method: 'POST' | 'PUT', path: string) => (() => void) | void;
   fetchImpl?: typeof fetch;
 }
 
@@ -352,6 +354,15 @@ export function createApiClient(opts: ApiClientOptions) {
   const doFetch = opts.fetchImpl ?? fetch;
 
   async function request<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>): Promise<T> {
+    const end = method === 'GET' ? undefined : opts.onWrite?.(method, path);
+    try {
+      return await send<T>(method, path, body, query);
+    } finally {
+      if (end) end();
+    }
+  }
+
+  async function send<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>): Promise<T> {
     // An array repeats the key (f=roof&f=garden), as the server reads it.
     const qs = query
       ? Object.entries(query)

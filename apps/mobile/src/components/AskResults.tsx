@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BusySwitch } from './BusySwitch';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ApiClientError } from '@wehdathub/shared';
 import type { AskAction, ProjectFilters, ProjectSort } from '@wehdathub/shared';
@@ -91,7 +92,7 @@ export function AskResults({ q, onOpenProject }: { q: string; onOpenProject?: (i
         {box('dmax', T.maxDown)}
         <View style={styles.row}>
           <Text style={[styles.flex, { color: colors.text }]}>{T.unitsOnly}</Text>
-          <Switch testID="ask-units" value={unitsOnly} onValueChange={(v) => { log('filter', 'units'); setUnitsOnly(v); reset(); }} />
+          <BusySwitch testID="ask-units" value={unitsOnly} onValueChange={(v) => { log('filter', 'units'); setUnitsOnly(v); reset(); }} />
         </View>
         <Text style={[styles.label, { color: colors.muted }]}>{T.bedrooms}</Text>
         <Chips<string> testID="ask-bed" value={bed ? String(bed) : ''} options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))} onChange={(v) => { log('filter', 'bed'); setBed(bed === Number(v) ? undefined : Number(v)); reset(); }} />

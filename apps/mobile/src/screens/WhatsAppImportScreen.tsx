@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, I18nManager, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, I18nManager, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BusySwitch } from '../components/BusySwitch';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -273,7 +274,7 @@ export function WhatsAppImportScreen() {
           ))}
         </View>
         <View style={styles.row}>
-          <Switch testID="wa-ai" value={useAi} onValueChange={setUseAi} />
+          <BusySwitch testID="wa-ai" value={useAi} onValueChange={setUseAi} />
           <Text style={{ color: colors.text, flex: 1 }}>{W.ai}</Text>
         </View>
         {!useAi ? <Text style={{ color: colors.muted }}>{W.aiHint}</Text> : null}
@@ -337,7 +338,7 @@ export function WhatsAppImportScreen() {
       </ScrollView>
       <View style={[styles.bottom, { borderColor: colors.border, backgroundColor: colors.bg }]}>
         <View style={styles.row}>
-          <Switch testID="wa-ai-review" value={useAi} onValueChange={setUseAi} disabled={adding} />
+          <BusySwitch testID="wa-ai-review" value={useAi} onValueChange={setUseAi} disabled={adding} />
           <Text style={{ color: colors.text, flex: 1 }}>{W.ai}</Text>
         </View>
         <Button testID="wa-add" label={buttonLabel} progress={adding ? progress : undefined} disabled={adding || !list.some(addable)} onPress={addSelected} />

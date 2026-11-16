@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BusySwitch } from './BusySwitch';
 import type { Lang, UnitFields } from '@wehdathub/shared';
 import { ux } from '../unitExtraText';
 import { uf } from '../unitFormText';
@@ -46,7 +47,7 @@ export function SwitchRow({ label, value, onChange, testID }: { label: string; v
   return (
     <View style={styles.switchRow}>
       <Text style={[styles.flex, { color: colors.text }]}>{label}</Text>
-      <Switch testID={testID} value={value} onValueChange={onChange} />
+      <BusySwitch testID={testID} value={value} onValueChange={onChange} />
     </View>
   );
 }

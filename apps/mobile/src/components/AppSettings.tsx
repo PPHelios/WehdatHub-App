@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { BusySwitch } from './BusySwitch';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { useAuth } from '../auth';
@@ -45,18 +46,18 @@ export function AppSettings() {
       <Field label={t(lang, 'draftStyleLabel')} value={style} onChangeText={setStyle} multiline />
       <View style={styles.row}>
         <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'quietLineLabel')}</Text>
-        <Switch testID="quietline-switch" value={quiet} onValueChange={setQuiet} />
+        <BusySwitch testID="quietline-switch" value={quiet} onValueChange={setQuiet} />
       </View>
       {sw ? (
         <>
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'agencySwitches')}</Text>
           <View style={styles.row}>
             <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'brokersMayWriteLabel')}</Text>
-            <Switch testID="sw-write" value={sw.brokersMayWrite} onValueChange={(v) => setSw({ ...sw, brokersMayWrite: v })} />
+            <BusySwitch testID="sw-write" value={sw.brokersMayWrite} onValueChange={(v) => setSw({ ...sw, brokersMayWrite: v })} />
           </View>
           <View style={styles.row}>
             <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'dataEntryOwnersLabel')}</Text>
-            <Switch testID="sw-owners" value={sw.dataEntryOwners} onValueChange={(v) => setSw({ ...sw, dataEntryOwners: v })} />
+            <BusySwitch testID="sw-owners" value={sw.dataEntryOwners} onValueChange={(v) => setSw({ ...sw, dataEntryOwners: v })} />
           </View>
         </>
       ) : null}

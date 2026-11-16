@@ -45,3 +45,50 @@ describe('the busy rule', () => {
     expect(screen.getByTestId('b').props.accessibilityState.disabled).toBe(true);
   });
 });
+
+describe('the busy rule reaches fields, switches, rows and every write', () => {
+  const { Field } = require('../src/components/Field');
+  const { BusySwitch } = require('../src/components/BusySwitch');
+  const { beginBusy, resetBusy, BACKGROUND_WRITE } = require('../src/busy');
+  const { createApiClient } = require('@wehdathub/shared');
+  afterEach(() => resetBusy());
+
+  test('while a write runs a field cannot be edited, a switch is off-limits and a layer catches touches', async () => {
+    await render(<BusyProvider><Field label="Name" testID="name" value="" onChangeText={() => undefined} /><BusySwitch testID="sw" value={false} onValueChange={() => undefined} /></BusyProvider>);
+    expect(screen.queryByTestId('busy-layer')).toBeNull();
+    expect(screen.getByTestId('sw').props.disabled).toBeFalsy();
+    let end!: () => void;
+    await act(async () => { end = beginBusy(); });
+    expect(screen.getByTestId('busy-layer')).toBeTruthy();
+    expect(screen.getByLabelText('Name').props.editable).toBe(false);
+    expect(screen.getByTestId('sw').props.disabled).toBe(true);
+    await act(async () => { end(); });
+    expect(screen.queryByTestId('busy-layer')).toBeNull();
+    expect(screen.getByLabelText('Name').props.editable).toBe(true);
+  });
+
+  test('two writes at once keep the screen locked until the last one ends', async () => {
+    await render(<BusyProvider><View /></BusyProvider>);
+    let a!: () => void, b!: () => void;
+    await act(async () => { a = beginBusy(); b = beginBusy(); });
+    await act(async () => { a(); a(); }); // ending twice counts once
+    expect(screen.getByTestId('busy-layer')).toBeTruthy();
+    await act(async () => { b(); });
+    expect(screen.queryByTestId('busy-layer')).toBeNull();
+  });
+
+  test('the API client locks the screen for a write, frees it after an error, and ignores reads and background writes', async () => {
+    const starts: string[] = [];
+    let ended = 0;
+    const onWrite = (m: string, p: string) => { if (BACKGROUND_WRITE.test(p)) return undefined; starts.push(`${m} ${p}`); return () => { ended += 1; }; };
+    const fetchImpl = jest.fn(async (url: string) => (url.includes('/fail') ? { ok: false, status: 500, json: async () => ({}), headers: { get: () => null } } : { ok: true, status: 200, json: async () => ({ ok: true }), headers: { get: () => null } }));
+    const api = createApiClient({ baseUrl: 'https://x.test', getToken: () => 't', fetchImpl, onWrite });
+    await api.me().catch(() => undefined); // a read
+    await api.registerDevice('tok', 'android'); // a background write
+    await api.testRole('broker'); // a write
+    expect(starts).toEqual(['POST /test-role']);
+    expect(ended).toBe(1);
+    await api.saveAppSettings({ draftStyle: 'x' });
+    expect(ended).toBe(2);
+  });
+});

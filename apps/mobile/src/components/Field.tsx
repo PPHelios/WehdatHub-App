@@ -1,15 +1,17 @@
 import React from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import type { TextInputProps } from 'react-native';
+import { useBusyDisabled } from '../busy';
 import { radius, spacing, useTheme } from '../theme';
 
 /** A labelled text input. */
 export function Field({ label, required, invalid, hint, ...props }: { label: string; required?: boolean; invalid?: boolean; hint?: string } & TextInputProps) {
   const { colors } = useTheme();
+  const busy = useBusyDisabled(); // a server write is running: the field cannot be edited
   return (
     <View style={styles.wrap}>
       <Text style={[styles.label, { color: colors.muted }]}>{label}{required ? <Text style={{ color: colors.primary }}> *</Text> : null}</Text>
-      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : required ? colors.primary : colors.border, backgroundColor: colors.card }, props.multiline && styles.multi, props.style]} />
+      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} editable={props.editable !== false && !busy} style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : required ? colors.primary : colors.border, backgroundColor: colors.card }, props.multiline && styles.multi, props.style]} />
       {hint ? <Text testID="field-hint" style={[styles.label, { color: colors.accent }]}>{`\u202A${hint}\u202C`}</Text> : null}
     </View>
   );
