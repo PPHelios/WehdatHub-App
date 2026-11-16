@@ -5,6 +5,7 @@ import { api } from '../api';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
+import { AppSettings } from '../components/AppSettings';
 import { Icon } from '../components/Icon';
 import { GROUP_OPEN, moreSections } from '../navFromServer';
 
@@ -29,7 +30,12 @@ import { usePrefs } from '../prefs';
 import { APP_BUILD, APP_VERSION } from '../config';
 import { syncDirection } from '../direction';
 
-export function MoreScreen({ onOpen }: { onOpen?: (screen: MoreScreenName) => void } = {}) {
+/**
+ * mode "menu" (default): the grouped More list and the phone's own settings. mode "settings": the one Settings area in three
+ * sections (plan section 9): Me (this phone and my account), Agency (owner and managers), Plan and billing (owner). The agency
+ * settings themselves are changed on the website; the app opens what it can show.
+ */
+export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreScreenName) => void; mode?: 'menu' | 'settings' } = {}) {
   const { colors } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
@@ -89,7 +95,10 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: MoreScreenName) => vo
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.body, { backgroundColor: colors.bg }]}>
       <Text style={[styles.name, { color: colors.text }]}>{broker?.name}</Text>
       {agencyName ? <Text style={[styles.agency, { color: colors.muted }]}>{t(lang, 'agency')}: {agencyName}</Text> : null}
-      {onOpen && sections
+      {mode === 'settings' ? <Text testID="settings-me" style={[styles.section, { color: colors.text }]}>{lang === 'ar' ? 'أنا' : 'Me'}</Text> : null}
+      {mode === 'settings' ? <AppSettings /> : null}
+      {mode === 'settings' ? <Button testID="settings-open-notifications" label={t(lang, 'notifications')} variant="secondary" onPress={() => onOpen?.('Notifications')} /> : null}
+      {onOpen && sections && mode !== 'settings'
         ? sections.map((s) => {
             const open = navOpen[s.key] ?? GROUP_OPEN.has(s.key);
             return (
@@ -108,7 +117,7 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: MoreScreenName) => vo
             );
           })
         : null}
-      {onOpen && !sections ? items.map((it) => <Button key={it.id} testID={`open-${it.id}`} label={`${it.icon} ${t(lang, it.label)}`} variant="secondary" onPress={() => onOpen(it.screen)} />) : null}
+      {onOpen && !sections && mode !== 'settings' ? items.map((it) => <Button key={it.id} testID={`open-${it.id}`} label={`${it.icon} ${t(lang, it.label)}`} variant="secondary" onPress={() => onOpen(it.screen)} />) : null}
       <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]} testID="app-settings">
         <Text style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'appearance')}</Text>
         <Chips testID="appearance" value={appearance} options={[{ value: 'system' as const, label: t(lang, 'appSystem') }, { value: 'light' as const, label: t(lang, 'appLight') }, { value: 'dark' as const, label: t(lang, 'appDark') }]} onChange={setAppearance} />
@@ -129,6 +138,24 @@ export function MoreScreen({ onOpen }: { onOpen?: (screen: MoreScreenName) => vo
       ) : null}
       {canLock || enabled ? <View style={styles.switchRow}><Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'lockSetting')}</Text><Switch testID="lock-switch" value={enabled} onValueChange={toggleLock} trackColor={{ true: colors.primary, false: colors.border }} thumbColor={enabled ? colors.onPrimary : colors.muted} /></View> : null}
       {lockMsg ? <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, textAlign: lang === 'ar' ? 'right' : 'left' }}>{lockMsg}</Text> : null}
+      {mode === 'settings' ? (
+        <>
+          {rights.manager || rights.agencyOwner ? (
+            <View testID="settings-agency" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+              <Text style={[styles.section, { color: colors.text }]}>{lang === 'ar' ? 'الشركة' : 'Agency'}</Text>
+              <Text style={{ color: colors.muted }}>{lang === 'ar' ? 'حروف الأكواد وأسعار العملات ومين يشوف البيانات الخاصة بتتغير من الموقع. اللوجو وتعديل البروكرز للوحدات فوق.' : 'Unit code letters, currency rates and who sees private details are changed on the website. The logo and brokers editing units are above.'}</Text>
+              <Button testID="settings-open-usage" label={lang === 'ar' ? 'استهلاك الذكاء الاصطناعي' : 'AI use per person'} variant="secondary" onPress={() => onOpen?.('Usage')} />
+              {rights.team ? <Button testID="settings-open-team" label={t(lang, 'team')} variant="secondary" onPress={() => onOpen?.('Team')} /> : null}
+            </View>
+          ) : null}
+          {rights.agencyOwner ? (
+            <View testID="settings-plan" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+              <Text style={[styles.section, { color: colors.text }]}>{lang === 'ar' ? 'الباقة والفواتير' : 'Plan and billing'}</Text>
+              <Button testID="settings-open-plan" label={t(lang, 'plan')} variant="secondary" onPress={() => onOpen?.('Plan')} />
+            </View>
+          ) : null}
+        </>
+      ) : null}
       <Text testID="app-version" style={{ color: colors.muted }}>{t(lang, 'appVersionLabel')}: {APP_VERSION} ({APP_BUILD})</Text>
       <Button testID="sign-out" label={t(lang, 'signOut')} onPress={out} loading={busy} variant="secondary" />
     </ScrollView>
@@ -142,6 +169,7 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   card: { borderWidth: 1, borderRadius: 16, padding: spacing.md, gap: spacing.sm },
   cardTitle: { fontSize: 15, fontWeight: '700' },
+  section: { fontSize: 18, fontWeight: '700' },
   flex: { flex: 1 },
   groupHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 44 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 },

@@ -16,7 +16,7 @@ export function navPlan(r: Rights): { tabs: TabKey[]; initial: TabKey } {
 export const TAB_ICON: Record<TabKey, IconName> = { Today: 'today', Search: 'search', Leads: 'leads', Map: 'map', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'add', Plan: 'plan', Settings: 'settings' };
 export const TAB_TITLE: Record<TabKey, StringKey> = { Today: 'today', Search: 'searchTab', Leads: 'leadsTab', Map: 'mapTab', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'addUnit', Plan: 'plan', Settings: 'more' };
 
-export type MoreScreenName = 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Inbox' | 'ClientRequests' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Prices' | 'WinLoss' | 'Report' | 'UnitsList' | 'LeadsList' | 'MapList' | 'TodayList' | 'AddUnit' | 'WhatsAppImport' | 'LeadRules' | 'Pipeline' | 'Leases' | 'SavedSearches';
+export type MoreScreenName = 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Inbox' | 'ClientRequests' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Prices' | 'WinLoss' | 'Report' | 'UnitsList' | 'LeadsList' | 'MapList' | 'TodayList' | 'AddUnit' | 'WhatsAppImport' | 'LeadRules' | 'Pipeline' | 'Leases' | 'SavedSearches' | 'Settings';
 export interface MoreItem { id: string; icon: string; label: StringKey; screen: MoreScreenName }
 
 /**

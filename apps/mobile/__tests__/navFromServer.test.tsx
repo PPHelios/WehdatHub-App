@@ -50,10 +50,10 @@ test('More: the server groups in order, only rows the app can open, none repeate
   const s = moreSections(broker, base)!;
   expect(s.map((g) => g.key)).toEqual(['clients', 'listings', 'account']);
   const ids = s.flatMap((g) => g.rows.map((r) => r.id));
-  expect(ids).toEqual(['requests', 'leases', 'inbox', 'map', 'waimport', 'notifications']);
+  expect(ids).toEqual(['requests', 'leases', 'inbox', 'map', 'waimport', 'settings', 'notifications']);
   expect(ids).not.toContain('leads'); // on the bar
   expect(ids).not.toContain('import'); // a website page, no app screen
-  expect(ids).not.toContain('settings'); // no More screen of that name
+  expect(ids).toContain('settings'); // opens the Settings screen (Me, Agency, Plan and billing)
   expect(s[0].label.en).toBe('Clients');
 });
 

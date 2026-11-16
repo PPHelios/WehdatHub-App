@@ -17,7 +17,7 @@ const TAB_BY_APP: Record<string, TabKey> = { Today: 'Today', Search: 'Search', A
 const SCREENS: ReadonlySet<string> = new Set<MoreScreenName>([
   'Calendar', 'SentLinks', 'Team', 'Ask', 'Notifications', 'Inbox', 'ClientRequests', 'Owners', 'Requests', 'ActivityLog', 'Dashboard', 'Deals', 'Projects', 'Library', 'Compare',
   'Plan', 'Usage', 'Platform', 'Commissions', 'Sources', 'Portal', 'Prices', 'WinLoss', 'Report', 'UnitsList', 'LeadsList', 'MapList', 'TodayList', 'AddUnit', 'WhatsAppImport',
-  'LeadRules', 'Pipeline', 'Leases', 'SavedSearches',
+  'LeadRules', 'Pipeline', 'Leases', 'SavedSearches', 'Settings',
 ]);
 
 /** The website's icon names the app draws under another name. */

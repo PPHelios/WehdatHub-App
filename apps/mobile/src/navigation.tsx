@@ -61,6 +61,11 @@ function MoreTab() {
   return <MoreScreen onOpen={(s) => nav.navigate(s as never)} />;
 }
 const MoreNarrow = narrow(MoreTab);
+function SettingsTab() {
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  return <MoreScreen mode="settings" onOpen={(s) => nav.navigate(s as never)} />;
+}
+const SettingsNarrow = narrow(SettingsTab);
 const CalendarNarrow = narrow(CalendarScreen);
 const SentLinksNarrow = narrow(SentLinksScreen);
 const NotificationsNarrow = narrow(NotificationsScreen);
@@ -83,7 +88,7 @@ export type AddUnitParams = {
   /** Opened from the WhatsApp import: start empty (the person's own saved draft is left alone), and when saved go back to the import list. */ fresh?: boolean; importId?: string;
   /** The import's AI switch is off: the message is read by rules only (place and features), never sent to AI. */ noAi?: boolean;
 };
-export type RootStackParams = { Tabs: undefined; MoreMenu: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
+export type RootStackParams = { Tabs: undefined; MoreMenu: undefined; Settings: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string }; Ask: undefined; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = Record<TabKey | 'AddUnitTab', undefined>;
 
@@ -108,8 +113,8 @@ function TabsScreen() {
     );
   }
   const plan = tabPlan(nav, rights);
-  const hasMoreTab = plan.tabs.some((x) => x.key === 'More' || x.key === 'Settings');
-  const screens: Record<TabKey, React.ComponentType> = { Today: TodayNarrow, Search: SearchNarrow, Leads: LeadsScreen, Map: MapScreen, Units: UnitsScreen, More: MoreNarrow, Team: TeamNarrow, Dashboard: DashboardScreen, Owners: OwnersScreen, AddUnit: NothingHere, Plan: PlanScreen, Settings: MoreNarrow };
+  const hasMoreTab = plan.tabs.some((x) => x.key === 'More'); // the older bar has a More tab; the newer one a menu button
+  const screens: Record<TabKey, React.ComponentType> = { Today: TodayNarrow, Search: SearchNarrow, Leads: LeadsScreen, Map: MapScreen, Units: UnitsScreen, More: MoreNarrow, Team: TeamNarrow, Dashboard: DashboardScreen, Owners: OwnersScreen, AddUnit: NothingHere, Plan: PlanScreen, Settings: SettingsNarrow };
   return (
     <Tabs.Navigator
       tabBar={(p) => <FloatingTabBar {...p} />}
@@ -178,6 +183,7 @@ export function RootNavigation() {
           <Stack.Screen name="ClientRequests" component={ClientRequestsNarrow} options={{ title: t(currentLang(), 'clientRequests') }} />
           <Stack.Screen name="Inbox" component={InboxNarrow} options={{ title: t(currentLang(), 'inbox') }} />
           <Stack.Screen name="MoreMenu" component={MoreNarrow} options={{ title: t(currentLang(), 'more') }} />
+          <Stack.Screen name="Settings" component={SettingsNarrow} options={{ title: currentLang() === 'ar' ? 'الإعدادات' : 'Settings' }} />
           <Stack.Screen name="Notifications" component={NotificationsNarrow} options={{ title: t(currentLang(), 'notifications') }} />
           <Stack.Screen name="Team" component={TeamNarrow} options={{ title: t(currentLang(), 'team') }} />
           <Stack.Screen name="TeamMember" component={TeamMemberNarrow} options={({ route }) => ({ title: route.params.name })} />
