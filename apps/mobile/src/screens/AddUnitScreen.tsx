@@ -10,6 +10,7 @@ import type { ReviewResult, UnitFields, UploadFile, VoiceFile } from '@wehdathub
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { useRights } from '../rights';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
 import { UnitBox, featureKeys, placeLabel, readMessage, PASTE_MIN } from '../components/UnitBox';
@@ -53,6 +54,8 @@ export function AddUnitScreen() {
   const lang = currentLang();
   const L = uf(lang);
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const rights = useRights();
+  const canWhatsApp = (rights.manager || rights.agencyOwner || rights.dataEntry) && rights.addUnits; // the same people the server menu gives the WhatsApp import
   const route = useRoute<RouteProp<RootStackParams, 'AddUnit'>>();
   const qc = useQueryClient();
   const [fields, setFields] = useState<UnitFields>({ listing_type: 'sale' });
@@ -378,6 +381,8 @@ export function AddUnitScreen() {
         <View style={styles.jump}>
           {flow.map((n) => <Pressable key={n} testID={`jump-${n}`} accessibilityRole="link" onPress={() => jump(n)} style={[styles.jumpChip, { borderColor: colors.border }]}><Text style={{ color: colors.text, fontWeight: '600' }}>{stepName(n)}</Text></Pressable>)}
         </View>
+
+        {!editCode && !importId && canWhatsApp ? <Button testID="add-from-whatsapp" variant="secondary" label={`💬 ${t(lang, 'whatsappImport')}`} onPress={() => nav.navigate('WhatsAppImport')} /> : null}
 
         {/* A refused save and a look-alike unit show at the top. */}
         {failedCheck && allBlockers.length ? (
