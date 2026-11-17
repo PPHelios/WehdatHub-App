@@ -88,7 +88,7 @@ describe('the busy rule reaches fields, switches, rows and every write', () => {
     await api.testRole('broker'); // a write
     expect(starts).toEqual(['POST /test-role']);
     expect(ended).toBe(1);
-    await api.saveAppSettings({ draftStyle: 'x' });
+    await api.saveAppSettings({ quietLine: true });
     expect(ended).toBe(2);
   });
 });
