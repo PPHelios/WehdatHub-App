@@ -25,6 +25,8 @@ test('opened from the WhatsApp import: the fields and the code are already fille
   await waitFor(() => expect(screen.getByTestId('f-area_value').props.value).toBe('354'));
   expect(screen.getByTestId('f-code').props.value).toBe('HP-9');
   expect(screen.getByTestId('f-price_value').props.value).toBe('9,000,000');
+  expect(screen.getByTestId('describe').props.value).toContain('Code HP-9 villa');
+  expect(screen.getByText(/Original message|الرسالة الأصلية/)).toBeTruthy();
   expect(screen.queryByTestId('fill')).toBeNull();
   expect(screen.queryByTestId('unit-mic')).toBeNull();
   expect(m.extractUnit).not.toHaveBeenCalled();

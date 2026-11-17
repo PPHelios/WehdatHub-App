@@ -324,6 +324,7 @@ export function WhatsAppImportScreen() {
               </View>
               <SummaryGrid W={W} lang={lang} post={p} colors={colors} />
               <Pressable testID={`wa-desc-${p.id}`} accessibilityRole="button" onPress={() => setOpenText((o) => ({ ...o, [p.id]: !o[p.id] }))}>
+                <Text style={[styles.small, styles.bold, { color: colors.muted }]}>💬 {W.originalTitle}</Text>
                 <Text style={[styles.small, { color: colors.muted }]} numberOfLines={open ? undefined : 3}>{p.post.text}</Text>
                 <Text style={[styles.small, { color: colors.primary }]}>{open ? W.showLess : W.showMore}</Text>
               </Pressable>

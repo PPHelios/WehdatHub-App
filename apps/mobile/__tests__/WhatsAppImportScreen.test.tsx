@@ -158,7 +158,8 @@ test('the photos have no arrows (the order is set in the edit screen) and the de
   await open();
   expect(screen.queryByText('›')).toBeNull();
   expect(screen.queryByText('‹')).toBeNull();
-  expect(screen.getAllByText(/Show the full description|عرض الوصف كامل/).length).toBe(4);
+  expect(screen.getAllByText(/Original message|الرسالة الأصلية/).length).toBe(4);
+  expect(screen.getAllByText(/Show the full message|عرض الرسالة كاملة/).length).toBe(4);
   await act(async () => { fireEvent.press(screen.getByTestId('wa-desc-3')); });
   expect(screen.getAllByText(/Hide|إخفاء/).length).toBe(1);
 });

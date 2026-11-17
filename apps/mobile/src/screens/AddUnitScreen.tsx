@@ -405,7 +405,7 @@ export function AddUnitScreen() {
 
         <View style={styles.stack} {...anchor(1)}>
           <SectionHead n={1} title={L.step1} />
-          <Field testID="describe" label={t(lang, 'describePlaceholder')} value={describe} onChangeText={onDescribe} multiline />
+          <Field testID="describe" label={importId ? (lang === 'en' ? '💬 Original message (to compare with the fields below)' : '💬 الرسالة الأصلية (للمقارنة مع البيانات تحت)') : t(lang, 'describePlaceholder')} value={describe} onChangeText={onDescribe} multiline />
           {importId ? null : (
             <View style={styles.row}>
               <View style={styles.flex}><Button testID="fill" label={t(lang, 'fillBtn')} onPress={() => runFill({ describe })} disabled={!describe.trim()} /></View>
