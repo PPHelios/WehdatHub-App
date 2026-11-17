@@ -16,6 +16,7 @@ import { FINISHING, FURNISHING, PROPERTY_TYPES, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { toggleKeep } from '../photos';
 import { uploadPhoto } from '../photoUpload';
+import { withRetries } from '../retry';
 import { compressPhotos } from '../compress';
 import { reportError } from '../errorReport';
 import { useRights } from '../rights';
@@ -156,7 +157,9 @@ export function WhatsAppImportScreen() {
         const fields = change(p.fields ?? {});
         let missing: string[] | undefined = p.missing;
         try {
-          const rv = await api.reviewUnit(sendable(withImpliedFeatures(nonEmpty(fields))), keptOf(p).length);
+          // A post whose code is an existing unit is an update: it is reviewed as that unit's edit, so its own code is not "taken".
+          const existing = p.post.code && codes?.[p.post.code]?.state === 'update' ? p.post.code : undefined;
+          const rv = await api.reviewUnit(sendable(withImpliedFeatures(nonEmpty(fields))), keptOf(p).length, existing);
           missing = missingOf(rv.blockers);
         } catch { /* the card keeps its old list; Edit checks it again */ }
         patchPost(p.id, { fields, missing, note: undefined });
@@ -232,7 +235,8 @@ export function WhatsAppImportScreen() {
         for (const file of kept) {
           const link = links.shift();
           if (!link) throw new Error('links');
-          await uploadPhoto(file, link, () => undefined);
+          // One dropped connection must not fail the post: each photo is tried up to 3 times before the post is left for a retry.
+          await withRetries(() => uploadPhoto(file, link, () => undefined));
           keys.push(link.key);
         }
       } catch (e) {

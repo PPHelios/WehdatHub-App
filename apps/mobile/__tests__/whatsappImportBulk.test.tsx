@@ -113,3 +113,14 @@ test('the card shows the land area, floor and rent period the reader found (not 
   expect(card).toMatch(/سنوي|Yearly/);
   expect(card).toMatch(/الدور|Floor/);
 });
+
+test('a post whose code is an existing unit is reviewed as that unit (its own code is not reported as missing or taken)', async () => {
+  m.codeCheck.mockResolvedValue({ codes: { MIR23: { state: 'new' }, MIR40: { state: 'update', code: 'MIR40', photos: 12, status: 'active' }, MIR590: { state: 'new' } }, max_photos: 15, ai_cost: 2 });
+  await open();
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-all-rent')); });
+  await waitFor(() => expect(screen.getByTestId('wa-bulk-done')).toBeTruthy());
+  const withCode = m.reviewUnit.mock.calls.find((c) => c[0].code === 'MIR40');
+  expect(withCode?.[2]).toBe('MIR40');
+  const others = m.reviewUnit.mock.calls.filter((c) => c[0].code !== 'MIR40');
+  expect(others.every((c) => c[2] === undefined)).toBe(true);
+});
