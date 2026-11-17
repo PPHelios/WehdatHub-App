@@ -47,6 +47,9 @@ export function resolvePatch(r: BoxResolve, f: UnitFields): UnitFields {
   const keys = featureKeys(f);
   const added = r.features.map((x) => x.key).filter((k) => !keys.includes(k));
   if (added.length) out.feature = [...keys, ...added];
+  // The two drop-downs fill from the message only while they are empty: a choice already made stays.
+  if (r.furnishing && !str(f.furnishing)) out.furnishing = r.furnishing;
+  if (r.finishing && !str(f.finishing)) out.finishing = r.finishing;
   return out;
 }
 

@@ -11,6 +11,7 @@ import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { ClientLinkModal } from '../components/ClientLinkModal';
+import { ShareMessageModal } from '../components/ShareMessageModal';
 import { PhotoGallery } from '../components/PhotoGallery';
 import { Pill } from '../components/Pill';
 import { sharePhotos } from '../sharePhotos';
@@ -77,6 +78,13 @@ export function UnitScreen({ code }: { code?: string } = {}) {
     } finally {
       setAsking(false);
     }
+  };
+  const [msgOpen, setMsgOpen] = useState(false);
+  const sendMessage = async (text: string) => {
+    const imgs = unit.data?.images ?? [];
+    const r = imgs.length ? await sharePhotos(imgs.slice(0, 6).map((i) => i.url), text, 'unit_share') : 'failed';
+    if (r === 'failed') await Share.share({ message: text }).catch(() => undefined);
+    setMsgOpen(false);
   };
   const shareLink = async (to: string) => {
     setSharing(true);
@@ -155,13 +163,9 @@ export function UnitScreen({ code }: { code?: string } = {}) {
           testID="share-unit"
           variant="secondary"
           label={`${t(lang, 'shareUnit')}`}
-          onPress={async () => {
-            // One button: the unit's text and its pictures together; if the pictures cannot go, the text still does.
-            const text = [u.code, u.compound, u.price !== null ? `${formatEgp(u.price)} ${t(lang, 'egp')}` : null, [u.bedrooms !== null ? `${u.bedrooms} ${t(lang, 'beds')}` : null, u.area !== null ? `${Math.round(u.area)} ${t(lang, 'sqm')}` : null].filter(Boolean).join(' · ')].filter(Boolean).join('\n');
-            const r = u.images.length ? await sharePhotos(u.images.slice(0, 6).map((i) => i.url), text, 'unit_share') : 'failed';
-            if (r === 'failed') await Share.share({ message: text }).catch(() => undefined);
-          }}
+          onPress={() => setMsgOpen(true)}
         />
+        <ShareMessageModal visible={msgOpen} code={u.code} startLang={clientLang()} lang={lang} onSend={sendMessage} onCancel={() => setMsgOpen(false)} />
         {u.features.length ? (
           <View testID="features" style={styles.featBox}>
             <Text style={[styles.featTitle, { color: colors.text }]}>{t(lang, 'features')}</Text>

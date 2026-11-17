@@ -9,7 +9,7 @@ import { Field } from '../components/Field';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 
 const day = (plus: number) => new Date(Date.now() + plus * 86400000).toISOString().slice(0, 10);
 
@@ -93,5 +93,5 @@ const styles = StyleSheet.create({
   h: { fontSize: 18, fontWeight: '700', marginTop: spacing.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   flex: { flex: 1 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, borderWidth: 1 },
+  card: { ...lift, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, borderWidth: 1 },
 });

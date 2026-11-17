@@ -7,7 +7,7 @@ import { Button } from '../components/Button';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 import { clearTray } from '../tray';
 
 /** The broker's notifications: newest first, unread in bold. Each can be marked read or deleted (deleted ones stay in the managers' log). */
@@ -64,5 +64,5 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
-  card: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  card: { ...lift, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
 });

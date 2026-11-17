@@ -114,7 +114,8 @@ export function DeliverySection({ fields, set, field, lang }: SectionProps) {
         </View>
       )}
       <Label>{x.payment}</Label>
-      <Chips options={[{ value: 'resale', label: lang === 'en' ? 'Resale with installments' : 'ريسيل بالتقسيط' }, { value: 'primary', label: lang === 'en' ? 'Primary' : 'برايمري' }]} value={primary ? 'primary' : 'resale'} onChange={(v) => set('market', v)} testID="f-market" />
+      {/* New primary units are not added: the resale/primary choice shows only for a unit that already is primary. */}
+      {primary ? <Chips options={[{ value: 'resale', label: lang === 'en' ? 'Resale with installments' : 'ريسيل بالتقسيط' }, { value: 'primary', label: lang === 'en' ? 'Primary' : 'برايمري' }]} value="primary" onChange={(v) => set('market', v)} testID="f-market" /> : null}
       {primary ? (
         <View style={styles.stack}>
           {field('cash_price', lang === 'en' ? 'Cash price' : 'سعر الكاش', { keyboardType: 'decimal-pad' })}

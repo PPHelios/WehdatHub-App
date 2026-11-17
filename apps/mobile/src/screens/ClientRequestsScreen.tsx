@@ -14,7 +14,7 @@ import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 
 function AddRequest({ onDone }: { onDone: () => void }) {
   const { colors } = useTheme();
@@ -94,5 +94,5 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
-  card: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  card: { ...lift, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
 });

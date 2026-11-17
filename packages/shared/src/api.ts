@@ -97,6 +97,7 @@ export interface ApiLead {
 export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; offset: number; limit: number }
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
 export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; start: number; end: number; days: number[]; max_jumps: number }; roundRobin: boolean; order: string[]; brokers: { id: string; name: string; role: string; away: boolean; open: number }[] }
+export interface FormerMember { id: string; name: string; role: string; deactivatedAt: string | null }
 export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
 /** One matching offer of a project (Ask): a unit type with its numbers. */
 export interface AskOffer { type?: string | null; area: number | null; floor: string | number | null; bedrooms?: number | null; price: number | null; down: number | null; monthly: number | null; years?: number | null; discount_pct?: number | null }
@@ -224,7 +225,7 @@ export type UnitFields = Record<string, string | string[] | boolean | undefined>
 export interface BoxPlace extends PlaceSuggestion { label: string; zones: string[] }
 export interface BoxFeature { kind: 'feature'; key: string; label: string }
 export type BoxItem = BoxPlace | BoxFeature;
-export interface BoxResolve { place: BoxPlace | null; features: { key: string; label: string }[] }
+export interface BoxResolve { place: BoxPlace | null; features: { key: string; label: string }[]; /** Drop-down values the message states (older servers send none). */ furnishing?: string | null; finishing?: string | null }
 export interface UnitChange { field: string; ar: string; en: string; from: string; to: string }
 export interface ReviewResult { ok: boolean; blockers: { field: string; label: string }[]; warnings: { field: string; text: string }[]; duplicate: string | null; /** Edit only: the main fields that would change. */ changes?: UnitChange[] }
 export interface FirebaseClientConfig { apiKey: string; appId: string; projectId: string; messagingSenderId: string }
@@ -480,6 +481,7 @@ export function createApiClient(opts: ApiClientOptions) {
     unit: (code: string) => request<ApiUnitDetail>('GET', `/units/${encodeURIComponent(code)}`),
     unitContact: (code: string) => request<{ name: string | null; phone: string | null }>('GET', `/units/${encodeURIComponent(code)}/contact`),
     /** `to` is a lead ref (L-0042) or a mobile number; leave it out to share without a client. */
+    unitMessage: (code: string, lang: Lang) => request<{ message: string }>('GET', `/units/${encodeURIComponent(code)}/message`, undefined, { lang }),
     unitShareLink: (code: string, lang: Lang, to?: string) => request<{ url: string; recipientPhone: string | null; leadLinked: boolean }>('POST', `/units/${encodeURIComponent(code)}/share-link`, { lang, ...(to ? { to } : {}) }),
     team: () => request<{ items: TeamMember[] }>('GET', '/team'),
     teamRules: () => request<TeamRules>('GET', '/team/rules'),
@@ -489,6 +491,10 @@ export function createApiClient(opts: ApiClientOptions) {
     invite: (b: { name: string; phone: string; role: string }) => request<{ ok: true; created: boolean; url: string | null }>('POST', '/team/invite', b),
     changeRole: (id: string, role: string) => request<{ ok: true }>('POST', `/team/${id}/role`, { role }),
     deactivate: (id: string) => request<{ ok: true }>('POST', `/team/${id}/deactivate`, {}),
+    formerTeam: () => request<{ items: FormerMember[] }>('GET', '/team/former'),
+    reactivate: (id: string) => request<{ ok: true }>('POST', `/team/${id}/reactivate`, {}),
+    /** Permanent delete of a deactivated member (refused with code has_records when they own deals or listings). */
+    deleteMember: (id: string) => request<{ ok: true }>('POST', `/team/${id}/delete`, {}),
     owners: (q: { q?: string; page?: number; private?: boolean } = {}) => request<{ items: OwnerRow[]; more: boolean }>('GET', '/owners', undefined, { q: q.q, page: q.page, private: q.private ? '1' : undefined }),
     owner: (id: string) => request<{ owner: OwnerProfile; events: OwnerEvent[]; lead: { ref: number } | null }>('GET', `/owners/${id}`),
     editOwner: (id: string, b: { name?: string; phone?: string; notes?: string; flag?: string }) => request<{ ok: true; nameRequested: boolean }>('POST', `/owners/${id}`, b),
@@ -544,7 +550,7 @@ export function createApiClient(opts: ApiClientOptions) {
     compare: (codes: string[], lang: 'ar' | 'en') => request<{ url: string; codes: string[] }>('POST', '/compare', { codes, lang }),
     plan: () => request<{ allowance: Row; payTo: Row; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean }>('GET', '/plan'),
     creditRequest: (credits: number, note: string) => request<{ ok: true }>('POST', '/plan/credit-request', { credits, note }),
-    usage: () => request<{ state: Row; allowance: Row; mine: Row; agency: Row | null; ai?: AiUsage }>('GET', '/usage'),
+    usage: () => request<{ allowance: Row; ai?: AiUsage }>('GET', '/usage'),
     platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean }>('GET', '/platform'),
     platformAgency: (id: string, action: 'suspend' | 'resume') => request<{ ok: boolean }>('POST', `/platform/agencies/${id}/${action}`, {}),
     platformSignup: (open: boolean) => request<{ ok: true }>('POST', '/platform/signup', { open }),

@@ -10,7 +10,7 @@ import { Chips } from '../components/Chips';
 import { ErrorView, Loading } from '../components/StateViews';
 import { AppSettings } from '../components/AppSettings';
 import { t } from '../i18n';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 
 const REMINDERS = [30, 60, 120] as const;
 /** WhatsApp is not an alert channel any more: an old saved choice shows as the default (both when Telegram is linked, else web). */
@@ -136,7 +136,7 @@ export function NotificationsScreen() {
 const styles = StyleSheet.create({
   body: { padding: spacing.xl, gap: spacing.md },
   h: { fontSize: 18, fontWeight: '700', marginTop: spacing.md },
-  card: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
+  card: { ...lift, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   flex: { flex: 1 },
   kind: { fontSize: 16, fontWeight: '700' },

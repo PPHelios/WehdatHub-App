@@ -10,7 +10,7 @@ import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 
 /** Viewings grouped by day, soonest first. */
 export function groupByDay(items: ApiViewing[], lang: 'ar' | 'en'): { title: string; data: ApiViewing[] }[] {
@@ -60,7 +60,7 @@ export function CalendarScreen() {
 
 const styles = StyleSheet.create({
   day: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm, fontWeight: '700' },
-  card: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { ...lift, marginHorizontal: spacing.lg, marginBottom: spacing.sm, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   time: { fontSize: 16, fontWeight: '800' },
   flex: { flex: 1 },

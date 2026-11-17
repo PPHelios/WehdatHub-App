@@ -26,7 +26,7 @@ import { useRights } from '../rights';
 import { moreItems, navPlan } from '../roleNav';
 import type { MoreScreenName } from '../roleNav';
 import { stopPush } from '../push';
-import { spacing, useTheme } from '../theme';
+import { lift, spacing, useTheme } from '../theme';
 import { usePrefs } from '../prefs';
 import { APP_BUILD, APP_VERSION } from '../config';
 import { syncDirection } from '../direction';
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 22, fontWeight: '700' },
   agency: { fontSize: 16, marginBottom: spacing.lg },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  card: { borderWidth: 1, borderRadius: 16, padding: spacing.md, gap: spacing.sm },
+  card: { ...lift, borderWidth: 1, borderRadius: 16, padding: spacing.md, gap: spacing.sm },
   cardTitle: { fontSize: 15, fontWeight: '700' },
   section: { fontSize: 18, fontWeight: '700' },
   flex: { flex: 1 },

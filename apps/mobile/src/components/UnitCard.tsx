@@ -6,7 +6,7 @@ import { t } from '../i18n';
 import { Icon } from './Icon';
 import { Pill } from './Pill';
 import { SmartImage } from './SmartImage';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 
 /** The height of the photo area: the same on every card, so a list reads as even rows. */
 export const UNIT_PHOTO_HEIGHT = 180;
@@ -55,7 +55,7 @@ export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListIte
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: radius.lg, borderWidth: 1, overflow: 'hidden', marginHorizontal: spacing.lg, marginBottom: spacing.md },
+  card: { ...lift, borderRadius: radius.lg, borderWidth: 1, overflow: 'hidden', marginHorizontal: spacing.lg, marginBottom: spacing.md },
   photo: { height: UNIT_PHOTO_HEIGHT, width: '100%' },
   none: { alignItems: 'center', justifyContent: 'center' },
   place: { fontSize: 14 },

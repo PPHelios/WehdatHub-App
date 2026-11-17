@@ -16,7 +16,7 @@ import { ot } from '../ownerText';
 import { useRights } from '../rights';
 import { t } from '../i18n';
 import { useDebounced } from '../useDebounced';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 
 /** Unit owners: the same list and rules as the website (the server decides who sees which owner and phone). */
 export function OwnersScreen() {
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
   gap: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.md },
-  card: { marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { ...lift, marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
   name: { fontSize: 16, fontWeight: '700' },
   title: { fontSize: 20, fontWeight: '800' },
 });

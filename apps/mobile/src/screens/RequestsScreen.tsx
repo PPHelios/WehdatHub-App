@@ -13,7 +13,7 @@ import { errorText } from '../errors';
 import type { RootStackParams } from '../navigation';
 import { ot } from '../ownerText';
 import { t } from '../i18n';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 
 const STATUSES = ['pending', 'approved', 'declined', 'all'] as const;
 type Status = (typeof STATUSES)[number];
@@ -96,6 +96,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   pad: { padding: spacing.lg },
   row: { flexDirection: 'row', gap: spacing.md },
-  card: { marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { ...lift, marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
   name: { fontSize: 16, fontWeight: '700' },
 });

@@ -11,12 +11,13 @@ import { Chips } from '../components/Chips';
 import { DealForm } from '../components/DealForm';
 import { Field } from '../components/Field';
 import { Section } from '../components/Section';
+import { StatRow } from '../components/StatRow';
 import { useRights } from '../rights';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
@@ -55,7 +56,7 @@ export function DealsScreen() {
           <Chips testID="deal-status" value={status} onChange={(v) => setStatus(v === status ? '' : v)} options={d.statuses.map((s) => ({ value: s, label: s }))} />
           <Card>
             <Text style={[styles.h, { color: colors.text }]}>{ar ? 'إجمالي الشهور' : 'Monthly totals'}</Text>
-            {d.totals.map((m) => <Text key={str(m.month)} style={{ color: colors.text }}>{str(m.month)} · {num(m.deals)} {ar ? 'صفقة' : 'deals'} · {num(m.commission ?? m.mine)}</Text>)}
+            {d.totals.map((m) => <StatRow key={str(m.month)} label={str(m.month)} value={`${num(m.deals)} ${ar ? 'صفقة' : 'deals'} · ${num(m.commission ?? m.mine)}`} pct={(Number(m.deals) / Math.max(1, ...d.totals.map((x) => Number(x.deals)))) * 100} />)}
           </Card>
           {d.items.map((x) => (
             <Card key={str(x.ref)} testID={`deal-${str(x.ref)}`}>
@@ -217,7 +218,7 @@ export function LinksScreen() {
 
 const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
-  card: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { ...lift, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
   h: { fontSize: 16, fontWeight: '700' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
 });

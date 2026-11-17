@@ -18,7 +18,7 @@ import { stageLabel, t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { Split, useColumns, useWide } from '../layout';
 import { LeadScreen } from './LeadScreen';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 
 const TABS: [LeadTab, StringKey][] = [['all', 'tabAll'], ['due_today', 'tabDue'], ['overdue', 'tabOverdue'], ['new', 'st_new'], ['interested', 'st_interested'], ['viewing', 'st_viewing'], ['negotiation', 'st_negotiation'], ['no_next_step', 'tabNoStep']];
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   chips: { gap: spacing.sm, paddingHorizontal: spacing.lg },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, height: 40, justifyContent: 'center' },
   chipText: { fontWeight: '600' },
-  card: { marginHorizontal: spacing.lg, marginBottom: spacing.md, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, gap: 2 },
+  card: { ...lift, marginHorizontal: spacing.lg, marginBottom: spacing.md, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, gap: 2 },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
   name: { fontSize: 16, fontWeight: '700', flex: 1 },
   footer: { padding: spacing.lg },

@@ -9,12 +9,14 @@ import type { AiUsage } from '@wehdathub/shared';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
+import { StatRow } from '../components/StatRow';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { useRights } from '../rights';
 import { clientLang } from '../prefs';
 import type { RootStackParams } from '../navigation';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
@@ -109,34 +111,11 @@ const meters = (a: Allowance, ar: boolean) => (
   </>
 );
 
-/** The agency's plan: its name and period, what is used of users, units and AI credits, and its payments. */
+/** Plan is part of Usage now (one screen): the old Plan entry opens the same page. */
 export function PlanScreen() {
-  const { colors } = useTheme();
-  const lang = currentLang();
-  const ar = lang === 'ar';
-  const query = useQuery({ queryKey: ['plan'], queryFn: () => api.plan() });
-  return (
-    <Gate q={query}>
-      {(d) => {
-        const a = d.allowance as Allowance;
-        const src = SOURCE_LABEL[a.source ?? ''];
-        return (
-          <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
-            <Card testID="plan-allowance">
-              <Text style={[styles.h, { color: colors.text }]}>{a.plan?.name ? a.plan.name[ar ? 0 : 1] : ''}</Text>
-              {src ? <Text style={{ color: colors.muted }}>{src[ar ? 0 : 1]}{a.until ? ` · ${ar ? 'لحد' : 'until'} ${str(a.until).slice(0, 10)}` : ''}</Text> : null}
-              {a.plan?.priceEgp ? <Text style={{ color: colors.muted }}>{num(a.plan.priceEgp)} {t(lang, 'egp')} / {ar ? 'شهر' : 'month'}</Text> : null}
-              {meters(a, ar)}
-            </Card>
-            {d.payments.length ? <Card><Text style={[styles.h, { color: colors.text }]}>{ar ? 'المدفوعات' : 'Payments'}</Text>{d.payments.map((p) => <Text key={str(p.id ?? p.reference)} style={{ color: colors.text }}>{str(p.reference)} · {str(p.status)}</Text>)}</Card> : null}
-          </ScrollView>
-        );
-      }}
-    </Gate>
-  );
+  return <UsageScreen />;
 }
 
-type UsageBlock = { total?: number; today?: number; actions?: { action: string; n: number; today: number }[] } | null;
 
 /** This month's use: AI credits, the agency's message credits, and your own messages (the agency's for managers). */
 /**
@@ -159,49 +138,72 @@ export function AiUsageCard({ ai, ar }: { ai: AiUsage; ar: boolean }) {
       ) : ai.mode === 'per_user' ? (
         <Text testID="ai-own-none" style={{ color: colors.muted }}>{ar ? `مفيش حد شخصي ليك. استهلكت ${num(own.used)} الشهر ده.` : `You have no personal limit. Used ${num(own.used)} this month.`}</Text>
       ) : (
-        <Text testID="ai-own-pool" style={{ color: colors.muted }}>{ar ? `استهلكت ${num(own.used)} الشهر ده، من رصيد الشركة المشترك.` : `You used ${num(own.used)} this month, from the agency's shared pool.`}</Text>
+        <Text testID="ai-own-pool" style={{ color: colors.text, backgroundColor: colors.bg, padding: spacing.md, borderRadius: radius.sm, overflow: 'hidden' }}>{ar ? `استهلكت ${num(own.used)} الشهر ده، من رصيد الشركة المشترك.` : `You used ${num(own.used)} this month, from the agency's shared pool.`}</Text>
       )}
       {ai.people ? (
-        <View testID="ai-people">
-          {ai.people.map((p) => (
-            <Text key={p.id} style={{ color: colors.text }}>{p.name}: {num(p.used)}{p.allowance != null ? ` / ${num(p.allowance)}` : ''}</Text>
-          ))}
-          <Text style={{ color: colors.muted }}>
-            {ai.canEdit
-              ? ar ? 'غيّر الإعدادات من الموقع.' : 'Change these settings on the website.'
-              : ar ? 'مالك الشركة لم يسمح للمديرين بتغيير ده.' : 'The agency owner has not allowed managers to change this'}
-          </Text>
+        <View testID="ai-people" style={{ gap: spacing.sm, marginTop: spacing.xs }}>
+          {[...ai.people].sort((x, y) => y.used - x.used).map((p) => {
+            const cap = p.allowance ?? Math.max(1, ...ai.people!.map((q) => q.used));
+            const pct = cap > 0 ? Math.min(100, Math.round((p.used / cap) * 100)) : 0;
+            return (
+              <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{(p.name.trim()[0] || '?').toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text numberOfLines={1} style={{ color: colors.text, fontWeight: '600', flexShrink: 1 }}>{p.name}</Text>
+                    <Text style={{ color: colors.muted }}>{num(p.used)}{p.allowance != null ? ` / ${num(p.allowance)}` : ''}</Text>
+                  </View>
+                  <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.border }}>
+                    <View style={{ width: `${pct}%`, height: 6, borderRadius: 3, backgroundColor: p.allowance != null && p.used >= p.allowance ? colors.danger : colors.primary }} />
+                  </View>
+                </View>
+              </View>
+            );
+          })}
+          <View style={{ flexDirection: 'row', gap: spacing.sm, padding: spacing.md, borderRadius: radius.sm, backgroundColor: colors.bg, marginTop: spacing.xs }}>
+            <Text>ℹ️</Text>
+            <Text style={{ color: colors.muted, flex: 1 }}>
+              {ai.canEdit
+                ? ar ? 'غيّر الإعدادات من الموقع.' : 'Change these settings on the website.'
+                : ar ? 'مالك الشركة لم يسمح للمديرين بتغيير ده.' : 'The agency owner has not allowed managers to change this'}
+            </Text>
+          </View>
         </View>
       ) : null}
     </Card>
   );
 }
 
+/** My usage and limits. Managers and the owner also see the agency's plan (name, source, price) and its payments on the same page. */
 export function UsageScreen() {
   const { colors } = useTheme();
-  const ar = currentLang() === 'ar';
+  const lang = currentLang();
+  const ar = lang === 'ar';
+  const rights = useRights();
   const query = useQuery({ queryKey: ['usage'], queryFn: () => api.usage() });
-  const block = (u: UsageBlock, testID: string, title: string) =>
-    u ? (
-      <Card testID={testID}>
-        <Text style={[styles.h, { color: colors.text }]}>{title}</Text>
-        <Text style={{ color: colors.muted }}>{ar ? 'النهارده' : 'Today'}: {num(u.today ?? 0)} · {ar ? 'الشهر' : 'This month'}: {num(u.total ?? 0)}</Text>
-        {(u.actions ?? []).map((x) => <Text key={x.action} style={{ color: colors.text }}>{x.action.replace(/_/g, ' ')}: {num(x.n)}</Text>)}
-      </Card>
-    ) : null;
+  const planQ = useQuery({ queryKey: ['plan'], queryFn: () => api.plan(), enabled: rights.manager || rights.agencyOwner });
   return (
     <Gate q={query}>
       {(d) => {
-        const st = d.state as { used?: number; limit?: number };
+        const plan = planQ.data;
+        const pa = plan?.allowance as Allowance | undefined;
+        const src = pa ? SOURCE_LABEL[pa.source ?? ''] : undefined;
         return (
           <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
+            {pa ? (
+              <Card testID="plan-allowance">
+                <Text style={[styles.h, { color: colors.text }]}>{pa.plan?.name ? pa.plan.name[ar ? 0 : 1] : ''}</Text>
+                {src ? <Text style={{ color: colors.muted }}>{src[ar ? 0 : 1]}{pa.until ? ` · ${ar ? 'لحد' : 'until'} ${str(pa.until).slice(0, 10)}` : ''}</Text> : null}
+                {pa.plan?.priceEgp ? <Text style={{ color: colors.muted }}>{num(pa.plan.priceEgp)} {t(lang, 'egp')} / {ar ? 'شهر' : 'month'}</Text> : null}
+              </Card>
+            ) : null}
             <Card testID="usage-credits">
               {meters(d.allowance as Allowance, ar)}
-              {typeof st.limit === 'number' ? <Meter testID="meter-messages" label={ar ? 'رسايل البوت للشركة (الشهر ده)' : 'Agency bot messages (this month)'} used={st.used ?? 0} limit={st.limit} /> : null}
             </Card>
             {d.ai ? <AiUsageCard ai={d.ai} ar={ar} /> : null}
-            {block(d.mine as UsageBlock, 'usage-mine', ar ? 'رسايلي' : 'My messages')}
-            {block(d.agency as UsageBlock, 'usage-agency', ar ? 'رسايل الشركة' : 'Agency messages')}
+            {plan?.payments.length ? <Card><Text style={[styles.h, { color: colors.text }]}>{ar ? 'المدفوعات' : 'Payments'}</Text>{plan.payments.map((p) => <StatRow key={str(p.id ?? p.reference)} label={str(p.reference)} value={str(p.status)} />)}</Card> : null}
           </ScrollView>
         );
       }}
@@ -273,6 +275,6 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
   gap: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.md, alignItems: 'center', justifyContent: 'space-between' },
-  card: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { ...lift, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
   h: { fontSize: 16, fontWeight: '700' },
 });

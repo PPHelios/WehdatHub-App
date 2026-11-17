@@ -23,7 +23,7 @@ import { EMPTY_SEARCH, STATUS_TEXT, deliveryOf, isFiltered, moneyShort, numberOf
 import type { CatalogueSearch } from '../projectRules';
 import { pt } from '../projectText';
 import { plain, withCommas } from '../readback';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
   gap: { gap: spacing.md },
   filters: { gap: spacing.sm },
-  card: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
+  card: { ...lift, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
   h: { fontSize: 17, fontWeight: '800' },
   fact: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, minHeight: 28, alignItems: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

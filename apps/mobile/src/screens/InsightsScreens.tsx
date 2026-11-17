@@ -8,12 +8,13 @@ import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
+import { StatRow } from '../components/StatRow';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import { APP_BUILD, APP_VERSION } from '../config';
 import { usageTrail } from '../usage';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 
 const num = (n: number) => Number(n).toLocaleString('en-US');
 const DAYS = ['30', '90', '365'] as const;
@@ -54,7 +55,7 @@ export function DashboardScreen() {
         {d.sources.length ? <Text style={{ color: colors.muted }}>{d.sources.map((s) => `${s.source} ${s.n}`).join(' · ')}</Text> : null}
       </Card>
       <Card title={ar ? 'المراحل' : 'Pipeline'}>
-        {Object.entries(d.pipeline).map(([k, v]) => <Text key={k} style={{ color: colors.text }}>{k}: {v}</Text>)}
+        {Object.entries(d.pipeline).map(([k, v]) => <StatRow key={k} label={k} value={String(v)} pct={(Number(v) / Math.max(1, ...Object.values(d.pipeline).map(Number))) * 100} />)}
       </Card>
       <Card title={ar ? 'ترتيب البروكرز' : 'Leaderboard'}>
         {d.board.map((b) => (
@@ -109,13 +110,13 @@ export function WinLossScreen() {
         <Text testID="wl-summary" style={{ color: colors.text }}>{ar ? 'اتقفلت' : 'Won'} {d.won} · {ar ? 'ضاعت' : 'Lost'} {d.lost} · {rate(d.rate)}</Text>
       </Card>
       <Card title={ar ? 'ليه العملاء ضاعوا' : 'Why leads were lost'}>
-        {d.reasons.length ? d.reasons.map((r) => <Text key={r.key} style={{ color: colors.text }}>{r.key.replace(/_/g, ' ')}: {r.n} ({r.pct}%)</Text>) : <Text style={{ color: colors.muted }}>{ar ? 'مفيش.' : 'None.'}</Text>}
+        {d.reasons.length ? d.reasons.map((r) => <StatRow key={r.key} label={r.key.replace(/_/g, ' ')} value={`${r.n} (${r.pct}%)`} pct={r.pct} />) : <Text style={{ color: colors.muted }}>{ar ? 'مفيش.' : 'None.'}</Text>}
       </Card>
       <Card title={ar ? 'لكل بروكر' : 'Per broker'}>
-        {d.brokers.map((g) => <Text key={g.key} style={{ color: colors.text }}>{g.name || '—'}: {g.won}/{g.lost} · {rate(g.rate)}</Text>)}
+        {d.brokers.map((g) => <StatRow key={g.key} label={g.name || '—'} value={`${g.won}/${g.lost} · ${rate(g.rate)}`} pct={g.rate ?? 0} />)}
       </Card>
       <Card title={ar ? 'لكل مصدر' : 'Per source'}>
-        {d.sources.map((g) => <Text key={g.key} style={{ color: colors.text }}>{g.key}: {g.won}/{g.lost} · {rate(g.rate)}</Text>)}
+        {d.sources.map((g) => <StatRow key={g.key} label={g.key} value={`${g.won}/${g.lost} · ${rate(g.rate)}`} pct={g.rate ?? 0} />)}
       </Card>
     </ScrollView>
   );
@@ -170,7 +171,7 @@ export function ReportScreen() {
 
 const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
-  card: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { ...lift, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
   h: { fontSize: 16, fontWeight: '700' },
   b: { fontWeight: '700' },
 });

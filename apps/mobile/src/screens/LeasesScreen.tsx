@@ -9,7 +9,7 @@ import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { radius, spacing, useTheme } from '../theme';
+import { lift, radius, spacing, useTheme } from '../theme';
 
 /** Leases being tracked (own, the team's for a team lead, all for managers), soonest end first. Tap opens the unit's lease card. */
 export function LeasesScreen() {
@@ -38,7 +38,7 @@ export function LeasesScreen() {
 
 const styles = StyleSheet.create({
   pad: { padding: spacing.xl, gap: spacing.md },
-  card: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
+  card: { ...lift, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   code: { fontSize: 16, fontWeight: '700' },
 });
