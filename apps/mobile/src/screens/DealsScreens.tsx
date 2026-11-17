@@ -34,6 +34,9 @@ function Gate<T>({ q, children }: { q: { isPending: boolean; isError: boolean; e
   return children(q.data);
 }
 
+/** A deal's status in the screen's language (the server sends the English key). */
+export const dealStatusLabel = (s: string, ar: boolean) => (ar ? ({ pending: 'مستني', signed: 'اتوقّع', paid: 'اتدفع', cancelled: 'اتلغى' } as Record<string, string>)[s] : undefined) ?? s;
+
 /** Deals: the monthly totals and the list; whoever may edit a deal can change its status. */
 export function DealsScreen() {
   const { colors } = useTheme();
@@ -53,15 +56,15 @@ export function DealsScreen() {
       {(d) => (
         <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
           <Section testID="sec-new-deal" title={t(lang, 'newDeal')}><DealForm /></Section>
-          <Chips testID="deal-status" value={status} onChange={(v) => setStatus(v === status ? '' : v)} options={d.statuses.map((s) => ({ value: s, label: s }))} />
+          <Chips testID="deal-status" value={status} onChange={(v) => setStatus(v === status ? '' : v)} options={d.statuses.map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} />
           <Card>
             <Text style={[styles.h, { color: colors.text }]}>{ar ? 'إجمالي الشهور' : 'Monthly totals'}</Text>
             {d.totals.map((m) => <StatRow key={str(m.month)} label={str(m.month)} value={`${num(m.deals)} ${ar ? 'صفقة' : 'deals'} · ${num(m.commission ?? m.mine)}`} pct={(Number(m.deals) / Math.max(1, ...d.totals.map((x) => Number(x.deals)))) * 100} />)}
           </Card>
           {d.items.map((x) => (
             <Card key={str(x.ref)} testID={`deal-${str(x.ref)}`}>
-              <Text style={[styles.h, { color: colors.text }]}>#{str(x.ref)} · {str(x.status)}</Text>
-              <Text style={{ color: colors.text }}>{str(x.client_name)} · {str(x.unit_code)} · {num(x.price)}</Text>
+              <Text style={[styles.h, { color: colors.text }]}>#{str(x.ref)} · {dealStatusLabel(str(x.status), ar)}</Text>
+              <Text style={{ color: colors.text }}>{[str(x.client_name), str(x.unit_code), str(x.price) ? num(x.price) : ''].filter(Boolean).join(' · ')}</Text>
               {str(x.deal_type) === 'rent' && x.unit_code ? <Button testID={`add-lease-${str(x.ref)}`} variant="secondary" label={`🔑 ${t(lang, 'addLease')}`} onPress={() => nav.navigate('Unit', { code: str(x.unit_code), lease: { tenantName: x.lead_ref ? `L-${String(x.lead_ref).padStart(4, '0')}` : str(x.client_name), startDate: str(x.closed_at).slice(0, 10), rent: x.price === null || x.price === undefined ? '' : String(Math.round(Number(x.price))) } })} /> : null}
               {rights.manager || rights.agencyOwner ? (
                 <Section testID={`sec-fix-${str(x.ref)}`} title={t(lang, 'correctDeal')}>
@@ -69,7 +72,7 @@ export function DealsScreen() {
                   <Button testID={`fix-${str(x.ref)}`} label={t(lang, 'save')} disabled={!(fix[str(x.ref)] ?? '').trim()} onPress={async () => { try { await api.correctDeal(`D-${String(x.ref).padStart(4, '0')}`, { commission: fix[str(x.ref)], version: Number(x.version) }); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { Alert.alert(errorText(e, lang)); } }} />
                 </Section>
               ) : null}
-              {d.statuses.length ? <Chips value={str(x.status)} onChange={(s) => { void setDeal(str(x.ref), s, x.version); }} options={d.statuses.map((s) => ({ value: s, label: s }))} /> : null}
+              {d.statuses.length ? <Chips value={str(x.status)} onChange={(s) => { void setDeal(str(x.ref), s, x.version); }} options={d.statuses.map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} /> : null}
             </Card>
           ))}
         </ScrollView>

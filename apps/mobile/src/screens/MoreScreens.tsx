@@ -20,6 +20,8 @@ import { lift, radius, spacing, useTheme } from '../theme';
 
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
+/** "used / limit" kept in that order when the screen is right-to-left (an isolated left-to-right run, so Arabic does not flip it). */
+export const ratioText = (used: unknown, limit: unknown) => `⁦${num(used)} / ${num(limit)}⁩`;
 
 function Card({ children, testID }: { children: React.ReactNode; testID?: string }) {
   const { colors } = useTheme();
@@ -94,7 +96,7 @@ function Meter({ label, used, limit, testID }: { label: string; used: number; li
     <View testID={testID} style={styles.meter}>
       <View style={styles.meterHead}>
         <Text style={{ color: colors.text, fontWeight: '700' }}>{label}</Text>
-        <Text style={{ color: colors.muted }}>{num(used)} / {num(limit)}</Text>
+        <Text style={{ color: colors.muted }}>{ratioText(used, limit)}</Text>
       </View>
       <View style={[styles.track, { backgroundColor: colors.border }]}>
         <View style={{ width: `${pct}%`, height: 8, borderRadius: 4, backgroundColor: fill }} />
