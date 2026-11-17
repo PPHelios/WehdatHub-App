@@ -9,6 +9,8 @@ export interface ChatPost {
   sender: string | null;
   at: string | null;
   text: string;
+  /** The message exactly as written in WhatsApp (Arabic digits, blank lines, spacing kept); `text` is the cleaned copy the readers use. */
+  orig?: string;
   /** The unit code the post writes, upper-case, or null. */
   code: string | null;
   /** Photos of the post in chat order, up to 60 (a unit keeps 15). */

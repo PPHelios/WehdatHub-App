@@ -182,7 +182,7 @@ export function WhatsAppImportScreen() {
   const edit = (p: ImportPost, badge: CodeBadge) => {
     usage('wa_import_edit', true, undefined, { kind: badge.kind, missing: p.missing?.length ?? 0 });
     const ordered = [...keptOf(p), ...p.photos.filter((x) => x.notKept)];
-    nav.navigate('AddUnit', { text: p.post.text, photos: ordered, fresh: true, noAi: true, fields: p.fields, ...(p.post.code ? { code: p.post.code } : {}), importId: p.id, ...(badge.kind === 'update' ? { edit: badge.code } : {}) });
+    nav.navigate('AddUnit', { text: p.post.orig || p.post.text, photos: ordered, fresh: true, noAi: true, fields: p.fields, ...(p.post.code ? { code: p.post.code } : {}), importId: p.id, ...(badge.kind === 'update' ? { edit: badge.code } : {}) });
   };
 
   // One post, added without opening it: read, review, upload its 15 photos, save. Anything that needs a person is left for the edit screen.
@@ -325,7 +325,7 @@ export function WhatsAppImportScreen() {
               <SummaryGrid W={W} lang={lang} post={p} colors={colors} />
               <Pressable testID={`wa-desc-${p.id}`} accessibilityRole="button" onPress={() => setOpenText((o) => ({ ...o, [p.id]: !o[p.id] }))}>
                 <Text style={[styles.small, styles.bold, { color: colors.muted }]}>💬 {W.originalTitle}</Text>
-                <Text style={[styles.small, { color: colors.muted }]} numberOfLines={open ? undefined : 3}>{p.post.text}</Text>
+                <Text style={[styles.small, { color: colors.muted }]} numberOfLines={open ? undefined : 3}>{p.post.orig || p.post.text}</Text>
                 <Text style={[styles.small, { color: colors.primary }]}>{open ? W.showLess : W.showMore}</Text>
               </Pressable>
               {p.photos.length ? (
