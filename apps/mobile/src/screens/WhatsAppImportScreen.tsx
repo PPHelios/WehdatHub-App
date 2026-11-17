@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { errorCodes, isErrorWithCode, pick, types } from '@react-native-documents/picker';
-import { ApiClientError, ChatParse } from '@wehdathub/shared';
+import { ApiClientError, ChatParse, phoneSchema } from '@wehdathub/shared';
 import type { CodeState, UnitFields, UploadFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -23,7 +23,7 @@ import { newSaveKey, withSaveCheck } from '../saveKey';
 import { radius, spacing, useTheme } from '../theme';
 import { usage } from '../usage';
 import { sendable, withImpliedFeatures } from '../unitRules';
-import { buildImportPosts, blockedByCode, codeBadge, incomplete, keptOf, looksLikeZip, stagePct } from '../whatsappImport';
+import { buildImportPosts, blockedByCode, codeBadge, incomplete, keptOf, lacksDealType, lacksOwnerPhone, looksLikeZip, missingOf, stagePct, withDealType, withOwnerPhone } from '../whatsappImport';
 import type { CodeBadge, ImportPost } from '../whatsappImport';
 import { fill, wi } from '../whatsappImportText';
 import { ZipImportError, cancelUnpack, cleanUp, unpackChat } from '../zipImport';
@@ -139,6 +139,34 @@ export function WhatsAppImportScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [since, lang]);
+
+  // Fix many posts at once: one deal type for the posts that have none, or one owner phone for the posts that lack it. Each changed
+  // post is checked again by the server's review, so what it still misses is shown on its card and it is added only when complete.
+  const [ownerAll, setOwnerAll] = useState('');
+  const [ownerBad, setOwnerBad] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkNote, setBulkNote] = useState<string | null>(null);
+  const bulkCount = { deal: list.filter(lacksDealType).length, owner: list.filter(lacksOwnerPhone).length };
+  const applyBulk = async (change: (f: UnitFields) => UnitFields, which: (p: ImportPost) => boolean) => {
+    const targets = list.filter(which);
+    if (!targets.length) return;
+    setBulkBusy(true);
+    try {
+      for (const p of targets) {
+        const fields = change(p.fields ?? {});
+        let missing: string[] | undefined = p.missing;
+        try {
+          const rv = await api.reviewUnit(sendable(withImpliedFeatures(nonEmpty(fields))), keptOf(p).length);
+          missing = missingOf(rv.blockers);
+        } catch { /* the card keeps its old list; Edit checks it again */ }
+        patchPost(p.id, { fields, missing, note: undefined });
+      }
+      setBulkNote(fill(W.bulkDone, { n: targets.length }));
+      usage('wa_import_bulk', true, undefined, { posts: targets.length });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   // A zip shared from WhatsApp starts reading at once.
   useEffect(() => {
@@ -298,6 +326,33 @@ export function WhatsAppImportScreen() {
         {videos ? <Text style={{ color: colors.muted }}>🎞 {fill(W.videos, { n: videos })}</Text> : null}
         {missing ? <Text style={{ color: colors.muted }}>{fill(W.missing, { n: missing })}</Text> : null}
         {added || needs ? <Text style={{ color: colors.text }}>{fill(W.doneLine, { a: added, b: needs })}</Text> : null}
+        {bulkCount.deal + bulkCount.owner > 0 ? (
+          <View testID="wa-bulk" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>🧰 {W.bulkTitle}</Text>
+            {bulkCount.deal > 0 ? (
+              <View style={{ gap: spacing.sm }}>
+                <Text style={{ color: colors.text }}>{fill(W.bulkDeal, { n: bulkCount.deal })}</Text>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <View style={{ flex: 1 }}><Button testID="wa-all-rent" label={W.allRent} variant="secondary" loading={bulkBusy} onPress={() => applyBulk((f) => withDealType(f, 'rent'), lacksDealType)} /></View>
+                  <View style={{ flex: 1 }}><Button testID="wa-all-sale" label={W.allSale} variant="secondary" loading={bulkBusy} onPress={() => applyBulk((f) => withDealType(f, 'sale'), lacksDealType)} /></View>
+                </View>
+              </View>
+            ) : null}
+            {bulkCount.owner > 0 ? (
+              <View style={{ gap: spacing.sm }}>
+                <Text style={{ color: colors.text }}>{fill(W.bulkOwner, { n: bulkCount.owner })}</Text>
+                <Field testID="wa-owner-all" label="" value={ownerAll} onChangeText={(v: string) => { setOwnerAll(v); setOwnerBad(false); }} keyboardType="phone-pad" placeholder={W.bulkOwnerPlaceholder} />
+                {ownerBad ? <Text testID="wa-owner-bad" style={{ color: colors.danger }}>{W.bulkBadPhone}</Text> : null}
+                <Button testID="wa-owner-apply" label={W.bulkOwnerApply} variant="secondary" loading={bulkBusy} onPress={() => {
+                  const ok = phoneSchema.safeParse(ownerAll.trim());
+                  if (!ok.success) { setOwnerBad(true); return undefined; }
+                  return applyBulk((f) => withOwnerPhone(f, ownerAll.trim()), lacksOwnerPhone);
+                }} />
+              </View>
+            ) : null}
+            {bulkNote ? <Text testID="wa-bulk-done" style={{ color: colors.muted }}>{bulkNote}</Text> : null}
+          </View>
+        ) : bulkNote ? <Text testID="wa-bulk-done" style={{ color: colors.muted }}>{bulkNote}</Text> : null}
         {readFailed ? (
           <View testID="wa-read-failed" style={[styles.card, { borderColor: colors.danger, backgroundColor: colors.card }]}>
             <Text style={{ color: colors.danger, fontWeight: '700' }}>{W.readFailed}</Text>
@@ -375,6 +430,10 @@ function SummaryGrid({ W, lang, post, colors }: { W: ReturnType<typeof wi>; lang
     { k: 'compound', label: W.f_compound, value: placeLabel(f) },
     { k: 'price_value', label: W.f_price_value, value: price ? `${Number(price).toLocaleString('en')}${str(f.currency) === 'USD' ? ` ${W.usd}` : ''}` : '' },
     { k: 'area_value', label: W.f_area_value, value: str(f.area_value) ? `${str(f.area_value)} ${W.sqm}` : '' },
+    { k: 'land_area', label: L2 === 'en' ? 'Land' : 'الأرض', value: str(f.land_area) ? `${str(f.land_area)} ${W.sqm}` : '' },
+    { k: 'garden_area', label: L2 === 'en' ? 'Garden' : 'الجنينة', value: str(f.garden_area) ? `${str(f.garden_area)} ${W.sqm}` : '' },
+    { k: 'floor_level', label: L2 === 'en' ? 'Floor' : 'الدور', value: str(f.floor_level) },
+    { k: 'rent_period', label: L2 === 'en' ? 'Rent' : 'الإيجار', value: f.rent_period === 'monthly' ? (L2 === 'en' ? 'Monthly' : 'شهري') : f.rent_period === 'yearly' ? (L2 === 'en' ? 'Yearly' : 'سنوي') : '' },
     { k: 'bedrooms', label: W.f_bedrooms, value: str(f.bedrooms) },
     { k: 'bathrooms', label: W.baths, value: str(f.bathrooms) },
     { k: 'finishing', label: L2 === 'en' ? 'Finishing' : 'التشطيب', value: labelOf(FINISHING, str(f.finishing), L2) ?? '' },

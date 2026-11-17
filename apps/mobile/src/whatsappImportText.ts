@@ -28,6 +28,7 @@ const TEXT = {
     noteNoAi: 'من غير ذكاء اصطناعي: كمّل البيانات بإيدك.', noteDuplicate: 'شكلها نفس الوحدة {c}.', noteUpdate: 'الكود ده لوحدة موجودة: افتحها وراجع التعديل.', noteAiBlocked: 'الذكاء الاصطناعي مش متاح دلوقتي.', noteUploadFailed: 'الصور مارفعتش: جرب تاني.', noteFailed: 'حصلت مشكلة وقت الحفظ.',
     doneLine: 'اتضافت {a} · محتاجة تعديل {b}', openUnit: 'افتح',
     leaveWarn: 'لو قفلت الشاشة دلوقتي الإضافة هتقف.',
+    bulkTitle: 'تعديل جماعي', bulkDeal: '{n} بوست من غير بيع أو إيجار.', allRent: 'كلهم إيجار', allSale: 'كلهم بيع', bulkOwner: '{n} بوست من غير تليفون المالك. اكتب رقم واحد وهيتحط على كلهم (الرقم بيتستخدم كاسم).', bulkOwnerPlaceholder: '01xxxxxxxxx', bulkOwnerApply: 'حط الرقم', bulkBadPhone: 'رقم موبايل مصري صحيح (01xxxxxxxxx).', bulkDone: 'اتغير {n} بوست.',
   },
   en: {
     title: 'Import from WhatsApp',
@@ -55,6 +56,7 @@ const TEXT = {
     noteNoAi: 'No AI: finish the details by hand.', noteDuplicate: 'Looks like unit {c}.', noteUpdate: 'This code is an existing unit: open it and check the change.', noteAiBlocked: 'AI is unavailable now.', noteUploadFailed: 'Photos did not upload: try again.', noteFailed: 'Something went wrong while saving.',
     doneLine: '{a} added · {b} need an edit', openUnit: 'Open',
     leaveWarn: 'Leaving this screen now stops the adding.',
+    bulkTitle: 'Fix many at once', bulkDeal: '{n} posts have no sale or rent.', allRent: 'All rent', allSale: 'All sale', bulkOwner: '{n} posts have no owner phone. Type one number and it goes on all of them (the number stands in as the name).', bulkOwnerPlaceholder: '01xxxxxxxxx', bulkOwnerApply: 'Use this number', bulkBadPhone: 'A valid Egyptian mobile (01xxxxxxxxx).', bulkDone: '{n} posts updated.',
   },
 } as const;
 
