@@ -6,9 +6,11 @@ import { SortablePhotos } from '../src/components/SortablePhotos';
 import { useLock } from '../src/lock';
 import * as Keychain from 'react-native-keychain';
 
-test('a share with photos, a voice note and a pdf is ignored; a zip is kept', () => {
-  expect(classifyShare({ files: [{ uri: 'file:///a.jpg', mimeType: 'image/jpeg' }, { uri: 'file:///v.opus', mimeType: 'audio/opus', name: 'PTT.opus' }, { uri: 'file:///x.pdf', mimeType: 'application/pdf' }] })).toBeNull();
-  expect(classifyShare({ files: [{ uri: 'file:///z', mimeType: 'application/zip' }] })?.zip?.uri).toBe('file:///z');
+test('shared photos, a WhatsApp voice note and text are sorted for Add unit', () => {
+  const s = classifyShare({ text: ' شقة ', files: [{ uri: 'file:///a.jpg', mimeType: 'image/jpeg' }, { uri: 'file:///v.opus', mimeType: 'audio/opus', name: 'PTT.opus' }, { uri: 'file:///x.pdf', mimeType: 'application/pdf' }] });
+  expect(s?.photos).toHaveLength(1);
+  expect(s?.voice).toMatchObject({ uri: 'file:///v.opus', type: 'audio/ogg' });
+  expect(s?.text).toBe('شقة');
   expect(classifyShare({ files: [] })).toBeNull();
   expect(classifyShare(null)).toBeNull();
 });

@@ -2,16 +2,17 @@ import { AppState, NativeModules, Platform } from 'react-native';
 import type { UploadFile } from '@wehdathub/shared';
 import { looksLikeZip } from './whatsappImport';
 
-/** Only a WhatsApp "Export chat" zip is taken from a share: it opens the import screen. */
-export interface SharedItems { zip?: UploadFile }
-interface RawShare { files?: { uri: string; mimeType?: string | null; name?: string | null }[] }
+export interface SharedItems { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** A WhatsApp "Export chat" zip: opens the import screen instead of Add unit. */ zip?: UploadFile }
+interface RawShare { text?: string | null; files?: { uri: string; mimeType?: string | null; name?: string | null }[] }
 interface ShareModule { getPending(): Promise<RawShare | null>; clear(): Promise<void> }
 
 const native: ShareModule | undefined = (NativeModules as { ShareIntent?: ShareModule }).ShareIntent;
 
-/** Finds the chat zip in what another app shared. Photos, voice notes, text and other files are ignored (null when no zip). */
+/** Sorts what another app shared (photos, a voice note, text) into what the Add unit screen takes. */
 export function classifyShare(raw: RawShare | null): SharedItems | null {
   if (!raw) return null;
+  const photos: UploadFile[] = [];
+  let voice: UploadFile | undefined;
   let zip: UploadFile | undefined;
   let chatGuess: UploadFile | undefined;
   (raw.files ?? []).forEach((f, i) => {
@@ -19,11 +20,16 @@ export function classifyShare(raw: RawShare | null): SharedItems | null {
     const name = f.name || `shared_${i}`;
     // WhatsApp's "Export chat" with media is a .zip (some phones give no type, so the name counts too).
     if (looksLikeZip({ name: f.name, type })) { if (!zip) zip = { uri: f.uri, name, type: 'application/zip' }; }
-    // Safety net: a file named like a WhatsApp export, with no zip name or type, is still taken as the chat zip (never a photo or voice note).
-    else if (!chatGuess && !type.startsWith('image/') && !type.startsWith('audio/') && /^WhatsApp Chat/i.test(f.name || '')) chatGuess = { uri: f.uri, name, type: 'application/zip' };
+    else if (type.startsWith('image/')) photos.push({ uri: f.uri, name, type: type || 'image/jpeg' });
+    // WhatsApp voice notes arrive as .opus/.ogg; the server's voice reader accepts ogg, m4a, mp4, mpeg, aac and wav.
+    else if (type.startsWith('audio/') && !voice) voice = { uri: f.uri, name, type: type === 'audio/opus' ? 'audio/ogg' : type };
+    // Safety net: a file named like a WhatsApp export, with no zip name or type, is still taken as the chat zip.
+    else if (!chatGuess && /^WhatsApp Chat/i.test(f.name || '')) chatGuess = { uri: f.uri, name, type: 'application/zip' };
   });
-  zip = zip ?? chatGuess;
-  return zip ? { zip } : null;
+  if (!zip) zip = chatGuess;
+  const text = (raw.text || '').trim();
+  if (!photos.length && !voice && !text && !zip) return null;
+  return { text: text || undefined, photos: photos.length ? photos : undefined, voice, zip };
 }
 
 /** Reads what another app shared into this one (Android: Share menu; iPhone: the Share extension) and clears it. */
