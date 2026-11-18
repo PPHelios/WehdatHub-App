@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,6 +27,7 @@ import { buildImportPosts, blockedByCode, codeBadge, incomplete, keptOf, looksLi
 import type { CodeBadge, ImportPost } from '../whatsappImport';
 import { fill, wi } from '../whatsappImportText';
 import { ZipImportError, cancelUnpack, cleanUp, unpackChat } from '../zipImport';
+import { toast } from '../components/Toast';
 
 type Nav = NativeStackNavigationProp<RootStackParams>;
 type Phase = 'pick' | 'reading' | 'review';
@@ -237,7 +238,7 @@ export function WhatsAppImportScreen() {
         usage('wa_import_add', false, Date.now() - t0, { outcome: 'failed', ai: false, photos, reason: e instanceof ApiClientError ? String(e.code || e.status) : 'unexpected' });
         if (!(e instanceof ApiClientError)) reportError(e, 'WhatsAppImport.add');
         patchPost(p.id, { state: 'failed', note: e instanceof ApiClientError && e.code === 'plan_limit' ? undefined : W.noteFailed });
-        if (e instanceof ApiClientError && e.code === 'plan_limit') { Alert.alert(W.title, lang === 'en' ? "You reached your plan's unit limit." : 'وصلت للحد الأقصى للوحدات في باقتك.'); break; }
+        if (e instanceof ApiClientError && e.code === 'plan_limit') { toast(lang === 'en' ? "You reached your plan's unit limit." : 'وصلت للحد الأقصى للوحدات في باقتك.', true); break; }
       }
       done += 1;
       setProgress(done / todo.length);

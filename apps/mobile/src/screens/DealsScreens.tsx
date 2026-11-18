@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,6 +18,7 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { lift, radius, spacing, useTheme } from '../theme';
+import { toast } from '../components/Toast';
 
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
@@ -49,7 +50,7 @@ export function DealsScreen() {
   const [status, setStatus] = useState('');
   const q = useQuery({ queryKey: ['deals', status], queryFn: () => api.deals(status || undefined) });
   const setDeal = async (ref: string, to: string, version: unknown) => {
-    try { await api.dealStatus(ref, to, Number(version)); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { Alert.alert(errorText(e, lang)); }
+    try { await api.dealStatus(ref, to, Number(version)); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { toast(errorText(e, lang), true); }
   };
   return (
     <Gate q={q}>
@@ -69,7 +70,7 @@ export function DealsScreen() {
               {rights.manager || rights.agencyOwner ? (
                 <Section testID={`sec-fix-${str(x.ref)}`} title={t(lang, 'correctDeal')}>
                   <Field label={t(lang, 'dealCommission')} value={fix[str(x.ref)] ?? ''} onChangeText={(v) => setFix({ ...fix, [str(x.ref)]: v })} />
-                  <Button testID={`fix-${str(x.ref)}`} label={t(lang, 'save')} disabled={!(fix[str(x.ref)] ?? '').trim()} onPress={async () => { try { await api.correctDeal(`D-${String(x.ref).padStart(4, '0')}`, { commission: fix[str(x.ref)], version: Number(x.version) }); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { Alert.alert(errorText(e, lang)); } }} />
+                  <Button testID={`fix-${str(x.ref)}`} label={t(lang, 'save')} disabled={!(fix[str(x.ref)] ?? '').trim()} onPress={async () => { try { await api.correctDeal(`D-${String(x.ref).padStart(4, '0')}`, { commission: fix[str(x.ref)], version: Number(x.version) }); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { toast(errorText(e, lang), true); } }} />
                 </Section>
               ) : null}
               {d.statuses.length ? <Chips value={str(x.status)} onChange={(s) => { void setDeal(str(x.ref), s, x.version); }} options={d.statuses.map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} /> : null}
@@ -149,7 +150,7 @@ export function PortalScreen() {
   const q = useQuery({ queryKey: ['portal'], queryFn: () => api.portalEnquiries() });
   const [phones, setPhones] = useState<Record<string, string>>({});
   const assign = async (id: string) => {
-    try { await api.assignEnquiry(id, { phone: phones[id] ?? '' }); await qc.invalidateQueries({ queryKey: ['portal'] }); } catch (e) { Alert.alert(errorText(e, lang)); }
+    try { await api.assignEnquiry(id, { phone: phones[id] ?? '' }); await qc.invalidateQueries({ queryKey: ['portal'] }); } catch (e) { toast(errorText(e, lang), true); }
   };
   return (
     <Gate q={q}>

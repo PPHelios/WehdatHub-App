@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { timed, usage } from '../usage';
 import { UnitLifecycle } from '../components/UnitLifecycle';
 import { UnitPrivateForms } from '../components/UnitPrivateForms';
-import { Alert, Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Modal, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -23,6 +23,7 @@ import { FINISHING, FURNISHING, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 import { clientLang } from '../prefs';
+import { toast } from '../components/Toast';
 
 type FlyerKind = 'dark' | 'light' | 'nobrand';
 
@@ -47,7 +48,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
       setFlyer((await timed('flyer_make', () => api.unitFlyer(unitCode, kind === 'light' ? 'light' : 'dark', kind === 'nobrand', clientLang()), { kind })).url);
       setFlyerKind(kind);
     } catch (e) {
-      Alert.alert(e instanceof ApiClientError && e.status === 503 ? t(lang, 'flyerBusy') : t(lang, 'flyerFailed'));
+      toast(e instanceof ApiClientError && e.status === 503 ? t(lang, 'flyerBusy') : t(lang, 'flyerFailed'), true);
     } finally {
       setFlyerBusy(null);
     }
@@ -56,7 +57,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
     if (!flyer) return;
     setSharingFlyer(true);
     try {
-      if ((await sharePhotos([flyer], '', 'flyer_share', { kind: flyerKind })) === 'failed') Alert.alert(t(lang, 'flyerFailed'));
+      if ((await sharePhotos([flyer], '', 'flyer_share', { kind: flyerKind })) === 'failed') toast(t(lang, 'flyerFailed'), true);
     } finally {
       setSharingFlyer(false);
     }
@@ -74,7 +75,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
       await api.unitAccessRequest(unitCode);
       await qc.invalidateQueries({ queryKey: ['unit', unitCode, 'contact'] });
     } catch {
-      Alert.alert(t(lang, 'serverError'));
+      toast(t(lang, 'serverError'), true);
     } finally {
       setAsking(false);
     }
@@ -97,7 +98,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
       if (e instanceof ApiClientError && e.status === 422) setClientErr(t(lang, 'badRecipient'));
       else {
         setPickClient(false);
-        Alert.alert(t(lang, 'linkFailed'));
+        toast(t(lang, 'linkFailed'), true);
       }
     } finally {
       setSharing(false);

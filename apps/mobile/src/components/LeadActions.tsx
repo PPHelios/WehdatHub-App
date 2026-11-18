@@ -12,6 +12,7 @@ import { useTheme } from '../theme';
 import { Button } from './Button';
 import { Field } from './Field';
 import { Section } from './Section';
+import { toast } from './Toast';
 
 /** Draft a message, send a unit to the client, and (managers) merge a duplicate or erase the client. The server decides who may. */
 export function LeadActions({ lead, manager }: { lead: ApiLead; manager: boolean }) {
@@ -47,7 +48,7 @@ export function LeadActions({ lead, manager }: { lead: ApiLead; manager: boolean
       {
         text: t(lang, 'eraseLead'),
         style: 'destructive',
-        onPress: () => void guard(async () => { await api.leadErase(lead.ref, digits.trim()); Alert.alert(t(lang, 'erased')); await qc.invalidateQueries({ queryKey: ['leads'] }); nav.goBack(); }, t(lang, 'eraseFail')),
+        onPress: () => void guard(async () => { await api.leadErase(lead.ref, digits.trim()); toast(t(lang, 'erased')); await qc.invalidateQueries({ queryKey: ['leads'] }); nav.goBack(); }, t(lang, 'eraseFail')),
       },
     ]);
 

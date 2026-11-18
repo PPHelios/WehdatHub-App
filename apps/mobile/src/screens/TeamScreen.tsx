@@ -18,6 +18,7 @@ import { errorText } from '../errors';
 import { stageLabel, t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { lift, radius, spacing, useTheme } from '../theme';
+import { toast } from '../components/Toast';
 
 /** The team: each broker with open, overdue and due-today leads. A manager sees everyone, a team lead their own team. */
 export function TeamScreen() {
@@ -78,7 +79,7 @@ function FormerList({ header }: { header: React.ReactNode }) {
   const q = useQuery({ queryKey: ['teamFormer'], queryFn: () => api.formerTeam() });
   const done = () => Promise.all([qc.invalidateQueries({ queryKey: ['teamFormer'] }), qc.invalidateQueries({ queryKey: ['team'] })]).catch(() => {});
   const act = async (fn: () => Promise<unknown>) => {
-    try { await fn(); } catch (e) { Alert.alert(memberError(e, lang)); return; }
+    try { await fn(); } catch (e) { toast(memberError(e, lang), true); return; }
     done();
   };
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
@@ -164,7 +165,7 @@ export function TeamMemberScreen() {
   const rights = useRights();
   const qc = useQueryClient();
   const admin = async (fn: () => Promise<unknown>) => {
-    try { await fn(); } catch (e) { Alert.alert(memberError(e, lang)); return; }
+    try { await fn(); } catch (e) { toast(memberError(e, lang), true); return; }
     // The change is saved; a failed refresh of the list must not read as a failed change.
     qc.invalidateQueries({ queryKey: ['team'] }).catch(() => {});
     qc.invalidateQueries({ queryKey: ['teamFormer'] }).catch(() => {});

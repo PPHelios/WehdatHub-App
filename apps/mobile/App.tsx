@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { startUsage, usage } from './src/usage';
 import { Alert, AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
 import { BusyProvider } from './src/busy';
+import { ToastHost } from './src/components/Toast';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -134,6 +135,7 @@ export default function App() {
           </BusyProvider>
           {locked && status === 'signedIn' ? <LockScreen /> : null}
           <OfflineBanner />
+          <ToastHost />
         </PersistQueryClientProvider>
       )}
     </SafeAreaProvider>

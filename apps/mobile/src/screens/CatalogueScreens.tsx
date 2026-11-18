@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -25,6 +25,7 @@ import { pt } from '../projectText';
 import { plain, withCommas } from '../readback';
 import { lift, radius, spacing, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
+import { toast } from '../components/Toast';
 
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
@@ -103,7 +104,7 @@ export function ProjectScreen() {
   const id = useRoute<RouteProp<RootStackParams, 'Project'>>().params.id;
   const query = useQuery({ queryKey: ['project', id], queryFn: () => api.project(id) });
   const archive = async (on: boolean) => {
-    try { await api.archiveProject(id, on); await qc.invalidateQueries({ queryKey: ['catalogue'] }); nav.goBack(); } catch (e) { Alert.alert(errorText(e, lang)); }
+    try { await api.archiveProject(id, on); await qc.invalidateQueries({ queryKey: ['catalogue'] }); nav.goBack(); } catch (e) { toast(errorText(e, lang), true); }
   };
   return (
     <Gate q={query}>

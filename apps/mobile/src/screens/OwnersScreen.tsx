@@ -18,6 +18,7 @@ import { t } from '../i18n';
 import { UNIT_STATUS, labelOf } from '../unitOptions';
 import { useDebounced } from '../useDebounced';
 import { lift, radius, spacing, useTheme } from '../theme';
+import { toast } from '../components/Toast';
 
 /** Unit owners: the same list and rules as the website (the server decides who sees which owner and phone). */
 export function OwnersScreen() {
@@ -65,7 +66,7 @@ function RenameRequests({ items }: { items: { id: number; code: string; old_valu
   const lang = currentLang();
   const qc = useQueryClient();
   const decide = async (id: number, ok: boolean) => {
-    await api.decideRename(id, ok).catch((e) => Alert.alert(errorText(e, lang)));
+    await api.decideRename(id, ok).catch((e) => toast(errorText(e, lang), true));
     await qc.invalidateQueries({ queryKey: ['ownerRenames'] });
     await qc.invalidateQueries({ queryKey: ['owners'] });
   };
