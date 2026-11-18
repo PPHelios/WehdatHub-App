@@ -99,7 +99,7 @@ function Meter({ label, used, limit, testID }: { label: string; used: number; li
     <View testID={testID} style={styles.meter}>
       <View style={styles.meterHead}>
         <Text style={{ color: colors.text, fontWeight: '700' }}>{label}</Text>
-        <Text style={{ color: colors.muted }}>{limit >= UNLIMITED_UNITS ? `${num(used)} / ${planT(currentLang(), 'unlimited')}` : ratioText(used, limit)}</Text>
+        <Text style={{ color: colors.muted }}>{limit >= UNLIMITED_UNITS ? `⁦${num(used)} / ${planT(currentLang(), 'unlimited')}⁩` : ratioText(used, limit)}</Text>
       </View>
       <View style={[styles.track, { backgroundColor: colors.border }]}>
         <View style={{ width: `${pct}%`, height: 8, borderRadius: 4, backgroundColor: fill }} />
@@ -159,7 +159,7 @@ export function AiUsageCard({ ai, ar }: { ai: AiUsage; ar: boolean }) {
                 <View style={{ flex: 1, gap: 4 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text numberOfLines={1} style={{ color: colors.text, fontWeight: '600', flexShrink: 1 }}>{p.name}</Text>
-                    <Text style={{ color: colors.muted }}>{num(p.used)}{p.allowance != null ? ` / ${num(p.allowance)}` : ''}</Text>
+                    <Text style={{ color: colors.muted }}>{p.allowance != null ? ratioText(p.used, p.allowance) : num(p.used)}</Text>
                   </View>
                   <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.border }}>
                     <View style={{ width: `${pct}%`, height: 6, borderRadius: 3, backgroundColor: p.allowance != null && p.used >= p.allowance ? colors.danger : colors.primary }} />

@@ -64,6 +64,23 @@ export function RequestsScreen() {
   );
 }
 
+const ROUTE_TEXT: [RegExp, string, string][] = [
+  [/^POST \/team\/invite/, 'ضاف عضو للفريق', 'Invited a team member'],
+  [/^POST \/team\/[^/]+\/deactivate/, 'أوقف عضو', 'Deactivated a member'],
+  [/^POST \/team\/[^/]+\/reactivate/, 'فعّل عضو', 'Reactivated a member'],
+  [/^POST \/team\/[^/]+\/delete/, 'مسح عضو', 'Deleted a member'],
+];
+/** Readable text for an activity row: a raw "POST /team/invite" is mapped, or humanised when the route is unknown. */
+export function activityText(text: string, ar: boolean): string {
+  const m = /^(GET|POST|PUT|PATCH|DELETE)\s+(\/\S*)$/.exec(text.trim());
+  if (!m) return text;
+  const known = ROUTE_TEXT.find(([re]) => re.test(text.trim()));
+  if (known) return ar ? known[1] : known[2];
+  const words = m[2].split('/').filter((x) => x && !/^[0-9a-f-]{8,}$/i.test(x) && !/^\d+$/.test(x)).join(' ').replace(/[_-]+/g, ' ').trim();
+  const verb = ({ POST: ['عمل', 'Did'], PUT: ['عدّل', 'Changed'], PATCH: ['عدّل', 'Changed'], DELETE: ['مسح', 'Removed'], GET: ['فتح', 'Opened'] } as Record<string, [string, string]>)[m[1]];
+  return `${ar ? verb[0] : verb[1]} ${words}`.trim();
+}
+
 /** Who did what, when (managers see data requests; the agency owner sees everything). Kept 90 days. */
 export function ActivityLogScreen() {
   const { colors } = useTheme();
@@ -85,7 +102,7 @@ export function ActivityLogScreen() {
       ListEmptyComponent={<EmptyView title={ot(lang, 'noRequests')} />}
       renderItem={({ item }) => (
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={{ color: colors.text }}>{item.text}</Text>
+          <Text style={{ color: colors.text }}>{activityText(item.text, lang === 'ar')}</Text>
           <Text style={{ color: colors.muted }}>{item.who} · {new Date(item.at).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</Text>
         </View>
       )}
