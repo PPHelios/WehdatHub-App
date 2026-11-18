@@ -7,7 +7,11 @@ import { radius, spacing, useTheme } from '../theme';
 /** Text that starts with Arabic sits at the right edge and Latin text at the left, whatever the screen's direction. */
 function alignOf(v: unknown) {
   const first = typeof v === 'string' ? v.match(/[A-Za-z؀-ۿ]/)?.[0] : undefined;
-  if (!first) return undefined;
+  if (!first) {
+    // A bare phone number keeps its digit groups in order inside the RTL layout.
+    if (typeof v === 'string' && /\d/.test(v) && /^[\d\s+\-().]+$/.test(v)) return { textAlign: 'left' as const, writingDirection: 'ltr' as const };
+    return undefined;
+  }
   return { textAlign: /[؀-ۿ]/.test(first) ? ('right' as const) : ('left' as const), writingDirection: /[؀-ۿ]/.test(first) ? ('rtl' as const) : ('ltr' as const) };
 }
 

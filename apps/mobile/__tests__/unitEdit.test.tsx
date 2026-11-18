@@ -56,6 +56,16 @@ test('a stale version says the unit changed elsewhere', async () => {
   expect(mockGoBack).not.toHaveBeenCalled();
 });
 
+test('an owner name that is just the phone loads as the "use phone as name" toggle with an empty name', async () => {
+  m.unit.mockResolvedValue({ images: [] });
+  m.unitEditFields.mockResolvedValue({ code: 'A-1', version: 4, fields: { listing_type: 'sale', owner_phone: '+201012345622', owner_name: '0101 234 5622' } });
+  m.saveUnitEdit.mockResolvedValue({ code: 'A-1', version: 5 });
+  await render(<QueryClientProvider client={client()}><AddUnitScreen /></QueryClientProvider>);
+  await waitFor(() => expect(screen.getByTestId('f-owner_phone')).toBeTruthy());
+  await waitFor(() => expect(screen.getByTestId('f-owner_name').props.value).toBe(''));
+  await waitFor(() => expect(screen.getByTestId('f-owner_name_from_phone').props.value).toBe(true));
+});
+
 test('the unit page shows Edit only when the server says canEdit', async () => {
   mockParams = undefined;
   m.unit.mockResolvedValue({ ...unit, canEdit: true });

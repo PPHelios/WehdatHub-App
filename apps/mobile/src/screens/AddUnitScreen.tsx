@@ -38,6 +38,13 @@ import type { Step } from '../unitRules';
 import { toastError } from '../components/Toast';
 
 const str = (v: UnitFields[string]): string => (typeof v === 'string' ? v : '');
+const phoneDigits = (v: string) => { const d = v.replace(/\D/g, '').replace(/^00/, ''); return d.startsWith('20') ? d.slice(2).replace(/^0+/, '') : d.replace(/^0+/, ''); };
+/** The server saves the phone as the owner name when "use phone as name" is on: show that as the toggle, not as a name. */
+function unphoneName<T extends UnitFields>(f: T): T {
+  const name = str(f.owner_name), phone = str(f.owner_phone);
+  if (name && phone && phoneDigits(name) && phoneDigits(name) === phoneDigits(phone)) return { ...f, owner_name: '', owner_name_from_phone: '1' };
+  return f;
+}
 /** In edit mode a photo already on the unit is listed with this type and its image id as name. */
 export const EXISTING = 'existing';
 export const photoChanges = (original: string[], list: UploadFile[]) => {
@@ -160,7 +167,7 @@ export function AddUnitScreen() {
       if (editCode) {
         try {
           const [r, u] = await Promise.all([api.unitEditFields(editCode), api.unit(editCode)]);
-          setFields(r.fields);
+          setFields(unphoneName(r.fields));
           descAuto.current = isAutoDraft(str(r.fields.clean_summary));
           setVersion(r.version);
           setPhotos(u.images.map((i) => ({ uri: i.url, name: i.id, type: EXISTING })));
@@ -169,7 +176,7 @@ export function AddUnitScreen() {
           const sh = shared.current;
           if (sh?.photos?.length) setPhotos((p) => addPicked(p, sh.photos!));
           if (sh?.text) { setDescribe(sh.text); if (!sh.noAi) await runFill({ describe: sh.text }); }
-          if (sh?.fields) setFields((f) => withImpliedFeatures({ ...f, ...Object.fromEntries(Object.entries(sh.fields!).filter(([k, v]) => k !== 'code' && v !== '' && v !== undefined && v !== null)) }));
+          if (sh?.fields) setFields((f) => withImpliedFeatures(unphoneName({ ...f, ...Object.fromEntries(Object.entries(sh.fields!).filter(([k, v]) => k !== 'code' && v !== '' && v !== undefined && v !== null)) })));
         } catch (e) {
           setError(toastError(errorText(e, lang)));
         }
@@ -191,7 +198,7 @@ export function AddUnitScreen() {
         if (s.text) setDescribe((cur) => (cur ? `${cur}\n${s.text}` : s.text!));
       }
       setReady(true);
-      if (s?.fields) { patch(Object.fromEntries(Object.entries(s.fields).filter(([, v]) => v !== '' && v !== undefined && v !== null))); setNotice(L.boxFromText); }
+      if (s?.fields) { const sf = unphoneName(s.fields as UnitFields); patch(Object.fromEntries(Object.entries(sf).filter(([, v]) => v !== '' && v !== undefined && v !== null))); setNotice(L.boxFromText); }
       if (s?.code && !s.fields?.code && !s.edit) patch({ code: s.code });
       else if (s?.noAi && s.text) readMessage(s.text, {}).then((p) => { if (Object.keys(p).length) { patch(p); setNotice(L.boxFromText); } }).catch(() => undefined);
       else if (s?.text) await runFill({ describe: s.text });

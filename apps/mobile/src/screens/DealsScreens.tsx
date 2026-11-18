@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ltr } from '@wehdathub/shared';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
@@ -206,7 +207,7 @@ export function LinksScreen() {
                   <Text style={{ color: colors.primary, fontWeight: '800', flex: 1 }}>{str(x.unit_code)}{x.compound ? ` · ${str(x.compound)}` : ''}</Text>
                   <Text style={{ color: Number(x.open_count) ? colors.accent : colors.muted, fontWeight: '700' }}>{Number(x.open_count) ? `${num(x.open_count)} ${ar ? 'فتحة' : 'opens'} · ${num(x.devices)} ${ar ? 'جهاز' : 'devices'}` : ar ? 'ما اتفتحش' : 'Not opened'}</Text>
                 </View>
-                <Text style={{ color: colors.text }}>{[lead?.name || lead?.ref, str(x.recipient_phone) || lead?.phone].filter(Boolean).join(' · ') || (ar ? 'من غير عميل' : 'No client')}</Text>
+                <Text style={{ color: colors.text }}>{[lead?.name || lead?.ref, (str(x.recipient_phone) || lead?.phone) ? ltr(str(x.recipient_phone) || lead?.phone || '') : ''].filter(Boolean).join(' · ') || (ar ? 'من غير عميل' : 'No client')}</Text>
                 <Text style={{ color: colors.muted }}>{ar ? 'اتبعت' : 'Sent'} {when(x.created_at)}{x.sent_by ? ` · ${str(x.sent_by)}` : ''}</Text>
                 {x.last_opened_at ? <Text style={{ color: colors.muted }}>{ar ? 'آخر فتح' : 'Last opened'} {when(x.last_opened_at)}</Text> : null}
               </Card>

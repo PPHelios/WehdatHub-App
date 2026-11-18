@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { errorCodes, isErrorWithCode, pick, types } from '@react-native-documents/picker';
-import { ApiClientError, ChatParse, phoneSchema } from '@wehdathub/shared';
+import { ApiClientError, ChatParse, displayPhone, looksLikePhone, ltr, phoneSchema } from '@wehdathub/shared';
 import type { CodeState, UnitFields, UploadFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -377,7 +377,7 @@ export function WhatsAppImportScreen() {
                 </Pressable>
                 <View style={styles.flex}>
                   <BadgeLine W={W} badge={badge} colors={colors} />
-                  <Text style={[styles.small, { color: colors.muted }]} numberOfLines={1}>{[p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
+                  <Text style={[styles.small, { color: colors.muted }]} numberOfLines={1}>{[p.post.sender && looksLikePhone(p.post.sender) ? ltr(displayPhone(p.post.sender)) : p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
                 </View>
                 {p.state === 'working' ? <ActivityIndicator color={colors.primary} /> : null}
                 {p.state === 'saved' ? <Text style={[styles.bold, { color: colors.accent }]}>✓ {W.stateSaved}{p.savedCode ? ` ${p.savedCode}` : ''}</Text> : null}
@@ -443,7 +443,7 @@ function SummaryGrid({ W, lang, post, colors }: { W: ReturnType<typeof wi>; lang
     { k: 'bathrooms', label: W.baths, value: str(f.bathrooms) },
     { k: 'finishing', label: L2 === 'en' ? 'Finishing' : 'التشطيب', value: labelOf(FINISHING, str(f.finishing), L2) ?? '' },
     { k: 'furnishing', label: L2 === 'en' ? 'Furnishing' : 'الفرش', value: labelOf(FURNISHING, str(f.furnishing), L2) ?? '' },
-    { k: 'owner_phone', label: W.f_owner_phone, value: str(f.owner_phone) },
+    { k: 'owner_phone', label: W.f_owner_phone, value: f.owner_phone ? ltr(displayPhone(str(f.owner_phone))) : '' },
   ];
   const alwaysShown = ['listing_type', 'property_type', 'compound', 'price_value', 'area_value', 'owner_phone'];
   const shown = cells.filter((c) => c.value || miss.has(c.k) || alwaysShown.includes(c.k));

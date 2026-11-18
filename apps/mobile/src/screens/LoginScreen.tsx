@@ -59,7 +59,7 @@ export function LoginScreen() {
         {step === 'phone' ? (
           <View style={styles.form}>
             <Text style={[styles.label, { color: colors.muted }]}>{t(LANG, 'phoneLabel')}</Text>
-            <TextInput testID="phone-input" style={input} value={phone} onChangeText={(v) => { setPhone(v); if (message?.bad) setMessage(null); }} onBlur={() => { if (phone.trim() && !phoneSchema.safeParse(phone).success) setMessage({ text: t(LANG, 'badPhone'), bad: true }); }} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" placeholder="01012345678" placeholderTextColor={colors.muted} editable={!busy} />
+            <TextInput testID="phone-input" style={[input, { textAlign: 'left', writingDirection: 'ltr' }]} value={phone} onChangeText={(v) => { setPhone(v); if (message?.bad) setMessage(null); }} onBlur={() => { if (phone.trim() && !phoneSchema.safeParse(phone).success) setMessage({ text: t(LANG, 'badPhone'), bad: true }); }} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" placeholder="01012345678" placeholderTextColor={colors.muted} editable={!busy} />
             <Text style={[styles.hint, { color: colors.muted }]}>{t(LANG, 'phoneHint')}</Text>
             <Button testID="send-code" label={t(LANG, 'sendCode')} onPress={requestCode} loading={busy} />
           </View>
