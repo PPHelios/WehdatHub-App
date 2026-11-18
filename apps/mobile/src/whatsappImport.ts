@@ -93,6 +93,25 @@ export const blockedByCode = (b: CodeBadge) => b.kind === 'taken' || b.kind === 
 /** A post with a mandatory field missing is never added in bulk: it is opened in the edit screen, which marks what is missing. */
 export const incomplete = (p: ImportPost) => Boolean(p.missing && p.missing.length);
 
+export interface ImportCounts { total: number; saved: number; remaining: number; ready: number; incomplete: number; blocked: number; photos: number }
+
+/**
+ * One set of numbers for the header and the bottom bar. `remaining` (not yet added) always equals ready + incomplete + blocked:
+ * ready can be added now, incomplete lacks mandatory fields, blocked is the rest (update, taken, repeated code, not picked, reader failed).
+ */
+export function importCounts(list: ImportPost[], addable: (p: ImportPost, i: number) => boolean): ImportCounts {
+  const c: ImportCounts = { total: list.length, saved: 0, remaining: 0, ready: 0, incomplete: 0, blocked: 0, photos: 0 };
+  list.forEach((p, i) => {
+    if (p.state === 'saved') { c.saved += 1; return; }
+    c.remaining += 1;
+    c.photos += p.photos.length;
+    if (addable(p, i)) c.ready += 1;
+    else if (incomplete(p)) c.incomplete += 1;
+    else c.blocked += 1;
+  });
+  return c;
+}
+
 /** One bar for the whole read: listing and the chat 0 to 15%, the photos 15 to 85%, reading the posts 85 to 95%, the codes to 100%. */
 export function stagePct(stage: 'list' | 'chat' | 'photos' | 'match' | 'codes', frac = 0): number {
   const f = Math.max(0, Math.min(1, frac));

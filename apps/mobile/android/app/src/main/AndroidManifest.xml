@@ -39,12 +39,18 @@
             <category android:name="android.intent.category.DEFAULT" />
             <data android:mimeType="application/zip" />
             <data android:mimeType="application/x-zip-compressed" />
+            <data android:mimeType="application/x-zip" />
+            <data android:mimeType="multipart/x-zip" />
+            <data android:mimeType="application/octet-stream" />
         </intent-filter>
         <intent-filter>
             <action android:name="android.intent.action.SEND_MULTIPLE" />
             <category android:name="android.intent.category.DEFAULT" />
             <data android:mimeType="application/zip" />
             <data android:mimeType="application/x-zip-compressed" />
+            <data android:mimeType="application/x-zip" />
+            <data android:mimeType="multipart/x-zip" />
+            <data android:mimeType="application/octet-stream" />
         </intent-filter>
       </activity>
     </application>

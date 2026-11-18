@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { ltr } from '@wehdathub/shared';
 import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { currentLang } from '../auth';
 import { filterContacts, loadContacts } from '../contacts';
@@ -42,7 +43,7 @@ export function ClientLinkModal({ visible, busy, error, onSubmit, onCancel }: { 
             <ScrollView testID="client-contact-list" style={styles.list} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
               {(contacts ? filterContacts(contacts, q.trim() || (looksLikeName ? text : '')) : []).slice(0, 60).map((c) => (
                 <Pressable key={c.id} accessibilityRole="button" onPress={() => { setText(c.phone); setListOpen(false); setQ(''); }} style={[styles.match, { borderColor: colors.border }]}>
-                  <Text style={{ color: colors.text }}>{c.name || c.phone} · {c.phone}</Text>
+                  <Text style={{ color: colors.text }}>{c.name ? `${c.name} · ` : ''}{ltr(c.phone)}</Text>
                 </Pressable>
               ))}
             </ScrollView>

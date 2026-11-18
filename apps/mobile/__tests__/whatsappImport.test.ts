@@ -1,4 +1,4 @@
-import { KEEP, blockedByCode, incomplete, buildImportPosts, codeBadge, findChatText, looksLikeZip, photoEntriesFor, readPosts, stagePct } from '../src/whatsappImport';
+import { KEEP, blockedByCode, incomplete, buildImportPosts, codeBadge, findChatText, importCounts, looksLikeZip, photoEntriesFor, readPosts, stagePct } from '../src/whatsappImport';
 
 const T = (hh: number, mm: number) => `24/10/2026, ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 const photo = (n: string, at = T(10, 1)) => `${at} - Ahmed: IMG-${n}.jpg (file attached)`;
@@ -61,5 +61,38 @@ describe('whatsapp import helpers', () => {
     expect(looksLikeZip({ name: 'WhatsApp Chat - Group.zip' })).toBe(true);
     expect(looksLikeZip({ name: 'x', type: 'application/x-zip-compressed' })).toBe(true);
     expect(looksLikeZip({ name: 'a.jpg', type: 'image/jpeg' })).toBe(false);
+  });
+});
+
+describe('importCounts', () => {
+  const mk = (id: string, state: string, extra: Record<string, unknown> = {}, nPhotos = 2) => ({
+    id, post: { i: Number(id) } as never, picked: true, state: state as never,
+    photos: Array.from({ length: nPhotos }, (_, k) => ({ uri: `u${id}${k}`, name: `n${id}${k}`, type: 'image/jpeg' })), ...extra,
+  });
+  const list = [
+    mk('1', 'idle'), // ready
+    mk('2', 'idle', { missing: ['compound'] }), // incomplete
+    mk('3', 'idle'), // blocked (update/taken etc.)
+    mk('4', 'saved', {}, 5), // saved: excluded
+    mk('5', 'failed', { missing: ['owner_phone'] }), // incomplete
+    mk('6', 'idle', { picked: false }), // blocked (unpicked)
+  ];
+  const addable = (p: { id: string }) => p.id === '1';
+
+  it('counts every bucket and leaves saved posts out of remaining and photos', () => {
+    expect(importCounts(list, addable)).toEqual({ total: 6, saved: 1, remaining: 5, ready: 1, incomplete: 2, blocked: 2, photos: 10 });
+  });
+
+  it('always has ready + incomplete + blocked equal to remaining', () => {
+    [list, [], list.filter((p) => p.state === 'saved'), list.map((p) => ({ ...p, state: 'idle' as never }))].forEach((l) => {
+      const c = importCounts(l, addable);
+      expect(c.ready + c.incomplete + c.blocked).toBe(c.remaining);
+      expect(c.remaining + c.saved).toBe(c.total);
+    });
+  });
+
+  it('counts a post that is addable as ready even when incomplete flags it', () => {
+    const c = importCounts([mk('1', 'idle', { missing: ['x'] })], () => true);
+    expect(c).toMatchObject({ ready: 1, incomplete: 0, blocked: 0 });
   });
 });

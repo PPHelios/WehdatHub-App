@@ -16,9 +16,11 @@ jest.mock('../src/photoUpload', () => ({ uploadPhoto: jest.fn().mockResolvedValu
 jest.mock('../src/rights', () => ({ useRights: () => ({ manager: true, agencyOwner: false, dataEntry: false, addUnits: true }) }));
 jest.mock('../src/components/SmartImage', () => ({ SmartImage: () => null }));
 const mockNavigate = jest.fn();
+const mockZip = { uri: 'file:///cache/chat.zip', name: 'chat.zip', type: 'application/zip' };
+let mockRoute: { params: Record<string, unknown> } = { params: { zip: mockZip } };
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: mockNavigate, replace: jest.fn() }),
-  useRoute: () => ({ params: { zip: { uri: 'file:///cache/chat.zip', name: 'chat.zip', type: 'application/zip' } } }),
+  useRoute: () => mockRoute,
 }));
 
 const m = api as unknown as Record<string, jest.Mock>;
@@ -30,6 +32,7 @@ const post = (i: number, code: string | null, photos: number, videos = 0) => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockRoute = { params: { zip: mockZip } };
   const posts = [post(1, 'HP-1', 20, 2), post(2, 'HP-2', 2), post(3, 'HP-3', 1), post(4, null, 1)];
   const present = new Map<string, string>();
   posts.forEach((p) => p.files.forEach((f) => present.set(f.name.toLowerCase(), f.name)));
@@ -80,7 +83,9 @@ test('every post is read by the server reader once: a summary shows, and a post 
   expect(screen.getByTestId('wa-missing-4-owner_phone')).toBeTruthy();
   expect(screen.getByTestId('wa-missing-note-4')).toBeTruthy();
   // The update (HP-1), the taken (HP-2) and the incomplete post (4) are opened by hand: only HP-3 is ready.
-  expect(screen.getByTestId('wa-ready').props.children).toMatch(/1 ready to add · 1 missing details|1 جاهزة للإضافة · 1 ناقصة بيانات/);
+  // The 2 left out (update, taken) are blocked and said so: the header total is the 4 unsaved posts, the bar splits them 1 + 1 + 2.
+  expect(screen.getByTestId('wa-ready').props.children).toMatch(/1 ready to add · 1 missing details · 2 need opening and editing|1 جاهزة للإضافة · 1 ناقصة بيانات · 2 محتاجة فتح وتعديل/);
+  expect(screen.getByTestId('wa-summary').props.children).toMatch(/4 posts · 24 photos|4 بوست · 24 صورة/);
   expect(screen.queryByTestId('wa-ai-review')).toBeNull();
 });
 
@@ -90,7 +95,7 @@ test('adding the selected posts saves only the ones that can be added, with thei
   m.createUnit.mockResolvedValue({ code: 'HP-3', photos: 1, photosFailed: 0 });
   await open();
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
-  await waitFor(() => expect(screen.getAllByText(/Added HP-3|اتضافت HP-3/)).toHaveLength(1));
+  await waitFor(() => expect(screen.queryByTestId('wa-post-3')).toBeNull());
   // HP-1 (an update), HP-2 (taken) and the incomplete post are not added in bulk; only HP-3 is, with the reader's fields.
   expect(m.createUnit).toHaveBeenCalledTimes(1);
   expect(m.createUnit.mock.calls[0][3]).toEqual(['k1']);
@@ -162,4 +167,50 @@ test('the photos have no arrows (the order is set in the edit screen) and the de
   expect(screen.getAllByText(/Show the full message|عرض الرسالة كاملة/).length).toBe(4);
   await act(async () => { fireEvent.press(screen.getByTestId('wa-desc-3')); });
   expect(screen.getAllByText(/Hide|إخفاء/).length).toBe(1);
+});
+
+const split = (txt: string) => (txt.match(/\d+/g) ?? []).map(Number);
+
+test('an added post leaves the list: its card is gone, the header and bottom counts shrink and still agree', async () => {
+  m.reviewUnit.mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null });
+  m.photoUploadLinks.mockImplementation(async () => ({ uploads: [{ key: 'k1', upload_url: 'u', thumb_key: 't', thumb_upload_url: null }] }));
+  m.createUnit.mockResolvedValue({ code: 'HP-3', photos: 1, photosFailed: 0 });
+  await open();
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
+  await waitFor(() => expect(screen.queryByTestId('wa-post-3')).toBeNull());
+  expect(screen.getByTestId('wa-post-1')).toBeTruthy();
+  expect(screen.queryByTestId('wa-summary-3')).toBeNull();
+  expect(screen.queryByText(/Open|^افتح$/)).toBeNull();
+  const [posts, photos] = split(screen.getByTestId('wa-summary').props.children);
+  expect([posts, photos]).toEqual([3, 23]);
+  expect(screen.getByTestId('wa-saved-line').props.children).toMatch(/1 added|اتضافت 1/);
+  const [ready, inc, blocked] = split(screen.getByTestId('wa-ready').props.children);
+  expect(ready + inc + (blocked ?? 0)).toBe(posts);
+  expect(ready).toBe(0);
+});
+
+test('a post saved in the edit screen (route.params.saved) disappears and the counts shrink', async () => {
+  await open();
+  expect(screen.getByTestId('wa-post-4')).toBeTruthy();
+  mockRoute = { params: { zip: mockZip, saved: { id: '4', code: 'X-9' } } };
+  await act(async () => { screen.rerender(<WhatsAppImportScreen />); });
+  await waitFor(() => expect(screen.queryByTestId('wa-post-4')).toBeNull());
+  expect(screen.queryByTestId('wa-missing-note-4')).toBeNull();
+  const [posts] = split(screen.getByTestId('wa-summary').props.children);
+  expect(posts).toBe(3);
+  const [ready, inc, blocked] = split(screen.getByTestId('wa-ready').props.children);
+  expect([ready, inc, blocked]).toEqual([1, 0, 2]);
+  expect(ready + inc + blocked).toBe(posts);
+  expect(screen.getByTestId('wa-saved-line')).toBeTruthy();
+});
+
+test('when every post is added a short message replaces the list', async () => {
+  await open();
+  for (const id of ['1', '2', '3', '4']) {
+    mockRoute = { params: { zip: mockZip, saved: { id, code: `C-${id}` } } };
+    await act(async () => { screen.rerender(<WhatsAppImportScreen />); });
+  }
+  await waitFor(() => expect(screen.getByTestId('wa-all-added')).toBeTruthy());
+  expect(screen.queryByTestId('wa-post-1')).toBeNull();
+  expect(screen.getByTestId('wa-summary').props.children).toMatch(/0 posts|0 بوست/);
 });

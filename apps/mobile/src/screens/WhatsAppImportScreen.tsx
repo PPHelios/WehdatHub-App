@@ -4,7 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { errorCodes, isErrorWithCode, pick, types } from '@react-native-documents/picker';
-import { ApiClientError, ChatParse, phoneSchema } from '@wehdathub/shared';
+import { ApiClientError, ChatParse, displayPhone, looksLikePhone, ltr, phoneSchema } from '@wehdathub/shared';
 import type { CodeState, UnitFields, UploadFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -24,7 +24,7 @@ import { newSaveKey, withSaveCheck } from '../saveKey';
 import { radius, spacing, useTheme } from '../theme';
 import { usage } from '../usage';
 import { sendable, withImpliedFeatures } from '../unitRules';
-import { buildImportPosts, blockedByCode, codeBadge, incomplete, keptOf, lacksDealType, lacksOwnerPhone, looksLikeZip, missingOf, stagePct, withDealType, withOwnerPhone } from '../whatsappImport';
+import { buildImportPosts, blockedByCode, codeBadge, importCounts, incomplete, keptOf, lacksDealType, lacksOwnerPhone, looksLikeZip, missingOf, stagePct, withDealType, withOwnerPhone } from '../whatsappImport';
 import type { CodeBadge, ImportPost } from '../whatsappImport';
 import { fill, wi } from '../whatsappImportText';
 import { ZipImportError, cancelUnpack, cleanUp, unpackChat } from '../zipImport';
@@ -182,7 +182,7 @@ export function WhatsAppImportScreen() {
   // An edited post that was saved in the add-unit screen comes back here marked as added.
   useEffect(() => {
     const s = route.params?.saved;
-    if (s) { patchPost(s.id, { state: 'saved', savedCode: s.code, note: undefined }); usage('wa_import_edit', true, undefined, { outcome: 'saved' }); }
+    if (s) { patchPost(s.id, { state: 'saved', savedCode: s.code, note: undefined, missing: undefined }); usage('wa_import_edit', true, undefined, { outcome: 'saved' }); }
   }, [route.params?.saved, patchPost]);
 
   const choose = async () => {
@@ -197,7 +197,6 @@ export function WhatsAppImportScreen() {
   };
 
   const badges = useMemo(() => list.map((_, i) => codeBadge(list, i, codes, codeStatus)), [list, codes, codeStatus]);
-  const totalPhotos = list.reduce((n, p) => n + p.photos.length, 0);
   // The reader could not be reached (a network problem, or a server without it): the list says so and offers to try again.
   const retryDetails = async () => {
     try {
@@ -246,7 +245,7 @@ export function WhatsAppImportScreen() {
       }
     }
     const res = await withSaveCheck(api.createUnit(body, legacy, key, keys), () => api.unitSaveStatus(key));
-    patchPost(p.id, { state: 'saved', savedCode: (res as { code: string }).code, note: undefined });
+    patchPost(p.id, { state: 'saved', savedCode: (res as { code: string }).code, note: undefined, missing: undefined });
     return 'saved';
   };
 
@@ -278,9 +277,8 @@ export function WhatsAppImportScreen() {
     setAdding(false);
   };
 
-  const readyCount = list.filter(addable).length;
-  const incompleteCount = list.filter((p) => p.state !== 'saved' && incomplete(p)).length;
-  const buttonLabel = `${W.addSelected} (${readyCount})`;
+  const counts = importCounts(list, addable);
+  const buttonLabel = `${W.addSelected} (${counts.ready})`;
 
   if (!allowed) {
     return (
@@ -322,15 +320,13 @@ export function WhatsAppImportScreen() {
     );
   }
 
-  const added = list.filter((p) => p.state === 'saved').length;
-  const needs = list.filter((p) => p.state === 'needs_edit' || p.state === 'failed').length;
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text testID="wa-summary" style={{ color: colors.text, fontWeight: '700' }}>{fill(W.summary, { n: list.length, p: totalPhotos })}</Text>
+        <Text testID="wa-summary" style={{ color: colors.text, fontWeight: '700' }}>{fill(W.summary, { n: counts.remaining, p: counts.photos })}</Text>
         {videos ? <Text style={{ color: colors.muted }}>🎞 {fill(W.videos, { n: videos })}</Text> : null}
         {missing ? <Text style={{ color: colors.muted }}>{fill(W.missing, { n: missing })}</Text> : null}
-        {added || needs ? <Text style={{ color: colors.text }}>{fill(W.doneLine, { a: added, b: needs })}</Text> : null}
+        {counts.saved > 0 ? <Text testID="wa-saved-line" style={{ color: colors.text }}>{fill(W.doneLine, { a: counts.saved })}</Text> : null}
         {bulkCount.deal + bulkCount.owner > 0 ? (
           <View testID="wa-bulk" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
             <Text style={{ color: colors.text, fontWeight: '700' }}>🧰 {W.bulkTitle}</Text>
@@ -364,10 +360,12 @@ export function WhatsAppImportScreen() {
             <Button testID="wa-read-retry" label={W.retry} variant="secondary" onPress={retryDetails} />
           </View>
         ) : null}
+        {counts.remaining === 0 ? <Text testID="wa-all-added" style={{ color: colors.text, fontWeight: '700', textAlign: 'center' }}>{W.allAdded}</Text> : null}
         {list.map((p, i) => {
+          if (p.state === 'saved') return null;
           const badge = badges[i];
           const kept = keptOf(p).length;
-          const locked = p.state === 'saved' || p.state === 'working';
+          const locked = p.state === 'working';
           const open = Boolean(openText[p.id]);
           return (
             <View key={p.id} testID={`wa-post-${p.id}`} style={[styles.card, { borderColor: p.missing?.length ? colors.danger : colors.border, backgroundColor: colors.card }]}>
@@ -377,10 +375,9 @@ export function WhatsAppImportScreen() {
                 </Pressable>
                 <View style={styles.flex}>
                   <BadgeLine W={W} badge={badge} colors={colors} />
-                  <Text style={[styles.small, { color: colors.muted }]} numberOfLines={1}>{[p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
+                  <Text style={[styles.small, { color: colors.muted }]} numberOfLines={1}>{[p.post.sender && looksLikePhone(p.post.sender) ? ltr(displayPhone(p.post.sender)) : p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
                 </View>
                 {p.state === 'working' ? <ActivityIndicator color={colors.primary} /> : null}
-                {p.state === 'saved' ? <Text style={[styles.bold, { color: colors.accent }]}>✓ {W.stateSaved}{p.savedCode ? ` ${p.savedCode}` : ''}</Text> : null}
               </View>
               <SummaryGrid W={W} lang={lang} post={p} colors={colors} />
               <Pressable testID={`wa-desc-${p.id}`} accessibilityRole="button" onPress={() => setOpenText((o) => ({ ...o, [p.id]: !o[p.id] }))}>
@@ -404,13 +401,13 @@ export function WhatsAppImportScreen() {
               ) : null}
               {p.note ? <Text style={{ color: colors.danger }}>{p.state === 'needs_edit' ? `${W.stateNeedsEdit}: ` : ''}{p.note}</Text> : null}
               {p.state === 'failed' && !p.note ? <Text style={{ color: colors.danger }}>{W.stateFailed}</Text> : null}
-              {p.state !== 'saved' ? <Button label={badge.kind === 'update' ? W.editUpdate : W.edit} variant="secondary" disabled={p.state === 'working' || badge.kind === 'taken'} onPress={() => edit(p, badge)} /> : <Button label={W.openUnit} variant="secondary" onPress={() => nav.navigate('Unit', { code: p.savedCode as string })} />}
+              <Button label={badge.kind === 'update' ? W.editUpdate : W.edit} variant="secondary" disabled={p.state === 'working' || badge.kind === 'taken'} onPress={() => edit(p, badge)} />
             </View>
           );
         })}
       </ScrollView>
       <View style={[styles.bottom, { borderColor: colors.border, backgroundColor: colors.bg }]}>
-        <Text testID="wa-ready" style={{ color: colors.muted, textAlign: 'center' }}>{fill(W.addableLine, { n: readyCount, m: incompleteCount })}</Text>
+        <Text testID="wa-ready" style={{ color: colors.muted, textAlign: 'center' }}>{`${fill(W.addableLine, { n: counts.ready, m: counts.incomplete })}${counts.blocked > 0 ? ` · ${fill(W.blockedLine, { b: counts.blocked })}` : ''}`}</Text>
         <Button testID="wa-add" label={buttonLabel} progress={adding ? progress : undefined} disabled={adding || !list.some(addable)} onPress={addSelected} />
         {adding ? <Text style={{ color: colors.muted, textAlign: 'center' }}>{Math.round(progress * 100)}% · {W.leaveWarn}</Text> : null}
       </View>
@@ -443,7 +440,7 @@ function SummaryGrid({ W, lang, post, colors }: { W: ReturnType<typeof wi>; lang
     { k: 'bathrooms', label: W.baths, value: str(f.bathrooms) },
     { k: 'finishing', label: L2 === 'en' ? 'Finishing' : 'التشطيب', value: labelOf(FINISHING, str(f.finishing), L2) ?? '' },
     { k: 'furnishing', label: L2 === 'en' ? 'Furnishing' : 'الفرش', value: labelOf(FURNISHING, str(f.furnishing), L2) ?? '' },
-    { k: 'owner_phone', label: W.f_owner_phone, value: str(f.owner_phone) },
+    { k: 'owner_phone', label: W.f_owner_phone, value: f.owner_phone ? ltr(displayPhone(str(f.owner_phone))) : '' },
   ];
   const alwaysShown = ['listing_type', 'property_type', 'compound', 'price_value', 'area_value', 'owner_phone'];
   const shown = cells.filter((c) => c.value || miss.has(c.k) || alwaysShown.includes(c.k));
