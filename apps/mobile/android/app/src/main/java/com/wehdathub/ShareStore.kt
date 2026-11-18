@@ -82,13 +82,14 @@ object ShareStore {
     val copied = ArrayList<Item>()
     uris.take(15).forEachIndexed { i, uri ->
       try {
-        val mime = context.contentResolver.getType(uri) ?: intent.type ?: ""
-        var name = displayName(context, uri) ?: "shared_$i"
-        val target = File(dir, "${System.currentTimeMillis()}_${i}_${name.replace(Regex("[^A-Za-z0-9._-]"), "_")}")
+        // Open and copy FIRST: WhatsApp's provider gives a short-lived URI ("File expired"), so no other provider call may come before the read.
+        val target = File(dir, "${System.currentTimeMillis()}_${i}_shared.tmp")
         if (!copyTo(context, uri, target)) {
           target.delete()
           return@forEachIndexed
         }
+        val mime = try { context.contentResolver.getType(uri) } catch (_: Exception) { null } ?: intent.type ?: ""
+        var name = displayName(context, uri) ?: Uri.decode(uri.lastPathSegment ?: "").substringAfterLast('/').ifBlank { "shared_$i" }
         // Only a zip is kept: by its first bytes, its name or its type.
         val zip = isZip(target) || name.endsWith(".zip", ignoreCase = true) || mime.contains("zip", ignoreCase = true)
         if (!zip) {
@@ -97,7 +98,9 @@ object ShareStore {
           return@forEachIndexed
         }
         if (!name.endsWith(".zip", ignoreCase = true)) name += ".zip"
-        copied.add(Item(Uri.fromFile(target).toString(), "application/zip", name))
+        val final = File(dir, "${System.currentTimeMillis()}_${i}_${name.replace(Regex("[^A-Za-z0-9._-]"), "_")}")
+        val kept = if (target.renameTo(final)) final else target
+        copied.add(Item(Uri.fromFile(kept).toString(), "application/zip", name))
       } catch (e: Exception) {
         Log.w("ShareStore", "could not handle shared file $uri", e)
       }
