@@ -2,7 +2,7 @@
 setlocal
 
 rem ---- EDIT THESE TWO LINES ----
-set "UPLOAD_KEYSTORE=C:\path\to\upload.jks"
+set "UPLOAD_KEYSTORE=D:\code\upload.jks"
 set "UPLOAD_KEY_ALIAS=upload"
 rem ------------------------------
 
@@ -12,8 +12,7 @@ if exist "%~dp0.versioncode" set /p VC=<"%~dp0.versioncode"
 set /a VC=VC+1
 echo %VC%>"%~dp0.versioncode"
 set "VERSION_CODE=%VC%"
-rem Edit the display version by hand when you want a new one (last upload was 1.0.7).
-set "VERSION_NAME=1.0.8"
+set "VERSION_NAME=1.0.%VC%"
 
 set /p UPLOAD_STORE_PASSWORD=Keystore password:
 set "UPLOAD_KEY_PASSWORD=%UPLOAD_STORE_PASSWORD%"
