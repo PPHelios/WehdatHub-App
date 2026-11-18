@@ -75,7 +75,7 @@ function RenameRequests({ items }: { items: { id: number; code: string; old_valu
       <Text style={[styles.name, { color: colors.text }]}>📝 {ot(lang, 'renames')} ({items.length})</Text>
       {items.map((r) => (
         <View key={r.id} style={styles.gap}>
-          <Text style={{ color: colors.text }}>{r.code} · {r.old_value || '—'} → {r.new_value}</Text>
+          <Text style={{ color: colors.text }}>{r.code} · {r.old_value || '—'} {lang === 'ar' ? '←' : '→'} {r.new_value}</Text>
           <View style={styles.row}>
             <Button testID={`rename-ok-${r.id}`} label={ot(lang, 'approve')} onPress={() => decide(r.id, true)} />
             <Button label={ot(lang, 'decline')} variant="secondary" onPress={() => decide(r.id, false)} />

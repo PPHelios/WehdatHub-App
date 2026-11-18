@@ -473,7 +473,7 @@ export function AddUnitScreen() {
           {editCode && review?.changes?.length ? (
             <View testID="changes" style={[styles.box, { borderColor: colors.border }]}>
               <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'willChange')}</Text>
-              {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {c.from || '—'} ← {c.to || '—'}</Text>)}
+              {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {c.from || '—'} {lang === 'ar' ? '←' : '→'} {c.to || '—'}</Text>)}
             </View>
           ) : null}
           {review && !review.warnings.length && !review.blockers.length ? <Text testID="no-warnings" style={{ color: colors.muted }}>✓ {t(lang, 'noWarnings')}</Text> : null}
