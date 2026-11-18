@@ -28,6 +28,7 @@ import { pickPhotos, takePhoto } from '../photos';
 import { plain, withCommas } from '../readback';
 import { radius, spacing, useTheme } from '../theme';
 import { ALL_TYPES, labelOf } from '../unitOptions';
+import { toast } from '../components/Toast';
 
 /** A message pasted this long all at once is read at once (the website reads it too); the broker still checks every field. */
 const PASTE_MIN = 40;
@@ -154,7 +155,7 @@ export function ProjectFormScreen() {
         try { await api.projectPhotos(id, await compressPhotos(photos)); } catch { photoFailed = true; }
       }
       await Promise.all([qc.invalidateQueries({ queryKey: ['catalogue'] }), qc.invalidateQueries({ queryKey: ['project'] })]);
-      if (photoFailed) Alert.alert(T.saved, T.photosAfter);
+      if (photoFailed) toast(`${T.saved} ${T.photosAfter}`, true);
       if (editing || !id) return nav.goBack();
       nav.replace('Project', { id, name: str(fields.name) });
     } catch (e) {

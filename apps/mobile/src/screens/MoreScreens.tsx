@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BusySwitch } from '../components/BusySwitch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +17,7 @@ import { useRights } from '../rights';
 import { clientLang } from '../prefs';
 import type { RootStackParams } from '../navigation';
 import { lift, radius, spacing, useTheme } from '../theme';
+import { toast } from '../components/Toast';
 
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
@@ -42,7 +43,7 @@ export function LibraryScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const query = useQuery({ queryKey: ['library'], queryFn: () => api.library() });
   const use = async (id: string) => {
-    try { const r = await api.useLibrary(id); nav.navigate('Project', { id: r.projectId, name: '' }); } catch (e) { Alert.alert(errorText(e, lang)); }
+    try { const r = await api.useLibrary(id); nav.navigate('Project', { id: r.projectId, name: '' }); } catch (e) { toast(errorText(e, lang), true); }
   };
   return (
     <Gate q={query}>

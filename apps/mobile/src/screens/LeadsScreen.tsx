@@ -20,6 +20,7 @@ import { Split, useColumns, useWide } from '../layout';
 import { LeadScreen } from './LeadScreen';
 import { lift, radius, spacing, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
+import { toast } from '../components/Toast';
 
 const TABS: [LeadTab, StringKey][] = [['all', 'tabAll'], ['due_today', 'tabDue'], ['overdue', 'tabOverdue'], ['new', 'st_new'], ['interested', 'st_interested'], ['viewing', 'st_viewing'], ['negotiation', 'st_negotiation'], ['no_next_step', 'tabNoStep']];
 
@@ -64,13 +65,13 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   };
   const markLead = (l: ApiLead) => {
     tick();
-    api.leadCalled(l.ref, l.version).then(() => { tick(); return queries.invalidateQueries({ queryKey: ['leads'] }); }).catch((e) => Alert.alert(errorText(e, lang)));
+    api.leadCalled(l.ref, l.version).then(() => { tick(); return queries.invalidateQueries({ queryKey: ['leads'] }); }).catch((e) => toast(errorText(e, lang), true));
   };
   const quick = (l: ApiLead) => {
     tick();
     const buttons = [
       ...(l.phones[0] ? [{ text: t(lang, 'quickCall'), onPress: () => { Linking.openURL(`tel:${l.phones[0]}`).catch(() => undefined); } }] : []),
-      { text: t(lang, 'markCalled'), onPress: () => { api.leadCalled(l.ref, l.version).then(() => { tick(); return queries.invalidateQueries({ queryKey: ['leads'] }); }).catch((e) => Alert.alert(errorText(e, lang))); } },
+      { text: t(lang, 'markCalled'), onPress: () => { api.leadCalled(l.ref, l.version).then(() => { tick(); return queries.invalidateQueries({ queryKey: ['leads'] }); }).catch((e) => toast(errorText(e, lang), true)); } },
       { text: t(lang, 'cancel'), style: 'cancel' as const },
     ];
     Alert.alert(l.name || l.ref, undefined, buttons);

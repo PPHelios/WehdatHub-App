@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
@@ -14,6 +14,7 @@ import type { RootStackParams } from '../navigation';
 import { ot } from '../ownerText';
 import { t } from '../i18n';
 import { lift, radius, spacing, useTheme } from '../theme';
+import { toast } from '../components/Toast';
 
 const STATUSES = ['pending', 'approved', 'declined', 'all'] as const;
 type Status = (typeof STATUSES)[number];
@@ -32,7 +33,7 @@ export function RequestsScreen() {
     getNextPageParam: (last, all) => (all.flatMap((p) => p.items).length < last.total ? all.length : undefined),
   });
   const answer = async (id: number, ok: boolean) => {
-    await api.answerAccess(id, ok).catch((e) => Alert.alert(errorText(e, lang)));
+    await api.answerAccess(id, ok).catch((e) => toast(errorText(e, lang), true));
     await qc.invalidateQueries({ queryKey: ['accessRequests'] });
   };
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];

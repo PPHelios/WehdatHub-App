@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BusySwitch } from '../components/BusySwitch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
@@ -30,6 +30,7 @@ import { lift, spacing, useTheme } from '../theme';
 import { usePrefs } from '../prefs';
 import { APP_BUILD, APP_VERSION } from '../config';
 import { syncDirection } from '../direction';
+import { toast } from '../components/Toast';
 
 /**
  * mode "menu" (default): the grouped More list and the phone's own settings. mode "settings": the one Settings area in three
@@ -46,7 +47,7 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
   const changeLang = async (l: 'ar' | 'en') => {
     await api.setLang(l).catch(() => undefined);
     await setLang(l);
-    if (syncDirection(l)) Alert.alert(t(l, 'restartForLayout'));
+    if (syncDirection(l)) toast(t(l, 'restartForLayout'));
   };
   const [busy, setBusy] = useState(false);
   const lang = broker?.lang ?? 'ar';
