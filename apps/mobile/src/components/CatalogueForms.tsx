@@ -9,6 +9,7 @@ import { useTheme } from '../theme';
 import { Button } from './Button';
 import { Field } from './Field';
 import { Section } from './Section';
+import { toastError } from './Toast';
 
 /** Managers add a developer here. Projects have their own form (ProjectFormScreen); files and price sheets stay on the website. */
 export function CatalogueForms() {
@@ -24,7 +25,7 @@ export function CatalogueForms() {
       setMsg(t(lang, 'savedOk'));
       await qc.invalidateQueries({ queryKey: ['catalogue'] });
     } catch (e) {
-      setMsg(errorText(e, lang));
+      setMsg(toastError(errorText(e, lang)));
     }
   };
   return (

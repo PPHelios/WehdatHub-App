@@ -18,7 +18,7 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { lift, radius, spacing, useTheme } from '../theme';
-import { toast } from '../components/Toast';
+import { toast, toastError } from '../components/Toast';
 
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
@@ -118,7 +118,7 @@ export function SourcesScreen() {
   const [msg, setMsg] = useState<string | null>(null);
   const save = async (month: string) => {
     setMsg(null);
-    try { await api.saveSpend(month, spend); await qc.invalidateQueries({ queryKey: ['sources'] }); setMsg(ar ? 'اتحفظ.' : 'Saved.'); } catch (e) { setMsg(errorText(e, lang)); }
+    try { await api.saveSpend(month, spend); await qc.invalidateQueries({ queryKey: ['sources'] }); setMsg(ar ? 'اتحفظ.' : 'Saved.'); } catch (e) { setMsg(toastError(errorText(e, lang))); }
   };
   return (
     <Gate q={q}>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, render, screen, fireEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ToastHost, toast } from '../src/components/Toast';
+import { ToastHost, toast, toastError, useToastStore } from '../src/components/Toast';
 
 declare const require: (id: string) => any;
 declare const __dirname: string;
@@ -35,4 +35,10 @@ test('every Alert.alert in the app is a question with buttons', () => {
     }
   }
   expect(bad).toEqual([]);
+});
+
+test('toastError shows the error in the toast and hands it back for the form', () => {
+  expect(toastError('Phone is not valid.')).toBe('Phone is not valid.');
+  expect(useToastStore.getState()).toMatchObject({ text: 'Phone is not valid.', bad: true });
+  expect(toastError(null)).toBeNull();
 });

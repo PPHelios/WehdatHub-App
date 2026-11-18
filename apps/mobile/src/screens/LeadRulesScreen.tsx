@@ -10,6 +10,7 @@ import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import { lift, radius, spacing, useTheme } from '../theme';
+import { toastError } from '../components/Toast';
 
 const day = (plus: number) => new Date(Date.now() + plus * 86400000).toISOString().slice(0, 10);
 
@@ -46,7 +47,7 @@ export function LeadRulesScreen() {
       await qc.invalidateQueries({ queryKey: ['team-rules'] });
       setMsg(t(lang, 'rulesSaved'));
     } catch (e) {
-      setMsg(errorText(e, lang));
+      setMsg(toastError(errorText(e, lang)));
     }
   };
   const away = async (id: string, until: string | null) => {
@@ -55,7 +56,7 @@ export function LeadRulesScreen() {
       await qc.invalidateQueries({ queryKey: ['team-rules'] });
       await qc.invalidateQueries({ queryKey: ['team'] });
     } catch (e) {
-      setMsg(errorText(e, lang));
+      setMsg(toastError(errorText(e, lang)));
     }
   };
 

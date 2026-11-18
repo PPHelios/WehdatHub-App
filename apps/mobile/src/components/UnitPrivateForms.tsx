@@ -10,6 +10,7 @@ import { useTheme } from '../theme';
 import { Button } from './Button';
 import { Field } from './Field';
 import { Section } from './Section';
+import { toastError } from './Toast';
 
 /** Lease of a rented unit (the server says whether the unit is for rent) and the agency-only details. The server checks who may change them. */
 export function UnitPrivateForms({ code, prefill }: { code: string; prefill?: { tenantName?: string; startDate?: string; rent?: string } }) {
@@ -33,7 +34,7 @@ export function UnitPrivateForms({ code, prefill }: { code: string; prefill?: { 
       setMsg(t(lang, 'savedOk'));
       await lease.refetch();
     } catch (e) {
-      setMsg(e instanceof ApiClientError && e.status === 422 ? bad : errorText(e, lang));
+      setMsg(toastError(e instanceof ApiClientError && e.status === 422 ? bad : errorText(e, lang)));
     }
   };
   return (

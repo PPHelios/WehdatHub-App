@@ -16,6 +16,7 @@ import { radius, spacing, useTheme } from '../theme';
 import { HoldMic } from '../components/HoldMic';
 import { AskResults } from '../components/AskResults';
 import type { RootStackParams } from '../navigation';
+import { toastError } from '../components/Toast';
 
 /** Ask: a question (typed or spoken) answered from the agency's projects, units and the broker's own clients. */
 export function AskScreen() {
@@ -38,7 +39,7 @@ export function AskScreen() {
     } catch (e) {
       setOut(null);
       if (e instanceof ApiClientError && e.code === 'ai_blocked' && typeof e.extra.message === 'string') setError(e.extra.message);
-      else setError(e instanceof ApiClientError && e.status === 503 ? t(lang, 'aiBlocked') : errorText(e, lang));
+      else setError(toastError(e instanceof ApiClientError && e.status === 503 ? t(lang, 'aiBlocked') : errorText(e, lang)));
     } finally {
       setBusy(false);
     }
@@ -50,7 +51,7 @@ export function AskScreen() {
       setQuestion(heard);
       await ask(heard, true);
     } catch (e) {
-      setError(errorText(e, lang));
+      setError(toastError(errorText(e, lang)));
     }
   };
 

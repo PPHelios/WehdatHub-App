@@ -10,6 +10,7 @@ import { errorText } from '../errors';
 import { ot } from '../ownerText';
 import { useRights } from '../rights';
 import { spacing, useTheme } from '../theme';
+import { toastError } from '../components/Toast';
 
 type Role = 'broker' | 'manager' | 'team_lead' | 'data_entry';
 
@@ -36,7 +37,7 @@ export function InviteScreen() {
       await qc.invalidateQueries({ queryKey: ['team'] });
       setMsg(r.url ? `${ot(lang, 'linkReady')} ${r.url}` : ot(lang, 'done'));
     } catch (e) {
-      setMsg(errorText(e, lang));
+      setMsg(toastError(errorText(e, lang)));
     }
   };
   return (

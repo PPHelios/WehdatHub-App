@@ -17,7 +17,7 @@ import { useRights } from '../rights';
 import { clientLang } from '../prefs';
 import type { RootStackParams } from '../navigation';
 import { lift, radius, spacing, useTheme } from '../theme';
-import { toast } from '../components/Toast';
+import { toast, toastError } from '../components/Toast';
 
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
@@ -71,7 +71,7 @@ export function CompareScreen() {
   const [msg, setMsg] = useState<string | null>(null);
   const make = async () => {
     setMsg(null); setUrl(null);
-    try { const r = await api.compare(codes.map((c) => c.trim()).filter(Boolean), clientLang()); setUrl(r.url); } catch (e) { setMsg(errorText(e, lang)); }
+    try { const r = await api.compare(codes.map((c) => c.trim()).filter(Boolean), clientLang()); setUrl(r.url); } catch (e) { setMsg(toastError(errorText(e, lang))); }
   };
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
@@ -229,7 +229,7 @@ export function PlatformScreen() {
   const [msg, setMsg] = useState<string | null>(null);
   const run = async (fn: () => Promise<string | void>) => {
     setMsg(null);
-    try { const m = await fn(); await qc.invalidateQueries({ queryKey: ['platform'] }); setMsg(m || (ar ? 'تمام.' : 'Done.')); } catch (e) { setMsg(errorText(e, lang)); }
+    try { const m = await fn(); await qc.invalidateQueries({ queryKey: ['platform'] }); setMsg(m || (ar ? 'تمام.' : 'Done.')); } catch (e) { setMsg(toastError(errorText(e, lang))); }
   };
   return (
     <Gate q={query}>

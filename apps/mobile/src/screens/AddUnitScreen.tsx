@@ -35,6 +35,7 @@ import { draftText, isAutoDraft } from '../unitDraft';
 import { uf } from '../unitFormText';
 import { sendable, stepOf, stepsFor, withImpliedFeatures } from '../unitRules';
 import type { Step } from '../unitRules';
+import { toastError } from '../components/Toast';
 
 const str = (v: UnitFields[string]): string => (typeof v === 'string' ? v : '');
 /** In edit mode a photo already on the unit is listed with this type and its image id as name. */
@@ -149,7 +150,7 @@ export function AddUnitScreen() {
         setNotice(typeof said === 'string' && said.trim() ? said.trim() : t(lang, 'quickFilled'));
         return;
       }
-      setError(e instanceof ApiClientError && (e.status === 402 || e.status === 503) ? t(lang, 'aiBlocked') : errorText(e, lang));
+      setError(toastError(e instanceof ApiClientError && (e.status === 402 || e.status === 503) ? t(lang, 'aiBlocked') : errorText(e, lang)));
     }
   }, [fields, lang]);
 
@@ -170,7 +171,7 @@ export function AddUnitScreen() {
           if (sh?.text) { setDescribe(sh.text); if (!sh.noAi) await runFill({ describe: sh.text }); }
           if (sh?.fields) setFields((f) => withImpliedFeatures({ ...f, ...Object.fromEntries(Object.entries(sh.fields!).filter(([k, v]) => k !== 'code' && v !== '' && v !== undefined && v !== null)) }));
         } catch (e) {
-          setError(errorText(e, lang));
+          setError(toastError(errorText(e, lang)));
         }
         setReady(true);
         return;
@@ -232,7 +233,7 @@ export function AddUnitScreen() {
     try {
       await runFill({ voice: file });
     } catch (e) {
-      setError(errorText(e, lang));
+      setError(toastError(errorText(e, lang)));
     }
   };
 
@@ -349,7 +350,7 @@ export function AddUnitScreen() {
     } catch (e) {
       track('unit_save_refused', { reason: e instanceof ApiClientError ? String(e.code || e.status) : 'error' });
       if (e instanceof SaveNotConfirmed) return setError(t(lang, 'saveNotConfirmed'));
-      if (!(e instanceof ApiClientError)) return setError(errorText(e, lang));
+      if (!(e instanceof ApiClientError)) return setError(toastError(errorText(e, lang)));
       if (editCode && e.code === 'conflict') return setError(t(lang, 'changedElsewhere'));
       if (editCode && e.code === 'incomplete') { setFailedCheck(true); return setBlockers((e.extra.blockers as Blocker[]) ?? []); }
       if (e.code === 'incomplete') {
@@ -369,7 +370,7 @@ export function AddUnitScreen() {
       }
       if (e.code === 'plan_limit') return setError(t(lang, 'planLimit'));
       if (e.code === 'photo_missing') { setPhotos((p) => p.map((x) => (x.type === EXISTING ? x : { ...x, key: undefined, pct: undefined, failed: false }))); return setError(t(lang, 'photosExpired')); }
-      setError(errorText(e, lang));
+      setError(toastError(errorText(e, lang)));
     }
   };
 
