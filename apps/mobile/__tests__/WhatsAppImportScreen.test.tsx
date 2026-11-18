@@ -84,7 +84,7 @@ test('every post is read by the server reader once: a summary shows, and a post 
   expect(screen.getByTestId('wa-missing-note-4')).toBeTruthy();
   // The update (HP-1), the taken (HP-2) and the incomplete post (4) are opened by hand: only HP-3 is ready.
   // The 2 left out (update, taken) are blocked and said so: the header total is the 4 unsaved posts, the bar splits them 1 + 1 + 2.
-  expect(screen.getByTestId('wa-ready').props.children).toMatch(/1 ready to add · 1 missing details · 2 need opening and editing|1 جاهزة للإضافة · 1 ناقصة بيانات · 2 محتاجة فتح وتعديل/);
+  expect(screen.getByTestId('wa-ready').props.children).toMatch(/1 ready to add · 1 missing details · 2 need editing|1 جاهزة للإضافة · 1 ناقصة بيانات · 2 محتاجة تعديل/);
   expect(screen.getByTestId('wa-summary').props.children).toMatch(/4 posts · 24 photos|4 بوست · 24 صورة/);
   expect(screen.queryByTestId('wa-ai-review')).toBeNull();
 });
