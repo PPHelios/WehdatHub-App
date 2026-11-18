@@ -14,7 +14,7 @@ import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
 import { Section } from '../components/Section';
 import { LeadActions } from '../components/LeadActions';
-import { ViewingForm } from '../components/ViewingForm';
+import { ViewingForm, viewingInstant } from '../components/ViewingForm';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { stageLabel, t } from '../i18n';
@@ -31,6 +31,35 @@ const at10 = (days: number): Date => {
   d.setHours(10, 0, 0, 0);
   return d;
 };
+
+const FU_HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+
+/** Any day (the next two weeks) and hour for the follow-up, as a call or a viewing: the same day and hour chips as a viewing. */
+export function FollowUpPicker({ onSave }: { onSave: (f: FollowUp) => Promise<unknown> | void }) {
+  const lang = currentLang();
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<FollowUp['kind']>('call');
+  const [day, setDay] = useState(1);
+  const [hour, setHour] = useState(10);
+  if (!open) return <Button testID="fu-pick" variant="secondary" label={`📅 ${t(lang, 'fuPick')}`} onPress={() => setOpen(true)} />;
+  const days = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return { value: String(i), label: i === 0 ? t(lang, 'today') : d.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) };
+  });
+  const save = async () => {
+    await onSave({ at: new Date(viewingInstant(day, hour)), kind });
+    setOpen(false);
+  };
+  return (
+    <View testID="fu-picker" style={{ gap: spacing.sm }}>
+      <Chips<FollowUp['kind']> testID="fu-kind" options={[{ value: 'call', label: t(lang, 'fuCall') }, { value: 'viewing', label: t(lang, 'fuViewing') }]} value={kind} onChange={setKind} />
+      <Chips testID="fu-day" options={days} value={String(day)} onChange={(v) => setDay(Number(v))} />
+      <Chips testID="fu-hour" options={FU_HOURS.map((h) => ({ value: String(h), label: `${h}:00` }))} value={String(hour)} onChange={(v) => setHour(Number(v))} />
+      <Button testID="fu-save" label={t(lang, 'save')} onPress={save} />
+    </View>
+  );
+}
 
 export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
   const { colors } = useTheme();
@@ -111,6 +140,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
         <View style={styles.flex}><Button label={t(lang, 'fuWeek')} variant="secondary" onPress={() => followUp({ at: at10(7), kind: 'call' })} /></View>
         <View style={styles.flex}><Button label={`${t(lang, 'fuViewing')} · ${t(lang, 'fuTomorrow')}`} variant="secondary" onPress={() => followUp({ at: at10(1), kind: 'viewing' })} /></View>
       </View>
+      <FollowUpPicker onSave={followUp} />
       </Section>
       {rights.team ? (
         <Section testID="sec-assign" title={t(lang, 'reassign')}>

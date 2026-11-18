@@ -10,6 +10,7 @@ import type { ApiLead } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { Chips } from '../components/Chips';
 import { ot } from '../ownerText';
 import { useRights } from '../rights';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
@@ -45,7 +46,7 @@ export function TeamScreen() {
       ListHeaderComponent={canManage ? <View>{switcher}<View style={{ padding: spacing.lg }}><Button testID="team-add" label={`➕ ${t(lang, 'invite')}`} onPress={() => nav.navigate('Invite')} /></View></View> : null}
       ListEmptyComponent={<EmptyView title={t(lang, 'teamEmpty')} />}
       renderItem={({ item }) => (
-        <Pressable testID={`member-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('TeamMember', { id: item.id, name: item.name, role: item.role, me: item.me })} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Pressable testID={`member-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('TeamMember', { id: item.id, name: item.name, role: item.role, me: item.me, teamLeadId: item.teamLeadId ?? null })} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.name, { color: colors.text }]}>{item.name}{item.away ? ` · ${t(lang, 'away')}` : ''}</Text>
           <View style={styles.row}>
             <Text style={{ color: colors.text }}>{item.open} {t(lang, 'openLeads')}</Text>
@@ -104,12 +105,62 @@ function FormerList({ header }: { header: React.ReactNode }) {
   );
 }
 
+type MemberRoleName = 'broker' | 'team_lead' | 'manager' | 'data_entry';
+
+/**
+ * The role and team of one member, the same choices as the website's Team page: the agency owner moves people between
+ * broker, manager and data entry; a manager (or the owner) makes a broker a team lead and puts brokers in a team.
+ * The server decides (services/team.js); the choices only hide what it would refuse.
+ */
+export function MemberRole({ id, role, teamLeadId, run }: { id: string; role: string; teamLeadId: string | null; run: (fn: () => Promise<unknown>) => Promise<void> }) {
+  const lang = currentLang();
+  const { colors } = useTheme();
+  const rights = useRights();
+  const team = useQuery({ queryKey: ['team'], queryFn: () => api.team() });
+  const owner = rights.agencyOwner;
+  const manager = rights.manager || owner;
+  const cur = role as MemberRoleName;
+  if (!['broker', 'team_lead', 'manager', 'data_entry'].includes(cur)) return null;
+  const choices: { value: MemberRoleName; label: string }[] = [
+    { value: 'broker', label: ot(lang, 'broker') },
+    { value: 'team_lead', label: ot(lang, 'teamLead') },
+    ...(owner ? [{ value: 'manager' as MemberRoleName, label: ot(lang, 'manager') }, { value: 'data_entry' as MemberRoleName, label: ot(lang, 'dataEntry') }] : []),
+  ];
+  // A manager who is not the owner may only move between broker and team lead.
+  if (!owner && !['broker', 'team_lead'].includes(cur)) return null;
+  const change = (to: MemberRoleName) => {
+    if (to === cur) return;
+    run(async () => {
+      if (cur === 'team_lead') await api.teamRole(id, false);
+      if (to === 'team_lead') {
+        if (cur !== 'broker' && cur !== 'team_lead') await api.changeRole(id, 'broker');
+        await api.teamRole(id, true);
+      } else if (to !== 'broker' || (cur !== 'team_lead' && cur !== 'broker')) {
+        await api.changeRole(id, to);
+      }
+    }).catch(() => {});
+  };
+  const leads = (team.data?.items ?? []).filter((m) => m.role === 'team_lead' && m.id !== id);
+  return (
+    <View style={{ gap: spacing.sm }}>
+      <Text style={{ color: colors.text, fontWeight: '700' }}>{ot(lang, 'role')}</Text>
+      <Chips<MemberRoleName> testID="member-role" options={choices} value={cur} onChange={(v) => Alert.alert(ot(lang, 'roleAsk'), undefined, [{ text: ot(lang, 'save'), onPress: () => change(v) }, { text: lang === 'ar' ? 'إلغاء' : 'Cancel', style: 'cancel' }])} />
+      {manager && cur === 'broker' && leads.length ? (
+        <>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>{ot(lang, 'team')}</Text>
+          <Chips<string> testID="member-team" options={[{ value: '', label: ot(lang, 'noTeam') }, ...leads.map((m) => ({ value: m.id, label: m.name }))]} value={teamLeadId ?? ''} onChange={(v) => { run(() => api.setTeam(id, v || null)).catch(() => {}); }} />
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 /** One broker's leads, newest activity first. */
 export function TeamMemberScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const { id, role = '', me = false } = useRoute<RouteProp<RootStackParams, 'TeamMember'>>().params;
+  const { id, role = '', me = false, teamLeadId = null } = useRoute<RouteProp<RootStackParams, 'TeamMember'>>().params;
   const rights = useRights();
   const qc = useQueryClient();
   const admin = async (fn: () => Promise<unknown>) => {
@@ -138,7 +189,7 @@ export function TeamMemberScreen() {
       onRefresh={() => { list.refetch(); }}
       ListHeaderComponent={(rights.manager || rights.agencyOwner) && !me ? (
         <View style={{ padding: spacing.lg, gap: spacing.sm }}>
-          {rights.agencyOwner && (role === 'broker' || role === 'manager') ? <Button testID="member-role" variant="secondary" label={role === 'manager' ? ot(lang, 'makeBroker') : ot(lang, 'makeManager')} onPress={() => admin(() => api.changeRole(id, role === 'manager' ? 'broker' : 'manager'))} /> : null}
+          <MemberRole id={id} role={role} teamLeadId={teamLeadId} run={admin} />
           <Button testID="member-deactivate" variant="secondary" label={`⛔ ${ot(lang, 'deactivate')}`} onPress={() => Alert.alert(ot(lang, 'deactivateAsk'), undefined, [{ text: ot(lang, 'deactivate'), style: 'destructive', onPress: () => { admin(() => api.deactivate(id)).catch(() => {}); } }, { text: lang === 'ar' ? 'إلغاء' : 'Cancel', style: 'cancel' }])} />
         </View>
       ) : null}

@@ -98,7 +98,7 @@ export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; off
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
 export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; start: number; end: number; days: number[]; max_jumps: number }; roundRobin: boolean; order: string[]; brokers: { id: string; name: string; role: string; away: boolean; open: number }[] }
 export interface FormerMember { id: string; name: string; role: string; deactivatedAt: string | null }
-export interface TeamMember { id: string; name: string; role: string; me: boolean; away: boolean; open: number; overdue: number; soon: number }
+export interface TeamMember { id: string; name: string; role: string; teamLeadId?: string | null; me: boolean; away: boolean; open: number; overdue: number; soon: number }
 /** One matching offer of a project (Ask): a unit type with its numbers. */
 export interface AskOffer { type?: string | null; area: number | null; floor: string | number | null; bedrooms?: number | null; price: number | null; down: number | null; monthly: number | null; years?: number | null; discount_pct?: number | null }
 /**
@@ -490,6 +490,10 @@ export function createApiClient(opts: ApiClientOptions) {
     setTeamAway: (id: string, until: string | null) => request<{ id: string; awayUntil: string | null }>('POST', `/team/${encodeURIComponent(id)}/away`, { until }),
     invite: (b: { name: string; phone: string; role: string }) => request<{ ok: true; created: boolean; url: string | null }>('POST', '/team/invite', b),
     changeRole: (id: string, role: string) => request<{ ok: true }>('POST', `/team/${id}/role`, { role }),
+    /** A manager makes a broker a team lead (on) or takes it back (off: their team is cleared). */
+    teamRole: (id: string, on: boolean) => request<{ ok: true; from: string; to: string }>('POST', `/team/${id}/team-role`, { on }),
+    /** A manager puts a broker under a team lead, or out of any team (null). */
+    setTeam: (id: string, teamLeadId: string | null) => request<{ ok: true }>('POST', `/team/${id}/team`, { teamLeadId }),
     deactivate: (id: string) => request<{ ok: true }>('POST', `/team/${id}/deactivate`, {}),
     formerTeam: () => request<{ items: FormerMember[] }>('GET', '/team/former'),
     reactivate: (id: string) => request<{ ok: true }>('POST', `/team/${id}/reactivate`, {}),
