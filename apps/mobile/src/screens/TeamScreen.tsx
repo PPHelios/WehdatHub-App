@@ -16,6 +16,7 @@ import { useRights } from '../rights';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { stageLabel, t } from '../i18n';
+import { planT } from '../planText';
 import type { RootStackParams } from '../navigation';
 import { lift, radius, spacing, useTheme } from '../theme';
 import { toast } from '../components/Toast';
@@ -67,7 +68,7 @@ function memberError(e: unknown, lang: 'ar' | 'en'): string {
   if (code === 'self') return lang === 'ar' ? 'مينفعش توقف نفسك.' : "You can't deactivate yourself.";
   if (code === 'rank') return lang === 'ar' ? 'الأدمن والمالك يتداروا من الأدمن أو المالك بس.' : 'Only an admin or owner can manage an admin or owner.';
   if (e instanceof ApiClientError && e.status === 404) return lang === 'ar' ? 'الخدمة دي مش موجودة على السيرفر؛ حدّث السيرفر.' : 'The server does not have this yet; update the server.';
-  if (code === 'seats') return lang === 'ar' ? 'مقاعد الباقة كلها مستخدمة؛ رقّي الباقة.' : 'Every seat on your plan is taken; upgrade the plan.';
+  if (code === 'seats') return planT(lang, 'teamSeats');
   return errorText(e, lang);
 }
 

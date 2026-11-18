@@ -349,11 +349,84 @@ export class ApiClientError extends Error {
   }
 }
 
+// ---- Plan, expiry ladder and plan guard (server: lib/planGuard.js, services/billing.js, domain/plans.js) ----
+
+/** Where the agency is on the plan ladder. `grace`, `readonly` and `blocked` are the lapsed steps (paid: grace -> read-only -> blocked; trial: read-only -> blocked). */
+export type PlanSource = 'pilot' | 'paid' | 'trial' | 'free' | 'grace' | 'readonly' | 'blocked';
+export type PlanLapsedSource = 'grace' | 'readonly' | 'blocked';
+export const isPlanLapsed = (s: unknown): s is PlanLapsedSource => s === 'grace' || s === 'readonly' || s === 'blocked';
+
+/** A plan as the server sends it. `prices` is the price in EGP per period in months ({ 1: 199, 6: 1075, 12: 1990 }); a period missing from it is not sold. No VAT. */
+export interface PlanDef {
+  id: string;
+  name: [string, string];
+  priceEgp: number;
+  seats: number;
+  units: number;
+  credits: number;
+  prices: Record<string, number>;
+}
+/** The trial: 14 days, 1 seat, 50 units, 80 AI credits in all (never sold). */
+export const TRIAL_PLAN = { days: 14, seats: 1, units: 50, credits: 80 } as const;
+/** A unit cap of this size or more means "unlimited". */
+export const UNLIMITED_UNITS = 1000000;
+/** The unit meter warns from this share of the cap (the server's 85% soft warning). */
+export const UNIT_WARN_PCT = 85;
+
+/** The ladder info of an agency whose period ended (null while the plan is current). Dates are ISO strings. */
+export interface PlanLadder {
+  kind: 'short' | 'long' | 'trial' | null;
+  end: string | null;
+  readonlyStarts: string | null;
+  blockedStarts: string | null;
+  paused?: boolean;
+}
+export interface PlanMeter { used: number; limit: number }
+/** What GET /usage and GET /plan return as `allowance`. Seats and units limits already include the extra seats; `extraSeats` is informational only. */
+export interface PlanAllowance {
+  plan: PlanDef;
+  source: PlanSource;
+  until: string | null;
+  ladder: PlanLadder | null;
+  credits: { used: number; limit: number; plan: number; bundles: number; grants: number };
+  seats: PlanMeter;
+  units: PlanMeter;
+  extraSeats?: number;
+}
+
+/** The plan guard's 402 codes on the app API. */
+export type PlanLockCode = 'plan_readonly' | 'plan_blocked';
+/** The 422 error codes of POST /plan/pay. Upgrade kinds: same_plan, downgrade, upgrade_pending, lapsed, not_paid; RULES-01: period_switch, upgrade_required. */
+export type PlanPayErrorCode = 'plan' | 'forbidden' | 'too_many' | 'amount' | 'same_plan' | 'downgrade' | 'period_switch' | 'upgrade_required' | 'upgrade_pending' | 'lapsed' | 'not_paid' | 'not_allowed' | 'upgrade_stale';
+export const PLAN_PAY_ERRORS: readonly PlanPayErrorCode[] = ['plan', 'forbidden', 'too_many', 'amount', 'same_plan', 'downgrade', 'period_switch', 'upgrade_required', 'upgrade_pending', 'lapsed', 'not_paid', 'not_allowed', 'upgrade_stale'];
+export const isPlanPayError = (c: unknown): c is PlanPayErrorCode => typeof c === 'string' && (PLAN_PAY_ERRORS as readonly string[]).includes(c);
+export type PlanPayBody = { kind: 'plan' | 'upgrade' | 'credit_bundle'; plan?: string; months?: number; bundle?: string };
+
+/** The per-month equivalent of a period price, rounded (6 months for 1,075 is 179 a month). */
+export const perMonthPrice = (price: number, months: number): number => Math.round(price / Math.max(1, months));
+/** The periods (months, ascending) a plan is sold for. */
+export const planPeriods = (plan: Pick<PlanDef, 'prices'> | null | undefined): number[] => Object.keys(plan?.prices ?? {}).map(Number).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+
+/** A call refused by the plan guard: the agency's plan period ended (402 `plan_readonly`, or `plan_blocked` when the account is stopped). `serverMessage` is the server's own text. */
+export class PlanLockedError extends ApiClientError {
+  phase: 'readonly' | 'blocked';
+  serverMessage: string;
+  constructor(code: PlanLockCode, extra: Record<string, unknown> = {}) {
+    super(402, code, null, extra);
+    this.name = 'PlanLockedError';
+    this.phase = code === 'plan_blocked' ? 'blocked' : 'readonly';
+    this.serverMessage = typeof extra.message === 'string' ? extra.message : '';
+  }
+}
+export const isPlanLocked = (e: unknown): e is PlanLockedError => e instanceof PlanLockedError;
+
 export interface ApiClientOptions {
   baseUrl: string;
   getToken: () => string | null;
   /** Called when the server says the session is over (HTTP 401 on a call that sent a token). */
   onUnauthorized?: () => void;
+  /** Called when the plan guard refuses a call (402 plan_readonly / plan_blocked), just before the call rejects with a PlanLockedError. The app shows its pay / ask-your-manager sheet from here. */
+  onPlanLocked?: (e: PlanLockedError) => void;
   /** Sent with every call (the app's platform and version), so the server's failure log can tell the phones apart. */
   headers?: Record<string, string>;
   /** Called before a write (POST or PUT); the function it returns is called when the call ends. The app uses it to lock the screen while a write runs (busy rule). Return nothing to skip. */
@@ -402,6 +475,11 @@ export function createApiClient(opts: ApiClientOptions) {
       /* not JSON */
     }
     if (res.status === 401 && token) opts.onUnauthorized?.();
+    if (res.status === 402 && (code === 'plan_readonly' || code === 'plan_blocked')) {
+      const locked = new PlanLockedError(code, extra);
+      opts.onPlanLocked?.(locked);
+      throw locked;
+    }
     const retry = Number(res.headers.get('retry-after'));
     throw new ApiClientError(res.status, code, Number.isFinite(retry) && retry > 0 ? retry : null, extra);
   }
@@ -557,9 +635,10 @@ export function createApiClient(opts: ApiClientOptions) {
     library: (q?: string, page = 0) => request<{ items: Row[]; pages: number }>('GET', '/library', undefined, { q, page }),
     useLibrary: (id: string) => request<{ ok: true; projectId: string }>('POST', `/library/${id}/use`, {}),
     compare: (codes: string[], lang: 'ar' | 'en') => request<{ url: string; codes: string[] }>('POST', '/compare', { codes, lang }),
-    plan: () => request<{ allowance: Row; payTo: Row; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean }>('GET', '/plan'),
+    plan: () => request<{ allowance: PlanAllowance; payTo: { instapay: string; bank: string }; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean }>('GET', '/plan'),
+    planPay: (body: PlanPayBody) => request<{ ok: true; payment: Row }>('POST', '/plan/pay', body),
     creditRequest: (credits: number, note: string) => request<{ ok: true }>('POST', '/plan/credit-request', { credits, note }),
-    usage: () => request<{ allowance: Row; ai?: AiUsage }>('GET', '/usage'),
+    usage: () => request<{ allowance: PlanAllowance; ai?: AiUsage }>('GET', '/usage'),
     platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean }>('GET', '/platform'),
     platformAgency: (id: string, action: 'suspend' | 'resume') => request<{ ok: boolean }>('POST', `/platform/agencies/${id}/${action}`, {}),
     platformSignup: (open: boolean) => request<{ ok: true }>('POST', '/platform/signup', { open }),

@@ -8,6 +8,8 @@ import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { DAY, KEPT, listsStore } from './src/lists';
 import { OfflineBanner } from './src/offline';
+import { PlanBlockedGate } from './src/components/PlanBlockedGate';
+import { PlanLockSheet } from './src/components/PlanLockSheet';
 import { isOutdated } from '@wehdathub/shared';
 import type { AppConfig } from '@wehdathub/shared';
 import { api } from './src/api';
@@ -134,6 +136,8 @@ export default function App() {
             <RootNavigation />
           </BusyProvider>
           {locked && status === 'signedIn' ? <LockScreen /> : null}
+          <PlanBlockedGate />
+          <PlanLockSheet onOpenPlan={() => navigationRef.isReady() && navigationRef.navigate('Plan')} />
           <OfflineBanner />
           <ToastHost />
         </PersistQueryClientProvider>

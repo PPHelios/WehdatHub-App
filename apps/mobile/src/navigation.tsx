@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, currentLang } from './auth';
 import { BottomSafe } from './components/BottomSafe';
+import { PlanBanner } from './components/PlanBanner';
 import { Icon } from './components/Icon';
 import { FAB_TEST_ID, FloatingTabBar } from './components/FloatingTabBar';
 import { MenuButton } from './components/MenuButton';
@@ -174,7 +175,7 @@ export function RootNavigation() {
           <Stack.Screen name="Tabs" component={LoginScreen} />
         </Stack.Navigator>
       ) : (
-        <Stack.Navigator screenLayout={({ children }) => <BottomSafe>{children}</BottomSafe>} screenOptions={{ headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerShadowVisible: false, headerRight: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View> }}>
+        <Stack.Navigator screenLayout={({ children, options }) => <BottomSafe><PlanBanner topInset={options.headerShown === false} onOpenPlan={() => navigationRef.navigate('Plan')} />{children}</BottomSafe>} screenOptions={{ headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerShadowVisible: false, headerRight: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View> }}>
           <Stack.Screen name="Tabs" component={TabsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Unit" component={UnitNarrow} options={{ title: t(currentLang(), 'unit') }} />
           <Stack.Screen name="Lead" component={LeadNarrow} options={{ title: t(currentLang(), 'leadsTab') }} />

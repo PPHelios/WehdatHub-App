@@ -5,7 +5,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../api';
-import type { AiUsage } from '@wehdathub/shared';
+import { UNLIMITED_UNITS } from '@wehdathub/shared';
+import type { AiUsage, PlanAllowance } from '@wehdathub/shared';
+import { planT } from '../planText';
+import { priceRows, unitWarnPct } from '../planState';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
@@ -83,21 +86,20 @@ export function CompareScreen() {
   );
 }
 
-type MeterData = { used: number; limit: number };
-type Allowance = { plan?: { name?: [string, string]; priceEgp?: number }; source?: string; until?: string | null; credits?: MeterData; seats?: MeterData; units?: MeterData };
+type Allowance = PlanAllowance;
 
-const SOURCE_LABEL: Record<string, [string, string]> = { pilot: ['تجريبي للشركاء (ببلاش)', 'Pilot (free)'], paid: ['مدفوعة', 'Paid'], trial: ['فترة تجربة', 'Trial'], free: ['مجانية', 'Free'] };
+const SOURCE_LABEL: Record<string, [string, string]> = { pilot: ['تجريبي للشركاء (ببلاش)', 'Pilot (free)'], paid: ['مدفوعة', 'Paid'], trial: ['فترة تجربة', 'Trial'], free: ['مجانية', 'Free'], grace: ['فترة سماح', 'Grace period'], readonly: ['للقراءة بس', 'Read-only'], blocked: ['متوقفة', 'Stopped'] };
 
 /** A used-of-limit bar: brand azure, copper from 80%, red at the limit. */
 function Meter({ label, used, limit, testID }: { label: string; used: number; limit: number; testID?: string }) {
   const { colors } = useTheme();
-  const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  const pct = limit > 0 && limit < UNLIMITED_UNITS ? Math.min(100, Math.round((used / limit) * 100)) : 0;
   const fill = pct >= 100 ? colors.danger : pct >= 80 ? colors.accent : colors.primary;
   return (
     <View testID={testID} style={styles.meter}>
       <View style={styles.meterHead}>
         <Text style={{ color: colors.text, fontWeight: '700' }}>{label}</Text>
-        <Text style={{ color: colors.muted }}>{ratioText(used, limit)}</Text>
+        <Text style={{ color: colors.muted }}>{limit >= UNLIMITED_UNITS ? `${num(used)} / ${planT(currentLang(), 'unlimited')}` : ratioText(used, limit)}</Text>
       </View>
       <View style={[styles.track, { backgroundColor: colors.border }]}>
         <View style={{ width: `${pct}%`, height: 8, borderRadius: 4, backgroundColor: fill }} />
@@ -110,7 +112,8 @@ const meters = (a: Allowance, ar: boolean) => (
   <>
     {a.credits ? <Meter testID="meter-credits" label={ar ? 'رصيد الذكاء الاصطناعي (الشهر ده)' : 'AI credits (this month)'} used={a.credits.used} limit={a.credits.limit} /> : null}
     {a.seats ? <Meter testID="meter-seats" label={ar ? 'المستخدمين' : 'Users'} used={a.seats.used} limit={a.seats.limit} /> : null}
-    {a.units ? <Meter testID="meter-units" label={ar ? 'الوحدات' : 'Units'} used={a.units.used} limit={a.units.limit} /> : null}
+    {a.units ? <Meter testID="meter-units" label={ar ? 'الوحدات (متاحة ومؤرشفة ومباعة)' : 'Units (available, archived, sold)'} used={a.units.used} limit={a.units.limit} /> : null}
+    {unitWarnPct(a.units) !== null ? <Text testID="units-warning" style={{ color: '#B45309', fontWeight: '700' }}>{planT(ar ? 'ar' : 'en', 'unitsWarn', unitWarnPct(a.units)!)}</Text> : null}
   </>
 );
 
@@ -199,11 +202,22 @@ export function UsageScreen() {
               <Card testID="plan-allowance">
                 <Text style={[styles.h, { color: colors.text }]}>{pa.plan?.name ? pa.plan.name[ar ? 0 : 1] : ''}</Text>
                 {src ? <Text style={{ color: colors.muted }}>{src[ar ? 0 : 1]}{pa.until ? ` · ${ar ? 'لحد' : 'until'} ${str(pa.until).slice(0, 10)}` : ''}</Text> : null}
-                {pa.plan?.priceEgp ? <Text style={{ color: colors.muted }}>{num(pa.plan.priceEgp)} {t(lang, 'egp')} / {ar ? 'شهر' : 'month'}</Text> : null}
+                {pa.source === 'trial' ? <Text testID="plan-trial-copy" style={{ color: colors.muted }}>{planT(lang, 'trial')}</Text> : null}
+                {priceRows(pa.plan).length ? (
+                  <View testID="plan-prices" style={{ gap: 2 }}>
+                    <Text style={{ color: colors.text, fontWeight: '700' }}>{planT(lang, 'pricesTitle')}</Text>
+                    {priceRows(pa.plan).map((r) => (
+                      <Text key={r.months} testID={`plan-price-${r.months}`} style={{ color: colors.muted }}>
+                        {r.months === 1 ? planT(lang, 'month1') : planT(lang, 'months', r.months)}: {num(r.price)} {t(lang, 'egp')}{r.perMonth !== null ? ` (${planT(lang, 'perMonth', r.perMonth)})` : ''}
+                      </Text>
+                    ))}
+                    <Text style={{ color: colors.muted }}>{planT(lang, 'payNote')}</Text>
+                  </View>
+                ) : null}
               </Card>
             ) : null}
             <Card testID="usage-credits">
-              {meters(d.allowance as Allowance, ar)}
+              {meters(d.allowance, ar)}
             </Card>
             {d.ai ? <AiUsageCard ai={d.ai} ar={ar} /> : null}
             {plan?.payments.length ? <Card><Text style={[styles.h, { color: colors.text }]}>{ar ? 'المدفوعات' : 'Payments'}</Text>{plan.payments.map((p) => <StatRow key={str(p.id ?? p.reference)} label={str(p.reference)} value={str(p.status)} />)}</Card> : null}

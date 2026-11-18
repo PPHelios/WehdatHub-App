@@ -1,0 +1,78 @@
+import type { Lang } from '@wehdathub/shared';
+
+/** Plan, expiry ladder and payment words. Egyptian Arabic first. `{n}` is replaced by planFmt. No prices for brokers: they only ever read the ask-your-manager lines. */
+const P = {
+  ar: {
+    bannerGrace: 'باقتك خلصت وإنت في فترة سماح: فاضل {n} يوم وكل حاجة شغالة.',
+    bannerReadonly: 'الحساب للقراءة بس: تشوف وتبحث، لكن مينفعش تضيف أو تعدّل أو تستخدم الذكاء الاصطناعي. فاضل {n} يوم قبل ما يتوقف.',
+    bannerBlocked: 'الحساب متوقف لحد التجديد. بياناتك محفوظة.',
+    askManager: 'اطلب من مديرك يجدّد الباقة.',
+    renewCta: 'جدّد الباقة',
+    titleReadonly: 'الحساب للقراءة بس',
+    titleBlocked: 'الحساب متوقف',
+    bodyReadonly: 'الإضافة والتعديل والذكاء الاصطناعي واللينكات الجديدة متوقفة لحد ما الباقة تتجدّد.',
+    bodyBlocked: 'الحساب متوقف لحد التجديد. بياناتك محفوظة.',
+    openPlan: 'افتح صفحة الباقة',
+    ok: 'تمام',
+    trial: 'فترة التجربة 14 يوم: مستخدم واحد، 50 وحدة، و80 رصيد ذكاء اصطناعي.',
+    perMonth: '≈ {n} جنيه / شهر',
+    months: '{n} شهر',
+    month1: 'شهر',
+    pricesTitle: 'الأسعار بالجنيه (من غير ضريبة)',
+    payNote: 'الدفع بإنستاباي أو تحويل بنكي بس.',
+    unitsWarn: 'وصلت {n}% من حد الوحدات. بتتحسب المتاحة والمؤرشفة والمباعة. رقّي الباقة قبل ما توصل للحد.',
+    unlimited: 'غير محدود',
+    srcGrace: 'فترة سماح',
+    srcReadonly: 'للقراءة بس',
+    srcBlocked: 'متوقفة',
+    srcTrial: 'فترة تجربة',
+    errSame: 'دي باقتك الحالية بنفس المدة.',
+    errDowngrade: 'مينفعش تنزّل الباقة وهي لسه مدفوعة. تقدر ترقّيها بس.',
+    errPeriod: 'مينفعش تغيّر المدة وباقتك لسه مدفوعة.',
+    errPending: 'فيه طلب ترقية مستني التأكيد.',
+    errLapsed: 'الباقة خلصت. اختار باقة ومدة جديدة بدل الترقية.',
+    errNotPaid: 'الترقية للباقات المدفوعة بس.',
+    errPlan: 'الباقة أو المدة دي مش متاحة.',
+    teamSeats: 'وصلت للحد الأقصى من المستخدمين في باقتك. رقّي الباقة من صفحة الباقة.',
+  },
+  en: {
+    bannerGrace: 'Your plan ended and you are in a grace period: {n} days left and everything still works.',
+    bannerReadonly: 'The account is read-only: you can view and search, but not add, edit or use AI. {n} days left before it stops.',
+    bannerBlocked: 'The account is stopped until it is renewed. Your data is safe.',
+    askManager: 'Ask your manager to renew the plan.',
+    renewCta: 'Renew the plan',
+    titleReadonly: 'The account is read-only',
+    titleBlocked: 'The account is stopped',
+    bodyReadonly: 'Adding, editing, AI and new links are off until the plan is renewed.',
+    bodyBlocked: 'The account is stopped until it is renewed. Your data is safe.',
+    openPlan: 'Open the Plan page',
+    ok: 'OK',
+    trial: 'The trial lasts 14 days: 1 user, 50 units and 80 AI credits.',
+    perMonth: '≈ {n} EGP / month',
+    months: '{n} months',
+    month1: 'month',
+    pricesTitle: 'Prices in EGP (no VAT)',
+    payNote: 'Payment by InstaPay or bank transfer only.',
+    unitsWarn: 'You reached {n}% of your unit limit. Available, archived and sold units all count. Upgrade the plan before you hit the limit.',
+    unlimited: 'Unlimited',
+    srcGrace: 'Grace period',
+    srcReadonly: 'Read-only',
+    srcBlocked: 'Stopped',
+    srcTrial: 'Trial',
+    errSame: 'This is already your plan for the same length.',
+    errDowngrade: 'You cannot downgrade while the plan is paid. You can only upgrade.',
+    errPeriod: 'You cannot change the length while the plan is paid.',
+    errPending: 'An upgrade request is already waiting for confirmation.',
+    errLapsed: 'The plan has ended. Choose a new plan and length instead of an upgrade.',
+    errNotPaid: 'Upgrades are for paid plans only.',
+    errPlan: 'This plan or length is not available.',
+    teamSeats: 'Your plan has reached its user limit. Upgrade the plan from the Plan page.',
+  },
+} as const;
+
+export type PlanTextKey = keyof (typeof P)['ar'];
+/** A plan string; `{n}` is replaced by `n` when given. */
+export const planT = (lang: Lang, key: PlanTextKey, n?: number | string): string => {
+  const s: string = P[lang][key];
+  return n === undefined ? s : s.replace('{n}', typeof n === 'number' ? n.toLocaleString('en-US') : n);
+};
