@@ -15,6 +15,7 @@ import type { RootStackParams } from '../navigation';
 import { ot } from '../ownerText';
 import { useRights } from '../rights';
 import { t } from '../i18n';
+import { UNIT_STATUS, labelOf } from '../unitOptions';
 import { useDebounced } from '../useDebounced';
 import { lift, radius, spacing, useTheme } from '../theme';
 
@@ -129,7 +130,7 @@ export function OwnerScreen() {
       {msg ? <Text testID="owner-msg" style={{ color: colors.muted }}>{msg}</Text> : null}
       <Text style={[styles.name, { color: colors.text }]}>{ot(lang, 'units')}</Text>
       {owner.units.map((u) => (
-        <Pressable key={u.code} accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: u.code })}><Text style={{ color: colors.primary }}>{u.code} · {u.compound ?? ''} · {u.status}{u.is_private ? ' 🔒' : ''}</Text></Pressable>
+        <Pressable key={u.code} accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: u.code })}><Text style={{ color: colors.primary }}>{u.code} · {u.compound ?? ''} · {labelOf(UNIT_STATUS, u.status, lang)}{u.is_private ? ' 🔒' : ''}</Text></Pressable>
       ))}
       {rights.agencyOwner ? (
         <Button testID="owner-vip" variant="secondary" label={`⭐ ${owner.is_private ? ot(lang, 'vipOff') : ot(lang, 'vipOn')}`} onPress={() => run(() => api.ownerPrivate(id, !owner.is_private, owner.units.map((u) => u.code)))} />

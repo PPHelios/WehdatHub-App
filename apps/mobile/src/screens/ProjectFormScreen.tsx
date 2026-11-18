@@ -27,7 +27,7 @@ import { fill, pt } from '../projectText';
 import { pickPhotos, takePhoto } from '../photos';
 import { plain, withCommas } from '../readback';
 import { radius, spacing, useTheme } from '../theme';
-import { labelOf, PROPERTY_TYPES } from '../unitOptions';
+import { ALL_TYPES, labelOf } from '../unitOptions';
 
 /** A message pasted this long all at once is read at once (the website reads it too); the broker still checks every field. */
 const PASTE_MIN = 40;
@@ -172,7 +172,7 @@ export function ProjectFormScreen() {
   const num = (k: string, label: string, extra: object = {}) => (
     <Field key={k} testID={`pf-${k}`} label={`${label} ${T.optional}`} value={str(fields[k])} onChangeText={(v) => set(k, v)} keyboardType="decimal-pad" {...extra} />
   );
-  const typeOptions = PROJECT_TYPES.map((k) => ({ value: k, label: labelOf(PROPERTY_TYPES, k, lang) ?? k }));
+  const typeOptions = PROJECT_TYPES.map((k) => ({ value: k, label: labelOf(ALL_TYPES, k, lang) ?? k }));
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatEgp } from '@wehdathub/shared';
 import type { ApiUnitListItem, Lang } from '@wehdathub/shared';
 import { t } from '../i18n';
+import { FINISHING, labelOf } from '../unitOptions';
 import { Icon } from './Icon';
 import { Pill } from './Pill';
 import { SmartImage } from './SmartImage';
@@ -42,7 +43,7 @@ export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListIte
         </View>
         {place ? <Text testID={`place-${unit.code}`} style={[styles.place, { color: colors.muted }]} numberOfLines={1}>{place}</Text> : null}
         {unit.price !== null ? <Text style={[styles.price, { color: colors.primary }]}>{formatEgp(unit.price)} {t(lang, 'egp')}</Text> : null}
-        {facts.length || unit.finishing ? <View style={styles.facts}>{facts.map((f) => <Pill key={f} label={f} />)}{unit.finishing ? <Pill testID={`finishing-${unit.code}`} tone="accent" label={unit.finishing} /> : null}</View> : null}
+        {facts.length || unit.finishing ? <View style={styles.facts}>{facts.map((f) => <Pill key={f} label={f} />)}{unit.finishing ? <Pill testID={`finishing-${unit.code}`} tone="accent" label={labelOf(FINISHING, unit.finishing, lang) ?? ''} /> : null}</View> : null}
         {onEdit ? (
           <Pressable testID={`edit-${unit.code}`} accessibilityRole="button" accessibilityLabel={t(lang, 'editUnit')} hitSlop={8} onPress={onEdit} style={[styles.edit, { borderColor: colors.border }]}>
             <Icon name="edit" color={colors.primary} size={16} />

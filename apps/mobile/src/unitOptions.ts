@@ -15,6 +15,23 @@ export const FURNISHING: Opt[] = [
   { value: 'furnished', ar: 'مفروشة', en: 'Furnished' }, { value: 'semi_furnished', ar: 'نصف مفروشة', en: 'Semi-furnished' }, { value: 'unfurnished', ar: 'غير مفروشة', en: 'Unfurnished' },
   { value: 'kitchen_and_ac', ar: 'مطبخ وتكييف', en: 'Kitchen & AC' }, { value: 'ac_only', ar: 'تكييف فقط', en: 'AC only' }, { value: 'kitchen_only', ar: 'مطبخ فقط', en: 'Kitchen only' },
 ];
+/** Types the server also stores (domain/describe.js TYPE_LABELS) that the add form does not offer as chips: labels only. */
+const MORE_TYPES: Opt[] = [
+  { value: 'commercial', ar: 'وحدة تجارية', en: 'Commercial unit' }, { value: 'triplex', ar: 'تريبلكس', en: 'Triplex' },
+  { value: 'triplex_roof', ar: 'تريبلكس روف', en: 'Triplex with roof' }, { value: 'sky_loft', ar: 'سكاي لوفت', en: 'Sky loft' },
+  { value: 'basement', ar: 'بدروم', en: 'Basement' }, { value: 'mazonette', ar: 'مازونيت', en: 'Mazonette' }, { value: 'maisonette', ar: 'ميزونيت', en: 'Maisonette' },
+];
+export const ALL_TYPES: Opt[] = [...PROPERTY_TYPES, ...MORE_TYPES];
+/** Unit status (listings.status). */
+export const UNIT_STATUS: Opt[] = [
+  { value: 'active', ar: 'متاحة', en: 'Available' }, { value: 'sold', ar: 'اتباعت', en: 'Sold' },
+  { value: 'archived', ar: 'أرشيف', en: 'Archived' }, { value: 'draft', ar: 'مسودة', en: 'Draft' }, { value: 'deleted', ar: 'ممسوحة', en: 'Deleted' },
+];
+/** Viewing status (services/viewings.js; same words as the website's lead page). */
+export const VIEWING_STATUS: Opt[] = [
+  { value: 'proposed', ar: 'مستنية تأكيد العميل', en: 'Waiting for the client' }, { value: 'confirmed', ar: 'العميل أكّد', en: 'Confirmed' },
+  { value: 'reschedule', ar: 'العميل عايز ميعاد تاني', en: 'Client asks another time' }, { value: 'cancelled', ar: 'اتلغت', en: 'Cancelled' },
+];
 export const options = (list: Opt[], lang: Lang) => list.map((o) => ({ value: o.value, label: lang === 'ar' ? o.ar : o.en }));
 
 /** The label of one stored value (finishing, furnishing, type), or the value itself when it is not on the list. */

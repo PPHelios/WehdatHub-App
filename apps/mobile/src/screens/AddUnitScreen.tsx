@@ -25,7 +25,7 @@ import { MAX_PHOTOS, MAX_POOL, addPicked, pickPhotos, takePhoto, toggleKeep } fr
 import { compressPhotos } from '../compress';
 import { usePhotoUploads } from '../usePhotoUploads';
 import { SaveNotConfirmed, newSaveKey, withSaveCheck } from '../saveKey';
-import { FINISHING, FURNISHING, PROPERTY_TYPES, labelOf, options } from '../unitOptions';
+import { ALL_TYPES, FINISHING, FURNISHING, PROPERTY_TYPES, labelOf, options } from '../unitOptions';
 import { radius, spacing, useTheme } from '../theme';
 import { tick } from '../haptics';
 import { track } from '../analytics';
@@ -115,7 +115,7 @@ export function AddUnitScreen() {
   const field = (k: string, label: string, extra: object = {}) => <Field key={k} testID={`f-${k}`} label={label} value={str(fields[k])} onChangeText={(v) => set(k, v)} required={REQUIRED.includes(k)} invalid={failedCheck && missing(k)} {...extra} />;
 
   const draftLabels = (f: UnitFields) => ({
-    type: labelOf(PROPERTY_TYPES, str(f.property_type), lang) ?? '',
+    type: labelOf(ALL_TYPES, str(f.property_type), lang) ?? '',
     place: placeLabel(f),
     finishing: labelOf(FINISHING, str(f.finishing), lang) ?? '',
     furnishing: labelOf(FURNISHING, str(f.furnishing), lang) ?? '',
