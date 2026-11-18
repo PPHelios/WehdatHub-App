@@ -98,7 +98,7 @@ export function SearchScreen() {
   ) : data.status === 'ask' ? (
     <View style={styles.ask}>
       <Text style={[styles.askTitle, { color: colors.text }]}>{t(lang, 'askTitle')}</Text>
-      <Text style={{ color: colors.accent, fontWeight: '700' }}>{[...(data.ask?.terms ?? []), ...(data.ask?.numbers ?? []).map(String)].join(' · ')}</Text>
+      <Text style={{ color: colors.accentInk, fontWeight: '700' }}>{[...(data.ask?.terms ?? []), ...(data.ask?.numbers ?? []).map(String)].join(' · ')}</Text>
       <Button label={t(lang, 'askSearchAnyway')} onPress={() => run(text, true)} />
       <Button label={t(lang, 'askEdit')} variant="secondary" onPress={() => search.reset()} />
     </View>
@@ -117,9 +117,9 @@ export function SearchScreen() {
           {data.f && data.total > 0 ? <SaveSearchButton f={data.f} /> : null}
           {data.reading ? <Text testID="reading-line" style={[styles.count, { color: colors.text }]}>{data.reading}</Text> : null}
           <Text style={[styles.count, { color: colors.muted }]}>{data.total} {t(lang, 'results')}{data.relaxed ? ` · ${t(lang, 'relaxedNote')}` : ''}</Text>
-          {data.guesses?.length ? <Text testID="guess-note" style={[styles.count, { color: colors.accent }]}>{data.guesses.map((g) => t(lang, 'guessNote').replace('{typed}', g.typed).replace('{as}', g.as)).join(' ')}</Text> : null}
-          {data.unapplied?.length ? <Text testID="unapplied-note" style={[styles.count, { color: colors.accent }]}>{t(lang, 'unappliedNote')} {data.unapplied.join(' · ')}</Text> : null}
-          {data.ignoredTerms?.length ? <Text testID="ignored-note" style={[styles.count, { color: colors.accent }]}>{t(lang, 'ignoredNote')} {data.ignoredTerms.join(' · ')}</Text> : null}
+          {data.guesses?.length ? <Text testID="guess-note" style={[styles.count, { color: colors.accentInk }]}>{data.guesses.map((g) => t(lang, 'guessNote').replace('{typed}', g.typed).replace('{as}', g.as)).join(' ')}</Text> : null}
+          {data.unapplied?.length ? <Text testID="unapplied-note" style={[styles.count, { color: colors.accentInk }]}>{t(lang, 'unappliedNote')} {data.unapplied.join(' · ')}</Text> : null}
+          {data.ignoredTerms?.length ? <Text testID="ignored-note" style={[styles.count, { color: colors.accentInk }]}>{t(lang, 'ignoredNote')} {data.ignoredTerms.join(' · ')}</Text> : null}
         </View>
       }
       renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => nav.navigate('Unit', { code: item.code })} />}
@@ -128,7 +128,7 @@ export function SearchScreen() {
       contentContainerStyle={{ paddingBottom: 150 }}
       onEndReached={() => { if (data.items.length + extra.length < data.total) loadMore(); }}
       onEndReachedThreshold={0.6}
-      ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.count} color={colors.primary} /> : null}
+      ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.count} color={colors.primaryInk} /> : null}
     />
   );
 
@@ -148,7 +148,7 @@ export function SearchScreen() {
       {data && data.source === 'fallback' && /QUOTA|AI_OFF/.test(data.aiError ?? '') ? (
         <View testID="quick-reader-note" style={styles.quick}>
           <Text style={{ color: colors.muted }}>⚡ {t(lang, 'quickReaderNote')}</Text>
-          <Pressable testID="quick-reader-units" accessibilityRole="button" onPress={() => nav.navigate('UnitsList')}><Text style={{ color: colors.primary, fontWeight: '600' }}>{t(lang, 'useUnitFilters')}</Text></Pressable>
+          <Pressable testID="quick-reader-units" accessibilityRole="button" onPress={() => nav.navigate('UnitsList')}><Text style={{ color: colors.primaryInk, fontWeight: '600' }}>{t(lang, 'useUnitFilters')}</Text></Pressable>
         </View>
       ) : null}
       <View style={styles.flex}>{body}</View>

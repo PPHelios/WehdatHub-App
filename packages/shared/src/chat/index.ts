@@ -21,15 +21,21 @@ export interface ChatPost {
   videos: number;
   verify: boolean;
 }
+export interface ChatUnit { code: string; files: ChatFileRef[]; messages: number; verify: boolean; over: number }
 export interface ChatMatchStats { messages: number; dividers: number; photos: number; skippedMedia: number; omittedMedia: number; duplicates: number; truncated: number }
 export interface ChatMatchResult {
   mode: 'posts' | 'codes';
   pattern: string;
   stats: ChatMatchStats;
+  detected?: string;
   posts?: ChatPost[];
+  /** Codes mode only: one entry per known code, in chat order. */
+  units?: ChatUnit[];
+  unknownCodes?: { token: string; suggestions: string[]; sender: string | null; at: string | null }[];
+  noPhotos?: string[];
   tray: { id: string; reason: string; sender: string | null; at: string | null; files: ChatFileRef[] }[];
 }
-export interface ChatMatchOptions { since?: string | null; windowMin?: number; sameSender?: boolean; pattern?: 'auto' | 'photos_first' | 'text_first'; codes?: string[] | null; aliases?: Record<string, string> }
+export interface ChatMatchOptions { since?: number | string | null; until?: number | string | null; windowMin?: number; sameSender?: boolean; pattern?: 'auto' | 'photos_first' | 'text_first'; codes?: string[] | null; aliases?: Record<string, string> }
 export interface ChatMatcher {
   match(text: string, o?: ChatMatchOptions): ChatMatchResult;
   postCode(text: string): string | null;

@@ -57,3 +57,4 @@ test('the header logo reads in English when the app is in English', async () => 
   expect(screen.getByText(/Wehdat/)).toBeTruthy();
   expect(screen.queryByText('وحدات هب')).toBeNull();
 });
+

@@ -71,13 +71,13 @@ export function ProjectPlaceBox({ fields, patch, lang, invalid = false }: { fiel
       />
       <View style={styles.chips}>
         {label ? (
-          <Pressable testID="pbox-place" accessibilityRole="button" accessibilityLabel={fill(T.removeChip, { s: label })} onPress={clearPlace} style={[styles.chip, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-            <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{pending ? `${label} · ${T.devNew}` : label}  ×</Text>
+          <Pressable testID="pbox-place" accessibilityRole="button" accessibilityLabel={fill(T.removeChip, { s: label })} onPress={clearPlace} style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary }]}>
+            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{pending ? `${label} · ${T.devNew}` : label}  ×</Text>
           </Pressable>
         ) : null}
         {chosen.map((k) => (
-          <Pressable key={k} testID={`pbox-feature-${k}`} accessibilityRole="button" onPress={() => patch({ feature: chosen.filter((c) => c !== k) })} style={[styles.chip, { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}>
-            <Text style={{ color: colors.text, fontWeight: '600' }}>{featureChip(k, lang).label}  ×</Text>
+          <Pressable key={k} testID={`pbox-feature-${k}`} accessibilityRole="button" onPress={() => patch({ feature: chosen.filter((c) => c !== k) })} style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary }]}>
+            <Text style={{ color: colors.primaryInk, fontWeight: '600' }}>{featureChip(k, lang).label}  ×</Text>
           </Pressable>
         ))}
         {others.map((o) => (
@@ -113,10 +113,10 @@ export function ProjectPlaceBox({ fields, patch, lang, invalid = false }: { fiel
             </Pressable>
           ))}
           <Pressable testID="pbox-request" accessibilityRole="button" onPress={() => { setRequesting(true); patch({ compound: typed, compound_new: '1', place_label: typed }); setInput(''); }} style={styles.opt}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>{fill(T.requestSub, { s: typed })}</Text>
+            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(T.requestSub, { s: typed })}</Text>
           </Pressable>
           <Pressable testID="pbox-other" accessibilityRole="button" onPress={() => addOther(typed)} style={styles.opt}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>{fill(T.addOther, { s: typed })}</Text>
+            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(T.addOther, { s: typed })}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -143,8 +143,8 @@ function NewSubarea({ fields, patch, lang, onCancel, onDone }: { fields: Project
       <Field testID="pbox-new-ar" label={T.subAr} value={str(fields.compound_ar)} onChangeText={(v) => patch({ compound_ar: v })} />
       <Text style={[styles.label, { color: colors.text }]}>{T.subParent}</Text>
       {parent ? (
-        <Pressable testID="pbox-new-parent" accessibilityRole="button" onPress={() => setParent(null)} style={[styles.chip, { backgroundColor: colors.primary, borderColor: colors.primary, alignSelf: 'flex-start' }]}>
-          <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{nameOf(parent)}  ×</Text>
+        <Pressable testID="pbox-new-parent" accessibilityRole="button" onPress={() => setParent(null)} style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary, alignSelf: 'flex-start' }]}>
+          <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{nameOf(parent)}  ×</Text>
         </Pressable>
       ) : (
         <>

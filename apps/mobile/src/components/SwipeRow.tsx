@@ -25,7 +25,7 @@ export function SwipeRow({ children, rightLabel, leftLabel, onSwipeRight, onSwip
   return (
     <View>
       <View style={[styles.under, { backgroundColor: colors.card }]}>
-        <Text style={[styles.label, { color: colors.primary }]}>{rightLabel}</Text>
+        <Text style={[styles.label, { color: colors.primaryInk }]}>{rightLabel}</Text>
         <Text style={[styles.label, { color: colors.accent }]}>{leftLabel}</Text>
       </View>
       <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: x }] }}>{children}</Animated.View>

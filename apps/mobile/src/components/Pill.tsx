@@ -12,8 +12,8 @@ export function Pill({ label, tone = 'neutral', solid = false, testID }: { label
   const { colors } = useTheme();
   const main = tone === 'primary' ? colors.primary : tone === 'accent' ? colors.accent : colors.muted;
   return (
-    <View testID={testID} style={[styles.pill, solid ? { backgroundColor: main, borderColor: main } : { backgroundColor: tone === 'neutral' ? colors.bg : `${main}1F`, borderColor: tone === 'neutral' ? colors.border : `${main}55` }]}>
-      <Text style={[styles.text, { color: solid ? (tone === 'accent' ? colors.onAccent : colors.onPrimary) : tone === 'neutral' ? colors.text : main }]}>{label}</Text>
+    <View testID={testID} style={[styles.pill, solid ? { backgroundColor: main, borderColor: main } : { backgroundColor: tone === 'primary' ? colors.primarySoft : tone === 'neutral' ? colors.bg : `${main}1F`, borderColor: tone === 'neutral' ? colors.border : `${main}55` }]}>
+      <Text style={[styles.text, { color: solid ? (tone === 'accent' ? colors.onAccent : colors.onPrimary) : tone === 'neutral' ? colors.text : tone === 'primary' ? colors.primaryInk : main }]}>{label}</Text>
     </View>
   );
 }

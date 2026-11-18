@@ -4,29 +4,32 @@ import Svg, { Polygon } from 'react-native-svg';
 import { currentLang } from '../auth';
 import { useTheme } from '../theme';
 
-/** The five rising bars of the brand mark (the middle one azure), as in the brand guide. */
+/** The middle bar is cobalt blue in light and dark alike (same as the website mark). */
+const MIDDLE = '#4B83D4';
+
+/** The five rising bars of the brand mark (outer four satin gold, the middle one cobalt blue), as in the brand guide. */
 function Mark({ height }: { height: number }) {
   const { colors } = useTheme();
-  const c = colors.accent;
+  const c = colors.primary; // satin gold, both modes
   return (
     <Svg width={(height * 154) / 160} height={height} viewBox="0 0 154 160" testID="logo-mark">
       <Polygon points="10,20 32,55 32,150 10,150" fill={c} />
       <Polygon points="38,95 60,70 60,150 38,150" fill={c} />
-      <Polygon points="66,62 88,35 88,150 66,150" fill={colors.primary} />
+      <Polygon points="66,62 88,35 88,150 66,150" fill={MIDDLE} />
       <Polygon points="94,70 116,95 116,150 94,150" fill={c} />
       <Polygon points="122,55 144,20 144,150 122,150" fill={c} />
     </Svg>
   );
 }
 
-/** The name in one language: "Wehdat Hub" (Hub in azure), or "وحدات هب". */
+/** The name in one language: "Wehdat Hub" (Hub in gold ink), or "وحدات هب". */
 function Word({ ar, fontSize }: { ar: boolean; fontSize: number }) {
   const { colors } = useTheme();
   return ar ? (
     <Text style={[styles.word, { color: colors.text, fontSize }]} numberOfLines={1}>وحدات هب</Text>
   ) : (
     <Text style={[styles.word, { color: colors.text, fontSize }]} numberOfLines={1}>
-      Wehdat <Text style={{ color: colors.primary }}>Hub</Text>
+      Wehdat <Text style={{ color: colors.primaryInk }}>Hub</Text>
     </Text>
   );
 }
@@ -35,7 +38,7 @@ function Word({ ar, fontSize }: { ar: boolean; fontSize: number }) {
 export const BAR_WIDTH = 64;
 
 /**
- * The WehdatHub logo from the brand guide: the mark with the name. English reads "Wehdat Hub" (Hub in azure) with the mark first;
+ * The WehdatHub logo from the brand guide: the mark with the name. English reads "Wehdat Hub" (Hub in gold ink) with the mark first;
  * Arabic reads "وحدات هب" with the mark on the right. The row flips with the layout direction, so one order serves both.
  *  - default and compact: the name in the app language.
  *  - bar: for a screen header. A small mark with the name under it, at most BAR_WIDTH wide, so a long centred title never runs into it.

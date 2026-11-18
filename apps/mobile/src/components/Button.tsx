@@ -21,7 +21,7 @@ interface Props {
 
 /** Every button shows a spinner while its action runs and ignores taps until it ends (no double submits). */
 export function Button({ label, onPress, loading = false, disabled = false, variant = 'primary', size = 'md', testID, progress }: Props) {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const busy = useRef(false);
   const alive = useRef(true);
   const [running, setRunning] = useState(false);
@@ -35,7 +35,7 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
   // Filled buttons (primary, danger) carry an "on" colour; secondary has an edge; quiet has neither.
   const filled = variant === 'primary' || variant === 'danger';
   const fill = variant === 'danger' ? colors.danger : colors.primary;
-  const ink = filled ? (variant === 'danger' ? colors.onDanger : colors.onPrimary) : variant === 'quiet' ? colors.primary : colors.text;
+  const ink = filled ? (variant === 'danger' ? colors.onDanger : colors.onPrimary) : variant === 'quiet' ? colors.primaryInk : colors.text;
   const handle = async () => {
     if (blocked || busy.current) return;
     busy.current = true;
@@ -58,7 +58,8 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
       onPress={handle}
       style={({ pressed }) => [
         styles.base,
-        { minHeight: buttonHeight[size], backgroundColor: filled ? fill : 'transparent', borderColor: filled ? fill : variant === 'quiet' ? 'transparent' : colors.border, opacity: blocked ? 0.6 : pressed ? 0.85 : 1 },
+        variant === 'primary' || variant === 'secondary' ? elev('sm') : null,
+        { minHeight: buttonHeight[size], backgroundColor: filled ? fill : variant === 'secondary' ? colors.card : 'transparent', borderColor: variant === 'primary' ? colors.primaryHi : variant === 'danger' ? fill : variant === 'quiet' ? 'transparent' : colors.lineStrong, opacity: blocked ? 0.6 : pressed ? 0.85 : 1, transform: [{ scale: pressed && !blocked ? 0.98 : 1 }] },
       ]}
     >
       {progress !== undefined ? <View testID="button-progress" pointerEvents="none" style={[styles.fill, { width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`, backgroundColor: filled ? ink : colors.primary }]} /> : null}

@@ -26,7 +26,7 @@ import { useRights } from '../rights';
 import { moreItems, navPlan } from '../roleNav';
 import type { MoreScreenName } from '../roleNav';
 import { stopPush } from '../push';
-import { lift, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { usePrefs } from '../prefs';
 import { APP_BUILD, APP_VERSION } from '../config';
 import { syncDirection } from '../direction';
@@ -38,7 +38,7 @@ import { toast } from '../components/Toast';
  * settings themselves are changed on the website; the app opens what it can show.
  */
 export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreScreenName) => void; mode?: 'menu' | 'settings' } = {}) {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
   const { appearance, clientLang, setAppearance, setClientLang } = usePrefs();
@@ -104,14 +104,14 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
         ? sections.map((s) => {
             const open = navOpen[s.key] ?? GROUP_OPEN.has(s.key);
             return (
-              <View key={s.key} testID={`group-${s.key}`} style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+              <View key={s.key} testID={`group-${s.key}`} style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
                 <Pressable testID={`group-toggle-${s.key}`} accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setGroupOpen(s.key, !open)} style={styles.groupHead}>
                   <Text style={[styles.cardTitle, styles.flex, { color: colors.text }]}>{s.label[lang]}</Text>
                   <Text style={{ color: colors.muted }}>{open ? '▾' : lang === 'ar' ? '◂' : '▸'}</Text>
                 </Pressable>
                 {open ? s.rows.map((r) => (
                   <Pressable key={r.id} testID={`open-${r.id}`} accessibilityRole="button" onPress={() => onOpen(r.screen)} style={styles.row}>
-                    <Icon name={r.icon} color={colors.primary} size={20} />
+                    <Icon name={r.icon} color={colors.primaryInk} size={20} />
                     <Text style={[styles.flex, { color: colors.text }]}>{r.label[lang]}</Text>
                   </Pressable>
                 )) : null}
@@ -120,7 +120,7 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
           })
         : null}
       {onOpen && !sections && mode !== 'settings' ? items.map((it) => <Button key={it.id} testID={`open-${it.id}`} label={`${it.icon} ${t(lang, it.label)}`} variant="secondary" onPress={() => onOpen(it.screen)} />) : null}
-      <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]} testID="app-settings">
+      <View style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]} testID="app-settings">
         <Text style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'appearance')}</Text>
         <Chips testID="appearance" value={appearance} options={[{ value: 'system' as const, label: t(lang, 'appSystem') }, { value: 'light' as const, label: t(lang, 'appLight') }, { value: 'dark' as const, label: t(lang, 'appDark') }]} onChange={setAppearance} />
         <Text style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'languageTitle')}</Text>
@@ -130,7 +130,7 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
         <Text style={{ color: colors.muted }}>{t(lang, 'clientLangHint')}</Text>
       </View>
       {ts ? (
-        <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]} testID="test-switch">
+        <View style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]} testID="test-switch">
           <Text style={[styles.cardTitle, { color: colors.text }]}>{lang === 'ar' ? 'تبديل الاختبار' : 'Test switch'}</Text>
           <Chips testID="test-role" value={ts.role} options={ts.roles.map((r) => ({ value: r, label: ROLE_LABELS[r]?.[lang] ?? r }))} onChange={(r) => { void switchRole(r); }} />
           {ts.canView ? (
@@ -143,7 +143,7 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
       {mode === 'settings' ? (
         <>
           {rights.manager || rights.agencyOwner ? (
-            <View testID="settings-agency" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+            <View testID="settings-agency" style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
               <Text style={[styles.section, { color: colors.text }]}>{lang === 'ar' ? 'الشركة' : 'Agency'}</Text>
               <Text style={{ color: colors.muted }}>{lang === 'ar' ? 'حروف الأكواد وأسعار العملات ومين يشوف البيانات الخاصة بتتغير من الموقع. اللوجو وتعديل البروكرز للوحدات فوق.' : 'Unit code letters, currency rates and who sees private details are changed on the website. The logo and brokers editing units are above.'}</Text>
               <Button testID="settings-open-usage" label={lang === 'ar' ? 'استهلاك الذكاء الاصطناعي' : 'AI use per person'} variant="secondary" onPress={() => onOpen?.('Usage')} />
@@ -151,7 +151,7 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
             </View>
           ) : null}
           {rights.agencyOwner ? (
-            <View testID="settings-plan" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+            <View testID="settings-plan" style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
               <Text style={[styles.section, { color: colors.text }]}>{lang === 'ar' ? 'الباقة والفواتير' : 'Plan and billing'}</Text>
               <Button testID="settings-open-plan" label={t(lang, 'plan')} variant="secondary" onPress={() => onOpen?.('Plan')} />
             </View>
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 22, fontWeight: '700' },
   agency: { fontSize: 16, marginBottom: spacing.lg },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  card: { ...lift, borderWidth: 1, borderRadius: 16, padding: spacing.md, gap: spacing.sm },
+  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
   cardTitle: { fontSize: 15, fontWeight: '700' },
   section: { fontSize: 18, fontWeight: '700' },
   flex: { flex: 1 },

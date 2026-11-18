@@ -133,7 +133,7 @@ export function HoldMic({ label, testID, onFile, onError, disabled = false }: Pr
         <ActivityIndicator testID="button-spinner" color={colors.primary} />
       ) : (
         <Animated.View style={[styles.dot, { backgroundColor: tone, transform: [{ scale: pulse }] }]}>
-          <Icon name={cancel ? 'trash' : 'mic'} color="#FFFFFF" size={18} />
+          <Icon name={cancel ? 'trash' : 'mic'} color={cancel ? colors.onDanger : on ? colors.onAccent : colors.onPrimary} size={18} />
         </Animated.View>
       )}
       <View style={styles.texts}>

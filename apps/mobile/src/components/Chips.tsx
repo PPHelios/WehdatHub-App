@@ -13,8 +13,8 @@ export function Chips<T extends string>({ options, value, onChange, testID, disa
       {options.map((o) => {
         const on = o.value === value;
         return (
-          <Pressable key={o.value} accessibilityRole="button" accessibilityState={{ selected: on, disabled }} disabled={disabled} onPress={() => onChange(o.value)} style={[styles.chip, disabled && { opacity: 0.4 }, { borderColor: on ? colors.primary : colors.border }, on && { backgroundColor: colors.primary }]}>
-            <Text style={[styles.text, { color: on ? colors.onPrimary : colors.text }]}>{o.label}</Text>
+          <Pressable key={o.value} accessibilityRole="button" accessibilityState={{ selected: on, disabled }} disabled={disabled} onPress={() => onChange(o.value)} style={[styles.chip, disabled && { opacity: 0.4 }, { borderColor: on ? colors.primary : colors.border }, on && { backgroundColor: colors.primarySoft }]}>
+            <Text style={[styles.text, { color: on ? colors.primaryInk : colors.text }]}>{o.label}</Text>
           </Pressable>
         );
       })}

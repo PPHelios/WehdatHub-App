@@ -16,7 +16,7 @@ const INSET = 5;
  * direction in Arabic), and the active icon fills with the brand colour. Tabs are the screens of the navigator, in order.
  */
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const { colors, scheme } = useTheme();
+  const { colors, scheme, elev } = useTheme();
   const { bottom } = useSafeAreaInsets();
   const [width, setWidth] = useState(0);
   const n = state.routes.length;
@@ -30,15 +30,15 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
 
   return (
     <View style={[styles.wrap, { backgroundColor: colors.bg, paddingBottom: Math.max(bottom, 10) }]}>
-      <View testID="tab-bar" onLayout={(e) => setWidth(e.nativeEvent.layout.width - INSET * 2)} style={[styles.bar, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View testID="tab-bar" onLayout={(e) => setWidth(e.nativeEvent.layout.width - INSET * 2)} style={[styles.bar, { backgroundColor: colors.card, borderColor: colors.border }, elev('lg')]}>
         {width > 0 && !isFab(state.routes[state.index]?.key) ? (
-          <Animated.View testID="tab-highlight" pointerEvents="none" style={[styles.pill, { width: slot, backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.38)' : `${colors.primary}1F`, transform: [{ translateX: x }] }]} />
+          <Animated.View testID="tab-highlight" pointerEvents="none" style={[styles.pill, { width: slot, backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.38)' : colors.primarySoft, transform: [{ translateX: x }] }]} />
         ) : null}
         {state.routes.map((route, i) => {
           const { options } = descriptors[route.key];
           const focused = state.index === i;
           const isAdd = isFab(route.key); // the centre shortcut: a filled circle, never the sliding highlight
-          const color = isAdd ? colors.onPrimary : focused ? colors.primary : colors.muted;
+          const color = isAdd ? colors.onPrimary : focused ? colors.primaryInk : colors.muted;
           const label = typeof options.title === 'string' ? options.title : route.name;
           const press = () => {
             const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -59,7 +59,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 16, paddingTop: 8 },
-  bar: { height: BAR, borderRadius: BAR / 2, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', padding: INSET, elevation: 10, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 4 } },
+  bar: { height: BAR, borderRadius: BAR / 2, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', padding: INSET },
   pill: { position: 'absolute', top: INSET, bottom: INSET, left: INSET, borderRadius: (BAR - INSET * 2) / 2 },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
   label: { fontSize: 11 },

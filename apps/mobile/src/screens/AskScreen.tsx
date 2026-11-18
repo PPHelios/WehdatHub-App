@@ -20,7 +20,7 @@ import { toastError } from '../components/Toast';
 
 /** Ask: a question (typed or spoken) answered from the agency's projects, units and the broker's own clients. */
 export function AskScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [question, setQuestion] = useState('');
@@ -64,7 +64,7 @@ export function AskScreen() {
       </View>
       {error ? <Text testID="ask-error" style={{ color: colors.danger }}>{error}</Text> : null}
       {out ? (
-        <View testID="ask-answer" style={[styles.box, { borderColor: out.found ? colors.accent : colors.border, backgroundColor: colors.card }]}>
+        <View testID="ask-answer" style={[styles.box, elev('md'), { borderColor: out.found ? colors.accent : colors.border, backgroundColor: colors.card }]}>
           <Text selectable style={{ color: colors.text, fontSize: 16 }}>{out.answer}</Text>
           {out.source === 'local' ? <Text testID="ask-local" style={{ color: colors.muted }}>{pt(lang).localAnswer}</Text> : null}
           {out.dataDates ? <Text style={{ color: colors.muted }}>{out.dataDates}</Text> : null}
@@ -81,5 +81,5 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.md },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
-  box: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  box: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
 });

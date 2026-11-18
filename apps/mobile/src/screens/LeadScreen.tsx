@@ -131,7 +131,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
       <Button testID="lead-note" label={t(lang, 'save')} onPress={async () => { await run((l) => api.leadNote(l.ref, l.version, note)); setNote(''); }} />
 
       <Section testID="sec-followup" title={t(lang, 'followUp')}>
-      {lead.nextFollowUpAt ? <Text style={{ color: colors.accent, fontWeight: '600' }}>{lead.followUpKind === 'viewing' ? t(lang, 'fuViewing') : t(lang, 'fuCall')} · {new Date(lead.nextFollowUpAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</Text> : null}
+      {lead.nextFollowUpAt ? <Text style={{ color: colors.accentInk, fontWeight: '600' }}>{lead.followUpKind === 'viewing' ? t(lang, 'fuViewing') : t(lang, 'fuCall')} · {new Date(lead.nextFollowUpAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</Text> : null}
       <View style={styles.row}>
         <View style={styles.flex}><Button label={t(lang, 'fuTomorrow')} variant="secondary" onPress={() => followUp({ at: at10(1), kind: 'call' })} /></View>
         <View style={styles.flex}><Button label={t(lang, 'fuTwoDays')} variant="secondary" onPress={() => followUp({ at: at10(2), kind: 'call' })} /></View>

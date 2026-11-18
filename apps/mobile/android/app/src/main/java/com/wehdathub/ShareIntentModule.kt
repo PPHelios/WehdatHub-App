@@ -14,14 +14,22 @@ class ShareIntentModule(context: ReactApplicationContext) : ReactContextBaseJava
 
   @ReactMethod
   fun getPending(promise: Promise) {
+    if (ShareStore.pending) {
+      // Still copying in the background: JS asks again shortly.
+      val busy = Arguments.createMap()
+      busy.putBoolean("pending", true)
+      promise.resolve(busy)
+      return
+    }
     val text = ShareStore.text
     val files = ShareStore.files
-    if (text == null && files.isEmpty()) {
+    if (text == null && files.isEmpty() && !ShareStore.tooBig) {
       promise.resolve(null)
       return
     }
     val map = Arguments.createMap()
     map.putString("text", text)
+    map.putBoolean("tooBig", ShareStore.tooBig)
     val list = Arguments.createArray()
     files.forEach {
       val f = Arguments.createMap()

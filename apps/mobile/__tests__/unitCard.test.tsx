@@ -19,6 +19,21 @@ test('a unit card shows the place, the facts and the finishing chip', async () =
   expect(screen.getByTestId('deal-HP-301')).toBeTruthy();
 });
 
+test('a unit card shows the property type in Arabic', async () => {
+  await render(<UnitCard unit={unit({ propertyType: 'villa' })} lang="ar" onPress={() => undefined} />);
+  expect(screen.getByTestId('type-HP-301')).toHaveTextContent('فيلا');
+});
+
+test('a unit card shows the property type in English, also for types off the add form', async () => {
+  await render(<UnitCard unit={unit({ propertyType: 'twin_villa' })} lang="en" onPress={() => undefined} />);
+  expect(screen.getByTestId('type-HP-301')).toHaveTextContent('Twin house');
+});
+
+test('a unit card with no property type leaves the chip out', async () => {
+  await render(<UnitCard unit={unit({ propertyType: null })} lang="en" onPress={() => undefined} />);
+  expect(screen.queryByTestId('type-HP-301')).toBeNull();
+});
+
 test('with no photo the card keeps the photo area, so a list has even rows', async () => {
   await render(<UnitCard unit={unit({ photo: null })} lang="en" onPress={() => undefined} />);
   const box = screen.getByTestId('no-photo-HP-301');
@@ -31,7 +46,7 @@ test('a card with no place or finishing leaves those out', async () => {
   expect(screen.queryByTestId('finishing-HP-301')).toBeNull();
 });
 
-test('a solid pill is readable in dark mode: dark text on copper, not white', async () => {
+test('a solid pill is readable in dark mode: dark text on gold, not white', async () => {
   usePrefs.setState({ appearance: 'dark' });
   await render(<Pill solid tone="primary" label="Sale" />);
   const text = StyleSheet.flatten(screen.getByText('Sale').props.style);

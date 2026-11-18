@@ -7,12 +7,12 @@ import { Button } from '../components/Button';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { clearTray } from '../tray';
 
 /** The broker's notifications: newest first, unread in bold. Each can be marked read or deleted (deleted ones stay in the managers' log). */
 export function InboxScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const qc = useQueryClient();
   const list = useInfiniteQuery({
@@ -43,7 +43,7 @@ export function InboxScreen() {
             </View>
           ) : <Text testID="inbox-empty" style={{ color: colors.muted }}>{t(lang, 'inboxEmpty')}</Text>}
           {items.map((n) => (
-            <View key={n.id} testID={`inbox-${n.id}`} style={[styles.card, { backgroundColor: colors.card, borderColor: n.read ? colors.border : colors.primary }]}>
+            <View key={n.id} testID={`inbox-${n.id}`} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: n.read ? colors.border : colors.primary }]}>
               <Text style={{ color: colors.text, fontWeight: n.read ? '400' : '800' }}>{n.title}</Text>
               {n.body ? <Text style={{ color: colors.text }}>{n.body}</Text> : null}
               <Text style={{ color: colors.muted }}>{when(n.created_at)}</Text>
@@ -64,5 +64,5 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
-  card: { ...lift, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
 });

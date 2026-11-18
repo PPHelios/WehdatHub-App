@@ -8,6 +8,6 @@ describe('shared', () => {
     expect(formatEgp(159029.4)).toBe('159,029');
   });
   it('has both themes', () => {
-    expect(brand.light.copper).not.toBe(brand.dark.copper);
+    expect(brand.light.gold).not.toBe(brand.dark.gold);
   });
 });

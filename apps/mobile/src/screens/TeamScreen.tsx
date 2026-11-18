@@ -18,12 +18,12 @@ import { errorText } from '../errors';
 import { stageLabel, t } from '../i18n';
 import { planT } from '../planText';
 import type { RootStackParams } from '../navigation';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { toast } from '../components/Toast';
 
 /** The team: each broker with open, overdue and due-today leads. A manager sees everyone, a team lead their own team. */
 export function TeamScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const rights = useRights();
@@ -48,7 +48,7 @@ export function TeamScreen() {
       ListHeaderComponent={canManage ? <View>{switcher}<View style={{ padding: spacing.lg }}><Button testID="team-add" label={`➕ ${t(lang, 'invite')}`} onPress={() => nav.navigate('Invite')} /></View></View> : null}
       ListEmptyComponent={<EmptyView title={t(lang, 'teamEmpty')} />}
       renderItem={({ item }) => (
-        <Pressable testID={`member-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('TeamMember', { id: item.id, name: item.name, role: item.role, me: item.me, teamLeadId: item.teamLeadId ?? null })} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Pressable testID={`member-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('TeamMember', { id: item.id, name: item.name, role: item.role, me: item.me, teamLeadId: item.teamLeadId ?? null })} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.name, { color: colors.text }]}>{item.name}{item.away ? ` · ${t(lang, 'away')}` : ''}</Text>
           <View style={styles.row}>
             <Text style={{ color: colors.text }}>{item.open} {t(lang, 'openLeads')}</Text>
@@ -74,7 +74,7 @@ function memberError(e: unknown, lang: 'ar' | 'en'): string {
 
 /** The deactivated members: bring one back, or delete them for good. */
 function FormerList({ header }: { header: React.ReactNode }) {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['teamFormer'], queryFn: () => api.formerTeam() });
@@ -94,7 +94,7 @@ function FormerList({ header }: { header: React.ReactNode }) {
       ListHeaderComponent={<View>{header}</View>}
       ListEmptyComponent={<EmptyView title={lang === 'ar' ? 'مفيش حد موقوف.' : 'Nobody is deactivated.'} />}
       renderItem={({ item }) => (
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
           <Text style={{ color: colors.muted }}>{item.role}{item.deactivatedAt ? ` · ${item.deactivatedAt.slice(0, 10)}` : ''}</Text>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -159,7 +159,7 @@ export function MemberRole({ id, role, teamLeadId, run }: { id: string; role: st
 
 /** One broker's leads, newest activity first. */
 export function TeamMemberScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const { id, role = '', me = false, teamLeadId = null } = useRoute<RouteProp<RootStackParams, 'TeamMember'>>().params;
@@ -197,7 +197,7 @@ export function TeamMemberScreen() {
       ) : null}
       ListEmptyComponent={<EmptyView title={t(lang, 'noLeadsHere')} />}
       renderItem={({ item }) => (
-        <Pressable accessibilityRole="button" onPress={() => nav.navigate('Lead', { ref: item.ref })} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Pressable accessibilityRole="button" onPress={() => nav.navigate('Lead', { ref: item.ref })} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.name, { color: colors.text }]}>{item.name || item.ref}</Text>
           <Text style={{ color: colors.muted }}>{item.ref} · {stageLabel(lang, item.stage)}</Text>
         </Pressable>
@@ -207,7 +207,7 @@ export function TeamMemberScreen() {
 }
 
 const styles = StyleSheet.create({
-  card: { ...lift, marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
   name: { fontSize: 16, fontWeight: '700' },
   row: { flexDirection: 'row', gap: spacing.lg },
 });

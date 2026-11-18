@@ -65,7 +65,8 @@ export function MapScreen() {
   const units = useQuery({ queryKey: ['mapUnits', picked?.id, filters], queryFn: () => api.mapUnits(picked!.id, filters), enabled: !!picked });
 
   const tilesUrl = map.data?.tilesUrl ?? null;
-  const html = useMemo(() => (tilesUrl ? mapHtml(tilesUrl, lang) : ''), [tilesUrl, lang]);
+  const html = useMemo(() => (tilesUrl ? mapHtml(tilesUrl, lang, { pin: colors.accent, onPin: colors.onAccent, selected: colors.primary, onSelected: colors.onPrimary }) : ''), [tilesUrl, lang, colors.accent, colors.onAccent, colors.primary, colors.onPrimary]);
+  useEffect(() => { web.current?.injectJavaScript(`window.setSelected&&window.setSelected(${JSON.stringify(picked?.id ?? null)});true;`); }, [picked?.id]);
 
   useEffect(() => {
     if (!ready || !map.data) return;
@@ -110,7 +111,7 @@ export function MapScreen() {
       </View>
       <View style={styles.flex}>
         <WebView ref={web} testID="map-web" style={styles.flex} originWhitelist={['*']} source={{ html, baseUrl: API_BASE_URL }} javaScriptEnabled onMessage={onMessage} onLoadStart={() => setReady(false)} />
-        {map.isFetching ? <ActivityIndicator style={styles.busy} color={colors.primary} /> : null}
+        {map.isFetching ? <ActivityIndicator style={styles.busy} color={colors.primaryInk} /> : null}
       </View>
       {panel ? (
         <ScrollView testID="map-filters" style={[styles.overlay, styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]} keyboardShouldPersistTaps="handled">
@@ -132,10 +133,10 @@ export function MapScreen() {
         <View style={[styles.sheet, { backgroundColor: colors.card, borderColor: colors.border }]} testID="map-sheet">
           <View style={styles.sheetHead}>
             <Text style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>{picked.name}</Text>
-            <Pressable accessibilityRole="button" onPress={() => setPicked(null)}><Text style={[styles.close, { color: colors.primary }]}>{t(lang, 'closePanel')}</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => setPicked(null)}><Text style={[styles.close, { color: colors.primaryInk }]}>{t(lang, 'closePanel')}</Text></Pressable>
           </View>
           {units.isPending ? (
-            <ActivityIndicator color={colors.primary} />
+            <ActivityIndicator color={colors.primaryInk} />
           ) : units.isError ? (
             <ErrorView message={errorText(units.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await units.refetch(); }} />
           ) : (
@@ -148,7 +149,7 @@ export function MapScreen() {
                   {item.photo ? <Image testID="map-thumb" source={{ uri: item.photo }} style={[styles.thumb, { backgroundColor: colors.card }]} accessibilityIgnoresInvertColors /> : <View style={[styles.thumb, { backgroundColor: colors.card }]} />}
                   <View style={styles.rowText}>
                     <Text style={[styles.code, { color: colors.text }]}>{item.code}</Text>
-                    {item.listingType === 'sale' || item.listingType === 'rent' ? <Text testID={`pin-deal-${item.code}`} style={{ color: item.listingType === 'rent' ? colors.accent : colors.primary, fontWeight: '700' }}>{t(lang, item.listingType)}</Text> : null}
+                    {item.listingType === 'sale' || item.listingType === 'rent' ? <Text testID={`pin-deal-${item.code}`} style={{ color: item.listingType === 'rent' ? colors.accentInk : colors.primaryInk, fontWeight: '700' }}>{t(lang, item.listingType)}</Text> : null}
                     <Text style={{ color: colors.muted }} numberOfLines={1}>{[item.bedrooms !== null ? `${item.bedrooms} ${t(lang, 'roomsN')}` : null, item.area ? `${item.area} m²` : null].filter(Boolean).join(' · ')}</Text>
                     {item.price !== null ? <Text style={[styles.price, { color: colors.text }]}>{formatEgp(item.price)} {t(lang, 'egp')}</Text> : null}
                   </View>

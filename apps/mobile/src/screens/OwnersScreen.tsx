@@ -18,12 +18,12 @@ import { useRights } from '../rights';
 import { t } from '../i18n';
 import { UNIT_STATUS, labelOf } from '../unitOptions';
 import { useDebounced } from '../useDebounced';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { toast, toastError } from '../components/Toast';
 
 /** Unit owners: the same list and rules as the website (the server decides who sees which owner and phone). */
 export function OwnersScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const rights = useRights();
@@ -49,7 +49,7 @@ export function OwnersScreen() {
           onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
           ListEmptyComponent={<EmptyView title={ot(lang, 'none')} />}
           renderItem={({ item }) => (
-            <Pressable testID={`owner-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('Owner', { id: item.id, name: item.name || ot(lang, 'noName') })} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Pressable testID={`owner-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('Owner', { id: item.id, name: item.name || ot(lang, 'noName') })} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.name, { color: colors.text }]}>{item.name || ot(lang, 'noName')}{item.is_private ? ' ⭐' : ''}</Text>
               <Text style={{ color: colors.muted }}>{item.code} · {item.unit_count} {ot(lang, 'unit')}</Text>
               {item.phones?.length ? <Text style={{ color: colors.muted }}>{item.phones.map((p) => (item.phones_masked ? p : ltr(`+${p}`))).join(' · ')}</Text> : null}
@@ -63,7 +63,7 @@ export function OwnersScreen() {
 }
 
 function RenameRequests({ items }: { items: { id: number; code: string; old_value: string | null; new_value: string }[] }) {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const qc = useQueryClient();
   const decide = async (id: number, ok: boolean) => {
@@ -72,7 +72,7 @@ function RenameRequests({ items }: { items: { id: number; code: string; old_valu
     await qc.invalidateQueries({ queryKey: ['owners'] });
   };
   return (
-    <View testID="rename-requests" style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View testID="rename-requests" style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
       <Text style={[styles.name, { color: colors.text }]}>📝 {ot(lang, 'renames')} ({items.length})</Text>
       {items.map((r) => (
         <View key={r.id} style={styles.gap}>
@@ -128,11 +128,11 @@ export function OwnerScreen() {
       <Text style={{ color: colors.muted }}>{owner.code} · {owner.phones.map((p) => `+${p}`).join(' · ')}</Text>
       {owner.flag ? <Text style={{ color: colors.danger }}>⚠️ {owner.flag}</Text> : null}
       {owner.notes ? <Text style={{ color: colors.text }}>{owner.notes}</Text> : null}
-      {lead ? <Pressable onPress={() => nav.navigate('Lead', { ref: `L-${String(lead.ref).padStart(4, '0')}` })}><Text style={{ color: colors.primary }}>🔗 {ot(lang, 'alsoLead')}: L-{String(lead.ref).padStart(4, '0')}</Text></Pressable> : null}
+      {lead ? <Pressable onPress={() => nav.navigate('Lead', { ref: `L-${String(lead.ref).padStart(4, '0')}` })}><Text style={{ color: colors.primaryInk }}>🔗 {ot(lang, 'alsoLead')}: L-{String(lead.ref).padStart(4, '0')}</Text></Pressable> : null}
       {msg ? <Text testID="owner-msg" style={{ color: colors.muted }}>{msg}</Text> : null}
       <Text style={[styles.name, { color: colors.text }]}>{ot(lang, 'units')}</Text>
       {owner.units.map((u) => (
-        <Pressable key={u.code} accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: u.code })}><Text style={{ color: colors.primary }}>{u.code} · {u.compound ?? ''} · {labelOf(UNIT_STATUS, u.status, lang)}{u.is_private ? ' 🔒' : ''}</Text></Pressable>
+        <Pressable key={u.code} accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: u.code })}><Text style={{ color: colors.primaryInk }}>{u.code} · {u.compound ?? ''} · {labelOf(UNIT_STATUS, u.status, lang)}{u.is_private ? ' 🔒' : ''}</Text></Pressable>
       ))}
       {rights.agencyOwner ? (
         <Button testID="owner-vip" variant="secondary" label={`⭐ ${owner.is_private ? ot(lang, 'vipOff') : ot(lang, 'vipOn')}`} onPress={() => run(() => api.ownerPrivate(id, !owner.is_private, owner.units.map((u) => u.code)))} />
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
   gap: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.md },
-  card: { ...lift, marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
   name: { fontSize: 16, fontWeight: '700' },
   title: { fontSize: 20, fontWeight: '800' },
 });

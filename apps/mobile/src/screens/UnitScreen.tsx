@@ -19,7 +19,7 @@ import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import { featureChip } from '../featureLabels';
-import { FINISHING, FURNISHING, labelOf } from '../unitOptions';
+import { ALL_TYPES, FINISHING, FURNISHING, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 import { clientLang } from '../prefs';
@@ -125,8 +125,9 @@ export function UnitScreen({ code }: { code?: string } = {}) {
           <Text style={[styles.code, { color: colors.muted }]}>{u.code}</Text>
         </View>
         {u.compound ? <Text style={[styles.title, { color: colors.text }]}>{u.compound}</Text> : null}
-        {u.price !== null ? <Text style={[styles.price, { color: colors.primary }]}>{formatEgp(u.price)} {t(lang, 'egp')}</Text> : null}
+        {u.price !== null ? <Text style={[styles.price, { color: colors.primaryInk }]}>{formatEgp(u.price)} {t(lang, 'egp')}</Text> : null}
         <View style={styles.chips}>
+          {u.propertyType ? <Pill testID="unit-type" tone="primary" label={labelOf(ALL_TYPES, u.propertyType, lang) ?? ''} /> : null}
           {rows.slice(0, 3).filter(([, v]) => v).map(([k, v]) => <Pill key={k} label={`${v} ${k}`} />)}
         </View>
         {rows.slice(3).filter(([, v]) => v).map(([, v], i) => (

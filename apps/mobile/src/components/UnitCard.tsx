@@ -3,11 +3,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { formatEgp } from '@wehdathub/shared';
 import type { ApiUnitListItem, Lang } from '@wehdathub/shared';
 import { t } from '../i18n';
-import { FINISHING, labelOf } from '../unitOptions';
+import { ALL_TYPES, FINISHING, labelOf } from '../unitOptions';
 import { Icon } from './Icon';
 import { Pill } from './Pill';
 import { SmartImage } from './SmartImage';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 
 /** The height of the photo area: the same on every card, so a list reads as even rows. */
 export const UNIT_PHOTO_HEIGHT = 180;
@@ -17,13 +17,13 @@ export const UNIT_PHOTO_HEIGHT = 180;
  * project cards (Pill, 16 px corners, the same spacing).
  */
 export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListItem; lang: Lang; onPress: () => void; onEdit?: () => void }) {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const facts = [unit.bedrooms !== null ? `${unit.bedrooms} ${t(lang, 'beds')}` : null, unit.bathrooms !== null ? `${unit.bathrooms} ${t(lang, 'baths')}` : null, unit.area !== null ? `${Math.round(unit.area)} ${t(lang, 'sqm')}` : null].filter((x): x is string => Boolean(x));
   const place = [unit.district, unit.city].filter(Boolean).join(' · ');
   const deal = unit.dealType === 'sale' || unit.dealType === 'rent' ? <Pill testID={`deal-${unit.code}`} solid tone={unit.dealType === 'rent' ? 'accent' : 'primary'} label={t(lang, unit.dealType)} /> : null;
   const mine = unit.mine ? <Pill solid tone="accent" label={t(lang, 'mine')} /> : null;
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.92 : 1 }]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, elev(pressed ? 'lg' : 'md'), { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.95 : 1 }]}>
       {unit.photo ? (
         <View>
           <SmartImage uri={unit.photo} style={styles.photo} />
@@ -42,12 +42,12 @@ export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListIte
           {unit.compound ? <Text style={[styles.code, { color: colors.muted }]}>{unit.code}</Text> : null}
         </View>
         {place ? <Text testID={`place-${unit.code}`} style={[styles.place, { color: colors.muted }]} numberOfLines={1}>{place}</Text> : null}
-        {unit.price !== null ? <Text style={[styles.price, { color: colors.primary }]}>{formatEgp(unit.price)} {t(lang, 'egp')}</Text> : null}
-        {facts.length || unit.finishing ? <View style={styles.facts}>{facts.map((f) => <Pill key={f} label={f} />)}{unit.finishing ? <Pill testID={`finishing-${unit.code}`} tone="accent" label={labelOf(FINISHING, unit.finishing, lang) ?? ''} /> : null}</View> : null}
+        {unit.price !== null ? <Text style={[styles.price, { color: colors.primaryInk }]}>{formatEgp(unit.price)} {t(lang, 'egp')}</Text> : null}
+        {facts.length || unit.finishing || unit.propertyType ? <View style={styles.facts}>{unit.propertyType ? <Pill testID={`type-${unit.code}`} tone="primary" label={labelOf(ALL_TYPES, unit.propertyType, lang) ?? ''} /> : null}{facts.map((f) => <Pill key={f} label={f} />)}{unit.finishing ? <Pill testID={`finishing-${unit.code}`} tone="accent" label={labelOf(FINISHING, unit.finishing, lang) ?? ''} /> : null}</View> : null}
         {onEdit ? (
           <Pressable testID={`edit-${unit.code}`} accessibilityRole="button" accessibilityLabel={t(lang, 'editUnit')} hitSlop={8} onPress={onEdit} style={[styles.edit, { borderColor: colors.border }]}>
-            <Icon name="edit" color={colors.primary} size={16} />
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>{t(lang, 'editUnit')}</Text>
+            <Icon name="edit" color={colors.primaryInk} size={16} />
+            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{t(lang, 'editUnit')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -56,7 +56,7 @@ export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListIte
 }
 
 const styles = StyleSheet.create({
-  card: { ...lift, borderRadius: radius.lg, borderWidth: 1, overflow: 'hidden', marginHorizontal: spacing.lg, marginBottom: spacing.md },
+  card: { borderRadius: radius.card, borderWidth: 1, overflow: 'hidden', marginHorizontal: spacing.lg, marginBottom: spacing.md },
   photo: { height: UNIT_PHOTO_HEIGHT, width: '100%' },
   none: { alignItems: 'center', justifyContent: 'center' },
   place: { fontSize: 14 },

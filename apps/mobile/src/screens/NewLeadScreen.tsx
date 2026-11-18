@@ -71,7 +71,7 @@ export function NewLeadScreen() {
       <Button testID="from-contacts" variant="secondary" label={`📇 ${t(lang, 'fromContacts')}`} onPress={() => nav.navigate('Contacts')} />
       <Field label={t(lang, 'pasteFrom')} value={paste} onChangeText={setPaste} multiline testID="lead-paste" placeholder={t(lang, 'pasteHint')} />
       <Button testID="lead-fill" variant="secondary" label={`✨ ${t(lang, 'pasteFill')}`} onPress={fill} disabled={filling || !paste.trim()} />
-      {notice ? <Text style={{ color: colors.accent }}>{notice}</Text> : null}
+      {notice ? <Text style={{ color: colors.accentInk }}>{notice}</Text> : null}
       <Field label={t(lang, 'leadName')} value={name} onChangeText={setName} testID="lead-name" />
       <Field label={t(lang, 'leadPhone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="lead-phone" />
       <Chips<ApiLead['kind']> options={KINDS.map((k) => ({ value: k, label: KIND_LABEL[k][lang === 'ar' ? 0 : 1] }))} value={kind} onChange={setKind} />

@@ -18,15 +18,15 @@ import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { toast, toastError } from '../components/Toast';
 
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 
 function Card({ children, testID }: { children: React.ReactNode; testID?: string }) {
-  const { colors } = useTheme();
-  return <View testID={testID} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>{children}</View>;
+  const { colors, elev } = useTheme();
+  return <View testID={testID} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>{children}</View>;
 }
 
 function Gate<T>({ q, children }: { q: { isPending: boolean; isError: boolean; error: unknown; data?: T; refetch: () => Promise<unknown> }; children: (d: T) => React.ReactElement }) {
@@ -204,8 +204,8 @@ export function LinksScreen() {
             return (
               <Card key={str(x.token_hash ?? i)} testID="link-row">
                 <View style={styles.rowBetween}>
-                  <Text style={{ color: colors.primary, fontWeight: '800', flex: 1 }}>{str(x.unit_code)}{x.compound ? ` · ${str(x.compound)}` : ''}</Text>
-                  <Text style={{ color: Number(x.open_count) ? colors.accent : colors.muted, fontWeight: '700' }}>{Number(x.open_count) ? `${num(x.open_count)} ${ar ? 'فتحة' : 'opens'} · ${num(x.devices)} ${ar ? 'جهاز' : 'devices'}` : ar ? 'ما اتفتحش' : 'Not opened'}</Text>
+                  <Text style={{ color: colors.primaryInk, fontWeight: '800', flex: 1 }}>{str(x.unit_code)}{x.compound ? ` · ${str(x.compound)}` : ''}</Text>
+                  <Text style={{ color: Number(x.open_count) ? colors.accentInk : colors.muted, fontWeight: '700' }}>{Number(x.open_count) ? `${num(x.open_count)} ${ar ? 'فتحة' : 'opens'} · ${num(x.devices)} ${ar ? 'جهاز' : 'devices'}` : ar ? 'ما اتفتحش' : 'Not opened'}</Text>
                 </View>
                 <Text style={{ color: colors.text }}>{[lead?.name || lead?.ref, (str(x.recipient_phone) || lead?.phone) ? ltr(str(x.recipient_phone) || lead?.phone || '') : ''].filter(Boolean).join(' · ') || (ar ? 'من غير عميل' : 'No client')}</Text>
                 <Text style={{ color: colors.muted }}>{ar ? 'اتبعت' : 'Sent'} {when(x.created_at)}{x.sent_by ? ` · ${str(x.sent_by)}` : ''}</Text>
@@ -223,7 +223,7 @@ export function LinksScreen() {
 
 const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
-  card: { ...lift, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
   h: { fontSize: 16, fontWeight: '700' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
 });

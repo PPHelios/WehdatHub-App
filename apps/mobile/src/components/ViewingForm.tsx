@@ -74,7 +74,7 @@ export function ViewingForm({ lead, unitCode = '' }: { lead: ApiLead; unitCode?:
           <View style={styles.row}>
             <Text style={[styles.flex, { color: colors.accent }]}>{t(lang, 'viewingSaved')}</Text>
             <Pressable testID="viewing-info" accessibilityRole="button" accessibilityLabel={t(lang, 'clientMessage')} hitSlop={12} onPress={() => setShowMessage((s) => !s)}>
-              <Text style={{ color: colors.primary, fontSize: 18, fontWeight: '800' }}>ⓘ</Text>
+              <Text style={{ color: colors.primaryInk, fontSize: 18, fontWeight: '800' }}>ⓘ</Text>
             </Pressable>
           </View>
           {showMessage ? <Text testID="viewing-message" style={{ color: colors.text }}>{done.message}</Text> : null}

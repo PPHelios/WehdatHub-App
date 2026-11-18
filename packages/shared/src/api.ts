@@ -226,7 +226,7 @@ export interface BoxPlace extends PlaceSuggestion { label: string; zones: string
 export interface BoxFeature { kind: 'feature'; key: string; label: string }
 export type BoxItem = BoxPlace | BoxFeature;
 export interface BoxResolve { place: BoxPlace | null; features: { key: string; label: string }[]; /** Drop-down values the message states (older servers send none). */ furnishing?: string | null; finishing?: string | null }
-export interface UnitChange { field: string; ar: string; en: string; from: string; to: string }
+export interface UnitChange { field: string; ar: string; en: string; from: string; to: string; from_ar?: string; from_en?: string; to_ar?: string; to_en?: string }
 export interface ReviewResult { ok: boolean; blockers: { field: string; label: string }[]; warnings: { field: string; text: string }[]; duplicate: string | null; /** Edit only: the main fields that would change. */ changes?: UnitChange[] }
 export interface FirebaseClientConfig { apiKey: string; appId: string; projectId: string; messagingSenderId: string }
 export interface AppConfig {
@@ -683,7 +683,7 @@ export function createApiClient(opts: ApiClientOptions) {
       if (o.order?.length) form.append('order', JSON.stringify(o.order));
       return request<{ images: UnitImage[]; failed: number }>('POST', `/units/${encodeURIComponent(code)}/photos`, form);
     },
-    unitEditFields: (code: string) => request<{ code: string; version: number; fields: UnitFields }>('GET', `/units/${encodeURIComponent(code)}/edit`),
+    unitEditFields: (code: string) => request<{ code: string; version: number; updated_at?: string | null; compound?: string | null; compound_en?: string | null; area_id?: number | string | null; subzone_id?: number | string | null; fields: UnitFields }>('GET', `/units/${encodeURIComponent(code)}/edit`),
     saveUnitEdit: (code: string, version: number, fields: UnitFields, saveKey?: string) => request<{ code: string; version: number }>('POST', `/units/${encodeURIComponent(code)}/edit`, { version, fields, ...(saveKey ? { save_key: saveKey } : {}) }),
     /** Was the save with this key stored? Asked once when a save has not answered for 60 seconds. */
     /** The codes a WhatsApp chat's posts write: update, new or taken, in one call (also the AI credit cost of a post). */

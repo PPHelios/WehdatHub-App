@@ -33,7 +33,7 @@ export const offerLine = (o: AskOffer, lang: Lang): string => [
 ].filter(Boolean).join(' · ');
 
 export function ProjectCardView({ p, lang, onOpen, onSend }: { p: ProjectCard; lang: Lang; onOpen?: () => void; onSend?: () => void }) {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const T = pt(lang);
   const pills = factPills(p, lang);
   const dev = developerOf(p, lang);
@@ -43,7 +43,7 @@ export function ProjectCardView({ p, lang, onOpen, onSend }: { p: ProjectCard; l
   const offers = p.offers ?? [];
   const more = (p.offers_total ?? offers.length) - offers.length;
   return (
-    <View testID="project-card" style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View testID="project-card" style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
       <Pressable accessibilityRole="button" accessibilityLabel={projectName(p, lang)} onPress={onOpen} disabled={!onOpen} style={styles.top} testID={p.id ? `project-${p.id}` : undefined}>
         <View style={[styles.cover, { backgroundColor: colors.border }]}>
           {p.cover_url ? <SmartImage uri={p.cover_url} style={styles.coverImg} /> : null}
@@ -55,7 +55,7 @@ export function ProjectCardView({ p, lang, onOpen, onSend }: { p: ProjectCard; l
           {pills.length ? (
             <View style={styles.pills}>{pills.map((f) => <Pill key={f} label={f} />)}</View>
           ) : null}
-          {p.matched?.length ? <Text testID="project-matched" style={{ color: colors.primary, fontSize: 13 }}>{T.matches}: {p.matched.map((k) => (T as Record<string, string>)[`m_${k}`] ?? k).join('، ')}</Text> : null}
+          {p.matched?.length ? <Text testID="project-matched" style={{ color: colors.primaryInk, fontSize: 13 }}>{T.matches}: {p.matched.map((k) => (T as Record<string, string>)[`m_${k}`] ?? k).join('، ')}</Text> : null}
           {delivery ? <Text style={{ color: colors.muted, fontSize: 13 }}>{T.delivery}: {delivery}</Text> : null}
           {p.units !== undefined || p.plans !== undefined ? <Text style={{ color: colors.muted, fontSize: 13 }}>{p.units ?? 0} {T.units} · {p.plans ?? 0} {T.plans}</Text> : null}
         </View>
@@ -73,7 +73,7 @@ export function ProjectCardView({ p, lang, onOpen, onSend }: { p: ProjectCard; l
       ) : null}
       {p.client_text ? (
         <Pressable testID="project-whatsapp" accessibilityRole="button" onPress={() => { onSend?.(); void sendOnWhatsApp(p.client_text as string); }} style={[styles.send, { borderColor: colors.primary }]}>
-          <Text style={{ color: colors.primary, fontWeight: '700' }}>{T.whatsapp}</Text>
+          <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{T.whatsapp}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -107,7 +107,7 @@ export function Pager({ page, pages, onPage, lang }: { page: number; pages: numb
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: radius.lg, overflow: 'hidden' },
+  card: { borderWidth: 1, borderRadius: radius.card, overflow: 'hidden' },
   top: { gap: 0 },
   cover: { height: 150, justifyContent: 'flex-start', alignItems: 'flex-start' },
   coverImg: { ...StyleSheet.absoluteFill },

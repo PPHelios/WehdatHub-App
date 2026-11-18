@@ -58,7 +58,7 @@ export const photoChanges = (original: string[], list: UploadFile[]) => {
 type Blocker = { field: string; label: string };
 
 export function AddUnitScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const L = uf(lang);
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -406,13 +406,13 @@ export function AddUnitScreen() {
 
         {/* A refused save and a look-alike unit show at the top. */}
         {failedCheck && allBlockers.length ? (
-          <View testID="blockers" style={[styles.box, { borderColor: colors.danger }]}>
+          <View testID="blockers" style={[styles.box, elev('md'), { borderColor: colors.danger }]}>
             <Text style={{ color: colors.danger, fontWeight: '700' }}>{t(lang, 'stillNeeded')}</Text>
             {allBlockers.map((b) => <Text key={b.field} style={{ color: colors.text }}>• {b.label}</Text>)}
           </View>
         ) : null}
         {(duplicate ?? (editCode ? null : review?.duplicate ?? null)) !== null ? (
-          <View testID="duplicate" style={[styles.box, { borderColor: colors.accent }]}>
+          <View testID="duplicate" style={[styles.box, elev('md'), { borderColor: colors.accent }]}>
             <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'duplicateAsk')} {duplicate ?? review?.duplicate}</Text>
             <SwitchRow label={t(lang, 'dupOk')} value={dupAck} onChange={setDupAck} testID="dup-ack" />
             <Button label={t(lang, 'saveAnyway')} onPress={() => save(true)} />
@@ -429,7 +429,7 @@ export function AddUnitScreen() {
               <View style={styles.flex}><HoldMic testID="unit-mic" label={t(lang, 'mic')} onFile={onVoice} onError={setError} /></View>
             </View>
           )}
-          {notice ? <Text testID="unit-notice" style={{ color: colors.accent }}>{notice}</Text> : null}
+          {notice ? <Text testID="unit-notice" style={{ color: colors.accentInk }}>{notice}</Text> : null}
           <UnitBox fields={fields} patch={patch} lang={lang} invalid={failedCheck && missing('location')} />
           {editCode ? null : field('code', lang === 'en' ? 'Unit code (optional)' : 'كود الوحدة (اختياري)', { autoCapitalize: 'characters', autoCorrect: false })}
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fDeal')}</Text>
@@ -480,21 +480,21 @@ export function AddUnitScreen() {
 
         <View style={styles.stack}>
           {editCode && review?.changes?.length ? (
-            <View testID="changes" style={[styles.box, { borderColor: colors.border }]}>
+            <View testID="changes" style={[styles.box, elev('md'), { borderColor: colors.border }]}>
               <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'willChange')}</Text>
-              {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {c.from || '—'} {lang === 'ar' ? '←' : '→'} {c.to || '—'}</Text>)}
+              {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {(lang === 'ar' ? c.from_ar : c.from_en) ?? c.from ?? '—'} {lang === 'ar' ? '←' : '→'} {(lang === 'ar' ? c.to_ar : c.to_en) ?? c.to ?? '—'}</Text>)}
             </View>
           ) : null}
           {review && !review.warnings.length && !review.blockers.length ? <Text testID="no-warnings" style={{ color: colors.muted }}>✓ {t(lang, 'noWarnings')}</Text> : null}
           {review?.warnings.length && !review.blockers.length ? (
-            <View testID="warnings" style={[styles.box, { borderColor: colors.accent }]}>
+            <View testID="warnings" style={[styles.box, elev('md'), { borderColor: colors.accent }]}>
               {review.warnings.map((w) => <Text key={w.field + w.text} style={{ color: colors.text }}>• {w.text}</Text>)}
               <SwitchRow label={t(lang, 'warnOk')} value={ack} onChange={setAck} testID="ack" />
             </View>
           ) : null}
         </View>
         {error ?<Text testID="unit-error" style={{ color: colors.danger }}>{error}</Text> : null}
-        {slow ? <Text testID="slow-net" style={{ color: colors.accent, fontWeight: '700' }}>🐢 {slow}</Text> : null}
+        {slow ? <Text testID="slow-net" style={{ color: colors.accentInk, fontWeight: '700' }}>🐢 {slow}</Text> : null}
         {editCode ? null : <Button label={t(lang, 'discardDraft')} variant="secondary" onPress={discard} />}
       </ScrollView>
 
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   locked: { opacity: 0.6 },
-  box: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  box: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
   jump: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   jumpChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, minHeight: 36, justifyContent: 'center' },
   bar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: spacing.sm, padding: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },

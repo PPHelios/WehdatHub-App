@@ -14,7 +14,7 @@ import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { toastError } from '../components/Toast';
 
 function AddRequest({ onDone }: { onDone: () => void }) {
@@ -49,7 +49,7 @@ function AddRequest({ onDone }: { onDone: () => void }) {
 
 /** Client requests (a saved search for a client, with alerts): Pending and Fulfilled. Brokers see their own, managers the whole agency. */
 export function ClientRequestsScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const qc = useQueryClient();
@@ -70,11 +70,11 @@ export function ClientRequestsScreen() {
         <>
           {!items.length ? <Text testID="requests-empty" style={{ color: colors.muted }}>{t(lang, 'noRequests')}</Text> : null}
           {items.map((r) => (
-            <View key={r.id} testID={`request-${r.id}`} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View key={r.id} testID={`request-${r.id}`} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={{ color: colors.text, fontWeight: '700' }}>{r.alerts ? '🔔 ' : ''}{lang === 'en' && r.summary_en ? r.summary_en : r.summary}</Text>
               {r.lead ? (
                 <Pressable testID={`request-lead-${r.id}`} accessibilityRole="button" onPress={() => nav.navigate('Lead', { ref: r.lead!.ref })}>
-                  <Text style={{ color: colors.primary }}>👤 {r.lead.name || r.lead.ref}</Text>
+                  <Text style={{ color: colors.primaryInk }}>👤 {r.lead.name || r.lead.ref}</Text>
                 </Pressable>
               ) : <Text testID={`request-nolead-${r.id}`} style={{ color: colors.muted }}>{t(lang, 'noLead')}</Text>}
               <Text style={{ color: colors.muted }}>{r.matches} {t(lang, 'matchesN')}</Text>
@@ -95,5 +95,5 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
-  card: { ...lift, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
 });
