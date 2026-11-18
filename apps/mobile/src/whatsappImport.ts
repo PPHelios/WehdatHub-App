@@ -112,3 +112,27 @@ export function readPosts(text: string, since: string | null) {
 }
 
 export const looksLikeZip = (f: { name?: string | null; type?: string | null }) => /\.zip$/i.test(f.name || '') || /zip/i.test(f.type || '');
+
+// ---- Fix many posts at once (like the website's "All rent / All sale" and the one-answer-for-many panel) ----
+
+/** Posts that still need a deal type (sale or rent): the reading could not tell. */
+export const lacksDealType = (p: ImportPost) => p.state !== 'saved' && Boolean(p.fields) && !p.fields?.listing_type;
+/** Posts that still need an owner phone (a post never says it). */
+export const lacksOwnerPhone = (p: ImportPost) => p.state !== 'saved' && Boolean(p.fields) && !p.fields?.owner_phone;
+
+/** The fields of a post with one deal type chosen for it; a rent without a period gets the monthly one (the person can change it in Edit). */
+export function withDealType(fields: UnitFields, type: 'sale' | 'rent'): UnitFields {
+  const out: UnitFields = { ...fields, listing_type: type };
+  if (type === 'rent' && !out.rent_period) out.rent_period = 'monthly';
+  return out;
+}
+
+/** The fields of a post with the owner's phone filled in; the phone stands in for the name when the post gave none. */
+export function withOwnerPhone(fields: UnitFields, phone: string): UnitFields {
+  const out: UnitFields = { ...fields, owner_phone: phone };
+  if (!out.owner_name) out.owner_name_from_phone = '1';
+  return out;
+}
+
+/** What the review still lists as missing, as the field names the list shows (owner name is never listed while the phone stands in for it). */
+export const missingOf = (blockers: { field: string }[]) => [...new Set(blockers.map((b) => b.field))];

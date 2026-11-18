@@ -327,7 +327,8 @@ export function AddUnitScreen() {
         tick();
         saved.current = true;
         await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] })]);
-        if (importId) return nav.navigate('WhatsAppImport', { saved: { id: importId, code: editCode } });
+        if (importId) // React Navigation 7: navigate() would push a second, empty import screen (the other posts would be lost); popTo returns to the one that is open.
+        return nav.popTo('WhatsAppImport', { saved: { id: importId, code: editCode } });
         return nav.goBack();
       }
       const sent = { ...body, photo_ai: photoAi ? '1' : '', ...(force ? { force: '1' } : {}) };
@@ -345,7 +346,7 @@ export function AddUnitScreen() {
       if (fields.compound_new === '1' && str(fields.compound)) addPendingPlace(str(fields.compound)).catch(() => undefined);
       if (!fresh) await clearDraft();
       await qc.invalidateQueries({ queryKey: ['units'] });
-      if (importId) return nav.navigate('WhatsAppImport', { saved: { id: importId, code: r.code } });
+      if (importId) return nav.popTo('WhatsAppImport', { saved: { id: importId, code: r.code } });
       nav.replace('Unit', { code: r.code });
     } catch (e) {
       track('unit_save_refused', { reason: e instanceof ApiClientError ? String(e.code || e.status) : 'error' });
