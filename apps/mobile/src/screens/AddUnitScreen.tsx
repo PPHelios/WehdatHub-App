@@ -141,6 +141,14 @@ export function AddUnitScreen() {
       setFields((f) => withImpliedFeatures({ ...f, ...Object.fromEntries(Object.entries(r.fields).filter(([, v]) => v !== '' && v !== undefined && v !== null)) }));
       setNotice(t(lang, 'filled'));
     } catch (e) {
+      // AI blocked or down: the server's free quick reader may still have filled fields from the typed text.
+      const quick = e instanceof ApiClientError && (e.status === 402 || e.status === 503) ? (e.extra?.fields as UnitFields | undefined) : undefined;
+      if (quick) {
+        setFields((f) => withImpliedFeatures({ ...f, ...Object.fromEntries(Object.entries(quick).filter(([k, v]) => k !== 'code' && v !== '' && v !== undefined && v !== null)) }));
+        const said = e instanceof ApiClientError ? e.extra?.message : undefined;
+        setNotice(typeof said === 'string' && said.trim() ? said.trim() : t(lang, 'quickFilled'));
+        return;
+      }
       setError(e instanceof ApiClientError && (e.status === 402 || e.status === 503) ? t(lang, 'aiBlocked') : errorText(e, lang));
     }
   }, [fields, lang]);

@@ -27,6 +27,16 @@ test('a pasted message fills the fields', async () => {
   await waitFor(() => expect(screen.getByTestId('f-bedrooms').props.value).toBe('3'));
 });
 
+test('with AI credits used up, the quick reader still fills the fields and says so', async () => {
+  m.extractUnit.mockRejectedValue(new ApiClientError(402, 'ai_blocked', null, { error: 'ai_blocked', fallback: true, message: 'Credits are used up. The quick reader filled what it could: check every field.', fields: { property_type: 'apartment', bedrooms: '3' } }));
+  await draft.saveDraft({ fields: { listing_type: 'sale', compound: 'Mivida' }, photos: [], describe: '', photoAi: false });
+  await wrap();
+  await fireEvent.changeText(screen.getByTestId('describe'), 'شقة 3 غرف');
+  await fireEvent.press(screen.getByTestId('fill'));
+  await waitFor(() => expect(screen.getByTestId('f-bedrooms').props.value).toBe('3'));
+  expect(screen.getByText(/quick reader filled/)).toBeTruthy();
+});
+
 test('saving an incomplete unit lists what is missing, opens the step that needs it, and keeps the form', async () => {
   m.createUnit.mockRejectedValue(new ApiClientError(422, 'incomplete'));
   m.reviewUnit.mockResolvedValue({ ok: false, blockers: [{ field: 'area_value', label: 'Area' }], warnings: [], duplicate: null });
