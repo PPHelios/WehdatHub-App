@@ -1,50 +1,91 @@
 name: CI
 
+# Cost notes (private repo, billed minutes): macOS runners count 10x, so the iOS build runs only on main,
+# by hand, or on a PR that touches iOS/native/dependency files. Android builds one ABI only.
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  changes:
+    name: Detect native changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # Any doubt (no base, unreadable diff) means run iOS.
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if ! changed=$(git diff --name-only "$BASE_SHA" HEAD 2>/dev/null) || [ -z "$changed" ]; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if echo "$changed" | grep -Eq '^(apps/mobile/ios/|apps/mobile/Gemfile|apps/mobile/package\.json|apps/mobile/index\.js|package\.json|pnpm-lock\.yaml|\.github/workflows/ci\.yml)'; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ios=false" >> "$GITHUB_OUTPUT"
+          fi
+
   checks:
     name: Typecheck, lint, tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: corepack enable
+          cache: pnpm
       - run: pnpm install --frozen-lockfile --reporter=silent
       - run: pnpm typecheck --output-logs=errors-only
       - run: pnpm lint --output-logs=errors-only
       - run: pnpm test --output-logs=errors-only
-      - name: JS bundle (what the release build packs)
-        working-directory: apps/mobile
-        run: npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output "$RUNNER_TEMP/index.android.bundle" > /dev/null
 
   android:
     name: Android debug build
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
-      - run: corepack enable
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - run: pnpm install --frozen-lockfile --reporter=silent
-      - name: Build debug APK
+      - name: Build debug APK (one ABI; gradle also bundles the JS)
         working-directory: apps/mobile/android
-        run: ./gradlew assembleDebug --quiet
+        run: ./gradlew assembleDebug -PreactNativeArchitectures=x86_64 --quiet
       - uses: actions/upload-artifact@v4
         with:
           name: wehdathub-debug-apk
@@ -53,19 +94,30 @@ jobs:
 
   ios:
     name: iOS simulator build
+    needs: changes
+    if: >-
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false) &&
+      (github.event_name != 'pull_request' || needs.changes.outputs.ios == 'true')
     runs-on: macos-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: corepack enable
+          cache: pnpm
       - run: pnpm install --frozen-lockfile --reporter=silent
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.3"
           bundler-cache: true
           working-directory: apps/mobile
+      - uses: actions/cache@v4
+        with:
+          path: apps/mobile/ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('apps/mobile/ios/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-
       - name: Install pods
         working-directory: apps/mobile/ios
         run: bundle exec pod install
