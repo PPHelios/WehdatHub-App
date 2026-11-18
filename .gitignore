@@ -41,3 +41,4 @@ node_modules/
 
 # Firebase config (added in CI from a secret)
 apps/mobile/android/app/google-services.json
+.versioncode
