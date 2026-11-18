@@ -246,7 +246,9 @@ export interface PhotoUploadLink { key: string; upload_url: string; thumb_key: s
 export interface SearchAsk { terms: string[]; numbers?: unknown[]; aiDown?: boolean; withoutTotal: number }
 export interface SearchResult {
   status: 'results' | 'none' | 'ask' | 'small_talk' | 'listing' | 'other';
+  /** parser | ai | fallback (the AI could not answer: aiError says why, e.g. PLAN_QUOTA_EXCEEDED). */
   source: string;
+  aiError?: string | null;
   total: number;
   items: ApiUnitListItem[];
   unitStatus?: UnitStatus;
@@ -323,6 +325,9 @@ export interface UnitsQuery {
   bedrooms?: number;
   furnishing?: string;
   finishing?: string;
+  /** Price from / to (EGP). */
+  pmin?: number;
+  pmax?: number;
   limit?: number;
   offset?: number;
 }
