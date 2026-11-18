@@ -1,11 +1,12 @@
 import UIKit
 import UniformTypeIdentifiers
 
-/// The iPhone Share sheet entry: takes only a WhatsApp "Export chat" zip, saves it in the
+/// The iPhone Share sheet entry: takes the photos, voice notes and text shared from WhatsApp (or any app), saves them in the
 /// App Group folder the app reads, and opens the app. Nothing is sent anywhere from here.
 class ShareViewController: UIViewController {
   private let groupId = "group.com.wehdathub"
   private var files: [[String: String]] = []
+  private var text: String?
 
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -33,11 +34,15 @@ class ShareViewController: UIViewController {
     let group = DispatchGroup()
     let lock = NSLock()
     for (i, p) in providers.prefix(15).enumerated() {
-      let types: [(String, String)] = [(UTType.zip.identifier, "application/zip"), (UTType.fileURL.identifier, "application/octet-stream")]
+      let types: [(String, String)] = [(UTType.image.identifier, "image/jpeg"), (UTType.audio.identifier, "audio/mp4"), (UTType.fileURL.identifier, "application/octet-stream"), (UTType.plainText.identifier, "text/plain")]
       guard let match = types.first(where: { p.hasItemConformingToTypeIdentifier($0.0) }) else { continue }
       group.enter()
       p.loadItem(forTypeIdentifier: match.0, options: nil) { item, _ in
         defer { group.leave() }
+        if match.1 == "text/plain" {
+          if let s = item as? String { lock.lock(); self.text = ((self.text ?? "") + "\n" + s).trimmingCharacters(in: .whitespacesAndNewlines); lock.unlock() }
+          return
+        }
         var data: Data?
         var name = "shared_\(i)"
         var mime = match.1
@@ -45,8 +50,7 @@ class ShareViewController: UIViewController {
           name = url.lastPathComponent
           let ext = url.pathExtension.lowercased()
           if let t = UTType(filenameExtension: ext), let m = t.preferredMIMEType { mime = m }
-          // Only a zip is kept.
-          if ext != "zip" { return }
+          if ext == "opus" || ext == "ogg" { mime = "audio/ogg" }
           // A file is copied, never read into memory: a WhatsApp chat export (a zip with photos) can be hundreds of MB, far more than a share extension may hold.
           let copy = dir.appendingPathComponent("\(i)_\(name.replacingOccurrences(of: "/", with: "_"))")
           if (try? FileManager.default.copyItem(at: url, to: copy)) != nil {
@@ -71,7 +75,8 @@ class ShareViewController: UIViewController {
   }
 
   private func save(_ dir: URL) {
-    let payload: [String: Any] = ["files": files]
+    var payload: [String: Any] = ["files": files]
+    if let t = text { payload["text"] = t }
     if let json = try? JSONSerialization.data(withJSONObject: payload) {
       try? json.write(to: dir.appendingPathComponent("pending.json"))
     }

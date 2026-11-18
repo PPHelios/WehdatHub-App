@@ -1,6 +1,6 @@
 #import <React/RCTBridgeModule.h>
 
-/// Reads what the Share extension saved in the App Group folder (a WhatsApp chat zip) and hands it to the app.
+/// Reads what the Share extension saved in the App Group folder (photos, a voice note, text) and hands it to the app.
 @interface ShareIntent : NSObject <RCTBridgeModule>
 @end
 
@@ -27,7 +27,7 @@ RCT_EXPORT_METHOD(getPending:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromis
     if (!path) continue;
     [files addObject:@{ @"uri": [[NSURL fileURLWithPath:path] absoluteString], @"mimeType": f[@"mimeType"] ?: @"", @"name": f[@"name"] ?: @"" }];
   }
-  resolve(@{ @"files": files });
+  resolve(@{ @"text": raw[@"text"] ?: [NSNull null], @"files": files });
 }
 
 RCT_EXPORT_METHOD(clear:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject) {

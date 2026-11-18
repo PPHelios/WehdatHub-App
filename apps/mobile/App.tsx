@@ -72,13 +72,13 @@ export default function App() {
     return () => sub.remove();
   }, []);
 
-  // A WhatsApp "Export chat" zip shared into the app opens the import screen. Nothing else is taken from a share.
+  // Something shared in from another app (WhatsApp photos, a voice note, text) opens Add unit with it.
   useEffect(() => {
     if (status !== 'signedIn') return;
     return watchShares((s) => {
-      if (!s.zip) return;
-      usage('wa_import_share', true);
-      const go = () => navigationRef.navigate('WhatsAppImport', { zip: s.zip });
+      // A WhatsApp chat export (a zip) opens the import screen; everything else opens Add unit.
+      if (s.zip) usage('wa_import_share', true);
+      const go = () => (s.zip ? navigationRef.navigate('WhatsAppImport', { zip: s.zip }) : navigationRef.navigate('AddUnit', s));
       if (navigationRef.isReady()) go();
       else setTimeout(go, 800);
     });
