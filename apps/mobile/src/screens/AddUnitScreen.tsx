@@ -154,7 +154,7 @@ export function AddUnitScreen() {
     }
   }, [fields, lang]);
 
-  // Start: restore a saved draft, then apply anything shared in from another app.
+  // Start: restore a saved draft, then apply what the WhatsApp import passed in.
   useEffect(() => {
     (async () => {
       if (editCode) {
@@ -187,7 +187,6 @@ export function AddUnitScreen() {
       }
       const s = shared.current;
       if (s) {
-        setNotice(t(lang, 'sharedIn'));
         if (s.photos?.length) setPhotos((p) => addPicked(p, s.photos!));
         if (s.text) setDescribe((cur) => (cur ? `${cur}\n${s.text}` : s.text!));
       }
@@ -195,7 +194,7 @@ export function AddUnitScreen() {
       if (s?.fields) { patch(Object.fromEntries(Object.entries(s.fields).filter(([, v]) => v !== '' && v !== undefined && v !== null))); setNotice(L.boxFromText); }
       if (s?.code && !s.fields?.code && !s.edit) patch({ code: s.code });
       else if (s?.noAi && s.text) readMessage(s.text, {}).then((p) => { if (Object.keys(p).length) { patch(p); setNotice(L.boxFromText); } }).catch(() => undefined);
-      else if (s?.text || s?.voice) await runFill({ describe: s.text, voice: s.voice });
+      else if (s?.text) await runFill({ describe: s.text });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

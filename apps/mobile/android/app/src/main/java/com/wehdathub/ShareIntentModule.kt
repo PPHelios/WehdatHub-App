@@ -14,14 +14,12 @@ class ShareIntentModule(context: ReactApplicationContext) : ReactContextBaseJava
 
   @ReactMethod
   fun getPending(promise: Promise) {
-    val text = ShareStore.text
     val files = ShareStore.files
-    if (text == null && files.isEmpty()) {
+    if (files.isEmpty()) {
       promise.resolve(null)
       return
     }
     val map = Arguments.createMap()
-    map.putString("text", text)
     val list = Arguments.createArray()
     files.forEach {
       val f = Arguments.createMap()

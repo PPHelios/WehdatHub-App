@@ -84,7 +84,7 @@ import { t } from './i18n';
 import { useTheme } from './theme';
 
 export type AddUnitParams = {
-  text?: string; photos?: UploadFile[]; voice?: UploadFile;
+  /** Set by the WhatsApp import: the post text and its photos. */ text?: string; photos?: UploadFile[];
   /** Code of the unit to edit; the screen then edits instead of adding. */ edit?: string;
   /** Opened from the WhatsApp import: start empty (the person's own saved draft is left alone), and when saved go back to the import list. */ fresh?: boolean; importId?: string;
   /** The import reads by rules only: the message is never sent to AI. */ noAi?: boolean;

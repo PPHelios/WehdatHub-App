@@ -3,18 +3,18 @@ package com.wehdathub
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.util.Log
 import android.provider.OpenableColumns
 import java.io.File
 
-/** What another app (WhatsApp, Gallery, Files) shared into this one, copied into the app's cache so it stays readable. */
+/** A WhatsApp "Export chat" zip shared into this app, copied into the app's cache so it stays readable. Anything that is not a zip is dropped. */
 object ShareStore {
   data class Item(val uri: String, val mimeType: String, val name: String)
 
-  @Volatile var text: String? = null
   @Volatile var files: List<Item> = emptyList()
 
   fun clear() {
-    text = null
     files = emptyList()
   }
 
@@ -39,17 +39,38 @@ object ShareStore {
       false
     }
 
+  @Suppress("DEPRECATION")
+  private fun streamUri(intent: Intent): Uri? =
+    if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+    else intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+
+  @Suppress("DEPRECATION")
+  private fun streamUris(intent: Intent): List<Uri> =
+    (if (Build.VERSION.SDK_INT >= 33) intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+    else intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)) ?: emptyList()
+
+  /** Copies the shared file into [target]; the read is inside try so a revoked or missing grant is logged, not thrown. */
+  private fun copyTo(context: Context, uri: Uri, target: File): Boolean =
+    try {
+      val input = context.contentResolver.openInputStream(uri)
+      if (input == null) {
+        Log.w("ShareStore", "openInputStream returned null for $uri")
+        false
+      } else {
+        input.use { i -> target.outputStream().use { i.copyTo(it) } }
+        true
+      }
+    } catch (e: Exception) {
+      Log.w("ShareStore", "could not read shared file $uri", e)
+      false
+    }
+
   fun handle(context: Context, intent: Intent?) {
     if (intent == null) return
     val action = intent.action
     if (action != Intent.ACTION_SEND && action != Intent.ACTION_SEND_MULTIPLE) return
-    val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
     val uris = ArrayList<Uri>()
-    if (action == Intent.ACTION_SEND) {
-      (intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM))?.let { uris.add(it) }
-    } else {
-      intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uris.addAll(it) }
-    }
+    if (action == Intent.ACTION_SEND) streamUri(intent)?.let { uris.add(it) } else uris.addAll(streamUris(intent))
     // Some apps put the file only in the clip data, not in EXTRA_STREAM.
     if (uris.isEmpty()) {
       val clip = intent.clipData
@@ -61,23 +82,26 @@ object ShareStore {
     val copied = ArrayList<Item>()
     uris.take(15).forEachIndexed { i, uri ->
       try {
-        var mime = context.contentResolver.getType(uri) ?: intent.type ?: "application/octet-stream"
+        val mime = context.contentResolver.getType(uri) ?: intent.type ?: ""
         var name = displayName(context, uri) ?: "shared_$i"
         val target = File(dir, "${System.currentTimeMillis()}_${i}_${name.replace(Regex("[^A-Za-z0-9._-]"), "_")}")
-        context.contentResolver.openInputStream(uri)?.use { input -> target.outputStream().use { input.copyTo(it) } }
-        // The file's first bytes tell a zip even when the sender gave no name or type.
-        if (isZip(target)) {
-          mime = "application/zip"
-          if (!name.endsWith(".zip", ignoreCase = true)) name += ".zip"
-        } else if ((mime.isEmpty() || mime == "application/octet-stream") && name.endsWith(".zip", ignoreCase = true)) {
-          mime = "application/zip"
+        if (!copyTo(context, uri, target)) {
+          target.delete()
+          return@forEachIndexed
         }
-        copied.add(Item(Uri.fromFile(target).toString(), mime, name))
-      } catch (_: Exception) {
-        // A file that cannot be read is skipped; the rest still arrive.
+        // Only a zip is kept: by its first bytes, its name or its type.
+        val zip = isZip(target) || name.endsWith(".zip", ignoreCase = true) || mime.contains("zip", ignoreCase = true)
+        if (!zip) {
+          Log.w("ShareStore", "skipped shared file that is not a zip: $name ($mime)")
+          target.delete()
+          return@forEachIndexed
+        }
+        if (!name.endsWith(".zip", ignoreCase = true)) name += ".zip"
+        copied.add(Item(Uri.fromFile(target).toString(), "application/zip", name))
+      } catch (e: Exception) {
+        Log.w("ShareStore", "could not handle shared file $uri", e)
       }
     }
-    text = sharedText
     files = copied
     // This intent is handled: a later app resume must not process it again.
     intent.action = null

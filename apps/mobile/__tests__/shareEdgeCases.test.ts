@@ -1,75 +1,43 @@
 import { classifyShare } from '../src/share';
 
-// Plan item 16: odd things another app can hand over. Nothing may throw; what cannot be used is dropped.
-describe('classifyShare with odd input', () => {
-  test('nothing, an empty share and blank text give null', () => {
+// Share to the app is only for a WhatsApp "Export chat" zip. Nothing else may throw or be taken.
+describe('classifyShare: only a chat zip', () => {
+  test('nothing or an empty share gives null', () => {
     expect(classifyShare(null)).toBeNull();
     expect(classifyShare({})).toBeNull();
-    expect(classifyShare({ text: '   \n ', files: [] })).toBeNull();
-    expect(classifyShare({ text: null, files: undefined })).toBeNull();
+    expect(classifyShare({ files: [] })).toBeNull();
+    expect(classifyShare({ files: undefined })).toBeNull();
   });
 
-  test('files with no type or name are named and dropped when not usable', () => {
-    expect(classifyShare({ files: [{ uri: 'file:///a' }, { uri: 'file:///b', mimeType: '' }] })).toBeNull();
-    expect(classifyShare({ files: [{ uri: 'file:///a', mimeType: 'application/pdf', name: 'x.pdf' }] })).toBeNull();
+  test('a zip is found by mime type', () => {
+    const out = classifyShare({ files: [{ uri: 'file:///c', mimeType: 'application/zip', name: 'chat' }] });
+    expect(out).toEqual({ zip: { uri: 'file:///c', name: 'chat', type: 'application/zip' } });
   });
 
-  test('a zip is found by name when the phone gives no type, and only the first one is kept', () => {
-    const out = classifyShare({ files: [{ uri: 'file:///c1', name: 'WhatsApp Chat - Team.zip' }, { uri: 'file:///c2', name: 'Other.zip', mimeType: 'application/zip' }] });
-    expect(out?.zip?.uri).toBe('file:///c1');
+  test('a zip is found by .zip name when the phone gives no type', () => {
+    const out = classifyShare({ files: [{ uri: 'file:///c', name: 'Team.zip' }, { uri: 'file:///d', mimeType: '', name: 'Other.zip' }] });
+    expect(out?.zip?.uri).toBe('file:///c');
     expect(out?.zip?.type).toBe('application/zip');
-    expect(out?.photos).toBeUndefined();
   });
 
-  test('an upper-case type is read, and a voice note keeps only the first', () => {
-    const out = classifyShare({ files: [{ uri: 'u1', mimeType: 'IMAGE/JPEG' }, { uri: 'u2', mimeType: 'audio/opus' }, { uri: 'u3', mimeType: 'audio/ogg' }] });
-    expect(out?.photos).toHaveLength(1);
-    expect(out?.voice).toMatchObject({ uri: 'u2', type: 'audio/ogg' });
-  });
-
-  test('a share with text and a photo keeps both; a script in the text is only text', () => {
-    const out = classifyShare({ text: '  <script>x</script> شقة  ', files: [{ uri: 'u1', mimeType: 'image/png', name: 'p.png' }] });
-    expect(out?.text).toBe('<script>x</script> شقة');
-    expect(out?.photos?.[0]).toMatchObject({ uri: 'u1', name: 'p.png' });
-  });
-
-  test('a hundred photos are all kept in order (the screen caps them, not the sorter)', () => {
-    const files = Array.from({ length: 100 }, (_, i) => ({ uri: `u${i}`, mimeType: 'image/jpeg' }));
-    const out = classifyShare({ files });
-    expect(out?.photos).toHaveLength(100);
-    expect(out?.photos?.[99].uri).toBe('u99');
-  });
-});
-
-describe('classifyShare: WhatsApp chat zip routing', () => {
-  test('octet-stream with a WhatsApp Chat zip name is the zip', () => {
-    const out = classifyShare({ files: [{ uri: 'file:///c', mimeType: 'application/octet-stream', name: 'WhatsApp Chat with Sam.zip' }] });
-    expect(out?.zip).toEqual({ uri: 'file:///c', name: 'WhatsApp Chat with Sam.zip', type: 'application/zip' });
-  });
-
-  test('a name-only match without .zip is the zip', () => {
+  test('a zip is found by the "WhatsApp Chat" name', () => {
     const out = classifyShare({ files: [{ uri: 'file:///c', mimeType: 'application/octet-stream', name: 'WhatsApp Chat with Sam' }] });
-    expect(out?.zip?.uri).toBe('file:///c');
-    expect(out?.zip?.type).toBe('application/zip');
+    expect(out?.zip).toEqual({ uri: 'file:///c', name: 'WhatsApp Chat with Sam', type: 'application/zip' });
   });
 
-  test('a photo named like a chat is not taken as the zip', () => {
-    const out = classifyShare({ files: [{ uri: 'p', mimeType: 'image/jpeg', name: 'WhatsApp Chat photo.jpg' }] });
-    expect(out?.zip).toBeUndefined();
-    expect(out?.photos).toHaveLength(1);
+  test('photos, voice notes, text-only and other files give null', () => {
+    expect(classifyShare({ files: [{ uri: 'p', mimeType: 'image/jpeg', name: 'a.jpg' }] })).toBeNull();
+    expect(classifyShare({ files: [{ uri: 'v', mimeType: 'audio/ogg', name: 'PTT-1.opus' }] })).toBeNull();
+    expect(classifyShare({ files: [{ uri: 'f', mimeType: 'application/pdf', name: 'x.pdf' }, { uri: 'g' }] })).toBeNull();
+    expect(classifyShare({ text: 'hello', files: [] } as never)).toBeNull();
   });
 
-  test('a zip with text gives a zip, which App.tsx checks first, so Add unit is not chosen', () => {
-    const out = classifyShare({ text: 'hello', files: [{ uri: 'file:///c', mimeType: 'application/zip', name: 'WhatsApp Chat with Sam.zip' }] });
-    expect(out?.zip?.uri).toBe('file:///c');
-    expect(out?.text).toBe('hello');
-    expect(out?.photos).toBeUndefined();
+  test('a photo named like a chat is not the zip', () => {
+    expect(classifyShare({ files: [{ uri: 'p', mimeType: 'image/jpeg', name: 'WhatsApp Chat photo.jpg' }] })).toBeNull();
   });
 
-  test('a photo and a voice note give no zip', () => {
-    const out = classifyShare({ files: [{ uri: 'p', mimeType: 'image/jpeg', name: 'a.jpg' }, { uri: 'v', mimeType: 'audio/ogg', name: 'PTT-1.opus' }] });
-    expect(out?.zip).toBeUndefined();
-    expect(out?.photos).toHaveLength(1);
-    expect(out?.voice?.uri).toBe('v');
+  test('a mixed share with a zip and photos returns only the zip', () => {
+    const out = classifyShare({ files: [{ uri: 'p', mimeType: 'image/jpeg' }, { uri: 'z', mimeType: 'application/x-zip-compressed', name: 'WhatsApp Chat with Sam.zip' }, { uri: 'v', mimeType: 'audio/ogg' }] });
+    expect(out).toEqual({ zip: { uri: 'z', name: 'WhatsApp Chat with Sam.zip', type: 'application/zip' } });
   });
 });

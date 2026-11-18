@@ -33,22 +33,16 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
-        <!-- Share to the app: photos, voice notes and text from WhatsApp and other apps open Add unit. -->
+        <!-- Share to the app: only a WhatsApp "Export chat" zip, which opens the import screen. -->
         <intent-filter>
             <action android:name="android.intent.action.SEND" />
             <category android:name="android.intent.category.DEFAULT" />
-            <data android:mimeType="text/plain" />
-            <data android:mimeType="image/*" />
-            <data android:mimeType="audio/*" />
-            <!-- A WhatsApp "Export chat" (with media) is a zip: it opens the import screen. -->
             <data android:mimeType="application/zip" />
             <data android:mimeType="application/x-zip-compressed" />
         </intent-filter>
         <intent-filter>
             <action android:name="android.intent.action.SEND_MULTIPLE" />
             <category android:name="android.intent.category.DEFAULT" />
-            <data android:mimeType="image/*" />
-            <data android:mimeType="audio/*" />
             <data android:mimeType="application/zip" />
             <data android:mimeType="application/x-zip-compressed" />
         </intent-filter>
