@@ -14,6 +14,7 @@ export function classifyShare(raw: RawShare | null): SharedItems | null {
   const photos: UploadFile[] = [];
   let voice: UploadFile | undefined;
   let zip: UploadFile | undefined;
+  let chatGuess: UploadFile | undefined;
   (raw.files ?? []).forEach((f, i) => {
     const type = (f.mimeType || '').toLowerCase();
     const name = f.name || `shared_${i}`;
@@ -22,7 +23,10 @@ export function classifyShare(raw: RawShare | null): SharedItems | null {
     else if (type.startsWith('image/')) photos.push({ uri: f.uri, name, type: type || 'image/jpeg' });
     // WhatsApp voice notes arrive as .opus/.ogg; the server's voice reader accepts ogg, m4a, mp4, mpeg, aac and wav.
     else if (type.startsWith('audio/') && !voice) voice = { uri: f.uri, name, type: type === 'audio/opus' ? 'audio/ogg' : type };
+    // Safety net: a file named like a WhatsApp export, with no zip name or type, is still taken as the chat zip.
+    else if (!chatGuess && /^WhatsApp Chat/i.test(f.name || '')) chatGuess = { uri: f.uri, name, type: 'application/zip' };
   });
+  if (!zip) zip = chatGuess;
   const text = (raw.text || '').trim();
   if (!photos.length && !voice && !text && !zip) return null;
   return { text: text || undefined, photos: photos.length ? photos : undefined, voice, zip };

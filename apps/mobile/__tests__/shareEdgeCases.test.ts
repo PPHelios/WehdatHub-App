@@ -40,3 +40,36 @@ describe('classifyShare with odd input', () => {
     expect(out?.photos?.[99].uri).toBe('u99');
   });
 });
+
+describe('classifyShare: WhatsApp chat zip routing', () => {
+  test('octet-stream with a WhatsApp Chat zip name is the zip', () => {
+    const out = classifyShare({ files: [{ uri: 'file:///c', mimeType: 'application/octet-stream', name: 'WhatsApp Chat with Sam.zip' }] });
+    expect(out?.zip).toEqual({ uri: 'file:///c', name: 'WhatsApp Chat with Sam.zip', type: 'application/zip' });
+  });
+
+  test('a name-only match without .zip is the zip', () => {
+    const out = classifyShare({ files: [{ uri: 'file:///c', mimeType: 'application/octet-stream', name: 'WhatsApp Chat with Sam' }] });
+    expect(out?.zip?.uri).toBe('file:///c');
+    expect(out?.zip?.type).toBe('application/zip');
+  });
+
+  test('a photo named like a chat is not taken as the zip', () => {
+    const out = classifyShare({ files: [{ uri: 'p', mimeType: 'image/jpeg', name: 'WhatsApp Chat photo.jpg' }] });
+    expect(out?.zip).toBeUndefined();
+    expect(out?.photos).toHaveLength(1);
+  });
+
+  test('a zip with text gives a zip, which App.tsx checks first, so Add unit is not chosen', () => {
+    const out = classifyShare({ text: 'hello', files: [{ uri: 'file:///c', mimeType: 'application/zip', name: 'WhatsApp Chat with Sam.zip' }] });
+    expect(out?.zip?.uri).toBe('file:///c');
+    expect(out?.text).toBe('hello');
+    expect(out?.photos).toBeUndefined();
+  });
+
+  test('a photo and a voice note give no zip', () => {
+    const out = classifyShare({ files: [{ uri: 'p', mimeType: 'image/jpeg', name: 'a.jpg' }, { uri: 'v', mimeType: 'audio/ogg', name: 'PTT-1.opus' }] });
+    expect(out?.zip).toBeUndefined();
+    expect(out?.photos).toHaveLength(1);
+    expect(out?.voice?.uri).toBe('v');
+  });
+});

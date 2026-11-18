@@ -45,6 +45,8 @@
             <category android:name="android.intent.category.DEFAULT" />
             <data android:mimeType="image/*" />
             <data android:mimeType="audio/*" />
+            <data android:mimeType="application/zip" />
+            <data android:mimeType="application/x-zip-compressed" />
         </intent-filter>
       </activity>
     </application>
