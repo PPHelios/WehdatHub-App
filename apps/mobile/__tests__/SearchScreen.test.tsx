@@ -122,3 +122,21 @@ test('Sold and Archived show their counts from the start and one tap searches th
   await fireEvent.press(screen.getByText(/Sold \(2\)|مباعة \(2\)/));
   await waitFor(() => expect(mocked.search).toHaveBeenLastCalledWith('villa', { drop: false, status: 'sold' }));
 });
+
+test('when AI credits are used up the results still come, with a note and a way to the unit filters', async () => {
+  mocked.search.mockResolvedValue({ status: 'none', source: 'fallback', aiError: 'PLAN_QUOTA_EXCEEDED', total: 0, items: [] });
+  await wrap();
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'villa');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(screen.getByTestId('quick-reader-note')).toBeTruthy());
+  expect(screen.getByTestId('quick-reader-units')).toBeTruthy();
+});
+
+test('no credits note when the AI simply was not needed', async () => {
+  mocked.search.mockResolvedValue({ status: 'none', source: 'parser', total: 0, items: [] });
+  await wrap();
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'villa');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(screen.getByText(/No results|مفيش نتايج/)).toBeTruthy());
+  expect(screen.queryByTestId('quick-reader-note')).toBeNull();
+});

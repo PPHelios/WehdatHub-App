@@ -9,6 +9,7 @@ import { currentLang } from '../auth';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { VIEWING_STATUS, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { lift, radius, spacing, useTheme } from '../theme';
 
@@ -49,7 +50,7 @@ export function CalendarScreen() {
           <View style={styles.row}>
             <Text style={[styles.time, { color: colors.primary }]}>{time(item.startsAt)}</Text>
             <Text style={[styles.flex, { color: colors.text, fontWeight: '700' }]}>{item.leadName || item.leadRef}</Text>
-            <Text style={{ color: colors.muted }}>{item.status}</Text>
+            <Text style={{ color: colors.muted }}>{labelOf(VIEWING_STATUS, item.status, lang)}</Text>
           </View>
           {item.unitCode || item.place ? <Text style={{ color: colors.muted }}>{[item.unitCode, item.place].filter(Boolean).join(' · ')}</Text> : null}
         </Pressable>

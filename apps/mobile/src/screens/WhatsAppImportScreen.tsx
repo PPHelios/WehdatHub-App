@@ -12,7 +12,7 @@ import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { SmartImage } from '../components/SmartImage';
 import { placeLabel } from '../components/UnitBox';
-import { FINISHING, FURNISHING, PROPERTY_TYPES, labelOf } from '../unitOptions';
+import { ALL_TYPES, FINISHING, FURNISHING, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { toggleKeep } from '../photos';
 import { uploadPhoto } from '../photoUpload';
@@ -371,7 +371,7 @@ function SummaryGrid({ W, lang, post, colors }: { W: ReturnType<typeof wi>; lang
   const price = str(f.price_value);
   const cells: { k: string; label: string; value: string }[] = [
     { k: 'listing_type', label: W.f_listing_type, value: lt === 'sale' ? W.sale : lt === 'rent' ? W.rent : '' },
-    { k: 'property_type', label: W.f_property_type, value: labelOf(PROPERTY_TYPES, str(f.property_type), L2) ?? '' },
+    { k: 'property_type', label: W.f_property_type, value: labelOf(ALL_TYPES, str(f.property_type), L2) ?? '' },
     { k: 'compound', label: W.f_compound, value: placeLabel(f) },
     { k: 'price_value', label: W.f_price_value, value: price ? `${Number(price).toLocaleString('en')}${str(f.currency) === 'USD' ? ` ${W.usd}` : ''}` : '' },
     { k: 'area_value', label: W.f_area_value, value: str(f.area_value) ? `${str(f.area_value)} ${W.sqm}` : '' },

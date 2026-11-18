@@ -145,6 +145,12 @@ export function SearchScreen() {
           ))}
         </View>
       ) : null}
+      {data && data.source === 'fallback' && /QUOTA|AI_OFF/.test(data.aiError ?? '') ? (
+        <View testID="quick-reader-note" style={styles.quick}>
+          <Text style={{ color: colors.muted }}>⚡ {t(lang, 'quickReaderNote')}</Text>
+          <Pressable testID="quick-reader-units" accessibilityRole="button" onPress={() => nav.navigate('UnitsList')}><Text style={{ color: colors.primary, fontWeight: '600' }}>{t(lang, 'useUnitFilters')}</Text></Pressable>
+        </View>
+      ) : null}
       <View style={styles.flex}>{body}</View>
       <Animated.View style={[styles.bar, { backgroundColor: colors.bg, borderColor: colors.border, bottom: kb, transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 220] }) }] }]}>
       <TextInput testID="search-input" style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'searchPlaceholder')} placeholderTextColor={colors.muted} returnKeyType="search" onSubmitEditing={() => run(text)} multiline={false} />
@@ -168,6 +174,7 @@ const styles = StyleSheet.create({
   ask: { padding: spacing.xl, gap: spacing.md },
   askTitle: { fontSize: 18, fontWeight: '700' },
   count: { padding: spacing.lg },
+  quick: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.xs },
   chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, height: 40, justifyContent: 'center' },
 });
