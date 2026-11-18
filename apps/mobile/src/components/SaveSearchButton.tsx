@@ -9,6 +9,7 @@ import { t } from '../i18n';
 import { useTheme } from '../theme';
 import { Button } from './Button';
 import { Field } from './Field';
+import { toastError } from './Toast';
 
 /** Saves the search just made (the server gave its filters token) under a name. */
 export function SaveSearchButton({ f }: { f: string }) {
@@ -24,7 +25,7 @@ export function SaveSearchButton({ f }: { f: string }) {
       setMsg(t(lang, 'savedOk'));
       setOpen(false);
     } catch (e) {
-      setMsg(e instanceof ApiClientError && e.code === 'limit_alerts' ? t(lang, 'limitAlerts') : errorText(e, lang));
+      setMsg(toastError(e instanceof ApiClientError && e.code === 'limit_alerts' ? t(lang, 'limitAlerts') : errorText(e, lang)));
     }
   };
   return (

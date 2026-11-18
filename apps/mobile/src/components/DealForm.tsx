@@ -9,6 +9,7 @@ import { useTheme } from '../theme';
 import { Button } from './Button';
 import { Chips } from './Chips';
 import { Field } from './Field';
+import { toastError } from './Toast';
 
 const hex = () => Array.from({ length: 16 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 
@@ -29,7 +30,7 @@ export function DealForm({ lead, unit }: { lead?: string; unit?: string }) {
       setMsg(`${t(lang, 'dealSaved')} ${r.ref}`);
       await qc.invalidateQueries({ queryKey: ['deals'] });
     } catch (e) {
-      setMsg(errorText(e, lang));
+      setMsg(toastError(errorText(e, lang)));
     } finally {
       setBusy(false);
     }

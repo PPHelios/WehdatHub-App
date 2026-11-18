@@ -9,6 +9,7 @@ import { t } from '../i18n';
 import { useTheme } from '../theme';
 import { Button } from './Button';
 import { Chips } from './Chips';
+import { toastError } from './Toast';
 
 type Status = 'active' | 'sold' | 'archived';
 
@@ -29,7 +30,7 @@ export function UnitLifecycle({ code, status }: { code: string; status: Status }
       await api.unitStatus(code, s);
       await after();
     } catch (e) {
-      setMsg(errorText(e, lang) || t(lang, 'unitStatusFail'));
+      setMsg(toastError(errorText(e, lang) || t(lang, 'unitStatusFail')));
     } finally {
       setBusy(false);
     }
@@ -37,7 +38,7 @@ export function UnitLifecycle({ code, status }: { code: string; status: Status }
   const remove = () =>
     Alert.alert(t(lang, 'unitDelete'), t(lang, 'unitDeleteAsk'), [
       { text: t(lang, 'cancel'), style: 'cancel' },
-      { text: t(lang, 'unitDelete'), style: 'destructive', onPress: async () => { try { await api.unitDelete(code); await after(); nav.goBack(); } catch (e) { setMsg(errorText(e, lang)); } } },
+      { text: t(lang, 'unitDelete'), style: 'destructive', onPress: async () => { try { await api.unitDelete(code); await after(); nav.goBack(); } catch (e) { setMsg(toastError(errorText(e, lang))); } } },
     ]);
   return (
     <>

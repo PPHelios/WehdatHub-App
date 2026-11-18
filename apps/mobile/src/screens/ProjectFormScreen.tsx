@@ -28,7 +28,7 @@ import { pickPhotos, takePhoto } from '../photos';
 import { plain, withCommas } from '../readback';
 import { radius, spacing, useTheme } from '../theme';
 import { ALL_TYPES, labelOf } from '../unitOptions';
-import { toast } from '../components/Toast';
+import { toast, toastError } from '../components/Toast';
 
 /** A message pasted this long all at once is read at once (the website reads it too); the broker still checks every field. */
 const PASTE_MIN = 40;
@@ -83,7 +83,7 @@ export function ProjectFormScreen() {
 
   useEffect(() => {
     if (!editId) return;
-    api.project(editId).then((d) => { setFields(fieldsOfProject(d.project, d.developer)); setPaste(typeof d.project.source_text === 'string' ? d.project.source_text : ''); setReady(true); }).catch((e) => { setError(errorText(e, lang)); setReady(true); });
+    api.project(editId).then((d) => { setFields(fieldsOfProject(d.project, d.developer)); setPaste(typeof d.project.source_text === 'string' ? d.project.source_text : ''); setReady(true); }).catch((e) => { setError(toastError(errorText(e, lang))); setReady(true); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
 
@@ -164,7 +164,7 @@ export function ProjectFormScreen() {
         const field = String(e.extra.field ?? '');
         setError(fill(T.invalid, { s: foundLabels([field], lang)[0] ?? field }));
       } else if (e instanceof ApiClientError && e.code === 'forbidden') setError(T.forbidden);
-      else setError(errorText(e, lang));
+      else setError(toastError(errorText(e, lang)));
     } finally {
       setSaving(false);
     }

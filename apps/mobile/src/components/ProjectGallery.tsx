@@ -11,6 +11,7 @@ import { pickPhotos } from '../photos';
 import { radius, spacing, useTheme } from '../theme';
 import { Button } from './Button';
 import { SmartImage } from './SmartImage';
+import { toastError } from './Toast';
 
 const ROLES: ProjectImageRole[] = ['shared', 'layout', 'hidden'];
 
@@ -34,7 +35,7 @@ export function ProjectGallery({ projectId, images, lang, onChanged }: { project
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     setMsg(null);
-    try { await fn(); setMsg(T.galleryDone); onChanged(); } catch (e) { setMsg(galleryError(e, lang)); } finally { setBusy(false); }
+    try { await fn(); setMsg(T.galleryDone); onChanged(); } catch (e) { setMsg(toastError(galleryError(e, lang))); } finally { setBusy(false); }
   };
   const pick = async (): Promise<UploadFile[]> => compressPhotos(await pickPhotos(MAX_PROJECT_PHOTOS));
   const add = () => run(async () => { const f = await pick(); if (f.length) await api.projectPhotos(projectId, f); });

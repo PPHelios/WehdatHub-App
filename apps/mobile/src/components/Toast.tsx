@@ -19,6 +19,15 @@ export function toast(text: string, bad = false): void {
   useToastStore.setState((s) => ({ text: t, bad, n: s.n + 1 }));
 }
 
+/**
+ * An action's error: shown in the toast (where the person is looking) and returned, so the screen can also keep it next to
+ * the form it belongs to: setError(toastError(errorText(e, lang))).
+ */
+export function toastError<T extends string | null | undefined>(text: T): T {
+  if (text) toast(text, true);
+  return text;
+}
+
 export function ToastHost() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();

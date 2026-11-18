@@ -15,6 +15,7 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { lift, radius, spacing, useTheme } from '../theme';
+import { toastError } from '../components/Toast';
 
 function AddRequest({ onDone }: { onDone: () => void }) {
   const { colors } = useTheme();
@@ -31,7 +32,7 @@ function AddRequest({ onDone }: { onDone: () => void }) {
       onDone();
     } catch (e) {
       const c = e instanceof ApiClientError ? e.code : '';
-      setMsg(c === 'no_filters' ? t(lang, 'requestNoFilters') : c === 'lead_not_found' ? t(lang, 'leadNotFound') : c === 'too_many_requests' ? t(lang, 'tooManyRequests') : c === 'too_many_requests_broker' ? t(lang, 'limitAlerts') : errorText(e, lang));
+      setMsg(toastError(c === 'no_filters' ? t(lang, 'requestNoFilters') : c === 'lead_not_found' ? t(lang, 'leadNotFound') : c === 'too_many_requests' ? t(lang, 'tooManyRequests') : c === 'too_many_requests_broker' ? t(lang, 'limitAlerts') : errorText(e, lang)));
     }
   };
   if (!open) return <Button testID="request-add" label={`➕ ${t(lang, 'addRequest')}`} onPress={() => { setMsg(null); setOpen(true); }} />;

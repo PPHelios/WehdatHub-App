@@ -15,6 +15,7 @@ import { t } from '../i18n';
 import { APP_BUILD, APP_VERSION } from '../config';
 import { usageTrail } from '../usage';
 import { lift, radius, spacing, useTheme } from '../theme';
+import { toastError } from '../components/Toast';
 
 const num = (n: number) => Number(n).toLocaleString('en-US');
 const DAYS = ['30', '90', '365'] as const;
@@ -152,7 +153,7 @@ export function ReportScreen() {
       setText('');
       setTimeout(() => nav.goBack(), 1200);
     } catch (e) {
-      setMsg(errorText(e, lang));
+      setMsg(toastError(errorText(e, lang)));
     }
   };
   return (

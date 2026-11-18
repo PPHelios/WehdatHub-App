@@ -13,6 +13,7 @@ import { radius, spacing, useTheme } from '../theme';
 import { Button } from './Button';
 import { Chips } from './Chips';
 import { Field } from './Field';
+import { toastError } from './Toast';
 
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
@@ -54,7 +55,7 @@ export function ViewingForm({ lead, unitCode = '' }: { lead: ApiLead; unitCode?:
       setDone(r);
       await Promise.all([qc.invalidateQueries({ queryKey: ['lead', lead.ref] }), qc.invalidateQueries({ queryKey: ['leads'] }), qc.invalidateQueries({ queryKey: ['today'] }), qc.invalidateQueries({ queryKey: ['viewings'] })]);
     } catch (e) {
-      setError(e instanceof ApiClientError && e.code === 'past' ? t(lang, 'pastTime') : e instanceof ApiClientError && e.status === 409 ? t(lang, 'leadChanged') : errorText(e, lang));
+      setError(toastError(e instanceof ApiClientError && e.code === 'past' ? t(lang, 'pastTime') : e instanceof ApiClientError && e.status === 409 ? t(lang, 'leadChanged') : errorText(e, lang)));
     }
   };
 

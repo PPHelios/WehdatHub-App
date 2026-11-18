@@ -18,7 +18,7 @@ import { t } from '../i18n';
 import { UNIT_STATUS, labelOf } from '../unitOptions';
 import { useDebounced } from '../useDebounced';
 import { lift, radius, spacing, useTheme } from '../theme';
-import { toast } from '../components/Toast';
+import { toast, toastError } from '../components/Toast';
 
 /** Unit owners: the same list and rules as the website (the server decides who sees which owner and phone). */
 export function OwnersScreen() {
@@ -109,7 +109,7 @@ export function OwnerScreen() {
       await qc.invalidateQueries({ queryKey: ['owners'] });
       if (ok) setMsg(ok);
     } catch (e) {
-      setMsg(errorText(e, lang));
+      setMsg(toastError(errorText(e, lang)));
     }
   };
   const startEdit = () => {

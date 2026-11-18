@@ -12,7 +12,7 @@ import { useTheme } from '../theme';
 import { Button } from './Button';
 import { Field } from './Field';
 import { Section } from './Section';
-import { toast } from './Toast';
+import { toast, toastError } from './Toast';
 
 /** Draft a message, send a unit to the client, and (managers) merge a duplicate or erase the client. The server decides who may. */
 export function LeadActions({ lead, manager }: { lead: ApiLead; manager: boolean }) {
@@ -34,7 +34,7 @@ export function LeadActions({ lead, manager }: { lead: ApiLead; manager: boolean
     try {
       await fn();
     } catch (e) {
-      setMsg(fail || errorText(e, lang));
+      setMsg(toastError(fail || errorText(e, lang)));
     } finally {
       setBusy(false);
     }
