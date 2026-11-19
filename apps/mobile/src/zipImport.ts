@@ -1,6 +1,6 @@
 import { cancel, isPasswordProtected, listContents, subscribe, unzip } from 'react-native-zip-archive';
 import * as RNFS from '@dr.pogodin/react-native-fs';
-import { ChatMatch } from '@wehdathub/shared';
+import { ChatFingerprint, ChatMatch } from '@wehdathub/shared';
 import { MAX_ZIP_BYTES, photoEntriesFor, stagePct } from './whatsappImport';
 import type { ZipEntryLite } from './whatsappImport';
 import type { ChatPost } from '@wehdathub/shared';
@@ -96,12 +96,6 @@ export function looksLikeChat(text: string): boolean {
   return false;
 }
 
-const fnv = (s: string, seed: number) => {
-  let h = seed >>> 0;
-  for (let i = 0; i < s.length; i += 1) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0;
-  return h.toString(16).padStart(8, '0');
-};
-
 /** Reads every message header: first and last time, how many, and how many per day. */
 export function scanChat(text: string, chatName: string): ChatInfo {
   let firstAt: number | null = null;
@@ -127,8 +121,7 @@ export function scanChat(text: string, chatName: string): ChatInfo {
     const day = new Date(at).toISOString().slice(0, 10);
     perDay[day] = (perDay[day] || 0) + 1;
   }
-  const key = `${baseName(chatName).toLowerCase()}|${firstHeader}`;
-  return { firstAt, lastAt, total, perDay, fingerprint: fnv(key, 0x811c9dc5) + fnv(key, 0x1b873593) };
+  return { firstAt, lastAt, total, perDay, fingerprint: ChatFingerprint.chatFingerprint(chatName, firstHeader) };
 }
 
 const cancelledErr = () => new ZipImportError('cancelled');

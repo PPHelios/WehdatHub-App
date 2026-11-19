@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { ChatMatch, ChatParse } from './index';
+import { createRequire } from 'node:module';
+import { ChatFingerprint, ChatMatch, ChatParse } from './index';
 
 const T = (hh: number, mm: number) => `24/10/2026, ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 const photo = (n: string, who = 'Ahmed', at = T(10, 14)) => `${at} - ${who}: IMG-${n}.jpg (file attached)`;
@@ -56,5 +57,18 @@ describe('the shared WhatsApp chat reader', () => {
     const copy = fs.readFileSync(path.join(__dirname, 'chatMatch.ts'), 'utf8');
     const original = fs.readFileSync(server, 'utf8').replace(/\r\n/g, '\n');
     expect(copy.includes(original)).toBe(true);
+  });
+});
+
+describe('chat fingerprint parity with the server copy', () => {
+  it('hashes identically to WehdatHub-Server/domain/chatFingerprint.js', () => {
+    const file = path.resolve(__dirname, '../../../../../WehdatHub-Server/domain/chatFingerprint.js');
+    if (!fs.existsSync(file)) return; // server repo not checked out next to this one
+    const server = createRequire(import.meta.url)(file);
+    const chat = '24/10/2026, 10:00 - Ahmed: hello\n25/10/2026, 9:00 PM - Sara: hi';
+    const fh = server.firstHeaderOf(chat);
+    expect(ChatFingerprint.firstHeaderOf(chat)).toBe(fh);
+    expect(ChatFingerprint.chatFingerprint('dir/WhatsApp Chat X.txt', fh)).toBe(server.chatFingerprint('dir/WhatsApp Chat X.txt', fh));
+    expect(ChatFingerprint.postFingerprint('Ahmed', '24/10/2026 10:00', 'شقة للبيع')).toBe(server.postFingerprint('Ahmed', '24/10/2026 10:00', 'شقة للبيع'));
   });
 });

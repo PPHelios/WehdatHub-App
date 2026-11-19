@@ -1,4 +1,5 @@
 import { chatCandidates, findChatText, openChat, readChat, saysNotZip, scanChat, sweepWaImportCache, unpackChat, ZipImportError } from '../src/zipImport';
+import { ChatFingerprint } from '@wehdathub/shared';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import { isPasswordProtected, listContents, unzip } from 'react-native-zip-archive';
 
@@ -98,6 +99,7 @@ line two
     expect(o.info.firstAt).toBe(Date.UTC(2026, 9, 24, 10, 0));
     expect(o.info.lastAt).toBe(Date.UTC(2026, 9, 26, 11, 0));
     expect(o.info.fingerprint).toMatch(/^[0-9a-f]{16}$/);
+    expect(o.info.fingerprint).toBe(ChatFingerprint.chatFingerprint('_chat.txt', '24/10/2026 10:00'));
     expect(scanChat(chat, '_chat.txt').fingerprint).toBe(scanChat(chat, '_chat.txt').fingerprint);
   });
   it('refuses a picker size over 1 GB before copying', async () => {
