@@ -23,6 +23,8 @@ export interface AiUsage {
 export interface ApiBroker { id: string; name: string; role: string; lang: Lang }
 export interface ApiAgency { id: string; name: string; slug: string; logoUrl: string | null }
 /** Present only for the test number: its roles, its own role, and whether it may view NCH (read only). */
+/** The kind of workspace (GET /me): tier by seats, mode for this person, team style. Menus and pages use it to hide what does not apply. */
+export interface ApiWorkspace { tier: 'solo' | 'team' | 'agency'; mode: 'solo' | 'team' | 'agency'; members: number; solo: boolean; teamStyle: 'shared' | 'structured'; analytics: boolean }
 export interface ApiTestSwitch { roles: string[]; role: string; canView: boolean; viewing: boolean }
 export interface LoginResult { token: string; expiresAt: string; broker: ApiBroker; agency: ApiAgency }
 
@@ -524,7 +526,7 @@ export function createApiClient(opts: ApiClientOptions) {
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
-    me: (signal?: AbortSignal) => request<{ broker: ApiBroker; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me', undefined, undefined, signal),
+    me: (signal?: AbortSignal) => request<{ broker: ApiBroker; workspace?: ApiWorkspace | null; inviteRoles?: string[]; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me', undefined, undefined, signal),
     testRole: (role: string) => request<{ ok: true; role: string }>('POST', '/test-role', { role }),
     testView: (view: 'home' | 'other') => request<{ ok: true; viewing: boolean }>('POST', '/test-view', { view }),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
