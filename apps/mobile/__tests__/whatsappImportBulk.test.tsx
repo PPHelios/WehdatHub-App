@@ -1,13 +1,13 @@
 import React from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { WhatsAppImportScreen } from '../src/screens/WhatsAppImportScreen';
+import { resetMemoryCache } from '../src/whatsappImportMemory';
 import { api } from '../src/api';
 import { openChat, readChat } from '../src/zipImport';
 import { lacksDealType, lacksOwnerPhone, missingOf, withDealType, withOwnerPhone } from '../src/whatsappImport';
 import type { ImportPost } from '../src/whatsappImport';
 
-jest.mock('../src/api', () => ({ api: { codeCheck: jest.fn(), chatRead: jest.fn(), extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { chatPlan: jest.fn(), chatDecisions: jest.fn(), saveChatDecisions: jest.fn(), forgetChatDecisions: jest.fn(), codeCheck: jest.fn(), chatRead: jest.fn(), extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn() } }));
 jest.mock('../src/zipImport', () => {
   class ZipImportError extends Error { reason: string; constructor(reason: string) { super(reason); this.reason = reason; } }
   return { ZipImportError, openChat: jest.fn(), readChat: jest.fn(), cancelUnpack: jest.fn(), cleanUp: jest.fn() };
@@ -27,9 +27,18 @@ const m = api as unknown as Record<string, jest.Mock>;
 const post = (i: number, code: string) => ({ i, sender: '+20 111 161 6455', at: '15/11/2026 5:48', text: `Code ${code} Mivida 154m 2 bedrooms Price 65k`, code, over: 0, videos: 0, verify: false, files: [{ name: `IMG-${i}.jpg`, i, at: null }] });
 const base = { property_type: 'apartment', compound: 'Mivida', price_value: '65000', area_value: '154', bedrooms: '2' };
 
+// The server's chat plan by post id: everything is new unless the test says otherwise (ids in planKinds).
+let planKinds: Record<string, Record<string, unknown>> = {};
+const planFor = async (b: { id: string }[]) => ({ posts: b.map((x) => ({ id: x.id, kind: 'new', code: null, existing: null, changes: [], patch: {}, errors: [], ...(planKinds[x.id] ?? {}) })) });
+
 beforeEach(async () => {
-  await AsyncStorage.removeItem('wa_import_mem:me:fp1');
   jest.clearAllMocks();
+  resetMemoryCache();
+  planKinds = {};
+  m.chatPlan.mockImplementation(planFor);
+  m.chatDecisions.mockResolvedValue({ decisions: {}, last_import_at: null });
+  m.saveChatDecisions.mockResolvedValue({ ok: true, stored: 0 });
+  m.forgetChatDecisions.mockResolvedValue({ ok: true, removed: 0 });
   const posts = [post(1, 'MIR23'), post(2, 'MIR40'), post(3, 'MIR590')];
   const present = new Map<string, string>();
   posts.forEach((p) => p.files.forEach((f) => present.set(f.name.toLowerCase(), f.name)));

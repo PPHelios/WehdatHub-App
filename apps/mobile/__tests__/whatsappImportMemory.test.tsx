@@ -1,11 +1,13 @@
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ChatFingerprint } from '@wehdathub/shared';
 import { WhatsAppImportScreen } from '../src/screens/WhatsAppImportScreen';
 import { api } from '../src/api';
 import { openChat, readChat } from '../src/zipImport';
+import { applyMemory, diffDecisions, fingerprintOf, forgetAll, load, MAX_PER_REQUEST, postFingerprint, record, resetMemoryCache, restore } from '../src/whatsappImportMemory';
+import { buildImportPosts } from '../src/whatsappImport';
 
-jest.mock('../src/api', () => ({ api: { codeCheck: jest.fn(), chatRead: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn(), unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { chatPlan: jest.fn(), chatDecisions: jest.fn(), saveChatDecisions: jest.fn(), forgetChatDecisions: jest.fn(), codeCheck: jest.fn(), chatRead: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn(), unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn() } }));
 jest.mock('../src/zipImport', () => {
   class ZipImportError extends Error { reason: string; constructor(reason: string) { super(reason); this.reason = reason; } }
   return { ZipImportError, openChat: jest.fn(), readChat: jest.fn(), cancelUnpack: jest.fn(), cleanUp: jest.fn() };
@@ -30,16 +32,15 @@ const post = (i: number, code: string, photos: number, at = '24/10/2026 10:15') 
 });
 const chatRead = (over: Record<string, unknown> = {}) => ({ listing_type: 'sale', property_type: 'apartment', compound: 'Hyde Park', price_value: '9500000', area_value: '150', bedrooms: '3', owner_phone: '01012345678', market: 'resale', is_ready: false, feature: [], notes: 'WhatsApp', clean_summary: 'new text', ...over });
 let posts: ReturnType<typeof post>[];
-import { applyMemory, capMemory, diffDecisions, fingerprintOf, load, MEMORY_CAP, postFingerprint, record, restore } from '../src/whatsappImportMemory';
-import { buildImportPosts } from '../src/whatsappImport';
 
-const store = AsyncStorage as unknown as { removeItem: (k: string) => Promise<void>; getItem: (k: string) => Promise<string | null>; setItem: (k: string, v: string) => Promise<void> };
-const MEM_KEY = 'wa_import_mem:me:fpR';
+const iso = (ms: number) => new Date(ms).toISOString();
+const planFor = async (b: { id: string }[]) => ({ posts: b.map((x) => ({ id: x.id, kind: 'new', code: null, existing: null, changes: [], patch: {}, errors: [] })) });
+const fpOf = (i: number) => fingerprintOf(posts[i - 1] as never);
+const remembered = (map: Record<string, string>) => ({ decisions: Object.fromEntries(Object.entries(map).map(([k, o]) => [k, { outcome: o, at: iso(Date.now()) }])), last_import_at: null });
 
-beforeEach(async () => {
+beforeEach(() => {
   jest.clearAllMocks();
-  await store.removeItem(MEM_KEY);
-  await store.removeItem('wa_import_wm:me:fpR');
+  resetMemoryCache();
   posts = [post(1, 'HP-1', 5), post(2, 'HP-3', 1, '25/10/2026 09:00')];
   (openChat as jest.Mock).mockResolvedValue(opened);
   (readChat as jest.Mock).mockImplementation(async () => {
@@ -47,6 +48,10 @@ beforeEach(async () => {
     posts.forEach((p) => p.files.forEach((f) => present.set(f.name.toLowerCase(), f.name)));
     return { dir: '/cache/wa', posts, present, skipped: 0, missing: 0, stats: { truncated: 0 } };
   });
+  m.chatPlan.mockImplementation(planFor);
+  m.chatDecisions.mockResolvedValue({ decisions: {}, last_import_at: null });
+  m.saveChatDecisions.mockResolvedValue({ ok: true, stored: 0 });
+  m.forgetChatDecisions.mockResolvedValue({ ok: true, removed: 0 });
   m.codeCheck.mockResolvedValue({ codes: { 'HP-1': { state: 'new' }, 'HP-3': { state: 'new' } }, max_photos: 15, ai_cost: 0 });
   m.chatRead.mockImplementation(async (texts: string[]) => ({ posts: texts.map((_, k) => ({ fields: chatRead({ code: `HP-${k}` }), missing: [] })) }));
   m.reviewUnit.mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null });
@@ -60,28 +65,18 @@ const open = async () => {
   await act(async () => { fireEvent.press(screen.getByTestId('wa-range-read')); });
   await waitFor(() => expect(screen.getByTestId('wa-summary')).toBeTruthy());
 };
-const mem = async () => (JSON.parse((await store.getItem(MEM_KEY)) || '{}') as { m?: Record<string, { o: string }> }).m ?? {};
-const settle = async (check: () => Promise<void>) => { await act(async () => { for (let i = 0; i < 40; i += 1) { try { await check(); return; } catch (e) { if (i === 39) throw e; await new Promise<void>((r) => setTimeout(r, 50)); } } }); };
-const fpOf = (i: number) => fingerprintOf(posts[i - 1] as never);
+// Waits for the debounced write of the screen (and the facade's request) to show up in the mock.
+const settle = async (check: () => void) => { await act(async () => { for (let i = 0; i < 40; i += 1) { try { check(); return; } catch (e) { if (i === 39) throw e; await new Promise<void>((r) => setTimeout(r, 50)); } } }); };
+const sent = () => m.saveChatDecisions.mock.calls.flatMap((c) => c[1] as { post_fp: string; outcome: string }[]);
 
-describe('post fingerprint, cap, apply and the storage interface', () => {
-  test('stable for the same sender, time and wording (spacing and Arabic letter variants folded), different otherwise', () => {
-    const t = Date.UTC(2026, 9, 24, 10, 15);
-    const a = postFingerprint('Ahmed', t, 'شقة  للبيع');
-    expect(postFingerprint('Ahmed', t, 'شقة  للبيع')).toBe(a);
-    expect(postFingerprint('Ahmed', t, ' شقه للبيع ')).toBe(a);
-    expect(postFingerprint('Ahmed', t + 60000, 'شقة  للبيع')).not.toBe(a);
-    expect(postFingerprint('Omar', t, 'شقة  للبيع')).not.toBe(a);
-    expect(a).toMatch(/^[0-9a-z]+$/);
-  });
-
-  test('the cap keeps the newest entries', () => {
-    const big: Record<string, { o: 'saved'; at: number }> = {};
-    for (let i = 0; i < MEMORY_CAP + 50; i += 1) big[`k${i}`] = { o: 'saved', at: i };
-    const out = capMemory(big);
-    expect(Object.keys(out)).toHaveLength(MEMORY_CAP);
-    expect(out.k0).toBeUndefined();
-    expect(out[`k${MEMORY_CAP + 49}`]).toBeTruthy();
+describe('post fingerprint, apply and diff', () => {
+  test('the fingerprint is the shared one (byte-identical to the website) and stable', () => {
+    const t = '24/10/2026 10:15';
+    expect(postFingerprint('Ahmed', t, 'شقة  للبيع')).toBe(ChatFingerprint.postFingerprint('Ahmed', t, 'شقة  للبيع'));
+    expect(postFingerprint('Ahmed', t, ' شقه للبيع ')).toBe(postFingerprint('Ahmed', t, 'شقة  للبيع'));
+    expect(postFingerprint('Ahmed', '24/10/2026 10:16', 'شقة  للبيع')).not.toBe(postFingerprint('Ahmed', t, 'شقة  للبيع'));
+    expect(ChatFingerprint.isPostFp(postFingerprint('Ahmed', t, 'x'))).toBe(true);
+    expect(fingerprintOf({ sender: 'Ahmed', at: t, text: 'cleaned', orig: 'as written' })).toBe(postFingerprint('Ahmed', t, 'as written'));
   });
 
   test('outcomes are applied: saved leaves the list, discarded stays discarded, unchanged is unticked', () => {
@@ -95,30 +90,61 @@ describe('post fingerprint, cap, apply and the storage interface', () => {
     expect(r2.list[1].picked).toBe(true);
   });
 
-  test('a restored discard shows as cleared in the diff', () => {
-    const r = diffDecisions({ a: { o: 'discarded', at: 1 } }, [{ pfp: 'a', outcome: null }]);
+  test('a restored discard shows as cleared in the diff; a new outcome as set', () => {
+    const r = diffDecisions({ a: { o: 'discarded', at: 1 } }, [{ pfp: 'a', outcome: null }, { pfp: 'b', outcome: 'saved' }]);
     expect(r.cleared).toEqual(['a']);
+    expect(r.set).toEqual([{ pfp: 'b', outcome: 'saved' }]);
     expect(r.mem.a).toBeUndefined();
-  });
-
-  test('load / record / restore round trip, and the cap holds in storage', async () => {
-    await record('fpX', [{ pfp: 'a', outcome: 'saved' }, { pfp: 'b', outcome: 'discarded' }], 5);
-    const l = await load('fpX');
-    expect(l.decisions.a.o).toBe('saved');
-    expect(l.lastImportAt).toBe(5);
-    await restore('fpX', ['b']);
-    expect((await load('fpX')).decisions.b).toBeUndefined();
-    await record('fpX', Array.from({ length: MEMORY_CAP + 10 }, (_, i) => ({ pfp: `z${i}`, outcome: 'unchanged' as const })), 9);
-    expect(Object.keys((await load('fpX')).decisions)).toHaveLength(MEMORY_CAP);
   });
 });
 
-describe('the screen remembers decisions', () => {
-  test('a discard is stored; re-importing shows it discarded earlier; restore one clears it in storage and ticks it', async () => {
+describe('the server facade', () => {
+  test('load maps the server answer and the last import time', async () => {
+    m.chatDecisions.mockResolvedValue({ decisions: { a: { outcome: 'saved', at: '2026-10-24T10:00:00.000Z' } }, last_import_at: '2026-10-24T10:00:00.000Z' });
+    const r = await load('fpX');
+    expect(m.chatDecisions).toHaveBeenCalledWith('fpX');
+    expect(r.decisions.a).toEqual({ o: 'saved', at: Date.parse('2026-10-24T10:00:00.000Z') });
+    expect(r.lastImportAt).toBe('2026-10-24T10:00:00.000Z');
+  });
+
+  test('record sends at most 200 per request', async () => {
+    await record('fpX', Array.from({ length: MAX_PER_REQUEST + 30 }, (_, i) => ({ pfp: `p${i}`, outcome: 'unchanged' as const })));
+    expect(m.saveChatDecisions.mock.calls.map((c) => c[1].length)).toEqual([200, 30]);
+    expect(m.saveChatDecisions.mock.calls[0][0]).toBe('fpX');
+    expect(m.saveChatDecisions.mock.calls[0][1][0]).toEqual({ post_fp: 'p0', outcome: 'unchanged' });
+  });
+
+  test('restore forgets some posts; forgetAll forgets the chat (no posts given)', async () => {
+    await restore('fpX', ['a', 'b']);
+    expect(m.forgetChatDecisions).toHaveBeenCalledWith('fpX', ['a', 'b']);
+    await forgetAll('fpX');
+    expect(m.forgetChatDecisions).toHaveBeenLastCalledWith('fpX');
+    expect((await load('fpX')).decisions).toEqual({});
+  });
+
+  test('on a network failure nothing throws: the phone keeps the decisions and sends them with the next call', async () => {
+    m.saveChatDecisions.mockRejectedValueOnce(new Error('net'));
+    await expect(record('fpX', [{ pfp: 'a', outcome: 'discarded' }])).resolves.toBeUndefined();
+    m.chatDecisions.mockRejectedValue(new Error('net'));
+    const offline = await load('fpX');
+    expect(offline.decisions.a.o).toBe('discarded');
+    expect(offline.lastImportAt).toBeNull();
+    m.forgetChatDecisions.mockRejectedValue(new Error('net'));
+    await expect(restore('fpX', ['zz'])).resolves.toBeUndefined();
+    await expect(forgetAll('fpY')).resolves.toBeUndefined();
+    await record('fpX', [{ pfp: 'b', outcome: 'saved' }]);
+    expect(sent().map((x) => x.post_fp)).toEqual(['a', 'a', 'b']);
+  });
+});
+
+describe('the screen remembers decisions on the server', () => {
+  test('a discard is recorded; importing the same zip again shows it discarded earlier; restore one forgets it on the server and ticks the post', async () => {
     await open();
     await act(async () => { fireEvent.press(screen.getByTestId('wa-discard-2')); });
-    await settle(async () => expect((await mem())[fpOf(2)]?.o).toBe('discarded'));
+    await settle(() => expect(sent()).toContainEqual({ post_fp: fpOf(2), outcome: 'discarded' }));
     await cleanup();
+    resetMemoryCache();
+    m.chatDecisions.mockResolvedValue(remembered({ [fpOf(2)]: 'discarded' }));
     await open();
     expect(screen.queryByTestId('wa-post-2')).toBeNull();
     expect(screen.getByTestId('wa-post-1')).toBeTruthy();
@@ -126,36 +152,48 @@ describe('the screen remembers decisions', () => {
     await act(async () => { fireEvent.press(screen.getByText(/^(1 discarded|1 بوست متجاهل)$/)); });
     await act(async () => { fireEvent.press(screen.getByTestId('wa-restore-2')); });
     expect(screen.getByTestId('wa-pick-2').props.accessibilityState.checked).toBe(true);
-    await settle(async () => expect((await mem())[fpOf(2)]).toBeUndefined());
+    await settle(() => expect(m.forgetChatDecisions).toHaveBeenCalledWith('fpR', [fpOf(2)]));
   });
 
-  test('restore all clears every remembered discard', async () => {
-    await open();
-    await act(async () => { fireEvent.press(screen.getByTestId('wa-discard-1')); });
-    await act(async () => { fireEvent.press(screen.getByTestId('wa-discard-2')); });
-    await settle(async () => expect(Object.keys(await mem())).toHaveLength(2));
-    await cleanup();
+  test('restore all forgets every remembered discard', async () => {
+    m.chatDecisions.mockResolvedValue(remembered({ [fpOf(1)]: 'discarded', [fpOf(2)]: 'discarded' }));
     await open();
     expect(screen.queryByTestId('wa-post-1')).toBeNull();
     await act(async () => { fireEvent.press(screen.getByTestId('wa-restore-all')); });
     expect(screen.getByTestId('wa-post-1')).toBeTruthy();
-    await settle(async () => expect(Object.keys(await mem())).toHaveLength(0));
+    await settle(() => expect(m.forgetChatDecisions.mock.calls.flatMap((c) => c[1] as string[]).sort()).toEqual([fpOf(1), fpOf(2)].sort()));
   });
 
-  test('saved posts are hidden on re-import with a line and a Show toggle; forget clears the memory', async () => {
+  test('saved posts are recorded; on re-import they are hidden with a line and a Show toggle, and one can be brought back', async () => {
     await open();
     await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
     await waitFor(() => expect(screen.getByTestId('wa-result')).toBeTruthy());
-    await settle(async () => expect(Object.values(await mem()).filter((v) => v.o === 'saved')).toHaveLength(2));
+    await settle(() => expect(sent().filter((x) => x.outcome === 'saved')).toHaveLength(2));
     await cleanup();
+    resetMemoryCache();
+    m.chatDecisions.mockResolvedValue(remembered({ [fpOf(1)]: 'saved', [fpOf(2)]: 'saved' }));
     await open();
     expect(screen.queryByTestId('wa-post-1')).toBeNull();
     expect(screen.getByTestId('wa-prior-line').props.children).toMatch(/2/);
     await act(async () => { fireEvent.press(screen.getByTestId('wa-prior-toggle')); });
     await act(async () => { fireEvent.press(screen.getByTestId('wa-bring-1')); });
     expect(screen.getByTestId('wa-post-1')).toBeTruthy();
+  });
+
+  test('forget clears the chat on the server', async () => {
+    m.chatDecisions.mockResolvedValue(remembered({ [fpOf(2)]: 'discarded' }));
+    await open();
     await act(async () => { fireEvent.press(screen.getByTestId('wa-forget')); });
     expect(screen.getByTestId('wa-forgot-note')).toBeTruthy();
-    expect(await store.getItem(MEM_KEY)).toBeNull();
+    expect(m.forgetChatDecisions).toHaveBeenCalledWith('fpR');
+  });
+
+  test('when the server cannot be reached the screen still opens and works', async () => {
+    m.chatDecisions.mockRejectedValue(new Error('net'));
+    m.saveChatDecisions.mockRejectedValue(new Error('net'));
+    await open();
+    expect(screen.getByTestId('wa-post-1')).toBeTruthy();
+    await act(async () => { fireEvent.press(screen.getByTestId('wa-discard-2')); });
+    expect(screen.queryByTestId('wa-post-2')).toBeNull();
   });
 });

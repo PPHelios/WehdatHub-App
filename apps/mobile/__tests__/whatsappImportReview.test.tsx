@@ -7,8 +7,9 @@ import { WhatsAppImportScreen } from '../src/screens/WhatsAppImportScreen';
 import { api } from '../src/api';
 import { openChat, readChat } from '../src/zipImport';
 import { usage } from '../src/usage';
+import { resetMemoryCache } from '../src/whatsappImportMemory';
 
-jest.mock('../src/api', () => ({ api: { codeCheck: jest.fn(), chatRead: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn(), unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { chatPlan: jest.fn(), chatDecisions: jest.fn(), saveChatDecisions: jest.fn(), forgetChatDecisions: jest.fn(), codeCheck: jest.fn(), chatRead: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn(), unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn() } }));
 jest.mock('../src/zipImport', () => {
   class ZipImportError extends Error { reason: string; constructor(reason: string) { super(reason); this.reason = reason; } }
   return { ZipImportError, openChat: jest.fn(), readChat: jest.fn(), cancelUnpack: jest.fn(), cleanUp: jest.fn() };
@@ -37,12 +38,23 @@ const chatRead = (over: Record<string, unknown> = {}) => ({ listing_type: 'sale'
 let posts: ReturnType<typeof post>[];
 let truncated = 0;
 
+// The server's chat plan by post id: everything is new unless the test says otherwise (ids in planKinds).
+let planKinds: Record<string, Record<string, unknown>> = {};
+const planFor = async (b: { id: string }[]) => ({ posts: b.map((x) => ({ id: x.id, kind: 'new', code: null, existing: null, changes: [], patch: {}, errors: [], ...(planKinds[x.id] ?? {}) })) });
+const unit = (code: string, version = 7) => ({ code, version, updated_at: null });
+// HP-1 changes its price: the server's patch and note, on version 7.
+const updatePlan = (version = 7) => ({ kind: 'update', code: 'HP-1', existing: unit('HP-1', version), patch: { price_value: '9500000' }, notes_append: 'WhatsApp', changes: [{ field: 'price_value', from: '8,000,000', to: '9,500,000', from_ar: '8,000,000', from_en: '8,000,000', to_ar: '9,500,000', to_en: '9,500,000' }] });
+const replan = (id: string, over: Record<string, unknown>) => ({ posts: [{ id, kind: 'new', code: null, existing: null, changes: [], patch: {}, errors: [], ...over }] });
+
 beforeEach(async () => {
   jest.clearAllMocks();
-  const store = AsyncStorage as unknown as { removeItem: (k: string) => Promise<void> };
-  await store.removeItem('wa_import_wm:me:fpR');
-  await store.removeItem('wa_import_mem:me:fpR');
-  await store.removeItem('wa_import_att:me:fpR:HP1');
+  resetMemoryCache();
+  planKinds = { '1': updatePlan() };
+  m.chatPlan.mockImplementation(planFor);
+  m.chatDecisions.mockResolvedValue({ decisions: {}, last_import_at: null });
+  m.saveChatDecisions.mockResolvedValue({ ok: true, stored: 0 });
+  m.forgetChatDecisions.mockResolvedValue({ ok: true, removed: 0 });
+  await AsyncStorage.removeItem('wa_import_att:me:fpR:HP1');
   truncated = 0;
   posts = [post(1, 'HP-1', 5), post(2, 'HP-3', 1, '25/10/2026 09:00')];
   (openChat as jest.Mock).mockResolvedValue(opened);
@@ -92,13 +104,14 @@ describe('the range step', () => {
     expect(usage).toHaveBeenCalledWith('wa_import_read', true, expect.any(Number), expect.objectContaining({ since_kind: 'all' }));
   });
 
-  test('with a watermark "Since last import" is offered and selected, and reads just after it', async () => {
-    await (AsyncStorage as unknown as { setItem: (k: string, v: string) => Promise<void> }).setItem('wa_import_wm:me:fpR', String(Date.UTC(2026, 9, 20, 8, 0)));
+  test('with a remembered chat "Since last import" is offered and selected, and reads from a day before the server\'s last import', async () => {
+    m.chatDecisions.mockResolvedValue({ decisions: {}, last_import_at: '2026-10-20T08:00:00.000Z' });
     await toRange();
     expect(screen.getByTestId('wa-range-last').props.accessibilityState.selected).toBe(true);
     await act(async () => { fireEvent.press(screen.getByTestId('wa-range-read')); });
     await waitFor(() => expect(screen.getByTestId('wa-summary')).toBeTruthy());
-    expect((readChat as jest.Mock).mock.calls[0][1].since).toBe(Date.UTC(2026, 9, 20, 8, 0) + 1);
+    expect(m.chatDecisions).toHaveBeenCalledWith('fpR');
+    expect((readChat as jest.Mock).mock.calls[0][1]).toMatchObject({ since: '2026-10-19', until: null });
   });
 
   test('a custom date: Arabic digits are accepted; an invalid or empty date shows an error and never reads everything', async () => {
@@ -117,7 +130,7 @@ describe('the range step', () => {
     await act(async () => { fireEvent.changeText(screen.getByTestId('wa-until-input'), '2026-10-30'); });
     await act(async () => { fireEvent.press(screen.getByTestId('wa-range-read')); });
     await waitFor(() => expect(screen.getByTestId('wa-summary')).toBeTruthy());
-    expect((readChat as jest.Mock).mock.calls[0][1]).toMatchObject({ since: '2026-10-20', until: '2026-10-30T23:59' });
+    expect((readChat as jest.Mock).mock.calls[0][1]).toMatchObject({ since: '2026-10-20', until: '2026-10-31' });
     expect(usage).toHaveBeenCalledWith('wa_import_read', true, expect.any(Number), expect.objectContaining({ since_kind: 'custom' }));
   });
 
@@ -128,10 +141,13 @@ describe('the range step', () => {
     await waitFor(() => expect(opened.close).toHaveBeenCalled());
   });
 
-  test('after a save the watermark moves to the newest decided post', async () => {
+  test('after a save the saved posts are remembered on the server', async () => {
     await open();
     await saveAll();
-    await waitFor(async () => expect(await (AsyncStorage as unknown as { getItem: (k: string) => Promise<string | null> }).getItem('wa_import_wm:me:fpR')).toBe(String(Date.UTC(2026, 9, 25, 9, 0))));
+    await waitFor(() => expect(m.saveChatDecisions).toHaveBeenCalled());
+    const items = m.saveChatDecisions.mock.calls.flatMap((c) => c[1] as { post_fp: string; outcome: string }[]);
+    expect(m.saveChatDecisions.mock.calls[0][0]).toBe('fpR');
+    expect(items.filter((x) => x.outcome === 'saved')).toHaveLength(2);
   });
 });
 
@@ -143,6 +159,8 @@ describe('saving an update', () => {
     expect(m.saveUnitEdit.mock.calls[0][1]).toBe(7);
     expect(body).toMatchObject({ price_value: '9500000', market: 'primary', is_ready: '1', feature: ['pool'], clean_summary: 'old text', owner_phone: '01012345678' });
     expect(body.notes).toBe('old note\nWhatsApp');
+    expect(m.chatPlan).toHaveBeenCalled();
+    expect(m.chatPlan.mock.calls[0][0][0]).toMatchObject({ id: '1', at: expect.any(String) });
   });
 
   test('new photos on an update are capped at 15 minus the unit\'s photos', async () => {
@@ -159,9 +177,9 @@ describe('saving an update', () => {
     expect(screen.getByTestId('wa-result-photos').props.children).toMatch(/HP-1/);
   });
 
-  test('a 409 re-reads the unit, compares again and saves once more on the new version', async () => {
+  test('a 409 asks the server for the plan again and saves once more on the new version', async () => {
     m.saveUnitEdit.mockRejectedValueOnce(new ApiClientError(409, 'version_conflict')).mockResolvedValue({ code: 'HP-1', version: 9 });
-    m.unitEditFields.mockResolvedValueOnce({ code: 'HP-1', version: 7, fields: stored }).mockResolvedValueOnce({ code: 'HP-1', version: 8, fields: { ...stored, bedrooms: '3' } });
+    m.chatPlan.mockImplementationOnce(planFor).mockResolvedValueOnce(replan('1', updatePlan(8)));
     await open();
     await saveAll();
     expect(m.saveUnitEdit).toHaveBeenCalledTimes(2);
@@ -171,7 +189,7 @@ describe('saving an update', () => {
 
   test('a 409 after which nothing differs is left unticked with a note, not saved again', async () => {
     m.saveUnitEdit.mockRejectedValueOnce(new ApiClientError(409, 'version_conflict'));
-    m.unitEditFields.mockResolvedValueOnce({ code: 'HP-1', version: 7, fields: stored }).mockResolvedValueOnce({ code: 'HP-1', version: 8, fields: { ...stored, price_value: '9500000' } });
+    m.chatPlan.mockImplementationOnce(planFor).mockResolvedValueOnce(replan('1', { kind: 'unchanged', code: 'HP-1', existing: unit('HP-1', 8) }));
     await open();
     await saveAll();
     expect(m.saveUnitEdit).toHaveBeenCalledTimes(1);
@@ -181,27 +199,68 @@ describe('saving an update', () => {
 });
 
 describe('what cannot be an update', () => {
-  test('a code that belongs to another unit (type or place clearly differ) is an unticked error', async () => {
-    m.unitEditFields.mockResolvedValue({ code: 'HP-1', version: 7, fields: { ...stored, property_type: 'villa' } });
+  test('a code the server says belongs to another unit is an unticked error', async () => {
+    planKinds = { '1': { kind: 'other_unit', code: 'HP-1', existing: unit('HP-1') } };
     await open();
     expect(ticked('1')).toBe(false);
     expect(screen.getByTestId('wa-blocker-1').props.children).toMatch(/another unit|وحدة تانية/);
     expect(screen.getByTestId('wa-pick-1').props.accessibilityState.disabled).toBe(true);
   });
 
-  test('a unit edited after the post is "older", unticked', async () => {
-    m.unitEditFields.mockResolvedValue({ code: 'HP-1', version: 7, fields: stored, updated_at: '2026-10-30T10:00:00Z' });
+  test('a unit the server says was edited after the post is "older", unticked', async () => {
+    planKinds = { '1': { kind: 'older', code: 'HP-1', existing: unit('HP-1') } };
     await open();
     expect(ticked('1')).toBe(false);
     expect(screen.getByTestId('wa-blocker-1').props.children).toMatch(/edited after|اتعدلت بعد/);
   });
 
-  test('a unit that could not be read is "could not compare", never "updated"', async () => {
-    m.unitEditFields.mockRejectedValue(new Error('net'));
+  test('a plan that could not be asked is "could not compare" for an update, never "updated"', async () => {
+    m.chatPlan.mockRejectedValue(new Error('net'));
     await open();
     expect(ticked('1')).toBe(false);
     expect(screen.getByTestId('wa-blocker-1').props.children).toMatch(/compare|نقارن/);
     expect(screen.queryByTestId('wa-changes-1')).toBeNull();
+  });
+});
+
+describe('every plan kind maps to the card', () => {
+  const kindOfCard = async (over: Record<string, unknown>) => { planKinds = { '1': { code: 'HP-1', existing: unit('HP-1'), ...over } }; await open(); };
+  test('update: changed and ticked, with the plan\'s changes listed', async () => {
+    await open();
+    expect(ticked('1')).toBe(true);
+    expect(screen.getByTestId('wa-changes-1').props.children).toMatch(/8,000,000.*9,500,000/);
+  });
+  test('unchanged: unticked and skipped', async () => {
+    await kindOfCard({ kind: 'unchanged' });
+    expect(ticked('1')).toBe(false);
+    expect(screen.getByTestId('wa-unchanged-1')).toBeTruthy();
+  });
+  test('other_unit and older: unticked errors that cannot be ticked', async () => {
+    await kindOfCard({ kind: 'other_unit' });
+    expect(ticked('1')).toBe(false);
+    expect(screen.getByTestId('wa-pick-1').props.accessibilityState.disabled).toBe(true);
+  });
+  test('invalid and forbidden: errors with their own note', async () => {
+    await kindOfCard({ kind: 'invalid', existing: null, errors: ['x'] });
+    expect(ticked('1')).toBe(false);
+    expect(screen.getByTestId('wa-blocker-1').props.children).toMatch(/could not read this post|مقدرش يقرا/);
+    expect(screen.getByTestId('wa-pick-1').props.accessibilityState.disabled).toBe(true);
+  });
+  test('forbidden', async () => {
+    await kindOfCard({ kind: 'forbidden', existing: null });
+    expect(screen.getByTestId('wa-blocker-1').props.children).toMatch(/may not|مش من حقك/);
+  });
+  test('new: new and ticked', async () => {
+    await kindOfCard({ kind: 'new', existing: null });
+    expect(ticked('1')).toBe(true);
+  });
+  test('more than 60 posts are planned in chunks of 60', async () => {
+    posts = Array.from({ length: 65 }, (_, k) => post(k + 1, `HP-${k + 10}`, 0));
+    m.codeCheck.mockResolvedValue({ codes: {}, max_photos: 15, ai_cost: 0 });
+    m.chatRead.mockResolvedValue({ posts: posts.map((_, k) => ({ fields: chatRead({ code: `HP-${k + 10}` }), missing: [] })) });
+    planKinds = {};
+    await open();
+    expect(m.chatPlan.mock.calls.map((c) => c[0].length)).toEqual([60, 5]);
   });
 });
 
@@ -215,7 +274,7 @@ describe('saving a new unit', () => {
 
   test('the save key is kept on the post: a retry after a failure reuses it', async () => {
     m.createUnit.mockRejectedValueOnce(new ApiClientError(500, 'oops')).mockResolvedValue({ code: 'HP-3', photos: 1, photosFailed: 0 });
-    m.unitEditFields.mockResolvedValue({ code: 'HP-1', version: 7, fields: { ...stored, price_value: '9500000' } }); // HP-1 unchanged: only HP-3 is saved
+    planKinds = { '1': { kind: 'unchanged', code: 'HP-1', existing: unit('HP-1') } }; // HP-1 unchanged: only HP-3 is saved
     await open();
     await saveAll();
     await waitFor(() => expect(screen.getByTestId('wa-post-2')).toBeTruthy());
@@ -225,7 +284,7 @@ describe('saving a new unit', () => {
   });
 
   test('two taps on Save all save once', async () => {
-    m.unitEditFields.mockResolvedValue({ code: 'HP-1', version: 7, fields: { ...stored, price_value: '9500000' } });
+    planKinds = { '1': { kind: 'unchanged', code: 'HP-1', existing: unit('HP-1') } };
     await open();
     await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); fireEvent.press(screen.getByTestId('wa-add')); });
     await waitFor(() => expect(screen.getByTestId('wa-result')).toBeTruthy());
@@ -276,7 +335,7 @@ describe('the list', () => {
 
   test('retrying the details keeps the ticks the person set', async () => {
     m.chatRead.mockRejectedValueOnce(new Error('net'));
-    m.unitEditFields.mockResolvedValue({ code: 'HP-1', version: 7, fields: { ...stored, price_value: '9500000' } });
+    planKinds = { '1': { kind: 'unchanged', code: 'HP-1', existing: unit('HP-1') } };
     await open();
     await act(async () => { fireEvent.press(screen.getByTestId('wa-read-retry')); });
     await waitFor(() => expect(screen.queryByTestId('wa-read-failed')).toBeNull());

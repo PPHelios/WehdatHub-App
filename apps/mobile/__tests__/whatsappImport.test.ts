@@ -1,4 +1,5 @@
-import { KEEP, advanceWatermark, blockedByCode, countInRange, existingBlocker, foldArabic, lacksDealType, lacksOwnerPhone, loadAttached, loadWatermark, newestDecided, normCode, overlayUpdate, parseDateInput, resolveRange, saveAttached, toExisting, updatePhotoRoom, withImpliedOwner, buildImportPosts, changedFields, codeBadge, comparable, findChatText, hasError, importCounts, incomplete, kindOf, looksLikeZip, missingFor, photoEntriesFor, readPosts, savable, stagePct, withDefaultTicks, withTextPhoneOnly } from '../src/whatsappImport';
+import { KEEP, applyPlanPatch, blockedByCode, changesOf, countInRange, lacksDealType, lacksOwnerPhone, loadAttached, normCode, parseDateInput, planPosts, resolveRange, saveAttached, updatePhotoRoom, withImpliedOwner, withPlan, buildImportPosts, codeBadge, comparable, findChatText, hasError, importCounts, incomplete, kindOf, looksLikeZip, missingFor, photoEntriesFor, readPosts, savable, stagePct, withDefaultTicks, withTextPhoneOnly } from '../src/whatsappImport';
+import type { ChatPlanPost } from '@wehdathub/shared';
 import type { CodeBadge, ImportPost } from '../src/whatsappImport';
 
 const T = (hh: number, mm: number) => `24/10/2026, ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
@@ -70,40 +71,60 @@ describe('whatsapp import helpers', () => {
 const mk = (id: string, extra: Partial<ImportPost> = {}): ImportPost => ({ id, post: { i: Number(id) } as never, picked: true, state: 'idle', photos: [], fields: { price_value: '1' }, ...extra });
 const none: CodeBadge = { kind: 'none' };
 const upd: CodeBadge = { kind: 'update', code: 'A-1', photos: 0 };
-const stored = { price_value: '8000000', area_value: '150', bedrooms: '3', bathrooms: '2', floor_level: '4', finishing: 'finished', compound: 'Hyde Park', district: 'New Cairo', listing_type: 'sale', property_type: 'apartment', owner_name: 'Omar', owner_phone: '01012345678', is_ready: '1', delivery_year: '2027', down_payment_value: '500000', notes: 'old note', clean_summary: 'old text', summary_en: 'old en' };
 
-describe('unchanged detection (mirrors the website chat import)', () => {
-  it('a post that states the same values is unchanged, whatever the formatting', () => {
-    expect(changedFields(stored, { ...stored })).toEqual([]);
-    expect(changedFields(stored, { price_value: '8,000,000', area_value: '150.0', owner_phone: '+20 101 234 5678', compound: 'hyde  park', finishing: 'FINISHED' })).toEqual([]);
+const plan = (kind: ChatPlanPost['kind'], extra: Partial<ChatPlanPost> = {}): ChatPlanPost => ({ id: '1', kind, code: 'A-1', existing: kind === 'new' || kind === 'invalid' || kind === 'forbidden' ? null : { code: 'A-1', version: 4, updated_at: null }, changes: [], patch: {}, errors: [], ...extra });
+const change = { field: 'price_value', from: '8', to: '9', from_ar: '8', from_en: '8', to_ar: '9', to_en: '9' };
+
+describe('the server plan on a post', () => {
+  it('withPlan: other unit, older, invalid and forbidden are blockers (errors); update, unchanged and new are not', () => {
+    const base = mk('1');
+    expect(withPlan(base, plan('other_unit')).blocker).toBe('other_unit');
+    expect(withPlan(base, plan('older')).blocker).toBe('older');
+    expect(withPlan(base, plan('invalid')).blocker).toBe('invalid');
+    expect(withPlan(base, plan('forbidden')).blocker).toBe('forbidden');
+    expect(withPlan(base, plan('update')).blocker).toBeUndefined();
+    expect(withPlan(base, plan('unchanged')).blocker).toBeUndefined();
+    expect(withPlan(base, plan('new')).blocker).toBeUndefined();
+    expect(withPlan(base, null).plan).toBeNull();
+  });
+  it('changesOf lists the plan changes of an update only', () => {
+    const p = withPlan(mk('1'), plan('update', { changes: [change] }));
+    expect(changesOf(p, upd)).toEqual([change]);
+    expect(changesOf(withPlan(mk('1'), plan('unchanged')), upd)).toBeNull();
+    expect(changesOf(p, none)).toBeNull();
+  });
+  it('applyPlanPatch: the stored fields with only the patch on top, the note appended once, the code never sent', () => {
+    const stored = { price_value: '8000000', owner_phone: '01012345678', notes: 'old note', code: 'A-1', market: 'primary' };
+    const body = applyPlanPatch(stored, plan('update', { patch: { price_value: '9500000' }, notes_append: 'WhatsApp' }));
+    expect(body).toMatchObject({ price_value: '9500000', owner_phone: '01012345678', market: 'primary' });
+    expect(body.notes).toBe('old note\nWhatsApp');
+    expect(body.code).toBeUndefined();
+    expect(applyPlanPatch({ ...stored, notes: 'old note WhatsApp' }, plan('update', { notes_append: 'WhatsApp' })).notes).toBe('old note WhatsApp');
+  });
+  it('planPosts: 60 posts per request, matched by id; a failed request leaves its posts unplanned', async () => {
+    const list = Array.from({ length: 130 }, (_, k) => mk(String(k + 1), { post: { i: k + 1, text: 't', at: null, sender: null } as never }));
+    const calls: number[] = [];
+    const out = await planPosts(async (b) => {
+      calls.push(b.length);
+      if (calls.length === 2) throw new Error('net');
+      return { posts: b.map((x) => plan('new', { id: x.id })) };
+    }, list);
+    expect(calls).toEqual([60, 60, 10]);
+    expect(out.slice(0, 60).every((a) => a?.kind === 'new')).toBe(true);
+    expect(out.slice(60, 120).every((a) => a === null)).toBe(true);
+    expect(out[125]?.id).toBe('126');
+  });
+  it('comparable still folds phones and numbers', () => {
     expect(comparable('owner_phone', '00201012345678')).toBe('01012345678');
-  });
-  it('a field the post does not state never counts', () => {
-    expect(changedFields(stored, { price_value: '', bedrooms: undefined })).toEqual([]);
-  });
-  it.each([
-    ['price_value', '9000000', 'price_value'], ['area_value', '160', 'area_value'], ['bedrooms', '4', 'bedrooms'], ['bathrooms', '3', 'bathrooms'],
-    ['floor_level', '5', 'floor'], ['finishing', 'semi_finished', 'finishing'], ['compound', 'Mivida', 'compound'], ['district', 'Sheikh Zayed', 'district'],
-    ['listing_type', 'rent', 'listing_type'], ['property_type', 'villa', 'property_type'], ['delivery_year', '2028', 'delivery'],     ['down_payment_value', '600000', 'payment'], ['owner_name', 'Ali', 'owner_name'],
-  ])('a different %s is a change (%s)', (field, value, group) => {
-    expect(changedFields(stored, { [field]: value })).toEqual([group]);
-  });
-  it('a post that only brings notes, description or English summary is unchanged', () => {
-    expect(changedFields(stored, { notes: 'WhatsApp · Ahmed · 24/10/2026', clean_summary: 'brand new text', summary_en: 'new en' })).toEqual([]);
-  });
-  it('the owner phone, readiness, features and market are never a change (a stored unit keeps them)', () => {
-    expect(changedFields(stored, { ...stored, owner_phone: '01099999999', is_ready: '0', feature: ['pool'], market: 'resale' })).toEqual([]);
-  });
-  it('a district the unit already has under another stored name is not a change', () => {
-    expect(changedFields({ ...stored, city: 'Cairo' }, { district: 'cairo' })).toEqual([]);
+    expect(comparable('price_value', '8,000,000')).toBe('8000000');
   });
 });
 
 describe('kinds, ticks, counts and what is saved', () => {
   const badges = [upd, upd, none, { kind: 'taken' } as CodeBadge, none];
   const list = [
-    mk('1', { existing: { version: 1, fields: stored }, fields: { ...stored, notes: 'n' } }), // unchanged
-    mk('2', { existing: { version: 1, fields: stored }, fields: { ...stored, price_value: '9000000' } }), // updated
+    mk('1', { plan: plan('unchanged') }), // unchanged
+    mk('2', { plan: plan('update', { changes: [change] }) }), // updated
     mk('3'), // new
     mk('4'), // taken: error
     mk('5', { missing: ['compound'] }), // incomplete: error
@@ -114,7 +135,7 @@ describe('kinds, ticks, counts and what is saved', () => {
     expect(kindOf({ ...list[2], discarded: true }, none)).toBe('discarded');
     expect(kindOf({ ...list[2], state: 'saved' }, none)).toBe('saved');
     expect(kindOf({ ...list[2], fields: undefined }, none)).toBe('error');
-    expect(kindOf({ ...list[1], existing: null }, upd)).toBe('error'); // the stored unit could not be read: never saved blind
+    expect(kindOf({ ...list[1], plan: null }, upd)).toBe('error'); // the stored unit could not be read: never saved blind
   });
 
   it('default ticks: only valid new or changed units', () => {
@@ -157,16 +178,19 @@ describe('errors', () => {
     expect(hasError(mk('1', { state: 'needs_edit' }), none)).toBe(true);
     expect(hasError(mk('1', { missing: ['x'], discarded: true }), none)).toBe(false);
     expect(hasError(mk('1', { state: 'saved', missing: ['x'] }), none)).toBe(false);
-    expect(hasError(mk('1', { existing: { version: 1, fields: {} } }), upd)).toBe(false);
-    expect(hasError(mk('1', { existing: null }), upd)).toBe(true);
-    expect(hasError(mk('1', { existing: { version: 1, fields: {} }, blocker: 'other_unit' }), upd)).toBe(true);
+    expect(hasError(mk('1', { plan: plan('update') }), upd)).toBe(false);
+    expect(hasError(mk('1', { plan: null }), upd)).toBe(true);
+    expect(hasError(withPlan(mk('1'), plan('other_unit')), upd)).toBe(true);
+    expect(hasError(withPlan(mk('1'), plan('older')), upd)).toBe(true);
+    expect(hasError(withPlan(mk('1'), plan('invalid')), none)).toBe(true);
+    expect(hasError(withPlan(mk('1'), plan('forbidden')), none)).toBe(true);
     expect(blockedByCode({ kind: 'taken' })).toBe(true);
   });
-  it('a field the existing unit already has is not missing for an update post', () => {
-    const p = mk('1', { missing: ['owner_phone', 'compound'], existing: { version: 1, fields: { owner_phone: '01012345678' } } });
-    expect(missingFor(p)).toEqual(['compound']);
-    expect(incomplete(p)).toBe(true);
-    expect(incomplete({ ...p, missing: ['owner_phone'] })).toBe(false);
+  it('nothing is missing for an update post: the server fills it from the unit', () => {
+    const p = mk('1', { missing: ['owner_phone', 'compound'], plan: plan('update') });
+    expect(missingFor(p)).toEqual([]);
+    expect(incomplete(p)).toBe(false);
+    expect(incomplete({ ...p, plan: null })).toBe(true);
   });
 });
 
@@ -188,48 +212,6 @@ describe('owner phone only from the post text', () => {
   });
 });
 
-describe('the update overlay (only what the post really changes)', () => {
-  // A realistic chat-read fixture: the reader adds market, is_ready:false, feature:[] and the WhatsApp note on every post.
-  const chatRead = { price_value: '9500000', area_value: '150', bedrooms: '3', listing_type: 'sale', property_type: 'apartment', compound: 'Hyde Park', owner_phone: '01099999999', market: 'resale', is_ready: false, feature: [] as string[], notes: 'WhatsApp', clean_summary: 'new text' };
-  const unit = { ...stored, market: 'primary', is_ready: '1', feature: ['pool'], notes: 'old note', clean_summary: 'old text' };
-
-  it('overlays only changed keys; never market, readiness, features, summary or the stored phone; appends the note', () => {
-    const body = overlayUpdate(unit, chatRead);
-    expect(body).toMatchObject({ price_value: '9500000', market: 'primary', is_ready: '1', feature: ['pool'], clean_summary: 'old text', owner_phone: '01012345678', area_value: '150', summary_en: 'old en' });
-    expect(body.notes).toBe('old note\nWhatsApp');
-    expect(overlayUpdate(unit, { ...chatRead, notes: 'old note' }).notes).toBe('old note');
-  });
-  it('false and empty lists are "not stated" for readiness and features', () => {
-    expect(comparable('is_ready', false)).toBe('');
-    expect(comparable('feature', [])).toBe('');
-    expect(changedFields(unit, { is_ready: false, feature: [] })).toEqual([]);
-  });
-  it('Arabic spellings fold in a place compare, and the stored English name / ids count', () => {
-    expect(changedFields({ ...stored, compound: 'مدينة نصر', district: undefined }, { compound: 'مدينه نصر' })).toEqual([]);
-    expect(changedFields({ ...stored, compound: 'التجمع', district: undefined }, { compound: 'إلتجمع' })).toEqual([]);
-    expect(foldArabic('أإآ ة ى')).toBe('ااا ه ي');
-    expect(changedFields({ ...stored, compound: 'هايد بارك', compound_en: 'Hyde Park' }, { compound: 'hyde park' })).toEqual([]);
-    expect(changedFields({ ...stored, compound: undefined, district: undefined, compound_ids: ['Mivida'] }, { compound: 'mivida' })).toEqual([]);
-  });
-});
-
-describe('the code may belong to another unit, or the unit is newer', () => {
-  const ex = { version: 1, fields: stored };
-  it('a clear conflict of type, deal or place is "other_unit"', () => {
-    expect(existingBlocker(ex, { property_type: 'villa' }, null)).toBe('other_unit');
-    expect(existingBlocker(ex, { listing_type: 'rent' }, null)).toBe('other_unit');
-    expect(existingBlocker(ex, { compound: 'Mivida' }, null)).toBe('other_unit');
-    expect(existingBlocker(ex, { compound: 'hyde park', property_type: 'apartment', price_value: '1' }, null)).toBeUndefined();
-    expect(existingBlocker(ex, { price_value: '9000000' }, null)).toBeUndefined();
-  });
-  it('a unit updated after the post is "older"', () => {
-    expect(existingBlocker({ ...ex, updatedAt: 2000 }, { price_value: '1' }, 1000)).toBe('older');
-    expect(existingBlocker({ ...ex, updatedAt: 500 }, { price_value: '1' }, 1000)).toBeUndefined();
-    expect(toExisting({ version: 3, fields: {}, updated_at: '2026-10-24T10:00:00Z' }).updatedAt).toBe(Date.parse('2026-10-24T10:00:00Z'));
-    expect(toExisting({ version: 3, fields: {} }).updatedAt).toBeUndefined();
-  });
-});
-
 describe('owner implied, repeats, bulk skips, photo room', () => {
   it('a phone with no name stands in for the name; the name is not missing then', () => {
     expect(withImpliedOwner({ owner_phone: '01012345678' })).toMatchObject({ owner_name_from_phone: '1' });
@@ -247,11 +229,11 @@ describe('owner implied, repeats, bulk skips, photo room', () => {
     expect(codeBadge([a, { ...b, discarded: true }], 0, null, 'done')).toEqual({ kind: 'none' });
     expect(codeBadge([{ ...a, state: 'saved' }, b], 1, null, 'done')).toEqual({ kind: 'none' });
   });
-  it('bulk fixes skip an update whose stored unit already has the field, and never give a stored unit a phone', () => {
-    const p = mk('1', { fields: {}, existing: { version: 1, fields: { listing_type: 'sale', owner_phone: '01012345678' } } });
+  it('bulk fixes skip an update (its stored unit has the field), and never give a stored unit a phone', () => {
+    const p = mk('1', { fields: {}, plan: plan('update') });
     expect(lacksDealType(p)).toBe(false);
     expect(lacksOwnerPhone(p)).toBe(false);
-    expect(lacksDealType(mk('1', { fields: {}, existing: { version: 1, fields: {} } }))).toBe(true);
+    expect(lacksDealType(mk('1', { fields: {}, plan: plan('new') }))).toBe(true);
     expect(lacksOwnerPhone(mk('1', { fields: {} }))).toBe(true);
   });
   it('an update may add only what is left of the 15 photos', () => {
@@ -273,32 +255,27 @@ describe('the range step helpers', () => {
     expect(parseDateInput('')).toBeNull();
     expect(parseDateInput('soon')).toBeNull();
   });
-  it('resolveRange: presets, last import (just after the watermark), all, and a custom range that must be valid', () => {
-    const now = Date.UTC(2026, 10, 19, 12);
+  it('resolveRange uses the shared range bounds: presets, last import, all, and a custom range that must be valid (until inclusive)', () => {
+    const now = new Date(Date.UTC(2026, 10, 19, 12));
     expect(resolveRange({ kind: 'all' }, null, now)).toEqual({ ok: true, since: undefined, until: undefined });
-    expect(resolveRange({ kind: 'last' }, 5000, now)).toEqual({ ok: true, since: 5001, until: undefined });
-    const r = resolveRange({ kind: '7' }, null, now);
-    expect(r.ok && typeof r.since === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.since)).toBe(true);
+    expect(resolveRange({ kind: 'last' }, '2026-10-20T08:00:00.000Z', now)).toEqual({ ok: true, since: '2026-10-19', until: undefined });
+    expect(resolveRange({ kind: 'last' }, null, now)).toEqual({ ok: true, since: '2026-10-20', until: undefined });
+    expect(resolveRange({ kind: '7' }, null, now)).toEqual({ ok: true, since: '2026-11-12', until: undefined });
+    expect(resolveRange({ kind: '90' }, null, now)).toEqual({ ok: true, since: '2026-08-21', until: undefined });
     expect(resolveRange({ kind: 'custom', sinceText: '' }, null, now)).toEqual({ ok: false, error: 'since' });
     expect(resolveRange({ kind: 'custom', sinceText: 'xx' }, null, now)).toEqual({ ok: false, error: 'since' });
     expect(resolveRange({ kind: 'custom', sinceText: '2026-10-01', untilText: 'zz' }, null, now)).toEqual({ ok: false, error: 'until' });
     expect(resolveRange({ kind: 'custom', sinceText: '2026-10-10', untilText: '2026-10-01' }, null, now)).toEqual({ ok: false, error: 'order' });
-    expect(resolveRange({ kind: 'custom', sinceText: '2026-10-01', untilText: '2026-10-05' }, null, now)).toEqual({ ok: true, since: '2026-10-01', until: '2026-10-05T23:59' });
+    expect(resolveRange({ kind: 'custom', sinceText: '2026-10-01', untilText: '2026-10-05' }, null, now)).toEqual({ ok: true, since: '2026-10-01', until: '2026-10-06' });
+    expect(resolveRange({ kind: 'custom', sinceText: '2026-10-01' }, null, now)).toEqual({ ok: true, since: '2026-10-01', until: undefined });
   });
   it('counts the chat per day inside the range', () => {
     const perDay = { '2026-10-01': 5, '2026-10-02': 7, '2026-10-03': 2 };
     expect(countInRange(perDay)).toBe(14);
     expect(countInRange(perDay, '2026-10-02')).toBe(9);
-    expect(countInRange(perDay, '2026-10-02', '2026-10-02T23:59')).toBe(7);
+    expect(countInRange(perDay, '2026-10-02', '2026-10-03')).toBe(7);
   });
-  it('the watermark is the newest decided post time (saved, discarded, unchanged), and only moves forward', async () => {
-    const at = (d: string) => ({ at: d } as never);
-    const list = [mk('1', { post: at('01/10/2026 10:00'), state: 'saved' }), mk('2', { post: at('05/10/2026 10:00'), discarded: true }), mk('3', { post: at('09/10/2026 10:00') })];
-    const t = newestDecided(list, [none, none, none]);
-    expect(t).toBe(Date.UTC(2026, 9, 5, 10, 0));
-    await advanceWatermark('b1', 'fp', 100);
-    await advanceWatermark('b1', 'fp', 50);
-    expect(await loadWatermark('b1', 'fp')).toBe(100);
+  it('the photos already added to a unit are remembered per chat', async () => {
     await saveAttached('b1', 'fp', 'HP-1', ['a.jpg']);
     expect(await loadAttached('b1', 'fp', 'hp1')).toEqual(['a.jpg']);
   });

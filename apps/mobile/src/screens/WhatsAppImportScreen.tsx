@@ -5,7 +5,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { errorCodes, isErrorWithCode, pick, types } from '@react-native-documents/picker';
 import { ApiClientError, displayPhone, looksLikePhone, ltr, phoneSchema } from '@wehdathub/shared';
-import type { CodeState, UnitFields, UploadFile } from '@wehdathub/shared';
+import type { ChatPlanChange, ChatPlanPost, CodeState, UnitFields, UploadFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang, useAuth } from '../auth';
 import { Button } from '../components/Button';
@@ -25,11 +25,11 @@ import { radius, spacing, useTheme } from '../theme';
 import { usage } from '../usage';
 import { sendable, withImpliedFeatures } from '../unitRules';
 import {
-  advanceWatermark, buildImportPosts, changedFields, changesOf, codeBadge, countInRange, existingBlocker, importCounts, incomplete, keptOf, kindOf, lacksDealType, lacksOwnerPhone,
-  loadAttached, loadWatermark, looksLikeZip, missingFor, missingOf, newestDecided, overlayUpdate, postTime, resolveRange, saveAttached, savable, stagePct, toExisting,
-  updatePhotoRoom, withDealType, withDefaultTicks, withImpliedOwner, withOwnerPhone, withTextPhoneOnly,
+  applyPlanPatch, buildImportPosts, changesOf, codeBadge, countInRange, importCounts, incomplete, keptOf, kindOf, lacksDealType, lacksOwnerPhone,
+  loadAttached, looksLikeZip, missingFor, missingOf, planPosts, postTime, resolveRange, saveAttached, savable, stagePct,
+  updatePhotoRoom, withDealType, withDefaultTicks, withImpliedOwner, withOwnerPhone, withPlan, withTextPhoneOnly,
 } from '../whatsappImport';
-import type { ChatInfo, CodeBadge, ExistingUnit, ImportPost, SinceKind } from '../whatsappImport';
+import type { ChatInfo, CodeBadge, ImportPost, SinceKind } from '../whatsappImport';
 import { fill, wi } from '../whatsappImportText';
 import { applyMemory, diffDecisions, forgetAll, load as loadMemory, record as recordMemory, restore as restoreMemory } from '../whatsappImportMemory';
 import type { Memory, Outcome } from '../whatsappImportMemory';
@@ -71,7 +71,7 @@ export function WhatsAppImportScreen() {
   const [stage, setStage] = useState<Stage>('list');
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<ChatInfo | null>(null);
-  const [watermark, setWatermark] = useState<number | null>(null);
+  const [lastImportAt, setLastImportAt] = useState<string | null>(null);
   const [kind, setKind] = useState<SinceKind>('30');
   const [sinceText, setSinceText] = useState('');
   const [untilText, setUntilText] = useState('');
@@ -149,10 +149,13 @@ export function WhatsAppImportScreen() {
       const o = await openChat(file.uri, { signal: signal.current, onPct: (p: number) => setPct((cur) => Math.max(cur, p)) });
       if (unmounted.current) { await o.close().catch(() => undefined); return; }
       opened.current = o;
-      const wm = await loadWatermark(brokerId, o.info.fingerprint);
+      // What the agency decided about this chat before (and when it was last imported) comes from the server.
+      const remembered = await loadMemory(o.info.fingerprint);
+      memory.current = remembered.decisions;
+      noRecord.current = false;
       setInfo(o.info);
-      setWatermark(wm);
-      setKind(wm ? 'last' : '30');
+      setLastImportAt(remembered.lastImportAt);
+      setKind(remembered.lastImportAt ? 'last' : '30');
       setRangeError(null);
       setPhase('range');
     } catch (e) {
@@ -167,7 +170,7 @@ export function WhatsAppImportScreen() {
   const read = useCallback(async () => {
     const o = opened.current;
     if (!o) return;
-    const r = resolveRange({ kind, sinceText, untilText }, watermark);
+    const r = resolveRange({ kind, sinceText, untilText }, lastImportAt);
     if (!r.ok) { setRangeError(r.error); return; }
     setRangeError(null);
     setError(null);
@@ -230,24 +233,15 @@ export function WhatsAppImportScreen() {
         setReadFailed(true);
         usage('wa_import_reader', false, Date.now() - tr, { posts: posts.length });
       }
-      // A post for an existing unit is compared with that unit (its stored fields), so one with nothing really changed is "unchanged".
-      // When the unit cannot be read the post is an error ("could not compare"), never an update.
-      await Promise.all(posts.map(async (p, i) => {
-        const b = codeBadge(posts, i, codeMap, codeState);
-        if (b.kind !== 'update') return;
-        try {
-          p.existing = toExisting(await api.unitEditFields(b.code));
-          p.blocker = p.fields ? existingBlocker(p.existing, p.fields, postTime(p.post)) : undefined;
-        } catch { p.existing = null; p.blocker = 'compare_failed'; }
-      }));
+      // What each post does to the agency's units (new, update, unchanged, another unit's, older...) is the server's plan. A post that
+      // could not be planned is an error when it is an update (could not compare), never an update.
+      const plans = await planPosts((b) => api.chatPlan(b), posts);
+      plans.forEach((a, k) => { posts[k] = withPlan(posts[k], a); });
       setPct(100);
       setResult(null);
       const ticked = withDefaultTicks(posts, posts.map((_, i) => codeBadge(posts, i, codeMap, codeState)));
-      const { decisions: mem } = await loadMemory(o.info.fingerprint);
-      memory.current = mem;
-      noRecord.current = false;
-      const applied = applyMemory(ticked, mem);
-      setMemCount(Object.keys(mem).length);
+      const applied = applyMemory(ticked, memory.current);
+      setMemCount(Object.keys(memory.current).length);
       setForgotNote(false);
       setShowPrior(false);
       setMoreOpen({});
@@ -263,7 +257,7 @@ export function WhatsAppImportScreen() {
       setError(reasonText(e));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, sinceText, untilText, watermark, lang]);
+  }, [kind, sinceText, untilText, lastImportAt, lang]);
 
   // Fix many posts at once: one deal type for the posts that have none, or one owner phone for the posts that lack it. Each changed
   // post is checked again by the server's review, so what it still misses is shown on its card and it is added only when complete.
@@ -286,7 +280,7 @@ export function WhatsAppImportScreen() {
           const rv = await api.reviewUnit(sendable(withImpliedFeatures(nonEmpty(fields))), keptOf(p).length, existing);
           missing = missingOf(rv.blockers);
         } catch { /* the card keeps its old list; Edit checks it again */ }
-        patchPost(p.id, { fields, missing, note: undefined });
+        patchPost(p.id, { fields, missing, note: undefined, ...(p.blocker === 'invalid' ? { blocker: undefined } : {}) });
       }
       setBulkNote(fill(W.bulkDone, { n: targets.length }));
       usage('wa_import_bulk', true, undefined, { posts: targets.length });
@@ -376,12 +370,13 @@ export function WhatsAppImportScreen() {
   const retryDetails = async () => {
     try {
       const rd = await api.chatRead(list.map((p) => p.post.text));
+      const again = await planPosts((b) => api.chatPlan(b), list.map((p, k) => ({ ...p, fields: rd.posts[k] ? withTextPhoneOnly(rd.posts[k].fields, p.post.orig || p.post.text) : p.fields })));
       setList((l) => {
         const next = l.map((p, k) => {
           const r = rd.posts[k];
           if (!r) return p;
           const fields = withTextPhoneOnly(r.fields, p.post.orig || p.post.text);
-          return { ...p, fields, missing: r.missing, blocker: p.existing && fields ? existingBlocker(p.existing, fields, postTime(p.post)) : p.blocker };
+          return withPlan({ ...p, fields, missing: r.missing }, again[k] ?? p.plan ?? null);
         });
         return next.map((p, k) => {
           if (l[k].fields) return p;
@@ -466,31 +461,31 @@ export function WhatsAppImportScreen() {
   // One post for an existing unit that really changes: the stored unit with ONLY the fields the post changed on top (the post's note
   // appended to the stored notes), checked by the form rules, saved as an edit on the version read at the review, then the photos added.
   const addUpdate = async (p: ImportPost, code: string, existingPhotos: number): Promise<'saved' | 'needs_edit'> => {
-    let ex: ExistingUnit | null | undefined = p.existing;
-    if (!ex) return 'needs_edit';
-    const post = p.fields ?? {};
-    const build = (e: ExistingUnit) => sendable(withImpliedFeatures(withImpliedOwner(overlayUpdate(e.fields, post))));
+    let plan = p.plan;
+    if (!plan || plan.kind !== 'update' || !plan.existing) return 'needs_edit';
     const done = await loadAttached(brokerId, info?.fingerprint ?? '', code);
     const kept = keptOf(p).filter((f) => !done.includes(f.name)).slice(0, updatePhotoRoom(existingPhotos));
-    let body = build(ex);
+    // The stored unit's form fields with only the plan's patch on top (and the post's note appended to the stored notes).
+    const build = async (pl: ChatPlanPost) => sendable(withImpliedFeatures(withImpliedOwner(applyPlanPatch((await api.unitEditFields(code)).fields, pl))));
+    let body = await build(plan);
     const rv = await api.reviewUnit(body, kept.length, code);
     if (rv.blockers.length) { patchPost(p.id, { state: 'needs_edit', note: rv.blockers.map((b) => b.label).join(' · ') }); return 'needs_edit'; }
     let key = keyFor(p);
     try {
-      await withSaveCheck(api.saveUnitEdit(code, ex.version, body, key), () => api.unitSaveStatus(key));
+      await withSaveCheck(api.saveUnitEdit(code, plan.existing.version, body, key), () => api.unitSaveStatus(key));
     } catch (e) {
       if (!(e instanceof ApiClientError && e.status === 409)) throw e;
-      // The unit changed since the review: read it again and compare again before saving once more.
-      ex = toExisting(await api.unitEditFields(code));
-      const blocker = existingBlocker(ex, post, postTime(p.post));
-      if (blocker || !changedFields(ex.fields, post).length) {
-        patchPost(p.id, { existing: ex, blocker, state: 'idle', picked: false, saveKey: undefined, note: W.noteConflict });
+      // The unit changed since the plan: ask the server for the plan again before saving once more.
+      const [again] = await planPosts((b) => api.chatPlan(b), [p]);
+      if (!again || again.kind !== 'update' || !again.existing) {
+        patchPost(p.id, { ...withPlan(p, again ?? p.plan ?? null), state: 'idle', picked: false, saveKey: undefined, note: W.noteConflict });
         return 'needs_edit';
       }
       key = newSaveKey();
-      patchPost(p.id, { existing: ex, saveKey: key });
-      body = build(ex);
-      await withSaveCheck(api.saveUnitEdit(code, ex.version, body, key), () => api.unitSaveStatus(key));
+      plan = again;
+      patchPost(p.id, { plan: again, saveKey: key });
+      body = await build(again);
+      await withSaveCheck(api.saveUnitEdit(code, again.existing.version, body, key), () => api.unitSaveStatus(key));
     }
     if (kept.length) {
       try {
@@ -530,7 +525,7 @@ export function WhatsAppImportScreen() {
         const t0 = Date.now();
         const photos = keptOf(p).length;
         try {
-          const r = b.kind === 'update' ? await addUpdate(p, b.code, b.photos) : await addOne(p);
+          const r = b.kind === 'update' && p.plan?.kind === 'update' ? await addUpdate(p, b.code, b.photos) : await addOne(p);
           usage('wa_import_add', r === 'saved', Date.now() - t0, { outcome: r, ai: false, photos });
           if (r === 'saved') tally[b.kind === 'update' ? 'updated' : 'created'] += 1; else tally.failed += 1;
           if (r === 'blocked') break;
@@ -555,6 +550,7 @@ export function WhatsAppImportScreen() {
   const counts = importCounts(list, badges);
   const canSave = counts.willSave > 0;
   const buttonLabel = `${W.addSelected} (${counts.willSave})`;
+  const changeLine = (c: ChatPlanChange) => `${changeName(c.field)}: ${lang === 'en' ? c.from_en : c.from_ar} → ${lang === 'en' ? c.to_en : c.to_ar}`;
   const changeName = (g: string) => (g === 'finishing' ? W.finishingName : (W as unknown as Record<string, string>)[`fc_${g}`] ?? g);
 
   // Leaving while a save runs, or with units still ticked, asks first (a save in progress stops at the next post).
@@ -572,14 +568,6 @@ export function WhatsAppImportScreen() {
     return sub;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nav, lang]);
-
-  // After a save the watermark moves to the newest post the person dealt with (saved, discarded or unchanged), for the next import of this chat.
-  useEffect(() => {
-    if (!result || !info) return;
-    const t = newestDecided(listRef.current, badgesRef.current);
-    if (t !== null) void advanceWatermark(brokerId, info.fingerprint, t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result]);
 
   if (!allowed) {
     return (
@@ -615,10 +603,10 @@ export function WhatsAppImportScreen() {
   }
 
   if (phase === 'range' && info) {
-    const r = resolveRange({ kind, sinceText, untilText }, watermark);
+    const r = resolveRange({ kind, sinceText, untilText }, lastImportAt);
     const inRange = r.ok ? countInRange(info.perDay, r.since, r.until) : null;
     const options: { k: SinceKind; label: string }[] = [
-      ...(watermark !== null ? [{ k: 'last' as SinceKind, label: fill(W.sinceLast, { d: utcDay(watermark) }) }] : []),
+      ...(lastImportAt ? [{ k: 'last' as SinceKind, label: fill(W.sinceLast, { d: lastImportAt.slice(0, 10) }) }] : []),
       { k: '7', label: W.days7 }, { k: '30', label: W.days30 }, { k: '90', label: W.days90 }, { k: 'all', label: W.sinceAll }, { k: 'custom', label: W.sinceCustom },
     ];
     const err = rangeError === 'since' ? W.errSince : rangeError === 'until' ? W.errUntil : rangeError === 'order' ? W.errOrder : null;
@@ -757,7 +745,7 @@ export function WhatsAppImportScreen() {
           const locked = p.state === 'working' || adding;
           const open = Boolean(openText[p.id]);
           const label = p.post.code ?? p.id;
-          const blockNote = p.blocker === 'other_unit' ? W.noteOtherUnit : p.blocker === 'older' ? W.noteOlder : p.blocker === 'compare_failed' || (badge.kind === 'update' && !p.existing) ? W.noteCompare : null;
+          const blockNote = p.blocker === 'other_unit' ? W.noteOtherUnit : p.blocker === 'older' ? W.noteOlder : p.blocker === 'invalid' ? W.noteInvalid : p.blocker === 'forbidden' ? W.noteForbidden : p.blocker === 'compare_failed' || (badge.kind === 'update' && !p.plan) ? W.noteCompare : null;
           return (
             <View key={p.id} testID={`wa-post-${p.id}`} style={[styles.card, elev('md'), { borderColor: missingFor(p).length ? colors.danger : colors.border, backgroundColor: colors.card }]}>
               <View style={styles.row}>
@@ -769,7 +757,7 @@ export function WhatsAppImportScreen() {
                 <View style={styles.flex}>
                   <BadgeLine W={W} badge={badge} colors={colors} />
                   {kind === 'unchanged' ? <Text testID={`wa-unchanged-${p.id}`} style={{ color: colors.muted, fontWeight: '600' }}>{W.unchangedBadge}</Text> : null}
-                  {kind === 'updated' && changes?.length ? <Text testID={`wa-changes-${p.id}`} style={{ color: colors.accent, fontWeight: '600' }}>{fill(W.changesLine, { list: changes.map(changeName).join(J) })}</Text> : null}
+                  {kind === 'updated' && changes?.length ? <Text testID={`wa-changes-${p.id}`} style={{ color: colors.accent, fontWeight: '600' }}>{fill(W.changesLine, { list: changes.map((c) => changeLine(c)).join(J) })}</Text> : null}
                   {blockNote ? <Text testID={`wa-blocker-${p.id}`} style={{ color: colors.danger, fontWeight: '600' }}>{blockNote}</Text> : null}
                   <Text style={[styles.small, { color: colors.muted }]} numberOfLines={1}>{[p.post.sender && looksLikePhone(p.post.sender) ? ltr(displayPhone(p.post.sender)) : p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
                 </View>

@@ -1,6 +1,7 @@
 // The WhatsApp chat reader, shared with the website (generated from the server's domain files: see scripts/sync-chat-domain.mjs).
 import ChatParseRaw from './chatParse';
 import ChatMatchRaw from './chatMatch';
+import ChatFingerprintRaw from './chatFingerprint';
 
 export interface ChatFileRef { name: string; i: number; at: string | null }
 export interface ChatPost {
@@ -42,7 +43,24 @@ export interface ChatMatcher {
   normCode(text: string): string;
   MAX_POSTS: number;
 }
-export interface ChatParser { defaultSince(): string; MAX_PHOTOS: number }
+export type ChatRangeKind = 'last' | '7' | '30' | '90' | 'all' | 'custom';
+export interface ChatParser {
+  defaultSince(): string;
+  MAX_PHOTOS: number;
+  /** The date bounds of an import range choice; `until` is exclusive, a custom until date is inclusive as typed. */
+  rangeBounds(kind: ChatRangeKind | string, o?: { now?: Date; lastImportAt?: string | null; since?: string | null; until?: string | null }): { since: string | null; until: string | null };
+}
 
 export const ChatMatch = ChatMatchRaw as unknown as ChatMatcher;
 export const ChatParse = ChatParseRaw as unknown as ChatParser;
+
+export interface ChatFingerprinter {
+  /** at: the chat's own time text ("24/10/2026 10:15") or epoch ms; text: the message as written. Base-36. */
+  postFingerprint(sender: string | null, at: string | number | null, text: string): string;
+  /** 16 hex characters from the chat file name and the first message's header ("24/10/2026 10:15"). */
+  chatFingerprint(chatFileName: string, firstHeader: string): string;
+  firstHeaderOf(text: string): string;
+  isChatFp(v: unknown): boolean;
+  isPostFp(v: unknown): boolean;
+}
+export const ChatFingerprint = ChatFingerprintRaw as unknown as ChatFingerprinter;

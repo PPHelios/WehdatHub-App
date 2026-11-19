@@ -26,6 +26,7 @@ export default __m.exports;
 const files = [
   { name: 'chatParse', imports: 'const __deps = {};' },
   { name: 'chatMatch', imports: "import ChatParse from './chatParse';\nconst __deps = { './chatParse': ChatParse };" },
+  { name: 'chatFingerprint', imports: 'const __deps = {};' },
 ];
 let stale = false;
 for (const f of files) {

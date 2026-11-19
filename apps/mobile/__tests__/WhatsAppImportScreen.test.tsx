@@ -1,12 +1,12 @@
 import React from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { WhatsAppImportScreen } from '../src/screens/WhatsAppImportScreen';
 import { api } from '../src/api';
 import { openChat, readChat } from '../src/zipImport';
 import { usage } from '../src/usage';
+import { resetMemoryCache } from '../src/whatsappImportMemory';
 
-jest.mock('../src/api', () => ({ api: { codeCheck: jest.fn(), chatRead: jest.fn(), extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn(), unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { chatPlan: jest.fn(), chatDecisions: jest.fn(), saveChatDecisions: jest.fn(), forgetChatDecisions: jest.fn(), codeCheck: jest.fn(), chatRead: jest.fn(), extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn(), unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn() } }));
 jest.mock('../src/zipImport', () => {
   class ZipImportError extends Error { reason: string; constructor(reason: string) { super(reason); this.reason = reason; } }
   return { ZipImportError, openChat: jest.fn(), readChat: jest.fn(), cancelUnpack: jest.fn(), cleanUp: jest.fn() };
@@ -34,9 +34,19 @@ const post = (i: number, code: string | null, photos: number, videos = 0) => ({
   files: Array.from({ length: photos }, (_, k) => ({ name: `IMG-${i}-${k}.jpg`, i: i + k, at: null })),
 });
 
+// The server's chat plan by post id: everything is new unless the test says otherwise (ids in planKinds).
+let planKinds: Record<string, Record<string, unknown>> = {};
+const planFor = async (b: { id: string }[]) => ({ posts: b.map((x) => ({ id: x.id, kind: 'new', code: null, existing: null, changes: [], patch: {}, errors: [], ...(planKinds[x.id] ?? {}) })) });
+const unit = (code: string, version = 7) => ({ code, version, updated_at: null });
+
 beforeEach(async () => {
-  await AsyncStorage.removeItem('wa_import_mem:me:fp1');
   jest.clearAllMocks();
+  resetMemoryCache();
+  planKinds = { '1': { kind: 'unchanged', code: 'HP-1', existing: unit('HP-1') } };
+  m.chatPlan.mockImplementation(planFor);
+  m.chatDecisions.mockResolvedValue({ decisions: {}, last_import_at: null });
+  m.saveChatDecisions.mockResolvedValue({ ok: true, stored: 0 });
+  m.forgetChatDecisions.mockResolvedValue({ ok: true, removed: 0 });
   mockRoute = { params: { zip: mockZip } };
   const posts = [post(1, 'HP-1', 20, 2), post(2, 'HP-2', 2), post(3, 'HP-3', 1), post(4, null, 1)];
   const present = new Map<string, string>();
@@ -293,7 +303,8 @@ test('an unchanged unit ticked by hand is still not saved: no write, no photos, 
   expect(screen.getByTestId('wa-result-unchanged').props.children).toMatch(/HP-1/);
 });
 
-test('a post that changes the price is ticked, saved as an edit of that unit with the post fields on top, and its photos uploaded', async () => {
+test('a post that changes the price is ticked, saved as an edit of that unit with the plan patch on top, and its photos uploaded', async () => {
+  planKinds = { '1': { kind: 'update', code: 'HP-1', existing: unit('HP-1', 7), patch: { price_value: '9500000' }, notes_append: 'WhatsApp', changes: [{ field: 'price_value', from: '8,000,000', to: '9,500,000', from_ar: '8,000,000', from_en: '8,000,000', to_ar: '9,500,000', to_en: '9,500,000' }] } };
   m.chatRead.mockResolvedValue({ posts: [
     { fields: { listing_type: 'sale', property_type: 'apartment', compound: 'Hyde Park', price_value: '9500000', area_value: '150', bedrooms: '3', owner_phone: '01012345678', code: 'HP-1', clean_summary: 'new text' }, missing: [] },
     { fields: { code: 'HP-2' }, missing: [] },
@@ -307,14 +318,14 @@ test('a post that changes the price is ticked, saved as an edit of that unit wit
   m.createUnit.mockResolvedValue({ code: 'HP-3', photos: 1, photosFailed: 0 });
   await open();
   expect(ticked('1')).toBe(true);
-  expect(screen.getByTestId('wa-changes-1').props.children).toMatch(/Price|السعر/);
+  expect(screen.getByTestId('wa-changes-1').props.children).toMatch(/9,500,000/);
   expect(ready()).toMatch(/Will save 2 \(1 new, 1 updated\)|هيتحفظ 2/);
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
   await waitFor(() => expect(screen.getByTestId('wa-result')).toBeTruthy());
   expect(m.saveUnitEdit).toHaveBeenCalledTimes(1);
   expect(m.saveUnitEdit.mock.calls[0][0]).toBe('HP-1');
   expect(m.saveUnitEdit.mock.calls[0][1]).toBe(7);
-  expect(m.saveUnitEdit.mock.calls[0][2]).toMatchObject({ price_value: '9500000', notes: 'old note' });
+  expect(m.saveUnitEdit.mock.calls[0][2]).toMatchObject({ price_value: '9500000', notes: 'old note\nWhatsApp' });
   expect(m.saveUnitEdit.mock.calls[0][2].clean_summary).toBeUndefined();
   expect(m.unitPhotos).toHaveBeenCalledWith('HP-1', { photoKeys: expect.any(Array) });
   expect(screen.queryByTestId('wa-post-1')).toBeNull();

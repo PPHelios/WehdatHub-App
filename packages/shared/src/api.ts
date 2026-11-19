@@ -242,6 +242,26 @@ export type CodeState = { state: 'update'; code: string; photos: number; status:
 export interface CodeCheck { codes: Record<string, CodeState>; max_photos: number; /** AI credits one post may cost. */ ai_cost: number }
 /** One chat post read by the rules (no AI): the add-unit form's fields, and the mandatory ones still missing (listing_type, property_type, compound, price_value, area_value, bedrooms, owner_phone). */
 export interface ChatRead { posts: { fields: UnitFields; missing: string[] }[] }
+/** What one chat post would do to the agency's inventory (the server's chat planner: nothing is written). */
+export type ChatPlanKind = 'new' | 'update' | 'unchanged' | 'other_unit' | 'older' | 'invalid' | 'forbidden';
+export interface ChatPlanChange { field: string; from: string; to: string; from_ar: string; from_en: string; to_ar: string; to_en: string }
+export interface ChatPlanPost {
+  id: string | number | null;
+  kind: ChatPlanKind;
+  code: string | null;
+  existing: { code: string; version: number; updated_at: string | null } | null;
+  changes: ChatPlanChange[];
+  /** The add-unit form keys an update changes (never market, readiness, features, notes, owner phone or code). */
+  patch: UnitFields;
+  /** The post's note, to be appended to the stored notes. */
+  notes_append?: string;
+  /** kind 'new': the unit as the form would hold it. */
+  fields?: UnitFields;
+  errors: string[];
+}
+export interface ChatPlanInput { id: string; fields: UnitFields; text: string; at?: string }
+export type ChatDecisionOutcome = 'saved' | 'discarded' | 'unchanged';
+export interface ChatDecisions { decisions: Record<string, { outcome: ChatDecisionOutcome; at: string }>; last_import_at: string | null }
 export interface PhotoUploadLink { key: string; upload_url: string; thumb_key: string; thumb_upload_url: string | null }
 export interface SearchAsk { terms: string[]; numbers?: unknown[]; aiDown?: boolean; withoutTotal: number }
 export interface SearchResult {
@@ -430,14 +450,14 @@ export interface ApiClientOptions {
   /** Sent with every call (the app's platform and version), so the server's failure log can tell the phones apart. */
   headers?: Record<string, string>;
   /** Called before a write (POST or PUT); the function it returns is called when the call ends. The app uses it to lock the screen while a write runs (busy rule). Return nothing to skip. */
-  onWrite?: (method: 'POST' | 'PUT', path: string) => (() => void) | void;
+  onWrite?: (method: 'POST' | 'PUT' | 'DELETE', path: string) => (() => void) | void;
   fetchImpl?: typeof fetch;
 }
 
 export function createApiClient(opts: ApiClientOptions) {
   const doFetch = opts.fetchImpl ?? fetch;
 
-  async function request<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>): Promise<T> {
+  async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>): Promise<T> {
     const end = method === 'GET' ? undefined : opts.onWrite?.(method, path);
     try {
       return await send<T>(method, path, body, query);
@@ -446,7 +466,7 @@ export function createApiClient(opts: ApiClientOptions) {
     }
   }
 
-  async function send<T>(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>): Promise<T> {
+  async function send<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>): Promise<T> {
     // An array repeats the key (f=roof&f=garden), as the server reads it.
     const qs = query
       ? Object.entries(query)
@@ -690,6 +710,14 @@ export function createApiClient(opts: ApiClientOptions) {
     codeCheck: (codes: string[]) => request<CodeCheck>('POST', '/units/code-check', { codes }),
     /** The posts of a WhatsApp chat read by the rules, same reader and mandatory rules as the website: no AI, no credits. */
     chatRead: (posts: string[]) => request<ChatRead>('POST', '/units/chat-read', { posts }),
+    /** What each post would do (new, update with its patch, unchanged, other unit, older...): at most 60 per request. */
+    chatPlan: (posts: ChatPlanInput[]) => request<{ posts: ChatPlanPost[] }>('POST', '/units/chat-plan', { posts }),
+    /** What the agency decided about the posts of a chat in earlier imports. */
+    chatDecisions: (chatFp: string) => request<ChatDecisions>('GET', '/units/chat-decisions', undefined, { chat_fp: chatFp }),
+    /** Remembers decisions (at most 200 per request). */
+    saveChatDecisions: (chatFp: string, items: { post_fp: string; outcome: ChatDecisionOutcome }[]) => request<{ ok: boolean; stored: number }>('PUT', '/units/chat-decisions', { chat_fp: chatFp, items }),
+    /** Forgets the decisions about some posts (restore), or about the whole chat when no posts are given. */
+    forgetChatDecisions: (chatFp: string, postFps?: string[]) => request<{ ok: boolean; removed: number }>('DELETE', '/units/chat-decisions', { chat_fp: chatFp, ...(postFps ? { post_fps: postFps } : {}) }),
     unitSaveStatus: (key: string) => request<{ saved: boolean; code?: string }>('GET', '/units/save-status', undefined, { key }),
     placeSuggest: (q: string) => request<{ items: PlaceSuggestion[] }>('GET', '/places/suggest', undefined, { q }),
     /** The box's suggestions: places first, then features. */
