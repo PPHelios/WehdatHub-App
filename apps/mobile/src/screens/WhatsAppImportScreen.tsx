@@ -321,7 +321,17 @@ export function WhatsAppImportScreen() {
   const badgesRef = useRef(badges);
   badgesRef.current = badges;
   // Only the posts still to decide are listed (virtualized: the cards and their photo strips are made for what is on screen).
-  const rows = useMemo(() => list.map((p, index) => ({ p, index })).filter(({ p }) => p.state !== 'saved' && !p.discarded), [list]);
+  // View filter only: it never touches discarded, ticks or what is saved.
+  const [filter, setFilter] = useState<'all' | 'new' | 'updated' | 'fix'>('all');
+  const [hideUnchanged, setHideUnchanged] = useState(true);
+  const viewable = useMemo(() => list.map((p, index) => ({ p, index, k: kindOf(p, badges[index] ?? { kind: 'none' }) })).filter(({ p }) => p.state !== 'saved' && !p.discarded), [list, badges]);
+  const viewCounts = useMemo(() => {
+    const c = { new: 0, updated: 0, fix: 0, unchanged: 0 };
+    viewable.forEach(({ k }) => { if (k === 'new') c.new++; else if (k === 'updated') c.updated++; else if (k === 'unchanged') c.unchanged++; else c.fix++; });
+    return c;
+  }, [viewable]);
+  const kindsShown = [viewCounts.new, viewCounts.updated, viewCounts.fix, viewCounts.unchanged].filter((n) => n > 0).length;
+  const rows = useMemo(() => viewable.filter(({ k }) => (k === 'unchanged' ? !hideUnchanged && filter === 'all' : filter === 'all' || (filter === 'fix' ? k === 'error' : k === filter))), [viewable, filter, hideUnchanged]);
 
   // What the person decides is remembered for the next import of this chat (saved, discarded, unchanged), written after a short pause.
   const flushMem = useRef<(() => void) | null>(null);
@@ -735,6 +745,20 @@ export function WhatsAppImportScreen() {
         ) : null}
         {counts.errors + counts.unchanged > 0 ? <Button testID="wa-discard-errors" label={fill(W.discardErrors, { n: counts.errors + counts.unchanged })} variant="secondary" size="sm" disabled={adding} onPress={discardErrors} /> : null}
         {counts.remaining > 0 ? <Button testID="wa-select-valid" label={W.selectValid} variant="secondary" size="sm" disabled={adding} onPress={selectValid} /> : null}
+        {kindsShown > 1 ? (
+          <View style={styles.chips}>
+            {([['all', W.filterAll, viewCounts.new + viewCounts.updated + viewCounts.fix + (hideUnchanged ? 0 : viewCounts.unchanged)], ['new', W.filterNew, viewCounts.new], ['updated', W.filterUpdated, viewCounts.updated], ['fix', W.filterFix, viewCounts.fix]] as const).map(([k, label, n]) => (
+              <Pressable key={k} testID={`wa-filter-${k}`} accessibilityRole="button" accessibilityState={{ selected: filter === k }} onPress={() => setFilter(k)}
+                style={[styles.chip, { borderColor: filter === k ? colors.primary : colors.border, backgroundColor: filter === k ? colors.primary : 'transparent' }]}>
+                <Text style={{ color: filter === k ? colors.onPrimary : colors.text, fontWeight: filter === k ? '700' : '400' }}>{label} ({n})</Text>
+              </Pressable>
+            ))}
+            <Pressable testID="wa-hide-unchanged" accessibilityRole="checkbox" accessibilityState={{ checked: hideUnchanged }} onPress={() => setHideUnchanged((v) => !v)}
+              style={[styles.chip, { borderColor: hideUnchanged ? colors.primary : colors.border }]}>
+              <Text style={{ color: colors.text }}>{hideUnchanged ? '☑' : '☐'} {W.hideUnchanged}</Text>
+            </Pressable>
+          </View>
+        ) : null}
         {counts.remaining === 0 ? <Text testID="wa-all-added" style={{ color: colors.text, fontWeight: '700', textAlign: 'center' }}>{W.allAdded}</Text> : null}
         {priorSaved.length > 0 ? (
           <View testID="wa-prior-bar" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
@@ -755,6 +779,11 @@ export function WhatsAppImportScreen() {
       </View>
         )}
         renderItem={renderPost}
+        ListFooterComponent={hideUnchanged && filter === 'all' && viewCounts.unchanged > 0 ? (
+          <Pressable testID="wa-unchanged-hidden" accessibilityRole="button" style={styles.hit} onPress={() => setHideUnchanged(false)}>
+            <Text style={{ color: colors.primaryInk, textAlign: 'center' }}>{fill(W.unchangedHidden, { n: viewCounts.unchanged })}</Text>
+          </Pressable>
+        ) : undefined}
       />
       <View style={[styles.bottom, { borderColor: colors.border, backgroundColor: colors.bg }]}>
         <Text testID="wa-ready" style={{ color: colors.muted, textAlign: 'center' }}>{`${fill(W.willSave, { n: counts.willSave, a: counts.newCount, b: counts.updated, m: counts.skipped, x: counts.errors, y: counts.unchanged, z: counts.discarded })}${counts.unticked > 0 ? fill(W.willSaveUnticked, { u: counts.unticked }) : ''}`}</Text>

@@ -7,7 +7,7 @@ import { api } from '../api';
 import { currentLang } from '../auth';
 import { errorText } from '../errors';
 import { t } from '../i18n';
-import { useTheme } from '../theme';
+import { spacing, useTheme } from '../theme';
 import { Button } from './Button';
 import { Field } from './Field';
 import { toastError } from './Toast';
@@ -30,7 +30,7 @@ export function SaveSearchButton({ f }: { f: string }) {
     }
   };
   return (
-    <View>
+    <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm }}>
       {open ? (
         <>
           <Field testID="save-search-name" label={t(lang, 'savedSearchName')} value={name} onChangeText={setName} />

@@ -73,6 +73,8 @@ beforeEach(async () => {
   m.unitPhotos.mockResolvedValue({ images: [], failed: 0 });
 });
 
+// Unchanged units are hidden by default; most tests look at their cards, so show them.
+const showUnchanged = async () => { const t = screen.queryByTestId('wa-hide-unchanged'); if (t?.props.accessibilityState.checked) await act(async () => { fireEvent.press(t); }); };
 const toRange = async () => {
   await act(async () => { render(<WhatsAppImportScreen />); });
   await waitFor(() => expect(screen.getByTestId('wa-range-read')).toBeTruthy());
@@ -81,6 +83,7 @@ const open = async () => {
   await toRange();
   await act(async () => { fireEvent.press(screen.getByTestId('wa-range-read')); });
   await waitFor(() => expect(screen.getByTestId('wa-summary')).toBeTruthy());
+  await showUnchanged();
 };
 const ticked = (id: string) => screen.getByTestId(`wa-pick-${id}`).props.accessibilityState.checked as boolean;
 const saveAll = async () => { await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); }); await waitFor(() => expect(screen.getByTestId('wa-result')).toBeTruthy()); };
@@ -342,5 +345,58 @@ describe('the list', () => {
     expect(ticked('2')).toBe(true);
     await act(async () => { fireEvent.press(screen.getByTestId('wa-pick-2')); });
     expect(ticked('2')).toBe(false);
+  });
+});
+
+describe('the view filter', () => {
+  const openRaw = async () => {
+    await toRange();
+    await act(async () => { fireEvent.press(screen.getByTestId('wa-range-read')); });
+    await waitFor(() => expect(screen.getByTestId('wa-summary')).toBeTruthy());
+  };
+  const press = async (id: string) => { await act(async () => { fireEvent.press(screen.getByTestId(id)); }); };
+  const unchangedPlan = () => { planKinds = { '1': { kind: 'unchanged', code: 'HP-1', existing: unit('HP-1') } }; };
+
+  test('unchanged units are hidden by default; the footer counts them and shows them', async () => {
+    unchangedPlan();
+    await openRaw();
+    await waitFor(() => expect(screen.queryByTestId('wa-post-1')).toBeNull());
+    expect(screen.getByTestId('wa-post-2')).toBeTruthy();
+    expect(screen.getByTestId('wa-unchanged-hidden').props.children).toBeTruthy();
+    await press('wa-unchanged-hidden');
+    expect(screen.getByTestId('wa-post-1')).toBeTruthy();
+    expect(screen.queryByTestId('wa-unchanged-hidden')).toBeNull();
+  });
+
+  test('chips narrow the list; ticks, discarded and save counts are unaffected', async () => {
+    await openRaw(); // HP-1 updated, HP-3 new
+    await waitFor(() => expect(screen.getByTestId('wa-filter-new')).toBeTruthy());
+    const ready = () => screen.getByTestId('wa-ready').props.children as string;
+    const before = ready();
+    await press('wa-filter-new');
+    expect(screen.queryByTestId('wa-post-1')).toBeNull();
+    expect(screen.getByTestId('wa-post-2')).toBeTruthy();
+    await press('wa-filter-updated');
+    expect(screen.getByTestId('wa-post-1')).toBeTruthy();
+    expect(screen.queryByTestId('wa-post-2')).toBeNull();
+    await press('wa-filter-fix');
+    expect(screen.queryByTestId('wa-post-1')).toBeNull();
+    expect(screen.queryByTestId('wa-post-2')).toBeNull();
+    expect(ready()).toBe(before);
+    await press('wa-filter-all');
+    expect(screen.getByTestId('wa-post-1')).toBeTruthy();
+    expect(screen.getByTestId('wa-post-2')).toBeTruthy();
+    expect(ticked('1')).toBe(true);
+    await saveAll();
+    expect(m.saveUnitEdit).toHaveBeenCalledTimes(1);
+    expect(m.createUnit).toHaveBeenCalledTimes(1);
+  });
+
+  test('hidden unchanged units still count in the bottom line and are not discarded', async () => {
+    unchangedPlan();
+    await openRaw();
+    await waitFor(() => expect(screen.queryByTestId('wa-post-1')).toBeNull());
+    expect(screen.getByTestId('wa-ready').props.children).toMatch(/unchanged 1, discarded 0|من غير تغيير 1، متجاهلة 0/);
+    expect(screen.queryByTestId('wa-discarded-bar')).toBeNull();
   });
 });
