@@ -2,15 +2,15 @@ import { AppState, NativeModules, Platform } from 'react-native';
 import type { UploadFile } from '@wehdathub/shared';
 import { looksLikeZip } from './whatsappImport';
 
-export interface SharedItems { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** A WhatsApp "Export chat" zip: opens the import screen instead of Add unit. */ zip?: UploadFile }
-interface RawShare { text?: string | null; files?: { uri: string; mimeType?: string | null; name?: string | null }[] }
+export interface SharedItems { text?: string; photos?: UploadFile[]; voice?: UploadFile; /** A WhatsApp "Export chat" zip: opens the import screen instead of Add unit. */ zip?: UploadFile; /** A shared file was over 1 GB and was not copied. */ tooBig?: boolean }
+interface RawShare { pending?: boolean; tooBig?: boolean; text?: string | null; files?: { uri: string; mimeType?: string | null; name?: string | null }[] }
 interface ShareModule { getPending(): Promise<RawShare | null>; clear(): Promise<void> }
 
 const native: ShareModule | undefined = (NativeModules as { ShareIntent?: ShareModule }).ShareIntent;
 
 /** Sorts what another app shared (photos, a voice note, text) into what the Add unit screen takes. */
 export function classifyShare(raw: RawShare | null): SharedItems | null {
-  if (!raw) return null;
+  if (!raw || raw.pending) return null;
   const photos: UploadFile[] = [];
   let voice: UploadFile | undefined;
   let zip: UploadFile | undefined;
@@ -28,15 +28,22 @@ export function classifyShare(raw: RawShare | null): SharedItems | null {
   });
   if (!zip) zip = chatGuess;
   const text = (raw.text || '').trim();
-  if (!photos.length && !voice && !text && !zip) return null;
-  return { text: text || undefined, photos: photos.length ? photos : undefined, voice, zip };
+  const tooBig = raw.tooBig || undefined;
+  if (!photos.length && !voice && !text && !zip && !tooBig) return null;
+  return { text: text || undefined, photos: photos.length ? photos : undefined, voice, zip, tooBig };
 }
 
 /** Reads what another app shared into this one (Android: Share menu; iPhone: the Share extension) and clears it. */
 export async function takeShared(): Promise<SharedItems | null> {
   if (!native) return null;
   try {
-    const items = classifyShare(await native.getPending());
+    // The native side copies a big share in the background: wait (up to ~2 minutes) until it is done.
+    let raw = await native.getPending();
+    for (let i = 0; raw?.pending && i < 240; i += 1) {
+      await new Promise<void>((r) => { setTimeout(r, 500); });
+      raw = await native.getPending();
+    }
+    const items = classifyShare(raw);
     await native.clear();
     return items;
   } catch {

@@ -27,7 +27,7 @@ async function suggest(q: string): Promise<DeveloperPick[]> {
  * Writes developer_id, developer_global_id or developer_name, like the website.
  */
 export function DeveloperBox({ fields, patch, lang }: { fields: ProjectFields; patch: (p: ProjectFields) => void; lang: Lang }) {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const T = pt(lang);
   const [input, setInput] = useState(str(fields.developer_label));
   const [open, setOpen] = useState(false);
@@ -71,7 +71,7 @@ export function DeveloperBox({ fields, patch, lang }: { fields: ProjectFields; p
       />
       {state ? <Text testID="dev-state" style={{ color: colors.accent, fontSize: 13 }}>{state}</Text> : null}
       {open ? (
-        <View testID="dev-list" style={[styles.list, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        <View testID="dev-list" style={[styles.list, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
           {items.map((d) => (
             <Pressable key={'id' in d ? d.id : d.global_id} testID={`dev-opt-${'id' in d ? d.id : d.global_id}`} accessibilityRole="button" onPress={() => pick(d)} style={styles.opt}>
               <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>{d.name}</Text>
@@ -80,7 +80,7 @@ export function DeveloperBox({ fields, patch, lang }: { fields: ProjectFields; p
           ))}
           {typed && !exact ? (
             <Pressable testID="dev-add" accessibilityRole="button" onPress={() => pick({ name: typed })} style={styles.opt}>
-              <Text style={{ color: colors.primary, fontWeight: '700' }}>{fill(T.devAdd, { s: typed })}</Text>
+              <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(T.devAdd, { s: typed })}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -93,6 +93,6 @@ const styles = StyleSheet.create({
   wrap: { gap: spacing.xs },
   label: { fontSize: 13, fontWeight: '600' },
   input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
-  list: { borderWidth: 1, borderRadius: radius.md, overflow: 'hidden' },
+  list: { borderWidth: 1, borderRadius: radius.card, overflow: 'hidden' },
   opt: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
 });

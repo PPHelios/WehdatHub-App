@@ -54,8 +54,8 @@ export function ProjectGallery({ projectId, images, lang, onChanged }: { project
           <View style={styles.flex}>
             <View style={styles.roles}>
               {ROLES.map((r) => (
-                <Pressable key={r} testID={`role-${i.id}-${r}`} accessibilityRole="button" accessibilityState={{ selected: i.role === r }} disabled={busy || i.role === r} onPress={() => run(() => api.projectImageRole(projectId, i.id, r))} style={[styles.role, { borderColor: i.role === r ? colors.primary : colors.border }, i.role === r && { backgroundColor: colors.primary }]}>
-                  <Text style={{ color: i.role === r ? colors.onPrimary : colors.text, fontSize: 13 }}>{roleText(r)}</Text>
+                <Pressable key={r} testID={`role-${i.id}-${r}`} accessibilityRole="button" accessibilityState={{ selected: i.role === r }} disabled={busy || i.role === r} onPress={() => run(() => api.projectImageRole(projectId, i.id, r))} style={[styles.role, { borderColor: i.role === r ? colors.primary : colors.border }, i.role === r && { backgroundColor: colors.primarySoft }]}>
+                  <Text style={{ color: i.role === r ? colors.primaryInk : colors.text, fontSize: 13 }}>{roleText(r)}</Text>
                 </Pressable>
               ))}
             </View>

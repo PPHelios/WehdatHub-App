@@ -6,14 +6,14 @@ import type { TodayCards as Cards } from '@wehdathub/shared';
 import { currentLang } from '../auth';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 
 /** The cards under Today's task list, from the same result the website shows (server: services/today.js). */
 export function TodayCards({ cards, only, onShowAll }: { cards: Cards; only?: 'oldUnits'; onShowAll?: () => void }) {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const box = [styles.card, { backgroundColor: colors.card, borderColor: colors.border }];
+  const box = [styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }];
   const chev = lang === 'ar' ? '‹' : '›';
   const row = (key: string, text: string, onPress: () => void, side?: string) => (
     <Pressable key={key} accessibilityRole="button" onPress={onPress} style={[styles.row, { borderTopColor: colors.border }]}>
@@ -67,7 +67,7 @@ export function TodayCards({ cards, only, onShowAll }: { cards: Cards; only?: 'o
           </View>
           <Text style={{ color: colors.muted }}>{t(lang, 'tcOldUnitsHint')}</Text>
           {cards.oldUnits.items.map((u) => row(u.code, `${u.code} · ${u.line}`, () => nav.navigate('Unit', { code: u.code }), u.hidden ? t(lang, 'tcHidden') : days(u.days)))}
-          <Pressable testID="old-show-all" accessibilityRole="button" onPress={showAll} style={[styles.showAll, { backgroundColor: colors.primary + '14' }]}><Text style={{ color: colors.primary, fontWeight: '700' }}>{t(lang, 'tcShowAll')}{cards.oldUnits.total > cards.oldUnits.items.length ? ` (+${cards.oldUnits.total - cards.oldUnits.items.length})` : ''}</Text></Pressable>
+          <Pressable testID="old-show-all" accessibilityRole="button" onPress={showAll} style={[styles.showAll, { backgroundColor: colors.primary + '14' }]}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{t(lang, 'tcShowAll')}{cards.oldUnits.total > cards.oldUnits.items.length ? ` (+${cards.oldUnits.total - cards.oldUnits.items.length})` : ''}</Text></Pressable>
         </View>
       ) : null}
     </>
@@ -75,7 +75,7 @@ export function TodayCards({ cards, only, onShowAll }: { cards: Cards; only?: 'o
 }
 
 const styles = StyleSheet.create({
-  card: { ...lift, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
+  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
   title: { fontSize: 16, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth },
   tile: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },

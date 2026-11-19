@@ -23,7 +23,7 @@ import { EMPTY_SEARCH, STATUS_TEXT, deliveryOf, isFiltered, moneyShort, numberOf
 import type { CatalogueSearch } from '../projectRules';
 import { pt } from '../projectText';
 import { plain, withCommas } from '../readback';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 import { toast } from '../components/Toast';
 
@@ -32,8 +32,8 @@ const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' :
 const has = (v: unknown) => v !== null && v !== undefined && v !== '' && Number(v) !== 0;
 
 function Card({ children, testID }: { children: React.ReactNode; testID?: string }) {
-  const { colors } = useTheme();
-  return <View testID={testID} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>{children}</View>;
+  const { colors, elev } = useTheme();
+  return <View testID={testID} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>{children}</View>;
 }
 
 function Gate<T>({ q, children }: { q: { isPending: boolean; isError: boolean; error: unknown; data?: T; refetch: () => Promise<unknown> }; children: (d: T) => React.ReactElement }) {
@@ -124,7 +124,7 @@ export function ProjectScreen() {
             {d.canEdit ? <ProjectGallery projectId={id} images={d.images ?? []} lang={lang} onChanged={() => { void qc.invalidateQueries({ queryKey: ['project', id] }); }} /> : null}
             <Card>
               <Text style={[styles.h, { color: colors.text }]}>{lang === 'en' ? str(p.name_en) || str(p.name) : str(p.name)}</Text>
-              {p.status ? <Text style={{ color: colors.primary, fontWeight: '700' }}>{STATUS_TEXT[str(p.status)]?.[lang] ?? str(p.status)}</Text> : null}
+              {p.status ? <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{STATUS_TEXT[str(p.status)]?.[lang] ?? str(p.status)}</Text> : null}
               <Fact label={T.developer} value={d.developer ? str(d.developer.name) : null} />
               <Fact label={T.place} value={str(p.district) || null} />
               <Fact label={T.governorate} value={str(p.city) || null} />
@@ -151,7 +151,7 @@ export function ProjectScreen() {
             {d.plans.length ? <Card><Text style={[styles.h, { color: colors.text }]}>{T.payPlans}</Text>{d.plans.map((pl) => <Text key={str(pl.id)} style={{ color: colors.text }}>{str(pl.name)} · {str(pl.down_payment_pct)}% · {str(pl.years)} {T.years}</Text>)}</Card> : null}
             {d.materials.length ? <Card><Text style={[styles.h, { color: colors.text }]}>{T.files}</Text>{d.materials.map((m) => <Text key={str(m.id)} style={{ color: colors.text }}>{str(m.title ?? m.name)}</Text>)}</Card> : null}
             <Card><Text style={[styles.h, { color: colors.text }]}>{T.projectUnits} ({d.units.length})</Text>{d.units.map((u) => (
-              <Pressable key={str(u.id)} accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: str(u.code) })}><Text style={{ color: colors.primary }}>{str(u.code)} · {num(u.price_value)} · {str(u.status)}</Text></Pressable>
+              <Pressable key={str(u.id)} accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: str(u.code) })}><Text style={{ color: colors.primaryInk }}>{str(u.code)} · {num(u.price_value)} · {str(u.status)}</Text></Pressable>
             ))}</Card>
             {d.canEdit ? <Button testID="project-edit" label={T.editProject} onPress={() => nav.navigate('ProjectForm', { id })} /> : null}
             {d.canEdit ? <Button testID="project-archive" variant="secondary" label={T.archive} onPress={() => archive(true)} /> : null}
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
   gap: { gap: spacing.md },
   filters: { gap: spacing.sm },
-  card: { ...lift, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
+  card: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
   h: { fontSize: 17, fontWeight: '800' },
   fact: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, minHeight: 28, alignItems: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

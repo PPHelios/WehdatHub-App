@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { tick } from '../haptics';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
-import { ApiClientError, LEAD_STAGES } from '@wehdathub/shared';
+import { ApiClientError, LEAD_STAGES, ltr } from '@wehdathub/shared';
 import type { ApiLead, LeadDetail, LeadStage } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -110,7 +110,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
 
       {lead.phones.map((p) => (
         <View key={p} style={styles.phoneRow}>
-          <View style={styles.phoneBtn}><Button label={`📞 ${t(lang, 'call')} ${p}`} variant="secondary" onPress={() => { usage('call_tap', true, undefined, { kind: 'lead' }); Linking.openURL(`tel:${p.startsWith('+') ? p : `+${p}`}`); }} /></View>
+          <View style={styles.phoneBtn}><Button label={`📞 ${t(lang, 'call')} ${ltr(p)}`} variant="secondary" onPress={() => { usage('call_tap', true, undefined, { kind: 'lead' }); Linking.openURL(`tel:${p.startsWith('+') ? p : `+${p}`}`); }} /></View>
           <View style={styles.phoneBtn}><Button testID={`whatsapp-${p}`} label={`💬 ${t(lang, 'whatsappClient')}`} variant="secondary" onPress={() => { usage('whatsapp_tap', true, undefined, { kind: 'lead' }); Linking.openURL(`https://wa.me/${waNumber(p)}`).catch(() => undefined); }} /></View>
         </View>
       ))}
@@ -131,7 +131,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
       <Button testID="lead-note" label={t(lang, 'save')} onPress={async () => { await run((l) => api.leadNote(l.ref, l.version, note)); setNote(''); }} />
 
       <Section testID="sec-followup" title={t(lang, 'followUp')}>
-      {lead.nextFollowUpAt ? <Text style={{ color: colors.accent, fontWeight: '600' }}>{lead.followUpKind === 'viewing' ? t(lang, 'fuViewing') : t(lang, 'fuCall')} · {new Date(lead.nextFollowUpAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</Text> : null}
+      {lead.nextFollowUpAt ? <Text style={{ color: colors.accentInk, fontWeight: '600' }}>{lead.followUpKind === 'viewing' ? t(lang, 'fuViewing') : t(lang, 'fuCall')} · {new Date(lead.nextFollowUpAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</Text> : null}
       <View style={styles.row}>
         <View style={styles.flex}><Button label={t(lang, 'fuTomorrow')} variant="secondary" onPress={() => followUp({ at: at10(1), kind: 'call' })} /></View>
         <View style={styles.flex}><Button label={t(lang, 'fuTwoDays')} variant="secondary" onPress={() => followUp({ at: at10(2), kind: 'call' })} /></View>

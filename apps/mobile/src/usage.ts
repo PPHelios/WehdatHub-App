@@ -6,9 +6,12 @@ import { useAuth } from './auth';
  * Feature use and timings, sent to the server in small batches (POST /usage-events). Never a name, phone or free text:
  * only an event name, ok/failed, milliseconds and short codes. Sending is quiet and never blocks or breaks the app.
  */
-export type UsageEvent = 'ask' | 'search' | 'voice_search' | 'open_unit' | 'flyer_make' | 'flyer_share' | 'client_link' | 'call_tap' | 'whatsapp_tap' | 'lead_assign' | 'lead_paste' | 'unit_save' | 'unit_share' | 'photo_upload' | 'screen_slow' | 'wa_import_share' | 'wa_import_read' | 'wa_import_codes' | 'wa_import_reader' | 'wa_import_add' | 'wa_import_edit' | 'wa_import_bulk';
+export type UsageEvent = 'ask' | 'search' | 'voice_search' | 'open_unit' | 'flyer_make' | 'flyer_share' | 'client_link' | 'call_tap' | 'whatsapp_tap' | 'lead_assign' | 'lead_paste' | 'unit_save' | 'unit_share' | 'photo_upload' | 'screen_slow' | 'wa_import_share' | 'wa_import_read' | 'wa_import_codes' | 'wa_import_reader' | 'wa_import_add' | 'wa_import_edit' | 'wa_import_bulk' | 'wa_import_discard';
 
-type Item = { event: UsageEvent; ok: boolean; ms?: number; meta?: Record<string, string | number | boolean> };
+/** Which range the person read in the WhatsApp import (sent as the `since_kind` meta key; the server keeps it in its META_KEYS list). */
+export type SinceKind = 'last' | '7' | '30' | '90' | 'all' | 'custom';
+
+type Item = { event: UsageEvent; ok: boolean; ms?: number; meta?: Record<string, string | number | boolean> & { since_kind?: SinceKind } };
 
 let queue: Item[] = [];
 const trail: string[] = [];

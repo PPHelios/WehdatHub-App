@@ -43,6 +43,8 @@
             <!-- A WhatsApp "Export chat" (with media) is a zip: it opens the import screen. -->
             <data android:mimeType="application/zip" />
             <data android:mimeType="application/x-zip-compressed" />
+            <data android:mimeType="application/x-zip" />
+            <data android:mimeType="multipart/x-zip" />
         </intent-filter>
         <intent-filter>
             <action android:name="android.intent.action.SEND_MULTIPLE" />
@@ -51,6 +53,8 @@
             <data android:mimeType="audio/*" />
             <data android:mimeType="application/zip" />
             <data android:mimeType="application/x-zip-compressed" />
+            <data android:mimeType="application/x-zip" />
+            <data android:mimeType="multipart/x-zip" />
         </intent-filter>
       </activity>
     </application>

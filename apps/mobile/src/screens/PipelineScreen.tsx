@@ -18,7 +18,7 @@ const EXTRA: [LeadTab, 'tabDue' | 'tabOverdue' | 'tabNoStep'][] = [['due_today',
 
 /** Every stage at once, with how many leads are in it. Managers and team leads can look at one broker; tap a row to open that list. */
 export function PipelineScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [broker, setBroker] = useState('');
@@ -29,9 +29,9 @@ export function PipelineScreen() {
   const n = counts.data.counts;
   const open = (tab: LeadTab) => nav.navigate('LeadsList', { tab, broker: broker || undefined });
   const row = (tab: LeadTab, label: string, warn = false) => (
-    <Pressable key={tab} testID={`pipe-${tab}`} accessibilityRole="button" onPress={() => open(tab)} style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <Pressable key={tab} testID={`pipe-${tab}`} accessibilityRole="button" onPress={() => open(tab)} style={[styles.row, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
       <Text style={{ color: colors.text, fontSize: 16 }}>{label}</Text>
-      <Text style={{ color: warn && (n[tab] ?? 0) > 0 ? colors.danger : colors.accent, fontSize: 20, fontWeight: '700' }}>{n[tab] ?? 0}</Text>
+      <Text style={{ color: warn && (n[tab] ?? 0) > 0 ? colors.danger : colors.accentInk, fontSize: 20, fontWeight: '700' }}>{n[tab] ?? 0}</Text>
     </Pressable>
   );
   return (
@@ -47,5 +47,5 @@ export function PipelineScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.sm },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md, borderRadius: radius.md, borderWidth: 1 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md, borderRadius: radius.card, borderWidth: 1 },
 });

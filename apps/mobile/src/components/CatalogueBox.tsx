@@ -21,7 +21,7 @@ export function CatalogueBox({ search, onChange, lang, onOpenProject }: {
   lang: Lang;
   onOpenProject: (id: string, name: string) => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const T = pt(lang);
   const [input, setInput] = useState('');
   const typed = input.trim();
@@ -34,8 +34,8 @@ export function CatalogueBox({ search, onChange, lang, onOpenProject }: {
   const pick = (patch: Partial<CatalogueSearch>) => { onChange({ ...search, ...patch }); setInput(''); };
   const chip = (key: string, label: string, onRemove: () => void, tone: 'place' | 'feature' | 'other') => (
     <Pressable key={key} testID={`cbox-chip-${key}`} accessibilityRole="button" accessibilityLabel={fill(T.removeChip, { s: label })} onPress={onRemove}
-      style={[styles.chip, tone === 'place' ? { backgroundColor: colors.primary, borderColor: colors.primary } : tone === 'feature' ? { backgroundColor: colors.primary + '22', borderColor: colors.primary } : { backgroundColor: colors.bg, borderColor: colors.border }]}>
-      <Text style={{ color: tone === 'place' ? colors.onPrimary : colors.text, fontWeight: '700' }}>{label}  ×</Text>
+      style={[styles.chip, tone === 'place' ? { backgroundColor: colors.primarySoft, borderColor: colors.primary } : tone === 'feature' ? { backgroundColor: colors.primarySoft, borderColor: colors.primary } : { backgroundColor: colors.bg, borderColor: colors.border }]}>
+      <Text style={{ color: tone === 'other' ? colors.text : colors.primaryInk, fontWeight: '700' }}>{label}  ×</Text>
     </Pressable>
   );
   const row = (key: string, label: string, sub: string | undefined, onPress: () => void) => (
@@ -66,7 +66,7 @@ export function CatalogueBox({ search, onChange, lang, onOpenProject }: {
         {search.q ? chip('q', search.q, () => onChange({ ...search, q: '' }), 'other') : null}
       </View>
       {typed.length >= 2 ? (
-        <View testID="cbox-list" style={[styles.list, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        <View testID="cbox-list" style={[styles.list, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
           {g.places.length ? title(T.searchPlaces) : null}
           {g.places.map((p) => row(`place-${p.id}`, p.label, p.path || undefined, () => pick({ place: { id: p.id, label: p.label } })))}
           {g.features.length ? title(T.searchFeatures) : null}
@@ -76,7 +76,7 @@ export function CatalogueBox({ search, onChange, lang, onOpenProject }: {
           {g.projects.length ? title(T.searchProjects) : null}
           {g.projects.map((p) => row(`project-${p.id}`, p.label, undefined, () => { setInput(''); onOpenProject(p.id, p.label); }))}
           <Pressable testID="cbox-text" accessibilityRole="button" onPress={() => pick({ q: typed })} style={styles.opt}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>{fill(T.searchText, { s: typed })}</Text>
+            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(T.searchText, { s: typed })}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, minHeight: 36, justifyContent: 'center' },
-  list: { borderWidth: 1, borderRadius: radius.md, overflow: 'hidden' },
+  list: { borderWidth: 1, borderRadius: radius.card, overflow: 'hidden' },
   group: { fontSize: 12, fontWeight: '700', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   opt: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
 });

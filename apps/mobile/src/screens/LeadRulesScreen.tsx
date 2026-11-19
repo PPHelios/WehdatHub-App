@@ -9,14 +9,14 @@ import { Field } from '../components/Field';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { toastError } from '../components/Toast';
 
 const day = (plus: number) => new Date(Date.now() + plus * 86400000).toISOString().slice(0, 10);
 
 /** Managers: the "no reply, move the lead" rule, round robin for new leads, and who is away. */
 export function LeadRulesScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['team-rules'], queryFn: () => api.teamRules() });
@@ -71,17 +71,17 @@ export function LeadRulesScreen() {
         <View style={styles.flex}><Field label={t(lang, 'ruleFrom')} value={start} onChangeText={setStart} keyboardType="number-pad" /></View>
         <View style={styles.flex}><Field label={t(lang, 'ruleTo')} value={end} onChangeText={setEnd} keyboardType="number-pad" /></View>
       </View>
-      {msg ? <Text testID="rules-message" style={{ color: colors.accent }}>{msg}</Text> : null}
+      {msg ? <Text testID="rules-message" style={{ color: colors.accentInk }}>{msg}</Text> : null}
       <Button testID="rules-save" label={t(lang, 'save')} onPress={save} />
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'awayTitle')}</Text>
       {d.brokers.length ? null : <EmptyView title={t(lang, 'noTeam')} hint="" />}
       {d.brokers.map((b) => (
-        <View key={b.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View key={b.id} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={{ color: colors.text, fontWeight: '700', flex: 1 }}>{b.name} · {b.open}</Text>
           {b.away ? (
-            <Pressable testID={`back-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, null)}><Text style={{ color: colors.primary, fontWeight: '700' }}>{t(lang, 'awayBack')}</Text></Pressable>
+            <Pressable testID={`back-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, null)}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{t(lang, 'awayBack')}</Text></Pressable>
           ) : (
-            <Pressable testID={`away-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, day(8))}><Text style={{ color: colors.primary, fontWeight: '700' }}>{t(lang, 'awayWeek')}</Text></Pressable>
+            <Pressable testID={`away-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, day(8))}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{t(lang, 'awayWeek')}</Text></Pressable>
           )}
         </View>
       ))}
@@ -94,5 +94,5 @@ const styles = StyleSheet.create({
   h: { fontSize: 18, fontWeight: '700', marginTop: spacing.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   flex: { flex: 1 },
-  card: { ...lift, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, borderWidth: 1 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.card, borderWidth: 1 },
 });

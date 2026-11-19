@@ -32,3 +32,11 @@ test('a deal with no client or unit shows no dangling separators', async () => {
   expect(tree).toContain('3,000,000');
   expect(tree).not.toMatch(/ · ·/);
 });
+
+test('activity rows map raw routes to readable text and humanise unknown ones', () => {
+  const { activityText } = require('../src/screens/RequestsScreen');
+  expect(activityText('POST /team/invite', false)).toBe('Invited a team member');
+  expect(activityText('POST /team/invite', true)).toBe('ضاف عضو للفريق');
+  expect(activityText('POST /lead-rules/some_thing', false)).toBe('Did lead rules some thing');
+  expect(activityText('Added unit A-1', false)).toBe('Added unit A-1');
+});

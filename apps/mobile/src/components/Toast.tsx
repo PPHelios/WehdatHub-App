@@ -29,7 +29,7 @@ export function toastError<T extends string | null | undefined>(text: T): T {
 }
 
 export function ToastHost() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const insets = useSafeAreaInsets();
   const { text, bad, n } = useToastStore();
   useEffect(() => {
@@ -44,7 +44,7 @@ export function ToastHost() {
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
       onPress={() => useToastStore.setState({ text: null })}
-      style={[styles.box, { bottom: insets.bottom + 88, backgroundColor: bad ? colors.danger : colors.text }]}
+      style={[styles.box, elev('lg'), { bottom: insets.bottom + 88, backgroundColor: bad ? colors.danger : colors.text }]}
     >
       <Text style={{ color: bad ? colors.onDanger : colors.bg, fontWeight: '600', textAlign: 'center' }}>{text}</Text>
     </Pressable>
@@ -52,5 +52,5 @@ export function ToastHost() {
 }
 
 const styles = StyleSheet.create({
-  box: { position: 'absolute', start: spacing.lg, end: spacing.lg, borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, elevation: 6, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
+  box: { position: 'absolute', start: spacing.lg, end: spacing.lg, borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
 });

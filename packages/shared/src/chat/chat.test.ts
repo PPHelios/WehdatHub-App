@@ -29,6 +29,22 @@ describe('the shared WhatsApp chat reader', () => {
     expect(r.stats.skippedMedia).toBe(1);
   });
 
+  it('reads since/until as epoch ms, a date or a date-time, and en-US M/D/YY with AM/PM', () => {
+    const us = ['10/24/26, 9:00 AM - A: ' + post('NH-1'), '10/25/26, 8:00 PM - A: ' + post('NH-2'), '10/25/26, 9:00 PM - A: ' + post('NH-3')].join('\n');
+    const codes = ['NH-1', 'NH-2', 'NH-3'];
+    const got = (o: { since?: number | string; until?: number | string }) => ChatMatch.match(us, { codes, ...o }).units!.map((u) => u.code);
+    expect(got({ since: '2026-10-25' })).toEqual(['NH-2', 'NH-3']);
+    expect(got({ since: '2026-10-25T20:30' })).toEqual(['NH-3']);
+    expect(got({ until: '2026-10-25T20:00' })).toEqual(['NH-1']);
+    expect(got({ since: Date.UTC(2026, 9, 25, 20, 0), until: Date.UTC(2026, 9, 25, 21, 0) })).toEqual(['NH-2']);
+  });
+
+  it('strips the edited marker and counts HP-12 and HP12 as one code', () => {
+    const text = ['24/10/2026, 10:15 - A: ' + post('HP12') + ' <This message was edited>', '24/10/2026, 10:16 - A: ' + post('hp-12')].join('\n');
+    const r = ChatMatch.match(text, { codes: ['HP-12'] });
+    expect(r.units!.map((u) => [u.code, u.messages])).toEqual([['HP-12', 2]]);
+  });
+
   it('has a default start date and the 15-photo cap', () => {
     expect(ChatParse.defaultSince()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(ChatParse.MAX_PHOTOS).toBe(15);

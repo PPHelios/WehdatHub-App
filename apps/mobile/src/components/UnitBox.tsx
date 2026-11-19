@@ -71,7 +71,7 @@ interface Props {
 }
 
 export function UnitBox({ fields, patch, lang, testID = 'unit-box', invalid = false }: Props) {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const L = uf(lang);
   const [input, setInput] = useState('');
   const [note, setNote] = useState<string | null>(null);
@@ -141,15 +141,15 @@ export function UnitBox({ fields, patch, lang, testID = 'unit-box', invalid = fa
       {/* The chips sit under the typing line, not inside it. */}
       <View style={styles.chips} testID="ubox-chips">
         {label ? (
-          <Pressable testID="ubox-place" onPress={removePlace} accessibilityRole="button" accessibilityLabel={fill(L.boxRemove, { s: label })} style={[styles.chip, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
-            <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{fields.compound_new === '1' ? `${label} · ${L.boxNew}` : label}  ×</Text>
+          <Pressable testID="ubox-place" onPress={removePlace} accessibilityRole="button" accessibilityLabel={fill(L.boxRemove, { s: label })} style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary }]}>
+            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fields.compound_new === '1' ? `${label} · ${L.boxNew}` : label}  ×</Text>
           </Pressable>
         ) : null}
         {chosen.map((k) => {
           const f = featureChip(k, lang);
           return (
-            <Pressable key={k} testID={`ubox-feature-${k}`} onPress={() => patch({ feature: chosen.filter((c) => c !== k) })} accessibilityRole="button" accessibilityLabel={fill(L.boxRemove, { s: f.label })} style={[styles.chip, { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}>
-              <Text style={{ color: colors.text, fontWeight: '600' }}>{f.label}  ×</Text>
+            <Pressable key={k} testID={`ubox-feature-${k}`} onPress={() => patch({ feature: chosen.filter((c) => c !== k) })} accessibilityRole="button" accessibilityLabel={fill(L.boxRemove, { s: f.label })} style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary }]}>
+              <Text style={{ color: colors.primaryInk, fontWeight: '600' }}>{f.label}  ×</Text>
             </Pressable>
           );
         })}
@@ -165,7 +165,7 @@ export function UnitBox({ fields, patch, lang, testID = 'unit-box', invalid = fa
       {note ? <Text testID="ubox-note" style={[styles.context, { color: colors.accent }]}>{note}</Text> : null}
 
       {typed.length >= 2 ? (
-        <View testID="ubox-list" style={[styles.list, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        <View testID="ubox-list" style={[styles.list, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
           {places.length ? <Text style={[styles.group, { color: colors.muted }]}>{L.boxPlaces}</Text> : null}
           {places.map((it) => (
             <Pressable key={`${it.kind}-${it.id}`} testID={`ubox-opt-${it.id}`} onPress={() => choose(it)} accessibilityRole="button" style={styles.opt}>
@@ -180,10 +180,10 @@ export function UnitBox({ fields, patch, lang, testID = 'unit-box', invalid = fa
             </Pressable>
           ))}
           <Pressable testID="ubox-request" onPress={() => { setInput(''); setRequesting(true); patch({ compound: typed, compound_new: '1', area_id: '', subzone_id: '', place_label: typed, place_path: '', place_zones: '' }); }} accessibilityRole="button" style={styles.opt}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>{fill(L.boxRequest, { s: typed })}</Text>
+            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(L.boxRequest, { s: typed })}</Text>
           </Pressable>
           <Pressable testID="ubox-other" onPress={() => addOther(typed)} accessibilityRole="button" style={styles.opt}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>{fill(L.boxOther, { s: typed })}</Text>
+            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(L.boxOther, { s: typed })}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -223,8 +223,8 @@ function NewPlace({ fields, patch, lang, onCancel, onDone }: { fields: UnitField
       </View>
       <Text style={[styles.label, { color: colors.text }]}>{L.newArea}</Text>
       {parent ? (
-        <Pressable testID="ubox-new-parent" onPress={() => setParent(null)} accessibilityRole="button" style={[styles.chip, { backgroundColor: colors.primary, borderColor: colors.primary, alignSelf: 'flex-start' }]}>
-          <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{parent.label}  ×</Text>
+        <Pressable testID="ubox-new-parent" onPress={() => setParent(null)} accessibilityRole="button" style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary, alignSelf: 'flex-start' }]}>
+          <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{parent.label}  ×</Text>
         </Pressable>
       ) : (
         <>
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, minHeight: 36, justifyContent: 'center' },
   context: { fontSize: 13 },
-  list: { borderWidth: 1, borderRadius: radius.md, overflow: 'hidden' },
+  list: { borderWidth: 1, borderRadius: radius.card, overflow: 'hidden' },
   group: { fontSize: 12, fontWeight: '700', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   groupTitle: { fontSize: 16, fontWeight: '700' },
   opt: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { LeadTab, UnitFields, UploadFile } from '@wehdathub/shared';
 import { trackScreen } from './analytics';
 import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation } from '@react-navigation/native';
@@ -111,7 +111,7 @@ function TabsScreen() {
   if (!ready) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.primaryInk} />
       </View>
     );
   }
@@ -125,10 +125,10 @@ function TabsScreen() {
       screenOptions={{
         headerTitleAlign: 'center',
         headerLeft: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View>,
-        headerStyle: { backgroundColor: colors.bg },
+        headerStyle: { backgroundColor: colors.bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
         headerTitleStyle: { color: colors.text, fontFamily: FONT_BOLD },
         headerShadowVisible: false,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.primaryInk,
         tabBarInactiveTintColor: colors.muted,
         // No More tab on this bar: a menu button opens the grouped More list.
         headerRight: () => (
@@ -159,7 +159,7 @@ export function RootNavigation() {
   const status = useAuth((s) => s.status);
   const { colors, scheme } = useTheme();
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
-  const theme = { ...base, colors: { ...base.colors, primary: colors.primary, background: colors.bg, card: colors.bg, text: colors.text, border: colors.border } };
+  const theme = { ...base, colors: { ...base.colors, primary: colors.primary, background: colors.bg, card: colors.card, text: colors.text, border: colors.border, notification: colors.danger } };
   if (status === 'loading') {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: 32 }}>
@@ -175,7 +175,7 @@ export function RootNavigation() {
           <Stack.Screen name="Tabs" component={LoginScreen} />
         </Stack.Navigator>
       ) : (
-        <Stack.Navigator screenLayout={({ children, options }) => <BottomSafe><PlanBanner topInset={options.headerShown === false} onOpenPlan={() => navigationRef.navigate('Plan')} />{children}</BottomSafe>} screenOptions={{ headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerShadowVisible: false, headerRight: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View> }}>
+        <Stack.Navigator screenLayout={({ children, options }) => <BottomSafe><PlanBanner topInset={options.headerShown === false} onOpenPlan={() => navigationRef.navigate('Plan')} />{children}</BottomSafe>} screenOptions={{ headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerStyle: { backgroundColor: colors.bg }, headerShadowVisible: false, headerRight: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View> }}>
           <Stack.Screen name="Tabs" component={TabsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Unit" component={UnitNarrow} options={{ title: t(currentLang(), 'unit') }} />
           <Stack.Screen name="Lead" component={LeadNarrow} options={{ title: t(currentLang(), 'leadsTab') }} />

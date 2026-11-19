@@ -2,14 +2,14 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { WhatsAppImportScreen } from '../src/screens/WhatsAppImportScreen';
 import { api } from '../src/api';
-import { unpackChat } from '../src/zipImport';
+import { openChat, readChat } from '../src/zipImport';
 import { lacksDealType, lacksOwnerPhone, missingOf, withDealType, withOwnerPhone } from '../src/whatsappImport';
 import type { ImportPost } from '../src/whatsappImport';
 
 jest.mock('../src/api', () => ({ api: { codeCheck: jest.fn(), chatRead: jest.fn(), extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn() } }));
 jest.mock('../src/zipImport', () => {
   class ZipImportError extends Error { reason: string; constructor(reason: string) { super(reason); this.reason = reason; } }
-  return { ZipImportError, unpackChat: jest.fn(), cancelUnpack: jest.fn(), cleanUp: jest.fn() };
+  return { ZipImportError, openChat: jest.fn(), readChat: jest.fn(), cancelUnpack: jest.fn(), cleanUp: jest.fn() };
 });
 jest.mock('../src/usage', () => ({ usage: jest.fn() }));
 jest.mock('../src/errorReport', () => ({ reportError: jest.fn() }));
@@ -17,10 +17,11 @@ jest.mock('../src/photoUpload', () => ({ uploadPhoto: jest.fn().mockResolvedValu
 jest.mock('../src/rights', () => ({ useRights: () => ({ manager: true, agencyOwner: false, dataEntry: false, addUnits: true }) }));
 jest.mock('../src/components/SmartImage', () => ({ SmartImage: () => null }));
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: jest.fn(), replace: jest.fn(), popTo: jest.fn() }),
+  useNavigation: () => ({ navigate: jest.fn(), replace: jest.fn(), popTo: jest.fn(), dispatch: jest.fn(), addListener: jest.fn(() => jest.fn()) }),
   useRoute: () => ({ params: { zip: { uri: 'file:///cache/chat.zip', name: 'chat.zip', type: 'application/zip' } } }),
 }));
 
+const opened = { zipPath: '/cache/chat.zip', chatText: '', info: { firstAt: Date.UTC(2026, 8, 1), lastAt: Date.UTC(2026, 9, 24), total: 120, perDay: { '2026-10-24': 10, '2026-10-01': 5, '2026-09-01': 3 }, fingerprint: 'fp1' }, close: jest.fn().mockResolvedValue(undefined) };
 const m = api as unknown as Record<string, jest.Mock>;
 const post = (i: number, code: string) => ({ i, sender: '+20 111 161 6455', at: '15/11/2026 5:48', text: `Code ${code} Mivida 154m 2 bedrooms Price 65k`, code, over: 0, videos: 0, verify: false, files: [{ name: `IMG-${i}.jpg`, i, at: null }] });
 const base = { property_type: 'apartment', compound: 'Mivida', price_value: '65000', area_value: '154', bedrooms: '2' };
@@ -30,7 +31,8 @@ beforeEach(() => {
   const posts = [post(1, 'MIR23'), post(2, 'MIR40'), post(3, 'MIR590')];
   const present = new Map<string, string>();
   posts.forEach((p) => p.files.forEach((f) => present.set(f.name.toLowerCase(), f.name)));
-  (unpackChat as jest.Mock).mockImplementation(async () => ({ dir: '/cache/wa', posts, present, skipped: 0, missing: 0, stats: {} }));
+  (openChat as jest.Mock).mockResolvedValue(opened);
+  (readChat as jest.Mock).mockImplementation(async () => ({ dir: '/cache/wa', posts, present, skipped: 0, missing: 0, stats: {} }));
   m.codeCheck.mockResolvedValue({ codes: { MIR23: { state: 'new' }, MIR40: { state: 'new' }, MIR590: { state: 'new' } }, max_photos: 15, ai_cost: 2 });
   // Like the real chat: the reader cannot tell sale from rent for two posts (no "year", no "for rent"), and no post has an owner phone.
   m.chatRead.mockResolvedValue({ posts: [
@@ -43,6 +45,8 @@ beforeEach(() => {
 
 const open = async () => {
   await act(async () => { render(<WhatsAppImportScreen />); });
+  await waitFor(() => expect(screen.getByTestId('wa-range-read')).toBeTruthy());
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-range-read')); });
   await waitFor(() => expect(screen.getByTestId('wa-summary')).toBeTruthy());
 };
 const post0 = (over: Partial<ImportPost> = {}): ImportPost => ({ id: '1', post: post(1, 'X') as never, photos: [], picked: true, state: 'idle', fields: { ...base }, missing: [], ...over });

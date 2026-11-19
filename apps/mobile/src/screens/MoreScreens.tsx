@@ -19,7 +19,7 @@ import { t } from '../i18n';
 import { useRights } from '../rights';
 import { clientLang } from '../prefs';
 import type { RootStackParams } from '../navigation';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { toast, toastError } from '../components/Toast';
 
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
@@ -28,8 +28,8 @@ const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' :
 export const ratioText = (used: unknown, limit: unknown) => `⁦${num(used)} / ${num(limit)}⁩`;
 
 function Card({ children, testID }: { children: React.ReactNode; testID?: string }) {
-  const { colors } = useTheme();
-  return <View testID={testID} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>{children}</View>;
+  const { colors, elev } = useTheme();
+  return <View testID={testID} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>{children}</View>;
 }
 
 function Gate<T>({ q, children }: { q: { isPending: boolean; isError: boolean; error: unknown; data?: T; refetch: () => Promise<unknown> }; children: (d: T) => React.ReactElement }) {
@@ -90,7 +90,7 @@ type Allowance = PlanAllowance;
 
 const SOURCE_LABEL: Record<string, [string, string]> = { pilot: ['تجريبي للشركاء (ببلاش)', 'Pilot (free)'], paid: ['مدفوعة', 'Paid'], trial: ['فترة تجربة', 'Trial'], free: ['مجانية', 'Free'], grace: ['فترة سماح', 'Grace period'], readonly: ['للقراءة بس', 'Read-only'], blocked: ['متوقفة', 'Stopped'] };
 
-/** A used-of-limit bar: brand azure, copper from 80%, red at the limit. */
+/** A used-of-limit bar: brand gold, accent from 80%, red at the limit. */
 function Meter({ label, used, limit, testID }: { label: string; used: number; limit: number; testID?: string }) {
   const { colors } = useTheme();
   const pct = limit > 0 && limit < UNLIMITED_UNITS ? Math.min(100, Math.round((used / limit) * 100)) : 0;
@@ -99,7 +99,7 @@ function Meter({ label, used, limit, testID }: { label: string; used: number; li
     <View testID={testID} style={styles.meter}>
       <View style={styles.meterHead}>
         <Text style={{ color: colors.text, fontWeight: '700' }}>{label}</Text>
-        <Text style={{ color: colors.muted }}>{limit >= UNLIMITED_UNITS ? `${num(used)} / ${planT(currentLang(), 'unlimited')}` : ratioText(used, limit)}</Text>
+        <Text style={{ color: colors.muted }}>{limit >= UNLIMITED_UNITS ? `⁦${num(used)} / ${planT(currentLang(), 'unlimited')}⁩` : ratioText(used, limit)}</Text>
       </View>
       <View style={[styles.track, { backgroundColor: colors.border }]}>
         <View style={{ width: `${pct}%`, height: 8, borderRadius: 4, backgroundColor: fill }} />
@@ -108,12 +108,12 @@ function Meter({ label, used, limit, testID }: { label: string; used: number; li
   );
 }
 
-const meters = (a: Allowance, ar: boolean) => (
+const meters = (a: Allowance, ar: boolean, warn: string) => (
   <>
     {a.credits ? <Meter testID="meter-credits" label={ar ? 'رصيد الذكاء الاصطناعي (الشهر ده)' : 'AI credits (this month)'} used={a.credits.used} limit={a.credits.limit} /> : null}
     {a.seats ? <Meter testID="meter-seats" label={ar ? 'المستخدمين' : 'Users'} used={a.seats.used} limit={a.seats.limit} /> : null}
     {a.units ? <Meter testID="meter-units" label={ar ? 'الوحدات (متاحة ومؤرشفة ومباعة)' : 'Units (available, archived, sold)'} used={a.units.used} limit={a.units.limit} /> : null}
-    {unitWarnPct(a.units) !== null ? <Text testID="units-warning" style={{ color: '#B45309', fontWeight: '700' }}>{planT(ar ? 'ar' : 'en', 'unitsWarn', unitWarnPct(a.units)!)}</Text> : null}
+    {unitWarnPct(a.units) !== null ? <Text testID="units-warning" style={{ color: warn, fontWeight: '700' }}>{planT(ar ? 'ar' : 'en', 'unitsWarn', unitWarnPct(a.units)!)}</Text> : null}
   </>
 );
 
@@ -159,7 +159,7 @@ export function AiUsageCard({ ai, ar }: { ai: AiUsage; ar: boolean }) {
                 <View style={{ flex: 1, gap: 4 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text numberOfLines={1} style={{ color: colors.text, fontWeight: '600', flexShrink: 1 }}>{p.name}</Text>
-                    <Text style={{ color: colors.muted }}>{num(p.used)}{p.allowance != null ? ` / ${num(p.allowance)}` : ''}</Text>
+                    <Text style={{ color: colors.muted }}>{p.allowance != null ? ratioText(p.used, p.allowance) : num(p.used)}</Text>
                   </View>
                   <View style={{ height: 6, borderRadius: 3, backgroundColor: colors.border }}>
                     <View style={{ width: `${pct}%`, height: 6, borderRadius: 3, backgroundColor: p.allowance != null && p.used >= p.allowance ? colors.danger : colors.primary }} />
@@ -217,7 +217,7 @@ export function UsageScreen() {
               </Card>
             ) : null}
             <Card testID="usage-credits">
-              {meters(d.allowance, ar)}
+              {meters(d.allowance, ar, colors.warn)}
             </Card>
             {d.ai ? <AiUsageCard ai={d.ai} ar={ar} /> : null}
             {plan?.payments.length ? <Card><Text style={[styles.h, { color: colors.text }]}>{ar ? 'المدفوعات' : 'Payments'}</Text>{plan.payments.map((p) => <StatRow key={str(p.id ?? p.reference)} label={str(p.reference)} value={str(p.status)} />)}</Card> : null}
@@ -292,6 +292,6 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
   gap: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.md, alignItems: 'center', justifyContent: 'space-between' },
-  card: { ...lift, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
   h: { fontSize: 16, fontWeight: '700' },
 });

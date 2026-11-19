@@ -18,7 +18,7 @@ import { radius, spacing, useTheme } from '../theme';
 const KIND_LABEL: Record<TodayTask['kind'], StringKey> = { late: 'late', viewing: 'viewing', hot: 'hot', call: 'callTask', matches: 'matches' };
 
 export function TodayScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<BottomTabNavigationProp<{ Units: undefined }>>();
   const stack = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -34,7 +34,7 @@ export function TodayScreen() {
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={async () => { await q.refetch(); }} />}>
       <View style={styles.stats}>
         {stats.map(([k, n]) => (
-          <View key={k} style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View key={k} style={[styles.stat, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.statN, { color: colors.text }]}>{n}</Text>
             <Text style={{ color: colors.muted }}>{t(lang, k)}</Text>
           </View>
@@ -47,7 +47,7 @@ export function TodayScreen() {
           <View key={task.ref} testID="today-task" style={[styles.task, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.taskInfo}>
               <Text style={[styles.name, { color: colors.text }]}>{task.name || task.ref}</Text>
-              <Text style={{ color: colors.accent, fontWeight: '600' }}>{t(lang, KIND_LABEL[task.kind])}{task.matches ? ` · ${task.matches}` : ''}</Text>
+              <Text style={{ color: colors.accentInk, fontWeight: '600' }}>{t(lang, KIND_LABEL[task.kind])}{task.matches ? ` · ${task.matches}` : ''}</Text>
               {task.unitCode ? <Text style={{ color: colors.muted }}>{task.unitCode}</Text> : null}
             </View>
             {task.phone ? <Button label={t(lang, 'call')} variant="secondary" onPress={() => Linking.openURL(`tel:+${task.phone}`)} /> : null}
@@ -63,7 +63,7 @@ export function TodayScreen() {
                 <Text style={[styles.name, { color: colors.text }]}>{z.code}</Text>
                 {z.tenant ? <Text style={{ color: colors.muted }}>{z.tenant}</Text> : null}
               </View>
-              <Text style={{ color: z.daysLeft <= 60 ? colors.danger : colors.accent, fontWeight: '700' }}>{z.daysLeft} {t(lang, 'daysN')}</Text>
+              <Text style={{ color: z.daysLeft <= 60 ? colors.danger : colors.accentInk, fontWeight: '700' }}>{z.daysLeft} {t(lang, 'daysN')}</Text>
             </Pressable>
           ))}
         </View>
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   leases: { gap: 8, marginTop: 8 },
   content: { padding: spacing.lg, gap: spacing.md, flexGrow: 1 },
   stats: { flexDirection: 'row', gap: spacing.sm },
-  stat: { flex: 1, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, alignItems: 'center' },
+  stat: { flex: 1, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, alignItems: 'center' },
   statN: { fontSize: 24, fontWeight: '800' },
   empty: { flex: 1, minHeight: 300 },
   task: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md },

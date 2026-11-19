@@ -205,10 +205,10 @@ export function ProjectFormScreen() {
             <SectionHead n={1} title={T.pStep1} hint={T.pasteHint} />
             <Field testID="pf-paste" label={`${T.pasteLabel} ${T.optional}`} value={paste} onChangeText={onPaste} multiline maxLength={8000} />
             <Button testID="pf-read" label={T.readBtn} variant="secondary" loading={reading} disabled={!paste.trim()} onPress={() => read(paste)} />
-            {readNote ? <Text testID="pf-read-note" style={{ color: colors.accent }}>{readNote}</Text> : null}
+            {readNote ? <Text testID="pf-read-note" style={{ color: colors.accentInk }}>{readNote}</Text> : null}
             {existing ? (
               <Pressable testID="pf-known" accessibilityRole="button" onPress={() => nav.navigate('Project', { id: existing.id, name: existing.name })} style={[styles.box, { borderColor: colors.accent }]}>
-                <Text style={{ color: colors.text }}>{T.known}: {existing.name} · <Text style={{ color: colors.primary, fontWeight: '700' }}>{T.open}</Text></Text>
+                <Text style={{ color: colors.text }}>{T.known}: {existing.name} · <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{T.open}</Text></Text>
               </Pressable>
             ) : null}
             <Field testID="pf-name" label={`${T.name}`} value={str(fields.name)} onChangeText={(v) => set('name', v)} required invalid={missing('name')} maxLength={120} />

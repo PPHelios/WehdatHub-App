@@ -13,7 +13,7 @@ import { errorText } from '../errors';
 import type { RootStackParams } from '../navigation';
 import { ot } from '../ownerText';
 import { t } from '../i18n';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { toast } from '../components/Toast';
 
 const STATUSES = ['pending', 'approved', 'declined', 'all'] as const;
@@ -21,7 +21,7 @@ type Status = (typeof STATUSES)[number];
 
 /** Brokers' requests to see a unit's private details; a manager approves or declines (30 days). */
 export function RequestsScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const qc = useQueryClient();
@@ -47,8 +47,8 @@ export function RequestsScreen() {
           onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
           ListEmptyComponent={<EmptyView title={ot(lang, 'noRequests')} />}
           renderItem={({ item }) => (
-            <View testID={`request-${item.id}`} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Pressable accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: item.code })}><Text style={[styles.name, { color: colors.primary }]}>{item.code}</Text></Pressable>
+            <View testID={`request-${item.id}`} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Pressable accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: item.code })}><Text style={[styles.name, { color: colors.primaryInk }]}>{item.code}</Text></Pressable>
               <Text style={{ color: colors.text }}>{item.broker_name} · {ot(lang, item.status)}{item.decided_by_name ? ` (${item.decided_by_name})` : ''}</Text>
               {item.status === 'pending' ? (
                 <View style={styles.row}>
@@ -64,9 +64,26 @@ export function RequestsScreen() {
   );
 }
 
+const ROUTE_TEXT: [RegExp, string, string][] = [
+  [/^POST \/team\/invite/, 'ضاف عضو للفريق', 'Invited a team member'],
+  [/^POST \/team\/[^/]+\/deactivate/, 'أوقف عضو', 'Deactivated a member'],
+  [/^POST \/team\/[^/]+\/reactivate/, 'فعّل عضو', 'Reactivated a member'],
+  [/^POST \/team\/[^/]+\/delete/, 'مسح عضو', 'Deleted a member'],
+];
+/** Readable text for an activity row: a raw "POST /team/invite" is mapped, or humanised when the route is unknown. */
+export function activityText(text: string, ar: boolean): string {
+  const m = /^(GET|POST|PUT|PATCH|DELETE)\s+(\/\S*)$/.exec(text.trim());
+  if (!m) return text;
+  const known = ROUTE_TEXT.find(([re]) => re.test(text.trim()));
+  if (known) return ar ? known[1] : known[2];
+  const words = m[2].split('/').filter((x) => x && !/^[0-9a-f-]{8,}$/i.test(x) && !/^\d+$/.test(x)).join(' ').replace(/[_-]+/g, ' ').trim();
+  const verb = ({ POST: ['عمل', 'Did'], PUT: ['عدّل', 'Changed'], PATCH: ['عدّل', 'Changed'], DELETE: ['مسح', 'Removed'], GET: ['فتح', 'Opened'] } as Record<string, [string, string]>)[m[1]];
+  return `${ar ? verb[0] : verb[1]} ${words}`.trim();
+}
+
 /** Who did what, when (managers see data requests; the agency owner sees everything). Kept 90 days. */
 export function ActivityLogScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const list = useInfiniteQuery({
     queryKey: ['activityLog'],
@@ -84,8 +101,8 @@ export function ActivityLogScreen() {
       onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
       ListEmptyComponent={<EmptyView title={ot(lang, 'noRequests')} />}
       renderItem={({ item }) => (
-        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={{ color: colors.text }}>{item.text}</Text>
+        <View style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={{ color: colors.text }}>{activityText(item.text, lang === 'ar')}</Text>
           <Text style={{ color: colors.muted }}>{item.who} · {new Date(item.at).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</Text>
         </View>
       )}
@@ -97,6 +114,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   pad: { padding: spacing.lg },
   row: { flexDirection: 'row', gap: spacing.md },
-  card: { ...lift, marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
   name: { fontSize: 16, fontWeight: '700' },
 });

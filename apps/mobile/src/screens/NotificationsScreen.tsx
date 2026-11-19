@@ -10,7 +10,7 @@ import { Chips } from '../components/Chips';
 import { ErrorView, Loading } from '../components/StateViews';
 import { AppSettings } from '../components/AppSettings';
 import { t } from '../i18n';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 
 const REMINDERS = [30, 60, 120] as const;
 /** WhatsApp is not an alert channel any more: an old saved choice shows as the default (both when Telegram is linked, else web). */
@@ -23,7 +23,7 @@ const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
 /** The same choices as the website's Settings: per alert type on/off, channel and frequency; reminders; quiet hours. */
 export function NotificationsScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = useAuth((s) => s.broker?.lang) ?? 'ar';
   const queries = useQueryClient();
   const q = useQuery({ queryKey: ['notification-settings'], queryFn: () => api.notificationSettings() });
@@ -82,7 +82,7 @@ export function NotificationsScreen() {
         const fixed = Boolean(v.locked);
         const off = !v.on;
         return (
-          <View key={k} testID={`kind-${k}`} style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <View key={k} testID={`kind-${k}`} style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
             <View style={styles.row}>
               <Text style={[styles.flex, styles.kind, { color: colors.text }]}>{v.label[lang]}</Text>
               {v.urgent ? null : <BusySwitch testID={`on-${k}`} value={v.on} disabled={fixed} onValueChange={(on) => setKind(k, { on })} />}
@@ -136,7 +136,7 @@ export function NotificationsScreen() {
 const styles = StyleSheet.create({
   body: { padding: spacing.xl, gap: spacing.md },
   h: { fontSize: 18, fontWeight: '700', marginTop: spacing.md },
-  card: { ...lift, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
+  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   flex: { flex: 1 },
   kind: { fontSize: 16, fontWeight: '700' },

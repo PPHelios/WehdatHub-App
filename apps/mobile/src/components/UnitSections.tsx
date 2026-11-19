@@ -170,7 +170,7 @@ export function OwnerSection({ fields, set, field, lang, expanded, onDescribeAga
       <SwitchRow label={lang === 'en' ? 'No name: use the phone as the name' : 'مفيش اسم: استخدم التليفون كاسم'} value={fields.owner_name_from_phone === '1'} onChange={(v) => set('owner_name_from_phone', v ? '1' : '')} testID="f-owner_name_from_phone" />
       {field('owner_lead', x.ownerLead, { autoCapitalize: 'characters', autoCorrect: false, placeholder: 'L-0042' })}
       <Pressable accessibilityRole="button" testID="more-details" onPress={() => setMore((m) => !m)} style={styles.more}>
-        <Text style={{ color: colors.primary, fontWeight: '700' }}>{more ? '▾' : '▸'} {L.moreDetails}</Text>
+        <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{more ? '▾' : '▸'} {L.moreDetails}</Text>
       </Pressable>
       {more ? (
         <View style={styles.stack}>
@@ -185,7 +185,7 @@ export function OwnerSection({ fields, set, field, lang, expanded, onDescribeAga
       {/* Written from the unit's fields until the broker types in it; "write it again" takes the draft back. */}
       {field('clean_summary', L.description, { multiline: true, testID: 'clean-summary' })}
       <Pressable accessibilityRole="button" testID="describe-again" onPress={onDescribeAgain} style={styles.more}>
-        <Text style={{ color: colors.primary, fontWeight: '700' }}>{L.describeAgain}</Text>
+        <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{L.describeAgain}</Text>
       </Pressable>
     </View>
   );

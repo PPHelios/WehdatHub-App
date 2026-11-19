@@ -14,16 +14,16 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import { APP_BUILD, APP_VERSION } from '../config';
 import { usageTrail } from '../usage';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { toastError } from '../components/Toast';
 
 const num = (n: number) => Number(n).toLocaleString('en-US');
 const DAYS = ['30', '90', '365'] as const;
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
       <Text style={[styles.h, { color: colors.text }]}>{title}</Text>
       {children}
     </View>
@@ -172,7 +172,7 @@ export function ReportScreen() {
 
 const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
-  card: { ...lift, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
+  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
   h: { fontSize: 16, fontWeight: '700' },
   b: { fontWeight: '700' },
 });

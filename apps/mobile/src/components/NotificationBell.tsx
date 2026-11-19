@@ -27,5 +27,5 @@ export function NotificationBell({ onPress }: { onPress: () => void }) {
 const styles = StyleSheet.create({
   btn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 },
   badge: { position: 'absolute', top: 3, end: 2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
-  count: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  count: { fontSize: 11, fontWeight: '800' },
 });

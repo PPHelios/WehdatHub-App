@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { ltr } from '@wehdathub/shared';
 import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
@@ -41,8 +42,8 @@ export function ContactsScreen() {
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => (
           <Pressable accessibilityRole="button" testID={`contact-${item.id}`} onPress={() => nav.navigate('NewLead', { name: item.name, phone: item.phone })} style={[styles.row, { borderColor: colors.border }]}>
-            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{item.name || item.phone}</Text>
-            <Text style={{ color: colors.muted }}>{item.phone}</Text>
+            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{item.name || ltr(item.phone)}</Text>
+            <Text style={{ color: colors.muted }}>{ltr(item.phone)}</Text>
           </Pressable>
         )}
         ListEmptyComponent={<EmptyView title={t(lang, 'noContacts')} hint={t(lang, 'noContactsHint')} />}

@@ -11,11 +11,11 @@ import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { lift, radius, spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 
 /** The broker's saved searches: how many units fit and how many are new; tap to see them; delete. */
 export function SavedSearchesScreen() {
-  const { colors } = useTheme();
+  const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [open, setOpen] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export function SavedSearchesScreen() {
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} refreshControl={<RefreshControl refreshing={list.isRefetching} onRefresh={async () => { await list.refetch(); }} />}>
       {list.data.items.length === 0 ? <EmptyView title={t(lang, 'savedSearchesEmpty')} hint="" /> : null}
       {list.data.items.map((s) => (
-        <View key={s.id} style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View key={s.id} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Pressable testID={`saved-${s.id}`} accessibilityRole="button" onPress={() => setOpen(open === s.id ? null : s.id)}>
             <Text style={[styles.name, { color: colors.text }]}>{s.alerts ? '🔔 ' : ''}{s.name}</Text>
             <Text style={{ color: colors.muted }}>{s.total} {t(lang, 'results')}{s.fresh ? ` · 🆕 ${s.fresh}` : ''}</Text>
@@ -42,6 +42,6 @@ export function SavedSearchesScreen() {
 
 const styles = StyleSheet.create({
   pad: { padding: spacing.xl, gap: spacing.md },
-  card: { ...lift, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
+  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
   name: { fontSize: 16, fontWeight: '700' },
 });
