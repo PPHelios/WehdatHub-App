@@ -5,7 +5,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { errorCodes, isErrorWithCode, pick, types } from '@react-native-documents/picker';
-import { ApiClientError, displayPhone, looksLikePhone, ltr, phoneSchema } from '@wehdathub/shared';
+import { ApiClientError, displayPhone, looksLikePhone, ltr, contactPhoneSchema } from '@wehdathub/shared';
+import { phoneHelp } from '../readback';
 import type { ChatPlanChange, ChatPlanPost, CodeState, UnitFields, UploadFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang, useAuth } from '../auth';
@@ -688,10 +689,10 @@ export function WhatsAppImportScreen() {
             {bulkCount.owner > 0 ? (
               <View style={{ gap: spacing.sm }}>
                 <Text style={{ color: colors.text }}>{fill(W.bulkOwner, { n: bulkCount.owner })}</Text>
-                <Field testID="wa-owner-all" label="" value={ownerAll} onChangeText={(v: string) => { setOwnerAll(v); setOwnerBad(false); }} keyboardType="phone-pad" placeholder={W.bulkOwnerPlaceholder} />
+                <Field testID="wa-owner-all" label="" value={ownerAll} onChangeText={(v: string) => { setOwnerAll(v); setOwnerBad(false); }} keyboardType="phone-pad" placeholder={W.bulkOwnerPlaceholder} hint={phoneHelp(lang)} />
                 {ownerBad ? <Text testID="wa-owner-bad" style={{ color: colors.danger }}>{W.bulkBadPhone}</Text> : null}
                 <Button testID="wa-owner-apply" label={W.bulkOwnerApply} variant="secondary" loading={bulkBusy} disabled={adding} onPress={() => {
-                  const ok = phoneSchema.safeParse(ownerAll.trim());
+                  const ok = contactPhoneSchema.safeParse(ownerAll.trim());
                   if (!ok.success) { setOwnerBad(true); return undefined; }
                   return applyBulk((f) => withOwnerPhone(f, ownerAll.trim()), lacksOwnerPhone);
                 }} />

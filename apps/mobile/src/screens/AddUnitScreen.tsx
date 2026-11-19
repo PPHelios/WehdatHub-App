@@ -378,7 +378,12 @@ export function AddUnitScreen() {
         return setError(like.length ? `${t(lang, 'compoundUnknown')} ${t(lang, 'didYouMean')} ${like.join(' / ')}` : t(lang, 'compoundUnknown'));
       }
       if (e.code === 'plan_limit') return setError(t(lang, 'planLimit'));
-      if (e.code === 'photo_missing') { setPhotos((p) => p.map((x) => (x.type === EXISTING ? x : { ...x, key: undefined, pct: undefined, failed: false }))); return setError(t(lang, 'photosExpired')); }
+      if (e.code === 'photo_missing') {
+        // Photos the server no longer has (uploaded earlier, kept too long) are deleted from the list; the others stay as they are.
+        const gone = new Set(Array.isArray(e.extra.keys) ? (e.extra.keys as string[]) : []);
+        setPhotos((p) => p.filter((x) => x.type === EXISTING || !x.key || (gone.size > 0 && !gone.has(x.key))));
+        return setError(t(lang, 'photosExpired'));
+      }
       setError(toastError(errorText(e, lang)));
     }
   };

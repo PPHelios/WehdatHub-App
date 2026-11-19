@@ -5,7 +5,7 @@ import { BusySwitch } from './BusySwitch';
 import type { Lang, UnitFields } from '@wehdathub/shared';
 import { ux } from '../unitExtraText';
 import { uf } from '../unitFormText';
-import { readArea, readPhone, readPrice, readSum, plain, withCommas } from '../readback';
+import { phoneHelp, readArea, readPhone, readPrice, readSum, plain, withCommas } from '../readback';
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { sizeShows } from '../unitRules';
 import { api } from '../api';
@@ -189,7 +189,7 @@ export function OwnerSection({ fields, set, field, lang, expanded, onDescribeAga
     <View style={styles.stack}>
       <Text style={{ color: colors.muted }}>{L.ownerPrivate}</Text>
       {field('owner_name', lang === 'en' ? 'Owner' : 'المالك')}
-      {field('owner_phone', lang === 'en' ? 'Owner phone' : 'تليفون المالك', { keyboardType: 'phone-pad', hint: [readPhone(str(fields.owner_phone)), found].filter(Boolean).join('  ') })}
+      {field('owner_phone', lang === 'en' ? 'Owner phone' : 'تليفون المالك', { keyboardType: 'phone-pad', hint: [readPhone(str(fields.owner_phone)) || phoneHelp(lang), found].filter(Boolean).join('  ') })}
       <SwitchRow label={lang === 'en' ? 'No name: use the phone as the name' : 'مفيش اسم: استخدم التليفون كاسم'} value={fields.owner_name_from_phone === '1'} onChange={(v) => set('owner_name_from_phone', v ? '1' : '')} testID="f-owner_name_from_phone" />
       {field('owner_lead', x.ownerLead, { autoCapitalize: 'characters', autoCorrect: false, placeholder: 'L-0042' })}
       <Pressable accessibilityRole="button" testID="more-details" onPress={() => setMore((m) => !m)} style={styles.more}>

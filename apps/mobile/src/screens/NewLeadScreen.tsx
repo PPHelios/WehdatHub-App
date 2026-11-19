@@ -6,7 +6,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ApiClientError, phoneSchema } from '@wehdathub/shared';
+import { ApiClientError, contactPhoneSchema } from '@wehdathub/shared';
+import { phoneHelp } from '../readback';
 import type { ApiLead } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -55,7 +56,7 @@ export function NewLeadScreen() {
 
   const save = async () => {
     setMessage(null);
-    if (!phoneSchema.safeParse(phone.trim()).success) return setMessage(t(lang, 'badNumber'));
+    if (!contactPhoneSchema.safeParse(phone.trim()).success) return setMessage(t(lang, 'badNumber'));
     try {
       const r = await api.createLead({ phone1: phone.trim(), name: name.trim() || undefined, kind, notes: notes.trim() || undefined });
       await qc.invalidateQueries({ queryKey: ['leads'] });
@@ -74,7 +75,7 @@ export function NewLeadScreen() {
       <Button testID="lead-fill" variant="secondary" label={`✨ ${t(lang, 'pasteFill')}`} onPress={fill} disabled={filling || !paste.trim()} />
       {notice ? <Text style={{ color: colors.accentInk }}>{notice}</Text> : null}
       <Field label={t(lang, 'leadName')} value={name} onChangeText={setName} testID="lead-name" />
-      <Field label={t(lang, 'leadPhone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="lead-phone" />
+      <Field label={t(lang, 'leadPhone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="lead-phone" hint={phoneHelp(lang)} />
       <Chips<ApiLead['kind']> options={KINDS.map((k) => ({ value: k, label: KIND_LABEL[k][lang === 'ar' ? 0 : 1] }))} value={kind} onChange={setKind} />
       <Field label={t(lang, 'leadNotes')} value={notes} onChangeText={setNotes} multiline />
       {message ? <Text testID="lead-form-message" style={{ color: colors.danger }}>{message}</Text> : null}

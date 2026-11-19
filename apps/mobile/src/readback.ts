@@ -1,4 +1,5 @@
 /** Reads a typed price or phone back in words, so a wrong zero or digit is seen before saving. */
+import { displayPhone, normalizePhoneDigits } from '@wehdathub/shared';
 const AR = '٠١٢٣٤٥٦٧٨٩';
 const digits = (s: string) => s.replace(/[٠-٩]/g, (d) => String(AR.indexOf(d))).replace(/[٬,\s]/g, '');
 
@@ -14,9 +15,15 @@ export function readPrice(raw: string, lang: 'ar' | 'en'): string {
   return String(n);
 }
 
+/** The helper line under every phone box: mobile only, foreign with + and the country code. */
+export const phoneHelp = (lang: 'ar' | 'en'): string =>
+  lang === 'en'
+    ? 'Mobile only (no landlines): 01012345678, or a foreign number with + and the country code (+971…).'
+    : 'موبايل بس (مش أرضي): 01012345678، أو رقم أجنبي بـ + وكود الدولة (+971…).';
+
 export function readPhone(raw: string): string {
-  const d = digits(raw).replace(/^\+?20/, '0');
-  return /^01[0125]\d{8}$/.test(d) ? `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}` : '';
+  const n = normalizePhoneDigits(raw);
+  return n ? displayPhone(raw) : '';
 }
 
 /** Thousands separators as a number is typed: 9500000 shows as 9,500,000 (Arabic digits become Latin; the server reads commas). */

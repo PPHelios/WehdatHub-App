@@ -10,6 +10,8 @@ test('phone spaced', () => {
   expect(readPhone('01012345678')).toBe('0101 234 5678');
   expect(readPhone('+201012345678')).toBe('0101 234 5678');
   expect(readPhone('123')).toBe('');
+  expect(readPhone('+966 512345678')).toBe('+966512345678');
+  expect(readPhone('00971551040978')).toBe('+971551040978');
 });
 
 test('thousands separators while typing', () => {
