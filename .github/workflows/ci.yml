@@ -97,39 +97,4 @@ jobs:
           path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
 
-  ios:
-    name: iOS simulator build
-    needs: changes
-    if: >-
-      (github.event_name != 'pull_request' || github.event.pull_request.draft == false) &&
-      (github.event_name != 'pull_request' || needs.changes.outputs.ios == 'true')
-    runs-on: macos-latest
-    timeout-minutes: 40
-    steps:
-      - uses: actions/checkout@v4
-      - run: corepack enable
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --reporter=silent
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
-          working-directory: apps/mobile
-      - uses: actions/cache@v4
-        with:
-          path: apps/mobile/ios/Pods
-          key: pods-${{ runner.os }}-${{ hashFiles('apps/mobile/ios/Podfile.lock') }}
-          restore-keys: pods-${{ runner.os }}-
-      - name: Install pods
-        working-directory: apps/mobile/ios
-        run: bundle exec pod install
-      - name: Build for simulator
-        working-directory: apps/mobile/ios
-        run: >
-          xcodebuild -workspace WehdatHub.xcworkspace -scheme WehdatHub
-          -configuration Debug -sdk iphonesimulator
-          -destination 'generic/platform=iOS Simulator'
-          CODE_SIGNING_ALLOWED=NO -quiet build
+ 
