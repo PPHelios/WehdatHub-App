@@ -64,6 +64,7 @@ const ICONS = {
   building: [{ r: [5, 3, 14, 18, 1] }, { d: 'M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M3 21h18' }],
   compare: [{ d: 'M7 4v16M17 4v16M3 8l4-4 4 4M13 16l4 4 4-4' }],
   check: [{ d: 'm5 12 5 5 9-10' }],
+  send: [{ d: 'M22 2 11 13M22 2l-7 20-4-9-9-4z' }],
 } satisfies Record<string, Part[]>;
 
 export type IconName = keyof typeof ICONS;

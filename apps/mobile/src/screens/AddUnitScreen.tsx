@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../components/AppText';
 import type { ScrollViewInstance } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -29,7 +30,7 @@ import { ALL_TYPES, FINISHING, FURNISHING, PROPERTY_TYPES, labelOf, options } fr
 import { radius, spacing, useTheme } from '../theme';
 import { tick } from '../haptics';
 import { track } from '../analytics';
-import { HoldMic } from '../components/HoldMic';
+import { VoiceBar } from '../components/VoiceBar';
 import { featureChip } from '../featureLabels';
 import { draftText, isAutoDraft } from '../unitDraft';
 import { uf } from '../unitFormText';
@@ -424,10 +425,10 @@ export function AddUnitScreen() {
           <SectionHead n={1} title={L.step1} />
           <Field testID="describe" label={importId ? (lang === 'en' ? '💬 Original message (to compare with the fields below)' : '💬 الرسالة الأصلية (للمقارنة مع البيانات تحت)') : t(lang, 'describePlaceholder')} value={describe} onChangeText={onDescribe} multiline />
           {importId ? null : (
-            <View style={styles.row}>
-              <View style={styles.flex}><Button testID="fill" label={t(lang, 'fillBtn')} onPress={() => runFill({ describe })} disabled={!describe.trim()} /></View>
-              <View style={styles.flex}><HoldMic testID="unit-mic" label={t(lang, 'mic')} onFile={onVoice} onError={setError} /></View>
-            </View>
+            <>
+              <Button testID="fill" label={t(lang, 'fillBtn')} onPress={() => runFill({ describe })} disabled={!describe.trim()} />
+              <VoiceBar id="unit" label={t(lang, 'mic')} onFile={onVoice} onError={setError} />
+            </>
           )}
           {notice ? <Text testID="unit-notice" style={{ color: colors.accentInk }}>{notice}</Text> : null}
           <UnitBox fields={fields} patch={patch} lang={lang} invalid={failedCheck && missing('location')} />

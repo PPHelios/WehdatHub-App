@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../components/AppText';
 import { BusySwitch } from '../components/BusySwitch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
@@ -53,8 +54,7 @@ export function LeadRulesScreen() {
   const away = async (id: string, until: string | null) => {
     try {
       await api.setTeamAway(id, until);
-      await qc.invalidateQueries({ queryKey: ['team-rules'] });
-      await qc.invalidateQueries({ queryKey: ['team'] });
+      await Promise.all([qc.invalidateQueries({ queryKey: ['team-rules'] }), qc.invalidateQueries({ queryKey: ['team'] })]);
     } catch (e) {
       setMsg(toastError(errorText(e, lang)));
     }

@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import Svg, { Polygon } from 'react-native-svg';
 import { currentLang } from '../auth';
 import { useTheme } from '../theme';

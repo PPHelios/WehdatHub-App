@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useBusy } from '../busy';
 import { buttonHeight, buttonRadius, spacing, useTheme } from '../theme';
 

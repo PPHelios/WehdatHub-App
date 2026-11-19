@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from './AppText';
 import type { Lang } from '@wehdathub/shared';
 import { api } from '../api';
 import { radius, spacing, useTheme } from '../theme';

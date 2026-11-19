@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ltr } from '@wehdathub/shared';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { currentLang } from '../auth';
 import { filterContacts, loadContacts } from '../contacts';
 import type { PhoneContact } from '../contacts';

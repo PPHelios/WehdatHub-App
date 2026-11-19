@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useQueryClient } from '@tanstack/react-query';
 import { currentLang, useAuth } from '../auth';
 import { usePlanLock } from '../planLock';

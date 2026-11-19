@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { timed } from '../usage';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
+import { AppText as Text } from '../components/AppText';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';

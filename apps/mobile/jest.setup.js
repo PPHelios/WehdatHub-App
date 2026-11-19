@@ -1,4 +1,6 @@
 /* eslint-env jest */
+require('react-native-gesture-handler/jestSetup');
+require('react-native-reanimated').setUpTests();
 jest.mock('react-native-keychain', () => ({
   ACCESSIBLE: { WHEN_UNLOCKED_THIS_DEVICE_ONLY: 'WHEN_UNLOCKED_THIS_DEVICE_ONLY', WHEN_PASSCODE_SET_THIS_DEVICE_ONLY: 'WHEN_PASSCODE_SET_THIS_DEVICE_ONLY' },
   ACCESS_CONTROL: { BIOMETRY_ANY_OR_DEVICE_PASSCODE: 'BIOMETRY_ANY_OR_DEVICE_PASSCODE' },
@@ -38,4 +40,4 @@ jest.mock('@react-native-firebase/messaging', () => ({ getMessaging: jest.fn(() 
 
 jest.mock('react-native-contacts', () => ({ __esModule: true, default: { requestPermission: jest.fn().mockResolvedValue('authorized'), getAllWithoutPhotos: jest.fn().mockResolvedValue([]) } }));
 jest.mock('@bam.tech/react-native-image-resizer', () => ({ __esModule: true, default: { createResizedImage: jest.fn(async (uri) => ({ uri: `${uri}.min.jpg`, name: 'x.jpg', size: 1000 })) } }));
-jest.mock('@react-native-camera-roll/camera-roll', () => ({ CameraRoll: { saveAsset: jest.fn().mockResolvedValue({}) } }));
+jest.mock('react-native-haptic-feedback', () => ({ __esModule: true, trigger: jest.fn(), default: { trigger: jest.fn() } }));

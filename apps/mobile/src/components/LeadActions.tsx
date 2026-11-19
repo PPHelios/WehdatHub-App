@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, Linking, Share, Text, View } from 'react-native';
+import { Alert, Linking, Share, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useNavigation } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ApiLead } from '@wehdathub/shared';

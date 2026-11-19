@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { timed } from '../usage';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useQuery } from '@tanstack/react-query';
 import type { ApiLead } from '@wehdathub/shared';
 import { api } from '../api';
+import { teamOptions } from '../queries';
 import { currentLang } from '../auth';
 import { Button } from './Button';
 import { errorText } from '../errors';
@@ -14,7 +16,7 @@ import { radius, spacing, useTheme } from '../theme';
 export function BulkAssign({ leads, onDone, onCancel }: { leads: ApiLead[]; onDone: () => void; onCancel: () => void }) {
   const { colors } = useTheme();
   const lang = currentLang();
-  const team = useQuery({ queryKey: ['team'], queryFn: () => api.team() });
+  const team = useQuery(teamOptions());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 

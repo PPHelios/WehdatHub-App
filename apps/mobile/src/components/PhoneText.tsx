@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { AppText as Text } from './AppText';
 import type { TextProps } from 'react-native';
 import { displayPhone, ltr } from '@wehdathub/shared';
 

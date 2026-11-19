@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { BusySwitch } from './BusySwitch';
 import { ApiClientError } from '@wehdathub/shared';
 import { api } from '../api';

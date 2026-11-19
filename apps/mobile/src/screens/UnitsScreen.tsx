@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { parseMoney } from '@wehdathub/shared';
 import type { UnitsPage } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -30,19 +32,15 @@ const DEALS = [
   { value: 'resale_installments', ar: 'ريسيل بالتقسيط', en: 'Resale with installments' }, { value: 'primary', ar: 'برايمري', en: 'Primary' },
 ];
 const BEDS = ['1', '2', '3', '4', '5'];
-/** Money typed as "3m", "3,500,000" or "3500000" → a number (0 when empty or unclear). */
-export const money = (s: string): number => {
-  const m = s.replace(/[,\s٬]/g, '').replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).match(/^(\d+(?:\.\d+)?)([mkMK]|مليون|الف|ألف)?$/);
-  if (!m) return 0;
-  const mult = /^(m|M|مليون)$/.test(m[2] ?? '') ? 1e6 : /^(k|K|الف|ألف)$/.test(m[2] ?? '') ? 1e3 : 1;
-  return Math.round(Number(m[1]) * mult);
-};
+/** Money typed as "3m", "3,500,000" or "3500000" → a whole number (0 when empty or unclear). */
+export const money = (s: string): number => Math.round(parseMoney(s) ?? 0);
 
 export function UnitsScreen() {
   const wide = useWide();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [picked, setPicked] = useState<string | null>(null);
-  if (!wide) return <UnitsList onOpen={(code) => nav.navigate('Unit', { code })} />;
+  const openUnit = useCallback((code: string) => nav.navigate('Unit', { code }), [nav]);
+  if (!wide) return <UnitsList onOpen={openUnit} />;
   return <Split list={<UnitsList onOpen={setPicked} single />} detail={picked ? <UnitScreen code={picked} key={picked} /> : <View style={styles.flex} />} />;
 }
 
@@ -83,11 +81,17 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
     queryFn: ({ pageParam }) => api.units({ status, q, compound: compound || undefined, staleDays: staleDays || undefined, deal: deal || undefined, type: type || undefined, bedrooms: beds ? Number(beds) : undefined, finishing: finishing || undefined, furnishing: furnishing || undefined, mine: mine || undefined, pmin: pmin || undefined, pmax: pmax || undefined, old: oldOnly && status === 'active' ? true : undefined, limit: PAGE, offset: pageParam }),
     getNextPageParam: (last: UnitsPage) => (last.offset + last.items.length < last.total ? last.offset + last.items.length : undefined),
   });
-  const items = list.data?.pages.flatMap((p) => p.items) ?? [];
+  const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
   const counts = list.data?.pages[0]?.counts;
   const rights = useRights();
   // Data entry has no Today: the units nobody has confirmed (agency-wide) sit above their list instead.
   const old = useQuery({ queryKey: ['today'], queryFn: () => api.today(), enabled: rights.dataEntry && status === 'active' });
+  const editUnit = useCallback((code: string) => nav.navigate('AddUnit', { edit: code }), [nav]);
+  const canEditOthers = rights.dataEntry || rights.manager || rights.agencyOwner;
+  const renderItem = useCallback(
+    ({ item }: { item: UnitsPage['items'][number] }) => <UnitCard unit={item} lang={lang} onPress={onOpen} onEdit={rights.editUnits && (item.mine || canEditOthers) ? editUnit : undefined} />,
+    [lang, onOpen, rights.editUnits, canEditOthers, editUnit],
+  );
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
@@ -155,7 +159,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
           numColumns={columns}
           data={items}
           keyExtractor={(u) => u.id}
-          renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => onOpen(item.code)} onEdit={rights.editUnits && (item.mine || rights.dataEntry || rights.manager || rights.agencyOwner) ? () => nav.navigate('AddUnit', { edit: item.code }) : undefined} />}
+          renderItem={renderItem}
           onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
           onEndReachedThreshold={0.6}
           refreshing={list.isRefetching && !list.isFetchingNextPage}

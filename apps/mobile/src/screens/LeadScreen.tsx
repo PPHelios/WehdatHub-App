@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { usage } from '../usage';
-import { Linking, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../components/AppText';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { tick } from '../haptics';
 import { useRoute } from '@react-navigation/native';
@@ -8,6 +9,7 @@ import type { RouteProp } from '@react-navigation/native';
 import { ApiClientError, LEAD_STAGES, ltr } from '@wehdathub/shared';
 import type { ApiLead, LeadDetail, LeadStage } from '@wehdathub/shared';
 import { api } from '../api';
+import { teamOptions } from '../queries';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
@@ -73,7 +75,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
   const [askLost, setAskLost] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const rights = useRights();
-  const team = useQuery({ queryKey: ['team'], queryFn: () => api.team(), enabled: rights.team });
+  const team = useQuery(teamOptions(rights.team));
 
   /** Every quick action: send it with the version the screen shows; a 409 means it changed elsewhere, so show the latest. */
   const act = useMutation<unknown, Error, (lead: ApiLead) => Promise<{ lead: ApiLead }>>({
@@ -85,9 +87,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
     onSuccess: async () => {
       tick();
       setMessage(null);
-      await qc.invalidateQueries({ queryKey: ['lead', ref] });
-      await qc.invalidateQueries({ queryKey: ['leads'] });
-      await qc.invalidateQueries({ queryKey: ['today'] });
+      await Promise.all([qc.invalidateQueries({ queryKey: ['lead', ref] }), qc.invalidateQueries({ queryKey: ['leads'] }), qc.invalidateQueries({ queryKey: ['today'] })]);
     },
     onError: async (e) => {
       setMessage(e instanceof ApiClientError && e.status === 409 ? t(lang, 'leadChanged') : e instanceof ApiClientError && e.code === 'past' ? t(lang, 'pastTime') : e instanceof ApiClientError && e.code === 'note_empty' ? t(lang, 'noteEmpty') : errorText(e, lang));

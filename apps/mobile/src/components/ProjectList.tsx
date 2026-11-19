@@ -1,5 +1,6 @@
 import React from 'react';
-import { Linking, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, Share, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { formatEgp } from '@wehdathub/shared';
 import type { AskOffer, Lang, ProjectCard } from '@wehdathub/shared';
 import { deliveryOf, developerOf, factPills, pageWindow, placeOf, projectName, STATUS_TEXT } from '../projectRules';

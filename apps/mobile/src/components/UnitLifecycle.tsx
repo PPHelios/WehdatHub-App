@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useNavigation } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
@@ -21,7 +22,7 @@ export function UnitLifecycle({ code, status }: { code: string; status: Status }
   const qc = useQueryClient();
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const after = async () => { await qc.invalidateQueries({ queryKey: ['unit', code] }); await qc.invalidateQueries({ queryKey: ['units'] }); };
+  const after = async () => { await Promise.all([qc.invalidateQueries({ queryKey: ['unit', code] }), qc.invalidateQueries({ queryKey: ['units'] })]); };
   const change = async (s: Status) => {
     if (s === status) return;
     setBusy(true);

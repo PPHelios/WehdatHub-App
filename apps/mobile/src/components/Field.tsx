@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from './AppText';
 import type { TextInputProps } from 'react-native';
 import { useBusyDisabled } from '../busy';
 import { radius, spacing, useTheme } from '../theme';

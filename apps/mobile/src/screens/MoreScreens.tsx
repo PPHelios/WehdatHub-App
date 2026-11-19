@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../components/AppText';
 import { BusySwitch } from '../components/BusySwitch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../api';
+import { usageOptions } from '../queries';
 import { UNLIMITED_UNITS } from '@wehdathub/shared';
 import type { AiUsage, PlanAllowance } from '@wehdathub/shared';
 import { planT } from '../planText';
@@ -188,7 +190,7 @@ export function UsageScreen() {
   const lang = currentLang();
   const ar = lang === 'ar';
   const rights = useRights();
-  const query = useQuery({ queryKey: ['usage'], queryFn: () => api.usage() });
+  const query = useQuery(usageOptions());
   const planQ = useQuery({ queryKey: ['plan'], queryFn: () => api.plan(), enabled: rights.manager || rights.agencyOwner });
   return (
     <Gate q={query}>

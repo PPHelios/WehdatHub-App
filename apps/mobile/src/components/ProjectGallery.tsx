@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { ApiClientError } from '@wehdathub/shared';
 import type { Lang, ProjectImage, ProjectImageRole, UploadFile } from '@wehdathub/shared';
 import { api } from '../api';

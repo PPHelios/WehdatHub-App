@@ -2,8 +2,9 @@ import type { Lang } from '@wehdathub/shared';
 
 const strings = {
   ar: {
+    voiceSlideCancel: 'اسحب للإلغاء', voiceQuickHint: 'دوس مطوّل عشان تسجّل، وسيب عشان تبعت', voiceStart: 'ابدأ التسجيل', voiceSend: 'وقّف وابعت', voiceDiscard: 'امسح التسجيل', voiceLockHint: 'اسحب لفوق عشان تقفل التسجيل', sendBtn: 'ابعت', voiceRecording: 'بيسجّل',
     photosRetry: 'اتحفظت بيانات الوحدة، بس الصور ماترفعتش. اضغط حفظ تاني للصور.',
-    tapRetry: 'اضغط للإعادة', saveToGallery: 'حفظ في المعرض', savedToGallery: 'اتحفظت في المعرض.', galleryDenied: 'محتاجين صلاحية الصور عشان نحفظ في المعرض. فعّلها من إعدادات التليفون.', micFailed: 'المايك مش شغال دلوقتي. اقفل التطبيق وافتحه تاني، ولو فضل كده ابعت بلاغ.', dragCancel: 'اسحب بعيد للإلغاء', holdMic: 'اضغط مع الاستمرار وتكلم',
+    retryPhoto: 'أعد رفع الصورة', photoUploaded: 'اترفعت', movePhoto: 'رتّب الصورة', moveEarlier: 'قدّم الصورة', moveLater: 'أخّر الصورة', tapRetry: 'اضغط للإعادة', saveToGallery: 'حفظ في المعرض', savedToGallery: 'اتحفظت في المعرض.', galleryDenied: 'محتاجين صلاحية الصور عشان نحفظ في المعرض. فعّلها من إعدادات التليفون.', micFailed: 'المايك مش شغال دلوقتي. اقفل التطبيق وافتحه تاني، ولو فضل كده ابعت بلاغ.', dragCancel: 'اسحب بعيد للإلغاء', holdMic: 'اضغط مع الاستمرار وتكلم',
     restartForLayout: 'اقفل التطبيق وافتحه تاني عشان الشكل يتظبط على اللغة.',
     signIn: 'الدخول', phoneLabel: 'رقم الموبايل المسجل', phoneHint: 'هيوصلك كود على البوت (تليجرام أو واتساب).', sendCode: 'ابعتلي الكود',
     codeLabel: 'الكود (6 أرقام)', verify: 'دخول', changeNumber: 'غيّر الرقم', resend: 'ابعت الكود تاني', codeSent: 'لو الرقم ده مسجل، الكود هيوصلك على البوت خلال دقيقة.',
@@ -29,8 +30,9 @@ const strings = {
     placeNew: 'مكان جديد (مش في القائمة)', placeBoth: 'لو كمبوند اكتب الاسمين: الكمبوند والمنطقة أحسن. المنطقة اختيارية لو كتبت الكمبوند.', appearance: 'المظهر', appSystem: 'النظام', appLight: 'فاتح', appDark: 'داكن', languageTitle: 'اللغة', clientLangTitle: 'لغة الرسائل للعملاء', clientLangHint: 'بتتكتب بيها الرسائل واللينكات والفلاير اللي بتبعتها للعميل.', appVersionLabel: 'نسخة التطبيق', contactUs: 'تواصل معانا', contactType: 'النوع', typeBug: 'مشكلة', typeSuggestion: 'اقتراح', typeRequest: 'طلب', contactHint: 'اكتب اقتراحك أو طلبك أو المشكلة. بنبعت معاها نسخة التطبيق ونوع التليفون عشان نساعدك أسرع.', contactEmail: 'أو راسلنا على:', copyAnswer: 'انسخ أو شارك الإجابة', copied: 'اتنسخ', ownerHistory: 'سجل العميل',
   },
   en: {
+    voiceSlideCancel: 'Slide to cancel', voiceQuickHint: 'Hold to record, release to send', voiceStart: 'Start recording', voiceSend: 'Stop and send', voiceDiscard: 'Discard recording', voiceLockHint: 'Slide up to lock the recording', sendBtn: 'Send', voiceRecording: 'Recording',
     photosRetry: 'The unit details were saved, but the photos did not upload. Press Save again for the photos.',
-    tapRetry: 'Tap to retry', saveToGallery: 'Save to gallery', savedToGallery: 'Saved to your gallery.', galleryDenied: 'Photos permission is needed to save to the gallery. Turn it on in phone settings.', micFailed: 'The microphone is not working right now. Close and reopen the app, and report it if it keeps happening.', dragCancel: 'Slide away to cancel', holdMic: 'Press and hold, then speak',
+    retryPhoto: 'Retry uploading the photo', photoUploaded: 'Uploaded', movePhoto: 'Reorder photo', moveEarlier: 'Move photo earlier', moveLater: 'Move photo later', tapRetry: 'Tap to retry', saveToGallery: 'Save to gallery', savedToGallery: 'Saved to your gallery.', galleryDenied: 'Photos permission is needed to save to the gallery. Turn it on in phone settings.', micFailed: 'The microphone is not working right now. Close and reopen the app, and report it if it keeps happening.', dragCancel: 'Slide away to cancel', holdMic: 'Press and hold, then speak',
     restartForLayout: 'Close the app and open it again to apply the language layout.',
     signIn: 'Sign in', phoneLabel: 'Your registered mobile', phoneHint: 'A code reaches you through the bot (Telegram or WhatsApp).', sendCode: 'Send me the code',
     codeLabel: 'Code (6 digits)', verify: 'Sign in', changeNumber: 'Change number', resend: 'Send the code again', codeSent: 'If this number is registered, the code reaches you through the bot within a minute.',

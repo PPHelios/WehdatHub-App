@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { memo, useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../components/AppText';
+import { FlashList } from '@shopify/flash-list';
 import { BusySwitch } from '../components/BusySwitch';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError } from '@wehdathub/shared';
+import type { ClientRequest, Lang } from '@wehdathub/shared';
 import { api } from '../api';
 import { Field } from '../components/Field';
 import { currentLang } from '../auth';
@@ -47,9 +50,28 @@ function AddRequest({ onDone }: { onDone: () => void }) {
   );
 }
 
+const RequestCard = memo(function RequestCard({ r, tab, lang, onOpenLead, onFulfil, onDelete }: { r: ClientRequest; tab: 'pending' | 'fulfilled'; lang: Lang; onOpenLead: (ref: string) => void; onFulfil: (id: string) => Promise<void>; onDelete: (id: string) => Promise<void> }) {
+  const { colors, elev } = useTheme();
+  return (
+    <View testID={`request-${r.id}`} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Text style={{ color: colors.text, fontWeight: '700' }}>{r.alerts ? '🔔 ' : ''}{lang === 'en' && r.summary_en ? r.summary_en : r.summary}</Text>
+      {r.lead ? (
+        <Pressable testID={`request-lead-${r.id}`} accessibilityRole="button" onPress={() => onOpenLead(r.lead!.ref)}>
+          <Text style={{ color: colors.primaryInk }}>👤 {r.lead.name || r.lead.ref}</Text>
+        </Pressable>
+      ) : <Text testID={`request-nolead-${r.id}`} style={{ color: colors.muted }}>{t(lang, 'noLead')}</Text>}
+      <Text style={{ color: colors.muted }}>{r.matches} {t(lang, 'matchesN')}</Text>
+      <View style={styles.row}>
+        {tab === 'pending' ? <View style={styles.flex}><Button testID={`request-fulfil-${r.id}`} variant="secondary" label={t(lang, 'markFulfilled')} onPress={async () => onFulfil(r.id)} /></View> : null}
+        <View style={styles.flex}><Button testID={`request-delete-${r.id}`} variant="secondary" label={t(lang, 'delete')} onPress={async () => onDelete(r.id)} /></View>
+      </View>
+    </View>
+  );
+});
+
 /** Client requests (a saved search for a client, with alerts): Pending and Fulfilled. Brokers see their own, managers the whole agency. */
 export function ClientRequestsScreen() {
-  const { colors, elev } = useTheme();
+  const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const qc = useQueryClient();
@@ -60,40 +82,39 @@ export function ClientRequestsScreen() {
     queryFn: ({ pageParam }) => api.clientRequests(tab, pageParam),
     getNextPageParam: (last) => (last.more || (last.pages !== undefined && last.page < last.pages) ? last.page + 1 : undefined),
   });
-  const items = list.data?.pages.flatMap((p) => p.items) ?? [];
-  const refresh = () => qc.invalidateQueries({ queryKey: ['clientRequests'] });
+  const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
+  const refresh = useCallback(() => qc.invalidateQueries({ queryKey: ['clientRequests'] }), [qc]);
+  const openLead = useCallback((ref: string) => nav.navigate('Lead', { ref }), [nav]);
+  const fulfil = useCallback(async (id: string) => { await api.clientRequestFulfil(id); await refresh(); }, [refresh]);
+  const remove = useCallback(async (id: string) => { await api.clientRequestDelete(id); await refresh(); }, [refresh]);
+  const renderItem = useCallback(({ item }: { item: ClientRequest }) => <RequestCard r={item} tab={tab} lang={lang} onOpenLead={openLead} onFulfil={fulfil} onDelete={remove} />, [tab, lang, openLead, fulfil, remove]);
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
-      <AddRequest onDone={refresh} />
-      <Chips<'pending' | 'fulfilled'> testID="requests-tab" value={tab} options={[{ value: 'pending', label: t(lang, 'tabPending') }, { value: 'fulfilled', label: t(lang, 'tabFulfilled') }]} onChange={setTab} />
-      {list.isPending ? <Loading label={t(lang, 'loading')} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} /> : (
-        <>
-          {!items.length ? <Text testID="requests-empty" style={{ color: colors.muted }}>{t(lang, 'noRequests')}</Text> : null}
-          {items.map((r) => (
-            <View key={r.id} testID={`request-${r.id}`} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>{r.alerts ? '🔔 ' : ''}{lang === 'en' && r.summary_en ? r.summary_en : r.summary}</Text>
-              {r.lead ? (
-                <Pressable testID={`request-lead-${r.id}`} accessibilityRole="button" onPress={() => nav.navigate('Lead', { ref: r.lead!.ref })}>
-                  <Text style={{ color: colors.primaryInk }}>👤 {r.lead.name || r.lead.ref}</Text>
-                </Pressable>
-              ) : <Text testID={`request-nolead-${r.id}`} style={{ color: colors.muted }}>{t(lang, 'noLead')}</Text>}
-              <Text style={{ color: colors.muted }}>{r.matches} {t(lang, 'matchesN')}</Text>
-              <View style={styles.row}>
-                {tab === 'pending' ? <View style={styles.flex}><Button testID={`request-fulfil-${r.id}`} variant="secondary" label={t(lang, 'markFulfilled')} onPress={async () => { await api.clientRequestFulfil(r.id); await refresh(); }} /></View> : null}
-                <View style={styles.flex}><Button testID={`request-delete-${r.id}`} variant="secondary" label={t(lang, 'delete')} onPress={async () => { await api.clientRequestDelete(r.id); await refresh(); }} /></View>
-              </View>
-            </View>
-          ))}
-          {list.hasNextPage ? <Button testID="requests-more" variant="secondary" label={t(lang, 'loadMore')} onPress={async () => { await list.fetchNextPage(); }} /> : null}
-        </>
+    <FlashList
+      style={{ backgroundColor: colors.bg }}
+      contentContainerStyle={styles.pad}
+      keyboardShouldPersistTaps="handled"
+      data={items}
+      keyExtractor={(r) => r.id}
+      renderItem={renderItem}
+      onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
+      onEndReachedThreshold={0.6}
+      ListHeaderComponent={(
+        <View style={styles.head}>
+          <AddRequest onDone={refresh} />
+          <Chips<'pending' | 'fulfilled'> testID="requests-tab" value={tab} options={[{ value: 'pending', label: t(lang, 'tabPending') }, { value: 'fulfilled', label: t(lang, 'tabFulfilled') }]} onChange={setTab} />
+        </View>
       )}
-    </ScrollView>
+      ListEmptyComponent={list.isPending ? <Loading label={t(lang, 'loading')} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} /> : <Text testID="requests-empty" style={{ color: colors.muted }}>{t(lang, 'noRequests')}</Text>}
+      ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : null}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  pad: { padding: spacing.lg, gap: spacing.md },
+  pad: { padding: spacing.lg },
+  head: { gap: spacing.md, marginBottom: spacing.md },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
-  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
+  footer: { padding: spacing.lg },
+  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.md },
 });

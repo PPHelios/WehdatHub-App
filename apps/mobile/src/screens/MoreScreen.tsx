@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../components/AppText';
 import { BusySwitch } from '../components/BusySwitch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
@@ -23,6 +24,7 @@ import { clearDraft } from '../draft';
 import { t } from '../i18n';
 import { lockAvailable, useLock } from '../lock';
 import { useRights } from '../rights';
+import { meOptions } from '../queries';
 import { moreItems, navPlan } from '../roleNav';
 import type { MoreScreenName } from '../roleNav';
 import { stopPush } from '../push';
@@ -58,7 +60,8 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
   useEffect(() => {
     void lockAvailable().then(setCanLock);
   }, []);
-  const me = useQuery({ queryKey: ['me'], queryFn: () => api.me(), staleTime: 5 * 60_000 });
+  const signedIn = useAuth((a) => a.status === 'signedIn');
+  const me = useQuery(meOptions(signedIn));
   const ts = me.data?.testSwitch ?? null;
   // The server's grouped menu when it sends one (same groups as the website); the older role list otherwise.
   const sections = moreSections(me.data?.nav, rights);

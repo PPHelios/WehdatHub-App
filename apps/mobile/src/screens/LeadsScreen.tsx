@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { memo, useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { ApiLead, LeadTab, LeadsPage } from '@wehdathub/shared';
+import type { ApiLead, Lang, LeadTab, LeadsPage } from '@wehdathub/shared';
+import { rowDate } from '../dates';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
@@ -28,7 +30,8 @@ export function LeadsScreen() {
   const wide = useWide();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [picked, setPicked] = useState<string | null>(null);
-  if (!wide) return <LeadsList onOpen={(r) => nav.navigate('Lead', { ref: r })} />;
+  const openLead = useCallback((r: string) => nav.navigate('Lead', { ref: r }), [nav]);
+  if (!wide) return <LeadsList onOpen={openLead} />;
   return <Split list={<LeadsList onOpen={setPicked} single />} detail={picked ? <LeadScreen leadRef={picked} key={picked} /> : <View style={styles.flex} />} />;
 }
 
@@ -54,20 +57,20 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
     queryFn: ({ pageParam }) => api.leads({ tab, q, offset: pageParam, broker: unassigned ? 'none' : brokerFilter }),
     getNextPageParam: (last: LeadsPage) => (last.more ? last.offset + last.limit : undefined),
   });
-  const items = list.data?.pages.flatMap((p) => p.items) ?? [];
+  const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
   // The number on every tab, from the start.
-  const tabCounts = useQuery({ queryKey: ['leads', 'counts', q], queryFn: () => api.leadCounts(q || undefined), select: (d) => d.counts }).data;
+  const tabCounts = useQuery({ queryKey: ['leads', 'counts', { q }], queryFn: () => api.leadCounts(q || undefined), select: (d) => d.counts }).data;
   const queries = useQueryClient();
   // Press and hold a lead: call it, or mark it as called, without opening it.
-  const callLead = (l: ApiLead) => {
+  const callLead = useCallback((l: ApiLead) => {
     tick();
     if (l.phones[0]) Linking.openURL(`tel:${l.phones[0]}`).catch(() => undefined);
-  };
-  const markLead = (l: ApiLead) => {
+  }, []);
+  const markLead = useCallback((l: ApiLead) => {
     tick();
     api.leadCalled(l.ref, l.version).then(() => { tick(); return queries.invalidateQueries({ queryKey: ['leads'] }); }).catch((e) => toast(errorText(e, lang), true));
-  };
-  const quick = (l: ApiLead) => {
+  }, [queries, lang]);
+  const quick = useCallback((l: ApiLead) => {
     tick();
     const buttons = [
       ...(l.phones[0] ? [{ text: t(lang, 'quickCall'), onPress: () => { Linking.openURL(`tel:${l.phones[0]}`).catch(() => undefined); } }] : []),
@@ -75,7 +78,16 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
       { text: t(lang, 'cancel'), style: 'cancel' as const },
     ];
     Alert.alert(l.name || l.ref, undefined, buttons);
-  };
+  }, [queries, lang]);
+  const press = useCallback((l: ApiLead) => {
+    if (!selecting) { onOpen(l.ref); return; }
+    setSel((c) => { const n = { ...c }; if (n[l.ref]) delete n[l.ref]; else n[l.ref] = l; return n; });
+  }, [selecting, onOpen]);
+  const renderItem = useCallback(
+    ({ item }: { item: ApiLead }) => <LeadItem lead={item} lang={lang} picked={selecting ? Boolean(sel[item.ref]) : undefined} onPress={press} onQuick={quick} onCall={callLead} onMark={markLead} />,
+    [lang, selecting, sel, press, quick, callLead, markLead],
+  );
+  const listExtra = useMemo(() => ({ selecting, sel }), [selecting, sel]);
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
@@ -106,11 +118,8 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
           numColumns={columns}
             data={items}
             keyExtractor={(l) => l.ref}
-            renderItem={({ item }) => (
-              <SwipeRow rightLabel={`📞 ${t(lang, 'quickCall')}`} leftLabel={`✓ ${t(lang, 'markCalled')}`} onSwipeRight={() => callLead(item)} onSwipeLeft={() => markLead(item)}>
-                <LeadRow lead={item} picked={selecting ? Boolean(sel[item.ref]) : undefined} onPress={() => (selecting ? setSel((c) => { const n = { ...c }; if (n[item.ref]) delete n[item.ref]; else n[item.ref] = item; return n; }) : onOpen(item.ref))} onQuick={() => quick(item)} />
-              </SwipeRow>
-            )}
+            renderItem={renderItem}
+            extraData={listExtra}
             onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
             onEndReachedThreshold={0.6}
             refreshing={list.isRefetching && !list.isFetchingNextPage}
@@ -136,22 +145,30 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   );
 }
 
-function LeadRow({ lead, picked, onPress, onQuick }: { lead: ApiLead; picked?: boolean; onPress: () => void; onQuick: () => void }) {
+/** One row: swipe to call or mark called, tap to open, press and hold for the quick menu. */
+const LeadItem = memo(function LeadItem({ lead, lang, picked, onPress, onQuick, onCall, onMark }: { lead: ApiLead; lang: Lang; picked?: boolean; onPress: (l: ApiLead) => void; onQuick: (l: ApiLead) => void; onCall: (l: ApiLead) => void; onMark: (l: ApiLead) => void }) {
+  return (
+    <SwipeRow rightLabel={`📞 ${t(lang, 'quickCall')}`} leftLabel={`✓ ${t(lang, 'markCalled')}`} onSwipeRight={() => onCall(lead)} onSwipeLeft={() => onMark(lead)}>
+      <LeadRow lead={lead} lang={lang} picked={picked} onPress={onPress} onQuick={onQuick} />
+    </SwipeRow>
+  );
+});
+
+const LeadRow = memo(function LeadRow({ lead, lang, picked, onPress, onQuick }: { lead: ApiLead; lang: Lang; picked?: boolean; onPress: (l: ApiLead) => void; onQuick: (l: ApiLead) => void }) {
   const { colors, elev } = useTheme();
-  const lang = currentLang();
   const due = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
   const late = due !== null && due.getTime() < Date.now();
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} onLongPress={onQuick} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: picked ? colors.primary : colors.border }, picked && { borderWidth: 2 }]}>
+    <Pressable accessibilityRole="button" onPress={() => onPress(lead)} onLongPress={() => onQuick(lead)} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: picked ? colors.primary : colors.border }, picked && { borderWidth: 2 }]}>
       <View style={styles.cardTop}>
         <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{picked === undefined ? '' : picked ? '☑ ' : '☐ '}{lead.name || lead.ref}</Text>
         <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{stageLabel(lang, lead.stage)}</Text>
       </View>
       <Text style={{ color: colors.muted }}>{lead.ref}{lead.phones[0] ? ` · ${lead.phones[0]}` : ''} · {lead.assignee ?? t(lang, 'unassigned')}</Text>
-      {due ? <Text style={{ color: late ? colors.danger : colors.accentInk, fontWeight: '600' }}>{late ? `${t(lang, 'tabOverdue')} · ` : ''}{due.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</Text> : null}
+      {due ? <Text style={{ color: late ? colors.danger : colors.accentInk, fontWeight: '600' }}>{late ? `${t(lang, 'tabOverdue')} · ` : ''}{rowDate(lang, due)}</Text> : null}
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },

@@ -457,16 +457,16 @@ export interface ApiClientOptions {
 export function createApiClient(opts: ApiClientOptions) {
   const doFetch = opts.fetchImpl ?? fetch;
 
-  async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>): Promise<T> {
+  async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>, signal?: AbortSignal): Promise<T> {
     const end = method === 'GET' ? undefined : opts.onWrite?.(method, path);
     try {
-      return await send<T>(method, path, body, query);
+      return await send<T>(method, path, body, query, signal);
     } finally {
       if (end) end();
     }
   }
 
-  async function send<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>): Promise<T> {
+  async function send<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>, signal?: AbortSignal): Promise<T> {
     // An array repeats the key (f=roof&f=garden), as the server reads it.
     const qs = query
       ? Object.entries(query)
@@ -479,11 +479,23 @@ export function createApiClient(opts: ApiClientOptions) {
     const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
     if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
     if (token) headers.Authorization = `Bearer ${token}`;
+    // JSON writes with no caller signal get a 30 s limit (built by hand: AbortSignal.timeout is not in every Hermes). Uploads (FormData) are left alone: a slow photo upload must not be cut.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let sig = signal;
+    if (!sig && method !== 'GET' && !isForm) {
+      const ctl = new AbortController();
+      timer = setTimeout(() => ctl.abort(), 30_000);
+      sig = ctl.signal;
+    }
     let res: Response;
     try {
-      res = await doFetch(`${opts.baseUrl}/api/v1${path}${qs ? `?${qs}` : ''}`, { method, headers, body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body) });
-    } catch {
+      res = await doFetch(`${opts.baseUrl}/api/v1${path}${qs ? `?${qs}` : ''}`, { method, headers, signal: sig, body: body === undefined ? undefined : isForm ? (body as FormData) : JSON.stringify(body) });
+    } catch (e) {
+      // A cancelled query (the caller's signal) is not a network failure: rethrow so the query is just dropped.
+      if (signal?.aborted) throw e;
       throw new ApiClientError(0, 'network');
+    } finally {
+      if (timer) clearTimeout(timer);
     }
     if (res.ok) return (res.status === 204 ? undefined : await res.json()) as T;
     let code = 'error';
@@ -512,7 +524,7 @@ export function createApiClient(opts: ApiClientOptions) {
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
-    me: () => request<{ broker: ApiBroker; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me'),
+    me: (signal?: AbortSignal) => request<{ broker: ApiBroker; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me', undefined, undefined, signal),
     testRole: (role: string) => request<{ ok: true; role: string }>('POST', '/test-role', { role }),
     testView: (view: 'home' | 'other') => request<{ ok: true; viewing: boolean }>('POST', '/test-view', { view }),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
@@ -526,7 +538,7 @@ export function createApiClient(opts: ApiClientOptions) {
       form.append('voice', file as unknown as Blob);
       return request<{ q: string }>('POST', '/search/voice', form);
     },
-    config: () => request<AppConfig>('GET', '/config'),
+    config: (signal?: AbortSignal) => request<AppConfig>('GET', '/config', undefined, undefined, signal),
     registerDevice: (token: string, platform: 'android' | 'ios') => request<{ ok: true }>('POST', '/devices', { token, platform }),
     removeDevice: (token: string) => request<{ ok: true }>('POST', '/devices/remove', { token }),
     leads: (o: { tab?: LeadTab; q?: string; offset?: number; broker?: string } = {}) => request<LeadsPage>('GET', '/leads', undefined, { tab: o.tab && o.tab !== 'all' ? o.tab : undefined, q: o.q, offset: o.offset || undefined, broker: o.broker }),
@@ -586,7 +598,7 @@ export function createApiClient(opts: ApiClientOptions) {
     /** `to` is a lead ref (L-0042) or a mobile number; leave it out to share without a client. */
     unitMessage: (code: string, lang: Lang) => request<{ message: string }>('GET', `/units/${encodeURIComponent(code)}/message`, undefined, { lang }),
     unitShareLink: (code: string, lang: Lang, to?: string) => request<{ url: string; recipientPhone: string | null; leadLinked: boolean }>('POST', `/units/${encodeURIComponent(code)}/share-link`, { lang, ...(to ? { to } : {}) }),
-    team: () => request<{ items: TeamMember[] }>('GET', '/team'),
+    team: (signal?: AbortSignal) => request<{ items: TeamMember[] }>('GET', '/team', undefined, undefined, signal),
     teamRules: () => request<TeamRules>('GET', '/team/rules'),
     saveTeamRules: (b: { enabled: boolean; wait_minutes: string; start: string; end: string; days: number[]; max_jumps: number }) => request<{ rules: TeamRules['rules'] }>('POST', '/team/rules', b),
     saveTeamRouting: (b: { roundRobin: boolean; order: string[] }) => request<{ roundRobin: boolean; order: string[] }>('POST', '/team/routing', b),
@@ -658,7 +670,7 @@ export function createApiClient(opts: ApiClientOptions) {
     plan: () => request<{ allowance: PlanAllowance; payTo: { instapay: string; bank: string }; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean }>('GET', '/plan'),
     planPay: (body: PlanPayBody) => request<{ ok: true; payment: Row }>('POST', '/plan/pay', body),
     creditRequest: (credits: number, note: string) => request<{ ok: true }>('POST', '/plan/credit-request', { credits, note }),
-    usage: () => request<{ allowance: PlanAllowance; ai?: AiUsage }>('GET', '/usage'),
+    usage: (signal?: AbortSignal) => request<{ allowance: PlanAllowance; ai?: AiUsage }>('GET', '/usage', undefined, undefined, signal),
     platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean }>('GET', '/platform'),
     platformAgency: (id: string, action: 'suspend' | 'resume') => request<{ ok: boolean }>('POST', `/platform/agencies/${id}/${action}`, {}),
     platformSignup: (open: boolean) => request<{ ok: true }>('POST', '/platform/signup', { open }),

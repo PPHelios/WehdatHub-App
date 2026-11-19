@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { ApiClientError } from '@wehdathub/shared';
 import type { PhotoUploadLink, UploadFile } from '@wehdathub/shared';
 import { api } from './api';
+import { compressAhead } from './compress';
 import { uploadPhoto } from './photoUpload';
 
 type SetPhotos = (f: (p: UploadFile[]) => UploadFile[]) => void;
@@ -33,8 +34,10 @@ export function usePhotoUploads(photos: UploadFile[], setPhotos: SetPhotos) {
       if (e instanceof ApiClientError && (e.status === 404 || e.status === 405)) { legacy.current = true; return keptNow(); }
       return null;
     }
+    // shortcut: uploads serial because Render + Supabase are on free plans, parallelize when upgraded to paid
+    const shrunk = compressAhead(todo); // only the shrinking runs ahead (2 at a time); the sending below stays one photo at a time, in order
     let done = 0;
-    for (const file of todo) {
+    for (const [n, file] of todo.entries()) {
       const link = links.shift();
       if (!link) return null;
       let last = -10;
@@ -43,7 +46,7 @@ export function usePhotoUploads(photos: UploadFile[], setPhotos: SetPhotos) {
         await uploadPhoto(file, link, (pct) => {
           onProgress(done, todo.length, (done + pct / 100) / todo.length);
           if (pct - last >= 5 || pct === 100) { last = pct; patch(file.uri, { pct }); }
-        });
+        }, shrunk[n]);
         keys[file.uri] = link.key;
         patch(file.uri, { key: link.key, pct: 100 });
         done += 1;

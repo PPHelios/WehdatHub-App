@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { BusySwitch } from './BusySwitch';
 import type { Lang, UnitFields } from '@wehdathub/shared';
 import { ux } from '../unitExtraText';

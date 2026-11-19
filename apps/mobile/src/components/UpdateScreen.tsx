@@ -1,5 +1,6 @@
 import React from 'react';
-import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import type { AppConfig } from '@wehdathub/shared';
 import { currentLang } from '../auth';
 import { t } from '../i18n';

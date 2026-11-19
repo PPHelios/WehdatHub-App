@@ -1,34 +1,50 @@
-import React, { useRef } from 'react';
-import { Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { I18nManager, StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+import { AppText as Text } from './AppText';
 import { spacing, useTheme } from '../theme';
 
 const TRIGGER = 90;
+/** In right-to-left the labels swap sides (the first one sits on the right), so the swipe direction flips with them. */
+const dxOf = (dx: number, rtl: boolean) => {
+  'worklet';
+  return rtl ? -dx : dx;
+};
 
 /** Swipe right for one action, left for another; the row springs back after. Works the same on Android and iOS. */
 export function SwipeRow({ children, rightLabel, leftLabel, onSwipeRight, onSwipeLeft }: { children: React.ReactNode; rightLabel: string; leftLabel: string; onSwipeRight: () => void; onSwipeLeft: () => void }) {
   const { colors } = useTheme();
-  const x = useRef(new Animated.Value(0)).current;
-  const handlers = useRef({ onSwipeRight, onSwipeLeft });
-  handlers.current = { onSwipeRight, onSwipeLeft };
-  const pan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
-      onPanResponderMove: (_, g) => x.setValue(Math.max(-160, Math.min(160, g.dx))),
-      onPanResponderRelease: (_, g) => {
-        Animated.spring(x, { toValue: 0, useNativeDriver: true }).start();
-        if (g.dx > TRIGGER) handlers.current.onSwipeRight();
-        else if (g.dx < -TRIGGER) handlers.current.onSwipeLeft();
-      },
-      onPanResponderTerminate: () => Animated.spring(x, { toValue: 0, useNativeDriver: true }).start(),
-    }),
-  ).current;
+  const x = useSharedValue(0);
+  const rtl = I18nManager.isRTL; // read here: the UI thread cannot reach I18nManager
+  // Runs on the UI thread: a mostly horizontal drag past 14 points takes over; a vertical one leaves the list scrolling.
+  const pan = Gesture.Pan()
+    .activeOffsetX([-14, 14])
+    .failOffsetY([-14, 14])
+    .onUpdate((e) => {
+      x.value = Math.max(-160, Math.min(160, e.translationX));
+    })
+    .onEnd((e, success) => {
+      x.value = withSpring(0);
+      if (!success) return;
+      const dx = dxOf(e.translationX, rtl);
+      if (dx > TRIGGER) scheduleOnRN(onSwipeRight);
+      else if (dx < -TRIGGER) scheduleOnRN(onSwipeLeft);
+    })
+    .onFinalize(() => {
+      x.value = withSpring(0);
+    });
+  const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   return (
     <View>
       <View style={[styles.under, { backgroundColor: colors.card }]}>
         <Text style={[styles.label, { color: colors.primaryInk }]}>{rightLabel}</Text>
         <Text style={[styles.label, { color: colors.accent }]}>{leftLabel}</Text>
       </View>
-      <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: x }] }}>{children}</Animated.View>
+      <GestureDetector gesture={pan}>
+        <Animated.View style={rowStyle}>{children}</Animated.View>
+      </GestureDetector>
     </View>
   );
 }

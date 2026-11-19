@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Linking, Text } from 'react-native';
+import { Linking } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useQuery } from '@tanstack/react-query';
 import { ApiClientError } from '@wehdathub/shared';
 import { api } from '../api';

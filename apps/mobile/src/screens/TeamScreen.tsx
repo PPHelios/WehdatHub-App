@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -8,6 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError } from '@wehdathub/shared';
 import type { ApiLead } from '@wehdathub/shared';
 import { api } from '../api';
+import { teamOptions } from '../queries';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
@@ -28,7 +30,7 @@ export function TeamScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const rights = useRights();
   const [view, setView] = React.useState<'active' | 'former'>('active');
-  const q = useQuery({ queryKey: ['team'], queryFn: () => api.team() });
+  const q = useQuery(teamOptions());
   const canManage = rights.manager || rights.agencyOwner;
   const switcher = canManage ? (
     <View style={{ flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
@@ -118,7 +120,7 @@ export function MemberRole({ id, role, teamLeadId, run }: { id: string; role: st
   const lang = currentLang();
   const { colors } = useTheme();
   const rights = useRights();
-  const team = useQuery({ queryKey: ['team'], queryFn: () => api.team() });
+  const team = useQuery(teamOptions());
   const owner = rights.agencyOwner;
   const manager = rights.manager || owner;
   const cur = role as MemberRoleName;

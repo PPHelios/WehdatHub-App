@@ -24,8 +24,8 @@ const blobOf = async (uri: string): Promise<Blob> => (await fetch(uri)).blob();
  * One photo: shrink it (1600 px JPEG), send it, then its small 360x270 copy for lists. The photo is 0 to 90%, the small copy the rest.
  * A failed small copy does not fail the photo. Throws when the photo itself could not be sent.
  */
-export async function uploadPhoto(file: UploadFile, link: PhotoUploadLink, onPct: (pct: number) => void): Promise<void> {
-  const small = await compressPhoto(file);
+export async function uploadPhoto(file: UploadFile, link: PhotoUploadLink, onPct: (pct: number) => void, ready?: Promise<UploadFile>): Promise<void> {
+  const small = await (ready ?? compressPhoto(file));
   await putBytes(link.upload_url, await blobOf(small.uri), (p) => onPct(Math.round(p * 0.9)));
   onPct(90);
   if (link.thumb_upload_url) {

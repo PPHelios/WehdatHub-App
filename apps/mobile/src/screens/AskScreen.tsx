@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../components/AppText';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError } from '@wehdathub/shared';
@@ -13,7 +14,7 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import { pt } from '../projectText';
 import { radius, spacing, useTheme } from '../theme';
-import { HoldMic } from '../components/HoldMic';
+import { VoiceBar } from '../components/VoiceBar';
 import { AskResults } from '../components/AskResults';
 import type { RootStackParams } from '../navigation';
 import { toastError } from '../components/Toast';
@@ -58,10 +59,8 @@ export function AskScreen() {
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Field testID="ask-input" label={t(lang, 'askHint')} value={question} onChangeText={setQuestion} multiline />
-      <View style={styles.row}>
-        <View style={styles.flex}><Button testID="ask-go" label={t(lang, 'askBtn')} loading={busy} onPress={() => ask()} /></View>
-        <View style={styles.flex}><HoldMic testID="ask-mic" label={t(lang, 'micAsk')} onFile={onVoice} onError={setError} disabled={busy} /></View>
-      </View>
+      <Button testID="ask-go" label={t(lang, 'askBtn')} loading={busy} onPress={() => ask()} />
+      <VoiceBar id="ask" label={t(lang, 'micAsk')} onFile={onVoice} onError={setError} disabled={busy} />
       {error ? <Text testID="ask-error" style={{ color: colors.danger }}>{error}</Text> : null}
       {out ? (
         <View testID="ask-answer" style={[styles.box, elev('md'), { borderColor: out.found ? colors.accent : colors.border, backgroundColor: colors.card }]}>
@@ -79,7 +78,5 @@ export function AskScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.md },
-  row: { flexDirection: 'row', gap: spacing.sm },
-  flex: { flex: 1 },
   box: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
 });

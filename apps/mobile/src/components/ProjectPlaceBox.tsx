@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text, AppTextInput as TextInput } from './AppText';
 import type { BoxFeature, BoxPlace, Lang } from '@wehdathub/shared';
 import { featureChip } from '../featureLabels';
 import { NO_AREA, areaPatch, newSubareaPatch } from '../projectRules';

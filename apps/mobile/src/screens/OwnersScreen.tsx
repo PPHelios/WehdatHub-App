@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ltr } from '@wehdathub/shared';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -68,8 +69,7 @@ function RenameRequests({ items }: { items: { id: number; code: string; old_valu
   const qc = useQueryClient();
   const decide = async (id: number, ok: boolean) => {
     await api.decideRename(id, ok).catch((e) => toast(errorText(e, lang), true));
-    await qc.invalidateQueries({ queryKey: ['ownerRenames'] });
-    await qc.invalidateQueries({ queryKey: ['owners'] });
+    await Promise.all([qc.invalidateQueries({ queryKey: ['ownerRenames'] }), qc.invalidateQueries({ queryKey: ['owners'] })]);
   };
   return (
     <View testID="rename-requests" style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -106,8 +106,7 @@ export function OwnerScreen() {
     setMsg(null);
     try {
       await fn();
-      await qc.invalidateQueries({ queryKey: ['owner', id] });
-      await qc.invalidateQueries({ queryKey: ['owners'] });
+      await Promise.all([qc.invalidateQueries({ queryKey: ['owner', id] }), qc.invalidateQueries({ queryKey: ['owners'] })]);
       if (ok) setMsg(ok);
     } catch (e) {
       setMsg(toastError(errorText(e, lang)));

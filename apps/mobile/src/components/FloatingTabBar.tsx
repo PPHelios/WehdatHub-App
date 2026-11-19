@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, I18nManager, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, I18nManager, Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FONT_BOLD } from '../fonts';

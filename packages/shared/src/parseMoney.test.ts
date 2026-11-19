@@ -9,6 +9,12 @@ describe('parseMoney', () => {
     expect(parseMoney('٣m')).toBe(3e6);
     expect(parseMoney('1.5m')).toBe(1.5e6);
   });
+  it('reads Arabic words and the Arabic thousands mark', () => {
+    expect(parseMoney('3 مليون')).toBe(3e6);
+    expect(parseMoney('٢٥٠ ألف')).toBe(250e3);
+    expect(parseMoney('250 الف')).toBe(250e3);
+    expect(parseMoney('3٬500٬000')).toBe(3.5e6);
+  });
   it('gives null for anything else', () => {
     expect(parseMoney('')).toBeNull();
     expect(parseMoney('cheap')).toBeNull();

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useQueryClient } from '@tanstack/react-query';
 import { ApiClientError } from '@wehdathub/shared';
 import type { ApiLead, ViewingSet } from '@wehdathub/shared';

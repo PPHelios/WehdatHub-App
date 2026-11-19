@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { AppText as Text } from './AppText';
 import { MAX_WIDTH } from '../layout';
 import { spacing } from '../theme';
 
@@ -52,7 +53,7 @@ export function PhotoGallery({ photos, closeLabel }: { photos: Photo[]; closeLab
         onMomentumScrollEnd={(e) => onEnd(e.nativeEvent.contentOffset.x)}
         renderItem={({ item, index: i }) => (
           <Pressable accessibilityRole="imagebutton" testID={!loop ? `photo-${i}` : i >= n && i < 2 * n ? `photo-${i - n}` : undefined} onPress={() => setFull(realIndex(i, n))}>
-            <Image source={{ uri: item.url }} style={{ width, height: h }} resizeMode="cover" />
+            <Image source={{ uri: item.url }} style={{ width, height: h }} resizeMode="cover" resizeMethod="resize" />
           </Pressable>
         )}
       />

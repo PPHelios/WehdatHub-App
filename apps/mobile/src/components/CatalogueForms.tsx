@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Text } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { currentLang } from '../auth';

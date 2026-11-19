@@ -3,8 +3,9 @@ import { startUsage, usage } from './src/usage';
 import { Alert, AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
 import { BusyProvider } from './src/busy';
 import { ToastHost } from './src/components/Toast';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, focusManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { DAY, KEPT, listsStore } from './src/lists';
 import { OfflineBanner } from './src/offline';
@@ -12,7 +13,7 @@ import { PlanBlockedGate } from './src/components/PlanBlockedGate';
 import { PlanLockSheet } from './src/components/PlanLockSheet';
 import { isOutdated } from '@wehdathub/shared';
 import type { AppConfig } from '@wehdathub/shared';
-import { api } from './src/api';
+import { configOptions } from './src/queries';
 import { useAuth } from './src/auth';
 import { LockScreen } from './src/components/LockScreen';
 import { UpdateScreen } from './src/components/UpdateScreen';
@@ -26,13 +27,17 @@ import { startCrashReports, startFirebase, startPush } from './src/push';
 import { watchShares } from './src/share';
 import { syncDirection } from './src/direction';
 import { usePrefs } from './src/prefs';
-import { installBrandFont } from './src/fonts';
 import { t } from './src/i18n';
 
 I18nManager.allowRTL(true);
-installBrandFont();
 
 const queries = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000, gcTime: DAY } } });
+
+// Tell TanStack when the app is in the foreground (refetch on focus).
+focusManager.setEventListener((handleFocus) => {
+  const sub = AppState.addEventListener('change', (st) => handleFocus(st === 'active'));
+  return () => sub.remove();
+});
 
 export default function App() {
   useEffect(() => installErrorReporting(), []);
@@ -50,7 +55,7 @@ export default function App() {
     useLock.getState().load();
     void usePrefs.getState().load();
     // The server says the lowest app version it supports. A failure to ask never blocks the app.
-    api.config().then((c) => isOutdated(APP_VERSION, c.minAppVersion) && setTooOld(c)).catch(() => undefined);
+    queries.fetchQuery(configOptions).then((c) => isOutdated(APP_VERSION, c.minAppVersion) && setTooOld(c)).catch(() => undefined);
   }, [restore]);
 
   // The layout direction follows the app language; a change only shows after the app is reopened.
@@ -88,6 +93,9 @@ export default function App() {
   useEffect(() => {
     if (status === 'signedOut') {
       clearPlaces().catch(() => undefined);
+      // The session ended (e.g. a 401): drop the last person's cached data, as the manual logout does.
+      queries.clear();
+      void listsStore.removeClient();
       return;
     }
     if (status !== 'signedIn') return;
@@ -103,8 +111,8 @@ export default function App() {
     if (status !== 'signedIn') return;
     let stop = () => undefined as void;
     let gone = false;
-    api
-      .config()
+    queries
+      .fetchQuery(configOptions)
       .then(async (c) => {
         if (gone || !(await startFirebase(c.firebase))) return;
         const id = useAuth.getState().broker?.id;
@@ -126,6 +134,7 @@ export default function App() {
   }, [status]);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       {tooOld ? (
@@ -143,5 +152,6 @@ export default function App() {
         </PersistQueryClientProvider>
       )}
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

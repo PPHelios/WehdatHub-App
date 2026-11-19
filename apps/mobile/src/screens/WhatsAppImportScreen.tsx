@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../components/AppText';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,7 +18,7 @@ import type { RootStackParams } from '../navigation';
 import { toggleKeep } from '../photos';
 import { uploadPhoto } from '../photoUpload';
 import { withRetries } from '../retry';
-import { compressPhotos } from '../compress';
+import { compressAhead, compressPhotos } from '../compress';
 import { reportError } from '../errorReport';
 import { useRights } from '../rights';
 import { newSaveKey, withSaveCheck } from '../saveKey';
@@ -109,7 +110,7 @@ export function WhatsAppImportScreen() {
   const photoFails = useRef<string[]>([]);
 
   const patchPost = useCallback((id: string, change: Partial<ImportPost>) => setList((l) => l.map((p) => (p.id === id ? { ...p, ...change } : p))), []);
-  const setPhotos = (id: string, fn: (photos: UploadFile[]) => UploadFile[]) => setList((l) => l.map((p) => (p.id === id ? { ...p, photos: fn(p.photos) } : p)));
+  const setPhotos = useCallback((id: string, fn: (photos: UploadFile[]) => UploadFile[]) => setList((l) => l.map((p) => (p.id === id ? { ...p, photos: fn(p.photos) } : p))), []);
   const goStage = (s: Stage) => { stageRef.current = s; setStage(s); };
 
   // The zip stays open while the screen is open. Closing waits for a save in progress (it is told to stop), then removes the photos and the zip copy.
@@ -424,10 +425,12 @@ export function WhatsAppImportScreen() {
   const uploadAll = async (files: UploadFile[]) => {
     const links = (await api.photoUploadLinks(Math.max(1, Math.min(15, files.length)))).uploads;
     const keys: string[] = [];
-    for (const file of files) {
+    // shortcut: uploads serial because Render + Supabase are on free plans, parallelize when upgraded to paid
+    const shrunk = compressAhead(files); // only the shrinking runs ahead (2 at a time); the sending below stays one photo at a time, in order
+    for (const [n, file] of files.entries()) {
       const link = links.shift();
       if (!link) throw new Error('links');
-      await withRetries(() => uploadPhoto(file, link, () => undefined));
+      await withRetries(() => uploadPhoto(file, link, () => undefined, shrunk[n]));
       keys.push(link.key);
     }
     return keys;
@@ -547,11 +550,24 @@ export function WhatsAppImportScreen() {
     setResult({ saved: tally.created + tally.updated, created: tally.created, updated: tally.updated, unchanged: unchanged.filter(Boolean), failed: tally.failed, photosFailed: [...photoFails.current] });
   };
 
+  // The cards are memoized: every callback below is stable and takes the post's id, so a tick or a note on one card redraws only that card.
+  const latest = useRef({ edit, discard });
+  latest.current = { edit, discard };
+  const onPick = useCallback((id: string) => setList((l) => l.map((p) => (p.id === id ? { ...p, picked: !p.picked } : p))), []);
+  const onToggleText = useCallback((id: string) => setOpenText((o) => ({ ...o, [id]: !o[id] })), []);
+  const onTogglePhoto = useCallback((id: string, uri: string) => setPhotos(id, (ph) => toggleKeep(ph, uri)), [setPhotos]);
+  const onMore = useCallback((id: string) => setMoreOpen((o) => ({ ...o, [id]: true })), []);
+  const onEdit = useCallback((id: string) => { const i = listRef.current.findIndex((p) => p.id === id); if (i >= 0) latest.current.edit(listRef.current[i], badgesRef.current[i]); }, []);
+  const onDiscard = useCallback((id: string) => { const i = listRef.current.findIndex((p) => p.id === id); if (i >= 0) latest.current.discard(listRef.current[i], badgesRef.current[i]); }, []);
+  const renderPost = useCallback(({ item: { p, index } }: { item: { p: ImportPost; index: number } }) => (
+    <PostCard p={p} badge={badges[index]} open={Boolean(openText[p.id])} moreOpen={Boolean(moreOpen[p.id])} locked={p.state === 'working' || adding}
+      onPick={onPick} onToggleText={onToggleText} onTogglePhoto={onTogglePhoto} onMore={onMore} onEdit={onEdit} onDiscard={onDiscard} />
+  ), [badges, openText, moreOpen, adding, onPick, onToggleText, onTogglePhoto, onMore, onEdit, onDiscard]);
+  const listExtra = useMemo(() => [openText, adding, moreOpen, badges, showDiscarded, showPrior, priorSaved, memCount, forgotNote], [openText, adding, moreOpen, badges, showDiscarded, showPrior, priorSaved, memCount, forgotNote]);
+
   const counts = importCounts(list, badges);
   const canSave = counts.willSave > 0;
   const buttonLabel = `${W.addSelected} (${counts.willSave})`;
-  const changeLine = (c: ChatPlanChange) => `${changeName(c.field)}: ${lang === 'en' ? c.from_en : c.from_ar} → ${lang === 'en' ? c.to_en : c.to_ar}`;
-  const changeName = (g: string) => (g === 'finishing' ? W.finishingName : (W as unknown as Record<string, string>)[`fc_${g}`] ?? g);
 
   // Leaving while a save runs, or with units still ticked, asks first (a save in progress stops at the next post).
   const dirty = useRef(false);
@@ -649,7 +665,7 @@ export function WhatsAppImportScreen() {
         windowSize={5}
         removeClippedSubviews
         ItemSeparatorComponent={Gap}
-        extraData={[openText, adding, moreOpen, badges, showDiscarded, showPrior, priorSaved, memCount, forgotNote]}
+        extraData={listExtra}
         ListHeaderComponent={(
       <View style={styles.headerBox}>
         <Text testID="wa-summary" style={{ color: colors.text, fontWeight: '700' }}>{fill(W.summary, { n: counts.remaining, p: counts.photos })}</Text>
@@ -737,64 +753,7 @@ export function WhatsAppImportScreen() {
         {forgotNote ? <Text testID="wa-forgot-note" style={{ color: colors.muted }}>{W.forgotten}</Text> : null}
       </View>
         )}
-        renderItem={({ item: { p, index: i } }) => {
-          const badge = badges[i];
-          const kept = keptOf(p).length;
-          const kind = kindOf(p, badge);
-          const changes = changesOf(p, badge);
-          const locked = p.state === 'working' || adding;
-          const open = Boolean(openText[p.id]);
-          const label = p.post.code ?? p.id;
-          const blockNote = p.blocker === 'other_unit' ? W.noteOtherUnit : p.blocker === 'older' ? W.noteOlder : p.blocker === 'invalid' ? W.noteInvalid : p.blocker === 'forbidden' ? W.noteForbidden : p.blocker === 'compare_failed' || (badge.kind === 'update' && !p.plan) ? W.noteCompare : null;
-          return (
-            <View key={p.id} testID={`wa-post-${p.id}`} style={[styles.card, elev('md'), { borderColor: missingFor(p).length ? colors.danger : colors.border, backgroundColor: colors.card }]}>
-              <View style={styles.row}>
-                <Pressable testID={`wa-pick-${p.id}`} accessibilityRole="checkbox" accessibilityLabel={fill(W.selectPost, { c: label })} accessibilityState={{ checked: p.picked, disabled: kind === 'error' || locked }} disabled={kind === 'error' || locked} onPress={() => patchPost(p.id, { picked: !p.picked })} style={styles.hit}>
-                  <View style={[styles.box, { borderColor: colors.primary, backgroundColor: p.picked ? colors.primary : 'transparent' }]}>
-                    <Text style={{ color: p.picked ? colors.onPrimary : 'transparent' }}>✓</Text>
-                  </View>
-                </Pressable>
-                <View style={styles.flex}>
-                  <BadgeLine W={W} badge={badge} colors={colors} />
-                  {kind === 'unchanged' ? <Text testID={`wa-unchanged-${p.id}`} style={{ color: colors.muted, fontWeight: '600' }}>{W.unchangedBadge}</Text> : null}
-                  {kind === 'updated' && changes?.length ? <Text testID={`wa-changes-${p.id}`} style={{ color: colors.accent, fontWeight: '600' }}>{fill(W.changesLine, { list: changes.map((c) => changeLine(c)).join(J) })}</Text> : null}
-                  {blockNote ? <Text testID={`wa-blocker-${p.id}`} style={{ color: colors.danger, fontWeight: '600' }}>{blockNote}</Text> : null}
-                  <Text style={[styles.small, { color: colors.muted }]} numberOfLines={1}>{[p.post.sender && looksLikePhone(p.post.sender) ? ltr(displayPhone(p.post.sender)) : p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
-                </View>
-                {p.state === 'working' ? <ActivityIndicator color={colors.primary} /> : null}
-              </View>
-              <SummaryGrid W={W} lang={lang} J={J} post={p} colors={colors} />
-              <Pressable testID={`wa-desc-${p.id}`} accessibilityRole="button" onPress={() => setOpenText((o) => ({ ...o, [p.id]: !o[p.id] }))}>
-                <Text style={[styles.small, styles.bold, { color: colors.muted }]}>💬 {W.originalTitle}</Text>
-                <Text style={[styles.small, { color: colors.muted }]} numberOfLines={open ? undefined : 3}>{p.post.orig || p.post.text}</Text>
-                <Text style={[styles.small, { color: colors.primaryInk }]}>{open ? W.showLess : W.showMore}</Text>
-              </Pressable>
-              {p.photos.length ? (
-                <View style={styles.photos}>
-                  <Text testID={`wa-count-${p.id}`} style={{ color: colors.muted }}>📷 {fill(W.kept, { k: kept })}{p.post.videos ? `  ·  ${fill(W.videosPost, { n: p.post.videos })}` : ''}</Text>
-                  {p.photos.length > 15 ? <Text style={{ color: colors.accent }}>{W.pickNote}</Text> : null}
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
-                    {(moreOpen[p.id] ? p.photos : p.photos.slice(0, THUMB_CAP)).map((f, n) => (
-                      <Pressable key={f.uri} testID={`wa-photo-${p.id}-${n}`} accessibilityRole="button" accessibilityLabel={fill(W.photoN, { n: n + 1 })} accessibilityState={{ selected: !f.notKept, disabled: locked }} disabled={locked} onPress={() => setPhotos(p.id, (ph) => toggleKeep(ph, f.uri))} style={f.notKept ? styles.dim : undefined}>
-                        <SmartImage uri={f.uri} style={styles.thumb} />
-                        <Text style={[styles.tick, { color: colors.onPrimary, backgroundColor: f.notKept ? colors.border : colors.primary }]}>{f.notKept ? '–' : '✓'}</Text>
-                      </Pressable>
-                    ))}
-                    {!moreOpen[p.id] && p.photos.length > THUMB_CAP ? (
-                      <Pressable testID={`wa-more-${p.id}`} accessibilityRole="button" accessibilityLabel={fill(W.morePhotos, { n: p.photos.length - THUMB_CAP })} onPress={() => setMoreOpen((o) => ({ ...o, [p.id]: true }))} style={[styles.thumb, styles.moreChip, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                        <Text style={{ color: colors.text, fontWeight: '700' }}>+{p.photos.length - THUMB_CAP}</Text>
-                      </Pressable>
-                    ) : null}
-                  </ScrollView>
-                </View>
-              ) : null}
-              {p.note ? <Text style={{ color: colors.danger }}>{p.state === 'needs_edit' ? `${W.stateNeedsEdit}: ` : ''}{p.note}</Text> : null}
-              {p.state === 'failed' && !p.note ? <Text style={{ color: colors.danger }}>{W.stateFailed}</Text> : null}
-              <Button label={badge.kind === 'update' ? W.editUpdate : W.edit} variant="secondary" disabled={locked || badge.kind === 'taken'} onPress={() => edit(p, badge)} />
-              <Button testID={`wa-discard-${p.id}`} label={fill(W.discardPost, { c: label })} variant="secondary" size="sm" disabled={locked} onPress={() => discard(p, badge)} />
-            </View>
-          );
-        }}
+        renderItem={renderPost}
       />
       <View style={[styles.bottom, { borderColor: colors.border, backgroundColor: colors.bg }]}>
         <Text testID="wa-ready" style={{ color: colors.muted, textAlign: 'center' }}>{`${fill(W.willSave, { n: counts.willSave, a: counts.newCount, b: counts.updated, m: counts.skipped, x: counts.errors, y: counts.unchanged, z: counts.discarded })}${counts.unticked > 0 ? fill(W.willSaveUnticked, { u: counts.unticked }) : ''}`}</Text>
@@ -852,6 +811,79 @@ function SummaryGrid({ W, lang, J, post, colors }: { W: ReturnType<typeof wi>; l
     </View>
   );
 }
+
+type Handler = (id: string) => void;
+type PostCardProps = {
+  p: ImportPost; badge: CodeBadge; open: boolean; moreOpen: boolean; locked: boolean;
+  onPick: Handler; onToggleText: Handler; onTogglePhoto: (id: string, uri: string) => void; onMore: Handler; onEdit: Handler; onDiscard: Handler;
+};
+
+/** One post to decide on. Memoized: it redraws only when its own post, badge or flags change (the badge object is rebuilt on every list change, so it is compared by value). */
+const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, onPick, onToggleText, onTogglePhoto, onMore, onEdit, onDiscard }: PostCardProps) {
+  const { colors, elev } = useTheme();
+  const lang = currentLang();
+  const W = wi(lang);
+  const J = lang === 'en' ? ', ' : '، ';
+  const changeName = (g: string) => (g === 'finishing' ? W.finishingName : (W as unknown as Record<string, string>)[`fc_${g}`] ?? g);
+  const changeLine = (c: ChatPlanChange) => `${changeName(c.field)}: ${lang === 'en' ? c.from_en : c.from_ar} → ${lang === 'en' ? c.to_en : c.to_ar}`;
+  const kept = keptOf(p).length;
+  const kind = kindOf(p, badge);
+  const changes = changesOf(p, badge);
+  const label = p.post.code ?? p.id;
+  const blockNote = p.blocker === 'other_unit' ? W.noteOtherUnit : p.blocker === 'older' ? W.noteOlder : p.blocker === 'invalid' ? W.noteInvalid : p.blocker === 'forbidden' ? W.noteForbidden : p.blocker === 'compare_failed' || (badge.kind === 'update' && !p.plan) ? W.noteCompare : null;
+  return (
+    <View testID={`wa-post-${p.id}`} style={[styles.card, elev('md'), { borderColor: missingFor(p).length ? colors.danger : colors.border, backgroundColor: colors.card }]}>
+      <View style={styles.row}>
+        <Pressable testID={`wa-pick-${p.id}`} accessibilityRole="checkbox" accessibilityLabel={fill(W.selectPost, { c: label })} accessibilityState={{ checked: p.picked, disabled: kind === 'error' || locked }} disabled={kind === 'error' || locked} onPress={() => onPick(p.id)} style={styles.hit}>
+          <View style={[styles.box, { borderColor: colors.primary, backgroundColor: p.picked ? colors.primary : 'transparent' }]}>
+            <Text style={{ color: p.picked ? colors.onPrimary : 'transparent' }}>✓</Text>
+          </View>
+        </Pressable>
+        <View style={styles.flex}>
+          <BadgeLine W={W} badge={badge} colors={colors} />
+          {kind === 'unchanged' ? <Text testID={`wa-unchanged-${p.id}`} style={{ color: colors.muted, fontWeight: '600' }}>{W.unchangedBadge}</Text> : null}
+          {kind === 'updated' && changes?.length ? <Text testID={`wa-changes-${p.id}`} style={{ color: colors.accent, fontWeight: '600' }}>{fill(W.changesLine, { list: changes.map((c) => changeLine(c)).join(J) })}</Text> : null}
+          {blockNote ? <Text testID={`wa-blocker-${p.id}`} style={{ color: colors.danger, fontWeight: '600' }}>{blockNote}</Text> : null}
+          <Text style={[styles.small, { color: colors.muted }]} numberOfLines={1}>{[p.post.sender && looksLikePhone(p.post.sender) ? ltr(displayPhone(p.post.sender)) : p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
+        </View>
+        {p.state === 'working' ? <ActivityIndicator color={colors.primary} /> : null}
+      </View>
+      <SummaryGrid W={W} lang={lang} J={J} post={p} colors={colors} />
+      <Pressable testID={`wa-desc-${p.id}`} accessibilityRole="button" onPress={() => onToggleText(p.id)}>
+        <Text style={[styles.small, styles.bold, { color: colors.muted }]}>💬 {W.originalTitle}</Text>
+        <Text style={[styles.small, { color: colors.muted }]} numberOfLines={open ? undefined : 3}>{p.post.orig || p.post.text}</Text>
+        <Text style={[styles.small, { color: colors.primaryInk }]}>{open ? W.showLess : W.showMore}</Text>
+      </Pressable>
+      {p.photos.length ? (
+        <View style={styles.photos}>
+          <Text testID={`wa-count-${p.id}`} style={{ color: colors.muted }}>📷 {fill(W.kept, { k: kept })}{p.post.videos ? `  ·  ${fill(W.videosPost, { n: p.post.videos })}` : ''}</Text>
+          {p.photos.length > 15 ? <Text style={{ color: colors.accent }}>{W.pickNote}</Text> : null}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
+            {(moreOpen ? p.photos : p.photos.slice(0, THUMB_CAP)).map((f, n) => (
+              <Pressable key={f.uri} testID={`wa-photo-${p.id}-${n}`} accessibilityRole="button" accessibilityLabel={fill(W.photoN, { n: n + 1 })} accessibilityState={{ selected: !f.notKept, disabled: locked }} disabled={locked} onPress={() => onTogglePhoto(p.id, f.uri)} style={f.notKept ? styles.dim : undefined}>
+                <SmartImage uri={f.uri} style={styles.thumb} />
+                <Text style={[styles.tick, { color: colors.onPrimary, backgroundColor: f.notKept ? colors.border : colors.primary }]}>{f.notKept ? '–' : '✓'}</Text>
+              </Pressable>
+            ))}
+            {!moreOpen && p.photos.length > THUMB_CAP ? (
+              <Pressable testID={`wa-more-${p.id}`} accessibilityRole="button" accessibilityLabel={fill(W.morePhotos, { n: p.photos.length - THUMB_CAP })} onPress={() => onMore(p.id)} style={[styles.thumb, styles.moreChip, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                <Text style={{ color: colors.text, fontWeight: '700' }}>+{p.photos.length - THUMB_CAP}</Text>
+              </Pressable>
+            ) : null}
+          </ScrollView>
+        </View>
+      ) : null}
+      {p.note ? <Text style={{ color: colors.danger }}>{p.state === 'needs_edit' ? `${W.stateNeedsEdit}: ` : ''}{p.note}</Text> : null}
+      {p.state === 'failed' && !p.note ? <Text style={{ color: colors.danger }}>{W.stateFailed}</Text> : null}
+      <Button label={badge.kind === 'update' ? W.editUpdate : W.edit} variant="secondary" disabled={locked || badge.kind === 'taken'} onPress={() => onEdit(p.id)} />
+      <Button testID={`wa-discard-${p.id}`} label={fill(W.discardPost, { c: label })} variant="secondary" size="sm" disabled={locked} onPress={() => onDiscard(p.id)} />
+    </View>
+  );
+}, (a, b) => {
+  if (a.p !== b.p || a.open !== b.open || a.moreOpen !== b.moreOpen || a.locked !== b.locked) return false;
+  if (a.onPick !== b.onPick || a.onToggleText !== b.onToggleText || a.onTogglePhoto !== b.onTogglePhoto || a.onMore !== b.onMore || a.onEdit !== b.onEdit || a.onDiscard !== b.onDiscard) return false;
+  return a.badge === b.badge || JSON.stringify(a.badge) === JSON.stringify(b.badge);
+});
 
 function BadgeLine({ W, badge, colors }: { W: ReturnType<typeof wi>; badge: CodeBadge; colors: { muted: string; accent: string; danger: string; text: string } }) {
   if (badge.kind === 'none') return null;

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { AppText as Text } from '../components/AppText';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LEAD_STAGES } from '@wehdathub/shared';
 import type { LeadTab } from '@wehdathub/shared';
 import { api } from '../api';
+import { teamOptions } from '../queries';
 import { currentLang } from '../auth';
 import { Chips } from '../components/Chips';
 import { ErrorView, Loading } from '../components/StateViews';
@@ -22,8 +24,8 @@ export function PipelineScreen() {
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [broker, setBroker] = useState('');
-  const team = useQuery({ queryKey: ['team'], queryFn: () => api.team() });
-  const counts = useQuery({ queryKey: ['lead-counts', broker], queryFn: () => api.leadCounts(undefined, broker || undefined) });
+  const team = useQuery(teamOptions());
+  const counts = useQuery({ queryKey: ['leads', 'counts', { broker }], queryFn: () => api.leadCounts(undefined, broker || undefined) });
   if (counts.isPending) return <Loading label={t(lang, 'loading')} />;
   if (counts.isError) return <ErrorView message={errorText(counts.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await counts.refetch(); }} />;
   const n = counts.data.counts;

@@ -59,6 +59,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --reporter=silent
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
       - run: pnpm typecheck --output-logs=errors-only
       - run: pnpm lint --output-logs=errors-only
       - run: pnpm test --output-logs=errors-only

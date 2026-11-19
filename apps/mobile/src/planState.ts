@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { UNIT_WARN_PCT, UNLIMITED_UNITS, isPlanLapsed, perMonthPrice, planPeriods } from '@wehdathub/shared';
 import type { Lang, PlanAllowance, PlanDef } from '@wehdathub/shared';
-import { api } from './api';
+import { usageOptions } from './queries';
 import { useAuth } from './auth';
 import { usePlanLock } from './planLock';
 import { planT } from './planText';
@@ -53,7 +53,7 @@ export function usePlanState() {
   const signedIn = useAuth((s) => s.status === 'signedIn');
   const rights = useRights();
   const lockPhase = usePlanLock((s) => s.error?.phase ?? null);
-  const q = useQuery({ queryKey: ['usage'], queryFn: () => api.usage(), enabled: signedIn, staleTime: 60_000 });
+  const q = useQuery(usageOptions(signedIn));
   const fromServer = planPhase(q.data?.allowance);
   // A 402 just seen is believed until the usage answer says otherwise.
   const phase: PlanPhase = fromServer.phase !== 'none' ? fromServer.phase : !q.data && lockPhase ? lockPhase : 'none';

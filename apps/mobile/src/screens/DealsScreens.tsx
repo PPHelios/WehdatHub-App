@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import { ltr } from '@wehdathub/shared';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import type { Lang } from '@wehdathub/shared';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { AppText as Text } from '../components/AppText';
+import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -15,6 +18,7 @@ import { Section } from '../components/Section';
 import { StatRow } from '../components/StatRow';
 import { useRights } from '../rights';
 import { ErrorView, Loading } from '../components/StateViews';
+import { rowDate } from '../dates';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
@@ -172,6 +176,26 @@ export function PortalScreen() {
   );
 }
 
+type LinkRowData = Record<string, unknown>;
+const whenText = (v: unknown, lang: Lang) => (v ? rowDate(lang, String(v)) : '');
+
+const LinkItem = memo(function LinkItem({ x, lang }: { x: LinkRowData; lang: Lang }) {
+  const { colors } = useTheme();
+  const ar = lang === 'ar';
+  const lead = x.lead as { name?: string | null; ref?: string | null; phone?: string | null } | null;
+  return (
+    <View style={styles.item}><Card testID="link-row">
+      <View style={styles.rowBetween}>
+        <Text style={{ color: colors.primaryInk, fontWeight: '800', flex: 1 }}>{str(x.unit_code)}{x.compound ? ` · ${str(x.compound)}` : ''}</Text>
+        <Text style={{ color: Number(x.open_count) ? colors.accentInk : colors.muted, fontWeight: '700' }}>{Number(x.open_count) ? `${num(x.open_count)} ${ar ? 'فتحة' : 'opens'} · ${num(x.devices)} ${ar ? 'جهاز' : 'devices'}` : ar ? 'ما اتفتحش' : 'Not opened'}</Text>
+      </View>
+      <Text style={{ color: colors.text }}>{[lead?.name || lead?.ref, (str(x.recipient_phone) || lead?.phone) ? ltr(str(x.recipient_phone) || lead?.phone || '') : ''].filter(Boolean).join(' · ') || (ar ? 'من غير عميل' : 'No client')}</Text>
+      <Text style={{ color: colors.muted }}>{ar ? 'اتبعت' : 'Sent'} {whenText(x.created_at, lang)}{x.sent_by ? ` · ${str(x.sent_by)}` : ''}</Text>
+      {x.last_opened_at ? <Text style={{ color: colors.muted }}>{ar ? 'آخر فتح' : 'Last opened'} {whenText(x.last_opened_at, lang)}</Text> : null}
+    </Card></View>
+  );
+});
+
 /** Links sent to clients: when, to whom, by whom, how often opened. Last 7 days first; filters and "load more" keep it short as it grows. */
 export function LinksScreen() {
   const { colors } = useTheme();
@@ -187,42 +211,40 @@ export function LinksScreen() {
     queryFn: ({ pageParam }) => api.openedLinks(status === 'all' ? undefined : status, pageParam, search || undefined, days === 'all' ? undefined : Number(days)),
     getNextPageParam: (last) => (last.page + 1 < last.pages ? last.page + 1 : undefined),
   });
-  const rows = list.data?.pages.flatMap((p) => p.rows) ?? [];
+  const rows = useMemo(() => list.data?.pages.flatMap((p) => p.rows) ?? [], [list.data]);
   const total = list.data?.pages[0]?.total ?? 0;
-  const when = (v: unknown) => (v ? new Date(String(v)).toLocaleString(ar ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '');
+  const renderItem = useCallback(({ item }: { item: LinkRowData }) => <LinkItem x={item} lang={lang} />, [lang]);
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
-      <Chips testID="links-days" value={days} options={[{ value: '7', label: ar ? 'آخر 7 أيام' : 'Last 7 days' }, { value: '30', label: ar ? 'آخر 30 يوم' : 'Last 30 days' }, { value: 'all', label: ar ? 'الكل' : 'All' }]} onChange={setDays} />
-      <Chips testID="links-status" value={status} options={[{ value: 'all', label: ar ? 'كل الحالات' : 'Any' }, { value: 'opened', label: ar ? 'اتفتحت' : 'Opened' }, { value: 'never', label: ar ? 'ما اتفتحتش' : 'Not opened' }, { value: 'repeat', label: ar ? 'اتفتحت أكتر من مرة' : 'Opened twice or more' }]} onChange={setStatus} />
-      <Field testID="links-search" label={ar ? 'ابحث بكود الوحدة أو اسم العميل أو رقمه' : 'Search by unit code, client name or number'} value={text} onChangeText={setText} returnKeyType="search" onSubmitEditing={() => setSearch(text.trim())} />
-      <Button testID="links-search-go" variant="secondary" label={ar ? 'بحث' : 'Search'} onPress={() => setSearch(text.trim())} />
-      {list.isPending ? <Loading label={t(lang, 'loading')} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} /> : (
-        <>
-          <Text style={{ color: colors.muted }}>{total} {ar ? 'لينك' : total === 1 ? 'link' : 'links'}</Text>
-          {rows.map((x, i) => {
-            const lead = x.lead as { name?: string | null; ref?: string | null; phone?: string | null } | null;
-            return (
-              <Card key={str(x.token_hash ?? i)} testID="link-row">
-                <View style={styles.rowBetween}>
-                  <Text style={{ color: colors.primaryInk, fontWeight: '800', flex: 1 }}>{str(x.unit_code)}{x.compound ? ` · ${str(x.compound)}` : ''}</Text>
-                  <Text style={{ color: Number(x.open_count) ? colors.accentInk : colors.muted, fontWeight: '700' }}>{Number(x.open_count) ? `${num(x.open_count)} ${ar ? 'فتحة' : 'opens'} · ${num(x.devices)} ${ar ? 'جهاز' : 'devices'}` : ar ? 'ما اتفتحش' : 'Not opened'}</Text>
-                </View>
-                <Text style={{ color: colors.text }}>{[lead?.name || lead?.ref, (str(x.recipient_phone) || lead?.phone) ? ltr(str(x.recipient_phone) || lead?.phone || '') : ''].filter(Boolean).join(' · ') || (ar ? 'من غير عميل' : 'No client')}</Text>
-                <Text style={{ color: colors.muted }}>{ar ? 'اتبعت' : 'Sent'} {when(x.created_at)}{x.sent_by ? ` · ${str(x.sent_by)}` : ''}</Text>
-                {x.last_opened_at ? <Text style={{ color: colors.muted }}>{ar ? 'آخر فتح' : 'Last opened'} {when(x.last_opened_at)}</Text> : null}
-              </Card>
-            );
-          })}
-          {!rows.length ? <Text style={{ color: colors.muted }}>{ar ? 'مفيش لينكات بالفلتر ده.' : 'No links with this filter.'}</Text> : null}
-          {list.hasNextPage ? <Button testID="links-more" variant="secondary" label={ar ? 'اعرض أكتر' : 'Load more'} onPress={() => list.fetchNextPage()} loading={list.isFetchingNextPage} /> : null}
-        </>
+    <FlashList
+      style={{ backgroundColor: colors.bg }}
+      contentContainerStyle={styles.listPad}
+      keyboardShouldPersistTaps="handled"
+      data={rows}
+      keyExtractor={(x, i) => str(x.token_hash ?? i)}
+      renderItem={renderItem}
+      onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
+      onEndReachedThreshold={0.6}
+      ListHeaderComponent={(
+        <View style={styles.head}>
+          <Chips testID="links-days" value={days} options={[{ value: '7', label: ar ? 'آخر 7 أيام' : 'Last 7 days' }, { value: '30', label: ar ? 'آخر 30 يوم' : 'Last 30 days' }, { value: 'all', label: ar ? 'الكل' : 'All' }]} onChange={setDays} />
+          <Chips testID="links-status" value={status} options={[{ value: 'all', label: ar ? 'كل الحالات' : 'Any' }, { value: 'opened', label: ar ? 'اتفتحت' : 'Opened' }, { value: 'never', label: ar ? 'ما اتفتحتش' : 'Not opened' }, { value: 'repeat', label: ar ? 'اتفتحت أكتر من مرة' : 'Opened twice or more' }]} onChange={setStatus} />
+          <Field testID="links-search" label={ar ? 'ابحث بكود الوحدة أو اسم العميل أو رقمه' : 'Search by unit code, client name or number'} value={text} onChangeText={setText} returnKeyType="search" onSubmitEditing={() => setSearch(text.trim())} />
+          <Button testID="links-search-go" variant="secondary" label={ar ? 'بحث' : 'Search'} onPress={() => setSearch(text.trim())} />
+          {!list.isPending && !list.isError ? <Text style={{ color: colors.muted }}>{total} {ar ? 'لينك' : total === 1 ? 'link' : 'links'}</Text> : null}
+        </View>
       )}
-    </ScrollView>
+      ListEmptyComponent={list.isPending ? <Loading label={t(lang, 'loading')} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} /> : <Text style={{ color: colors.muted }}>{ar ? 'مفيش لينكات بالفلتر ده.' : 'No links with this filter.'}</Text>}
+      ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : null}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
+  listPad: { padding: spacing.lg },
+  item: { marginBottom: spacing.md },
+  head: { gap: spacing.md, marginBottom: spacing.md },
+  footer: { padding: spacing.lg },
   card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
   h: { fontSize: 16, fontWeight: '700' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

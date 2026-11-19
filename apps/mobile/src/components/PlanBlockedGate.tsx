@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { currentLang, useAuth } from '../auth';
 import { usePlanState } from '../planState';
 import { planT } from '../planText';

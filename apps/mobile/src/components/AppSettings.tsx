@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { BusySwitch } from './BusySwitch';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';

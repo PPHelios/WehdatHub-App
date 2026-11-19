@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -7,10 +8,13 @@ import { t } from '../i18n';
 import { useTheme } from '../theme';
 import { Icon } from './Icon';
 
+/** The unread count. The tabs screen adds the one-minute refetch; the bell only reads it. The key sits under ['inbox'], so refreshing the inbox refreshes the badge. */
+export const inboxUnreadOptions = { queryKey: ['inbox', 'unread'], queryFn: () => api.notificationsInbox(1), staleTime: 30_000 } as const;
+
 /** The bell in the top bar: opens the inbox, with the number of unread notifications on it. */
 export function NotificationBell({ onPress }: { onPress: () => void }) {
   const { colors } = useTheme();
-  const q = useQuery({ queryKey: ['inbox-unread'], queryFn: () => api.notificationsInbox(1), refetchInterval: 60_000, staleTime: 30_000 });
+  const q = useQuery(inboxUnreadOptions);
   const unread = q.data?.unread ?? 0;
   return (
     <Pressable testID="bell" accessibilityRole="button" accessibilityLabel={t(currentLang(), 'inbox')} hitSlop={8} onPress={onPress} style={styles.btn}>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { currentLang } from '../auth';
 import { t } from '../i18n';
@@ -21,7 +22,7 @@ export function SmartImage({ uri, style, testID }: { uri: string; style: StylePr
   };
   return (
     <View testID={testID} style={[style, styles.box, { backgroundColor: colors.card }]}>
-      {state !== 'failed' ? <Image testID="smart-image" key={attempt} source={{ uri: src }} style={StyleSheet.absoluteFill} resizeMode="cover" onLoad={() => setState('ok')} onError={failed} /> : null}
+      {state !== 'failed' ? <Image testID="smart-image" key={attempt} source={{ uri: src }} style={StyleSheet.absoluteFill} resizeMode="cover" resizeMethod="resize" onLoad={() => setState('ok')} onError={failed} /> : null}
       {state === 'loading' ? <ActivityIndicator testID="image-spinner" color={colors.primary} /> : null}
       {state === 'failed' ? (
         <Pressable testID="image-retry" accessibilityRole="button" onPress={() => { setAttempt(0); setState('loading'); }} style={styles.retry}>

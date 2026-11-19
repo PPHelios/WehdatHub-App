@@ -1,9 +1,11 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SearchScreen } from '../src/screens/SearchScreen';
 import { api } from '../src/api';
 import * as voice from '../src/voice';
+import { AppState } from 'react-native';
+import { getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
 jest.mock('../src/api', () => ({ api: { search: jest.fn(), voiceToText: jest.fn() } }));
 jest.mock('../src/voice', () => ({ ensureMic: jest.fn(), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
@@ -13,7 +15,7 @@ const v = voice as unknown as { ensureMic: jest.Mock; startRecording: jest.Mock;
 
 const wrap = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}><SearchScreen /></QueryClientProvider>);
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => { jest.restoreAllMocks(); jest.clearAllMocks(); v.startRecording.mockReset(); });
 
 test('typed search shows the no-results state with a way forward', async () => {
   mocked.search.mockResolvedValue({ status: 'none', source: 'parser', total: 0, items: [] });
@@ -35,17 +37,39 @@ test('an ask lets the broker search without the unknown words', async () => {
   await waitFor(() => expect(mocked.search).toHaveBeenLastCalledWith('villa xyz', { drop: true, status: 'active' }));
 });
 
-const at = (x: number, y = 0) => ({ nativeEvent: { pageX: x, pageY: y } });
-const hold = async (x = 0) => {
-  await fireEvent(screen.getByTestId('search-mic'), 'responderGrant', at(0));
-  if (x) await fireEvent(screen.getByTestId('search-mic'), 'responderMove', at(x));
+type Handlers = { onBegin: (e: object) => void; onUpdate: (e: object) => void; onFinalize: (e: object, ok: boolean) => void };
+const handlers = () => (getByGestureTestId('search-mic') as unknown as { handlers: Handlers }).handlers;
+/** The finger goes down, moves, lifts. (The helper from the gesture library always finishes a whole press, so the three steps are called by hand.) */
+const down = () => act(async () => handlers().onBegin({}));
+const move = (x: number, y: number) => act(async () => handlers().onUpdate({ translationX: x, translationY: y }));
+const up = (ok = true) => act(async () => handlers().onFinalize({}, ok));
+const started = () => waitFor(() => expect(v.startRecording).toHaveBeenCalled());
+/** Clock for the note length: the recorder starting moves it to `later`. */
+const clock = (later: number) => {
+  let t = 1000;
+  jest.spyOn(Date, 'now').mockImplementation(() => t);
+  v.startRecording.mockImplementation(async () => { t = later; });
 };
-const letGo = () => fireEvent(screen.getByTestId('search-mic'), 'responderRelease', at(0));
+
+test('the button is a mic when the box is empty and a send arrow when there is text', async () => {
+  mocked.search.mockResolvedValue({ status: 'none', source: 'parser', total: 0, items: [] });
+  await wrap();
+  expect(screen.getByTestId('search-mic')).toBeTruthy();
+  expect(screen.getByTestId('icon-mic')).toBeTruthy();
+  expect(screen.queryByTestId('search-go')).toBeNull();
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'villa');
+  expect(screen.getByTestId('search-go')).toBeTruthy();
+  expect(screen.getByTestId('icon-send')).toBeTruthy();
+  expect(screen.queryByTestId('icon-mic')).toBeNull();
+  await fireEvent.changeText(screen.getByTestId('search-input'), '');
+  expect(screen.queryByTestId('search-go')).toBeNull();
+  expect(screen.getByTestId('icon-mic')).toBeTruthy();
+});
 
 test('a denied microphone explains and does not record', async () => {
   v.ensureMic.mockResolvedValue(false);
   await wrap();
-  await hold();
+  await down();
   await waitFor(() => expect(screen.getByTestId('voice-error')).toBeTruthy());
   expect(v.startRecording).not.toHaveBeenCalled();
 });
@@ -56,41 +80,81 @@ test('hold, release, then the heard text is searched', async () => {
   v.stopRecording.mockResolvedValue({ uri: 'file:///a.m4a', name: 'search.m4a', type: 'audio/mp4' });
   mocked.voiceToText.mockResolvedValue({ q: 'شقة في التجمع' });
   mocked.search.mockResolvedValue({ status: 'none', source: 'parser', total: 0, items: [] });
-  const now = jest.spyOn(Date, 'now');
-  now.mockReturnValue(1000);
+  clock(3000);
   await wrap();
-  await hold();
-  await waitFor(() => expect(v.startRecording).toHaveBeenCalled());
-  now.mockReturnValue(3000);
-  await letGo();
+  await down();
+  await started();
+  await up();
   await waitFor(() => expect(mocked.search).toHaveBeenCalledWith('شقة في التجمع', { drop: false, status: 'active' }));
-  now.mockRestore();
 });
 
-test('sliding away cancels and sends nothing', async () => {
+test('sliding left past the line cancels and sends nothing', async () => {
   v.ensureMic.mockResolvedValue(true);
   v.startRecording.mockResolvedValue(undefined);
   mocked.voiceToText.mockClear();
-  const now = jest.spyOn(Date, 'now');
-  now.mockReturnValue(1000);
+  clock(3000);
   await wrap();
-  await hold(200);
-  await waitFor(() => expect(v.startRecording).toHaveBeenCalled());
-  now.mockReturnValue(3000);
-  await letGo();
+  await down();
+  await move(-200, 0);
+  await started();
+  await up();
   await waitFor(() => expect(v.cancelRecording).toHaveBeenCalled());
   expect(mocked.voiceToText).not.toHaveBeenCalled();
-  now.mockRestore();
 });
 
-test('a very short hold asks to hold longer', async () => {
+test('sliding up locks the note, then send uploads it', async () => {
   v.ensureMic.mockResolvedValue(true);
   v.startRecording.mockResolvedValue(undefined);
+  v.stopRecording.mockResolvedValue({ uri: 'file:///a.m4a', name: 'search.m4a', type: 'audio/mp4' });
+  mocked.voiceToText.mockResolvedValue({ q: 'villa' });
+  mocked.search.mockResolvedValue({ status: 'none', source: 'parser', total: 0, items: [] });
+  clock(4000);
   await wrap();
-  await hold();
-  await waitFor(() => expect(v.startRecording).toHaveBeenCalled());
-  await letGo();
-  await waitFor(() => expect(screen.getByTestId('voice-error')).toBeTruthy());
+  await down();
+  await move(0, -100);
+  await started();
+  await up();
+  await waitFor(() => expect(screen.getByTestId('search-bin')).toBeTruthy());
+  expect(v.cancelRecording).not.toHaveBeenCalled();
+  expect(mocked.voiceToText).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(mocked.search).toHaveBeenCalledWith('villa', { drop: false, status: 'active' }));
+});
+
+test('a quick tap never touches the microphone and shows the hold hint', async () => {
+  v.ensureMic.mockResolvedValue(true);
+  v.startRecording.mockResolvedValue(undefined);
+  mocked.voiceToText.mockClear();
+  await wrap();
+  await down();
+  await up();
+  await act(async () => { await new Promise<void>((r) => setTimeout(() => r(), 300)); });
+  expect(screen.getByTestId('search-hint')).toBeTruthy();
+  expect(screen.getByText(/Hold to record|دوس مطوّل/)).toBeTruthy();
+  expect(v.ensureMic).not.toHaveBeenCalled();
+  expect(v.startRecording).not.toHaveBeenCalled();
+  expect(mocked.voiceToText).not.toHaveBeenCalled();
+});
+
+test('leaving the app mid-note keeps it: stopped rail with bin and send, and send uploads it', async () => {
+  v.ensureMic.mockResolvedValue(true);
+  v.stopRecording.mockResolvedValue({ uri: 'file:///a.m4a', name: 'search.m4a', type: 'audio/mp4' });
+  mocked.voiceToText.mockResolvedValue({ q: 'villa' });
+  mocked.search.mockResolvedValue({ status: 'none', source: 'parser', total: 0, items: [] });
+  let change: (s: string) => void = () => undefined;
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_t, h) => { change = h as (s: string) => void; return { remove: jest.fn() }; });
+  clock(3000);
+  await wrap();
+  await down();
+  await started();
+  await waitFor(() => expect(screen.getByTestId('search-rail')).toBeTruthy());
+  await act(async () => change('background'));
+  await waitFor(() => expect(screen.getByTestId('search-bin')).toBeTruthy());
+  expect(v.stopRecording).toHaveBeenCalledTimes(1);
+  expect(mocked.voiceToText).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(mocked.voiceToText).toHaveBeenCalled());
+  expect(v.stopRecording).toHaveBeenCalledTimes(1);
 });
 
 test('ignored words are shown under the results', async () => {

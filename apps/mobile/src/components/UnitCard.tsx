@@ -1,5 +1,6 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { memo } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { formatEgp } from '@wehdathub/shared';
 import type { ApiUnitListItem, Lang } from '@wehdathub/shared';
 import { t } from '../i18n';
@@ -16,17 +17,17 @@ export const UNIT_PHOTO_HEIGHT = 180;
  * A unit in a list: the photo with its status on it, the compound and code, the price, the facts as pills. The same card language as the
  * project cards (Pill, 16 px corners, the same spacing).
  */
-export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListItem; lang: Lang; onPress: () => void; onEdit?: () => void }) {
+export const UnitCard = memo(function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListItem; lang: Lang; onPress: (code: string) => void; onEdit?: (code: string) => void }) {
   const { colors, elev } = useTheme();
   const facts = [unit.bedrooms !== null ? `${unit.bedrooms} ${t(lang, 'beds')}` : null, unit.bathrooms !== null ? `${unit.bathrooms} ${t(lang, 'baths')}` : null, unit.area !== null ? `${Math.round(unit.area)} ${t(lang, 'sqm')}` : null].filter((x): x is string => Boolean(x));
   const place = [unit.district, unit.city].filter(Boolean).join(' · ');
   const deal = unit.dealType === 'sale' || unit.dealType === 'rent' ? <Pill testID={`deal-${unit.code}`} solid tone={unit.dealType === 'rent' ? 'accent' : 'primary'} label={t(lang, unit.dealType)} /> : null;
   const mine = unit.mine ? <Pill solid tone="accent" label={t(lang, 'mine')} /> : null;
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, elev(pressed ? 'lg' : 'md'), { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.95 : 1 }]}>
+    <Pressable accessibilityRole="button" onPress={() => onPress(unit.code)} style={({ pressed }) => [styles.card, elev(pressed ? 'lg' : 'md'), { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.95 : 1 }]}>
       {unit.photo ? (
         <View>
-          <SmartImage uri={unit.photo} style={styles.photo} />
+          <SmartImage key={unit.photo} uri={unit.photo} style={styles.photo} />
           <View style={styles.over}>{deal}{mine}</View>
         </View>
       ) : (
@@ -45,7 +46,7 @@ export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListIte
         {unit.price !== null ? <Text style={[styles.price, { color: colors.primaryInk }]}>{formatEgp(unit.price)} {t(lang, 'egp')}</Text> : null}
         {facts.length || unit.finishing || unit.propertyType ? <View style={styles.facts}>{unit.propertyType ? <Pill testID={`type-${unit.code}`} tone="primary" label={labelOf(ALL_TYPES, unit.propertyType, lang) ?? ''} /> : null}{facts.map((f) => <Pill key={f} label={f} />)}{unit.finishing ? <Pill testID={`finishing-${unit.code}`} tone="accent" label={labelOf(FINISHING, unit.finishing, lang) ?? ''} /> : null}</View> : null}
         {onEdit ? (
-          <Pressable testID={`edit-${unit.code}`} accessibilityRole="button" accessibilityLabel={t(lang, 'editUnit')} hitSlop={8} onPress={onEdit} style={[styles.edit, { borderColor: colors.border }]}>
+          <Pressable testID={`edit-${unit.code}`} accessibilityRole="button" accessibilityLabel={t(lang, 'editUnit')} hitSlop={8} onPress={() => onEdit(unit.code)} style={[styles.edit, { borderColor: colors.border }]}>
             <Icon name="edit" color={colors.primaryInk} size={16} />
             <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{t(lang, 'editUnit')}</Text>
           </Pressable>
@@ -53,7 +54,7 @@ export function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListIte
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { borderRadius: radius.card, borderWidth: 1, overflow: 'hidden', marginHorizontal: spacing.lg, marginBottom: spacing.md },
