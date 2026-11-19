@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -31,8 +31,15 @@ import {
 } from '../whatsappImport';
 import type { ChatInfo, CodeBadge, ExistingUnit, ImportPost, SinceKind } from '../whatsappImport';
 import { fill, wi } from '../whatsappImportText';
+import { applyMemory, diffDecisions, forgetAll, load as loadMemory, record as recordMemory, restore as restoreMemory } from '../whatsappImportMemory';
+import type { Memory, Outcome } from '../whatsappImportMemory';
 import { ZipImportError, cancelUnpack, cleanUp, openChat, readChat } from '../zipImport';
 import { toast } from '../components/Toast';
+
+/** Cards drawn on the first frame, and photos drawn per card before the "+N" chip (the rest load when it is tapped). */
+const INITIAL_CARDS = 6;
+const THUMB_CAP = 8;
+const Gap = () => <View style={{ height: spacing.md }} />;
 
 type Nav = NativeStackNavigationProp<RootStackParams>;
 type Phase = 'pick' | 'range' | 'reading' | 'review';
@@ -81,6 +88,15 @@ export function WhatsAppImportScreen() {
   const [progress, setProgress] = useState(0);
   const [showDiscarded, setShowDiscarded] = useState(false);
   const [result, setResult] = useState<{ saved: number; created: number; updated: number; unchanged: string[]; failed: number; photosFailed: string[] } | null>(null);
+  // What was decided about this chat's posts in earlier imports (see whatsappImportMemory).
+  const [priorSaved, setPriorSaved] = useState<ImportPost[]>([]);
+  const [showPrior, setShowPrior] = useState(false);
+  const [memCount, setMemCount] = useState(0);
+  const [forgotNote, setForgotNote] = useState(false);
+  const [earlierN, setEarlierN] = useState(0);
+  const [moreOpen, setMoreOpen] = useState<Record<string, boolean>>({});
+  const memory = useRef<Memory>({});
+  const noRecord = useRef(false);
   const dir = useRef<string | null>(null);
   const started = useRef(false);
   const stopped = useRef(false);
@@ -226,7 +242,18 @@ export function WhatsAppImportScreen() {
       }));
       setPct(100);
       setResult(null);
-      setList(withDefaultTicks(posts, posts.map((_, i) => codeBadge(posts, i, codeMap, codeState))));
+      const ticked = withDefaultTicks(posts, posts.map((_, i) => codeBadge(posts, i, codeMap, codeState)));
+      const { decisions: mem } = await loadMemory(o.info.fingerprint);
+      memory.current = mem;
+      noRecord.current = false;
+      const applied = applyMemory(ticked, mem);
+      setMemCount(Object.keys(mem).length);
+      setForgotNote(false);
+      setShowPrior(false);
+      setMoreOpen({});
+      setPriorSaved(applied.priorSaved);
+      setEarlierN(applied.list.filter((x) => x.discarded).length);
+      setList(applied.list);
       setPhase('review');
     } catch (e) {
       // Why it failed (a zip problem, or something unexpected that is also reported as an error) goes to the usage log.
@@ -297,6 +324,52 @@ export function WhatsAppImportScreen() {
   listRef.current = list;
   const badgesRef = useRef(badges);
   badgesRef.current = badges;
+  // Only the posts still to decide are listed (virtualized: the cards and their photo strips are made for what is on screen).
+  const rows = useMemo(() => list.map((p, index) => ({ p, index })).filter(({ p }) => p.state !== 'saved' && !p.discarded), [list]);
+
+  // What the person decides is remembered for the next import of this chat (saved, discarded, unchanged), written after a short pause.
+  const flushMem = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (phase !== 'review' || !info || noRecord.current) return undefined;
+    const fp = info.fingerprint;
+    const decisions = list.flatMap((p, i) => {
+      if (!p.pfp) return [];
+      const k = kindOf(p, badges[i] ?? { kind: 'none' });
+      const outcome: Outcome | null = k === 'saved' ? 'saved' : k === 'discarded' ? 'discarded' : k === 'unchanged' ? 'unchanged' : null;
+      return [{ pfp: p.pfp, outcome }];
+    });
+    const run = () => {
+      flushMem.current = null;
+      if (noRecord.current) return;
+      const r = diffDecisions(memory.current, decisions);
+      if (!r.set.length && !r.cleared.length) return;
+      memory.current = r.mem;
+      setMemCount(Object.keys(r.mem).length);
+      void (async () => { if (r.cleared.length) await restoreMemory(fp, r.cleared); if (r.set.length) await recordMemory(fp, r.set); })();
+    };
+    flushMem.current = run;
+    const t = setTimeout(run, 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list, badges, phase, info]);
+  useEffect(() => () => { flushMem.current?.(); }, []);
+
+  const forget = async () => {
+    if (!info) return;
+    noRecord.current = true;
+    flushMem.current = null;
+    memory.current = {};
+    setMemCount(0);
+    setForgotNote(true);
+    await forgetAll(info.fingerprint);
+  };
+  // A post that was imported before comes back to the list (not ticked).
+  const bringBack = (id: string) => {
+    const p = priorSaved.find((x) => x.id === id);
+    if (!p) return;
+    setPriorSaved((l) => l.filter((x) => x.id !== id));
+    setList((l) => [...l, { ...p, picked: false }].sort((a, b) => a.post.i - b.post.i));
+  };
 
   // The reader could not be reached (a network problem, or a server without it): the list says so and offers to try again.
   // Ticks the person already set are kept; only a post that had no reading yet is ticked when it turns out valid.
@@ -578,7 +651,19 @@ export function WhatsAppImportScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <FlatList
+        data={rows}
+        keyExtractor={(r) => r.p.id}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={INITIAL_CARDS}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        removeClippedSubviews
+        ItemSeparatorComponent={Gap}
+        extraData={[openText, adding, moreOpen, badges, showDiscarded, showPrior, priorSaved, memCount, forgotNote]}
+        ListHeaderComponent={(
+      <View style={styles.headerBox}>
         <Text testID="wa-summary" style={{ color: colors.text, fontWeight: '700' }}>{fill(W.summary, { n: counts.remaining, p: counts.photos })}</Text>
         {truncated ? <Text testID="wa-truncated" style={{ color: colors.accent }}>{fill(W.truncated, { n: truncated.shown, m: truncated.total, d: truncated.date })}</Text> : null}
         {videos ? <Text style={{ color: colors.muted }}>🎞 {fill(W.videos, { n: videos })}</Text> : null}
@@ -620,8 +705,9 @@ export function WhatsAppImportScreen() {
         {counts.discarded > 0 ? (
           <View testID="wa-discarded-bar" style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
             <View style={styles.row}>
-              <Pressable accessibilityRole="button" style={styles.flex} onPress={() => setShowDiscarded((v) => !v)}>
+              <Pressable testID="wa-discarded-toggle" accessibilityRole="button" style={styles.flex} onPress={() => { setShowDiscarded((v) => !v); }}>
                 <Text style={{ color: colors.text }}>{fill(W.discardedLine, { n: counts.discarded })}</Text>
+                {earlierN > 0 ? <Text testID="wa-earlier-line" style={[styles.small, { color: colors.muted }]}>{fill(W.earlierLine, { n: earlierN })}</Text> : null}
               </Pressable>
               <Pressable testID="wa-restore-all" accessibilityRole="button" disabled={adding} onPress={restoreAll}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{W.restoreAll}</Text></Pressable>
             </View>
@@ -645,8 +731,25 @@ export function WhatsAppImportScreen() {
         {counts.errors + counts.unchanged > 0 ? <Button testID="wa-discard-errors" label={fill(W.discardErrors, { n: counts.errors + counts.unchanged })} variant="secondary" size="sm" disabled={adding} onPress={discardErrors} /> : null}
         {counts.remaining > 0 ? <Button testID="wa-select-valid" label={W.selectValid} variant="secondary" size="sm" disabled={adding} onPress={selectValid} /> : null}
         {counts.remaining === 0 ? <Text testID="wa-all-added" style={{ color: colors.text, fontWeight: '700', textAlign: 'center' }}>{W.allAdded}</Text> : null}
-        {list.map((p, i) => {
-          if (p.state === 'saved' || p.discarded) return null;
+        {priorSaved.length > 0 ? (
+          <View testID="wa-prior-bar" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+            <View style={styles.row}>
+              <Text testID="wa-prior-line" style={[styles.flex, { color: colors.text }]}>{fill(W.priorLine, { n: priorSaved.length })}</Text>
+              <Pressable testID="wa-prior-toggle" accessibilityRole="button" style={styles.hit} onPress={() => setShowPrior((v) => !v)}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{showPrior ? W.priorHide : W.priorShow}</Text></Pressable>
+            </View>
+            {showPrior ? priorSaved.map((p) => (
+              <View key={p.id} style={styles.row}>
+                <Text style={[styles.flex, styles.small, { color: colors.muted }]} numberOfLines={1}>{p.post.code ? `${p.post.code} · ` : ''}{p.post.orig || p.post.text}</Text>
+                <Pressable testID={`wa-bring-${p.id}`} accessibilityRole="button" accessibilityLabel={fill(W.restorePost, { c: p.post.code ?? p.id })} disabled={adding} style={styles.hit} onPress={() => bringBack(p.id)}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{W.restore}</Text></Pressable>
+              </View>
+            )) : null}
+          </View>
+        ) : null}
+        {memCount > 0 ? <Pressable testID="wa-forget" accessibilityRole="button" disabled={adding} style={styles.hit} onPress={forget}><Text style={{ color: colors.muted, textDecorationLine: 'underline' }}>{W.forget}</Text></Pressable> : null}
+        {forgotNote ? <Text testID="wa-forgot-note" style={{ color: colors.muted }}>{W.forgotten}</Text> : null}
+      </View>
+        )}
+        renderItem={({ item: { p, index: i } }) => {
           const badge = badges[i];
           const kept = keptOf(p).length;
           const kind = kindOf(p, badge);
@@ -683,12 +786,17 @@ export function WhatsAppImportScreen() {
                   <Text testID={`wa-count-${p.id}`} style={{ color: colors.muted }}>📷 {fill(W.kept, { k: kept })}{p.post.videos ? `  ·  ${fill(W.videosPost, { n: p.post.videos })}` : ''}</Text>
                   {p.photos.length > 15 ? <Text style={{ color: colors.accent }}>{W.pickNote}</Text> : null}
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
-                    {p.photos.map((f, n) => (
+                    {(moreOpen[p.id] ? p.photos : p.photos.slice(0, THUMB_CAP)).map((f, n) => (
                       <Pressable key={f.uri} testID={`wa-photo-${p.id}-${n}`} accessibilityRole="button" accessibilityLabel={fill(W.photoN, { n: n + 1 })} accessibilityState={{ selected: !f.notKept, disabled: locked }} disabled={locked} onPress={() => setPhotos(p.id, (ph) => toggleKeep(ph, f.uri))} style={f.notKept ? styles.dim : undefined}>
                         <SmartImage uri={f.uri} style={styles.thumb} />
                         <Text style={[styles.tick, { color: colors.onPrimary, backgroundColor: f.notKept ? colors.border : colors.primary }]}>{f.notKept ? '–' : '✓'}</Text>
                       </Pressable>
                     ))}
+                    {!moreOpen[p.id] && p.photos.length > THUMB_CAP ? (
+                      <Pressable testID={`wa-more-${p.id}`} accessibilityRole="button" accessibilityLabel={fill(W.morePhotos, { n: p.photos.length - THUMB_CAP })} onPress={() => setMoreOpen((o) => ({ ...o, [p.id]: true }))} style={[styles.thumb, styles.moreChip, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                        <Text style={{ color: colors.text, fontWeight: '700' }}>+{p.photos.length - THUMB_CAP}</Text>
+                      </Pressable>
+                    ) : null}
                   </ScrollView>
                 </View>
               ) : null}
@@ -698,8 +806,8 @@ export function WhatsAppImportScreen() {
               <Button testID={`wa-discard-${p.id}`} label={fill(W.discardPost, { c: label })} variant="secondary" size="sm" disabled={locked} onPress={() => discard(p, badge)} />
             </View>
           );
-        })}
-      </ScrollView>
+        }}
+      />
       <View style={[styles.bottom, { borderColor: colors.border, backgroundColor: colors.bg }]}>
         <Text testID="wa-ready" style={{ color: colors.muted, textAlign: 'center' }}>{`${fill(W.willSave, { n: counts.willSave, a: counts.newCount, b: counts.updated, m: counts.skipped, x: counts.errors, y: counts.unchanged, z: counts.discarded })}${counts.unticked > 0 ? fill(W.willSaveUnticked, { u: counts.unticked }) : ''}`}</Text>
         <Button testID="wa-add" label={buttonLabel} progress={adding ? progress : undefined} disabled={adding || !canSave} onPress={addSelected} />
@@ -785,6 +893,8 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
   hit: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   box: { width: 26, height: 26, borderWidth: 2, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  headerBox: { gap: spacing.md, marginBottom: spacing.md },
+  moreChip: { borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   strip: { gap: spacing.sm, paddingVertical: spacing.sm },
   photos: { gap: 4 },
   small: { fontSize: 12 },

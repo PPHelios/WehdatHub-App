@@ -1,4 +1,5 @@
 import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { WhatsAppImportScreen } from '../src/screens/WhatsAppImportScreen';
 import { api } from '../src/api';
@@ -33,7 +34,8 @@ const post = (i: number, code: string | null, photos: number, videos = 0) => ({
   files: Array.from({ length: photos }, (_, k) => ({ name: `IMG-${i}-${k}.jpg`, i: i + k, at: null })),
 });
 
-beforeEach(() => {
+beforeEach(async () => {
+  await AsyncStorage.removeItem('wa_import_mem:me:fp1');
   jest.clearAllMocks();
   mockRoute = { params: { zip: mockZip } };
   const posts = [post(1, 'HP-1', 20, 2), post(2, 'HP-2', 2), post(3, 'HP-3', 1), post(4, null, 1)];

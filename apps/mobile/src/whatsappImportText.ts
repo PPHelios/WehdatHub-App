@@ -42,6 +42,7 @@ const TEXT = {
     noteOtherUnit: 'الكود ده شكله لوحدة تانية (النوع أو المكان مختلف). اتجاهلها أو عدّلها.', noteOlder: 'الوحدة اتعدلت بعد البوست ده، فمش هتتحدّث.', noteCompare: 'مقدرناش نقارن بالوحدة المحفوظة. جرب تاني بعدين.', noteConflict: 'الوحدة اتغيرت وقت الحفظ. راجع التغييرات وحاول تاني.',
     resultPhotosFailed: 'الصور مارفعتش للوحدات دي (الوحدة اتحفظت): {list}',
     leaveTitle: 'تقفل الاستيراد؟', leaveBody: 'فيه وحدات لسه ما اتحفظتش. لو خرجت دلوقتي هتضيع.', leaveStay: 'كمّل', leaveGo: 'اخرج',
+    earlierLine: '{n} بوست اتجاهلوا قبل كده (دوس عشان تعرضهم أو ترجّعهم)', priorLine: '{n} بوست اتضافوا قبل كده', priorShow: 'اعرضهم', priorHide: 'اخفيهم', forget: 'انسى القرارات المحفوظة للشات ده', forgotten: 'اتنسّت القرارات المحفوظة.', morePhotos: 'عرض {n} صورة كمان',
     photoN: 'صورة {n}', selectPost: 'تحديد البوست {c}', discardPost: 'تجاهل البوست {c}', restorePost: 'رجّع البوست {c}', postN: 'بوست {n}', progressLabel: 'تقدّم القراءة',
   },
   en: {
@@ -84,6 +85,7 @@ const TEXT = {
     noteOtherUnit: 'This code looks like another unit (the type or place differs). Discard it or edit it.', noteOlder: 'The unit was edited after this post, so it will not be updated.', noteCompare: 'Could not compare with the stored unit. Try again later.', noteConflict: 'The unit changed while saving. Check the changes and try again.',
     resultPhotosFailed: 'Photos did not upload for these units (the unit itself was saved): {list}',
     leaveTitle: 'Leave the import?', leaveBody: 'Some units are not saved yet. If you leave now they are lost.', leaveStay: 'Stay', leaveGo: 'Leave',
+    earlierLine: '{n} discarded earlier (tap to show or restore them)', priorLine: '{n} already imported', priorShow: 'Show them', priorHide: 'Hide them', forget: 'Forget remembered decisions for this chat', forgotten: 'Remembered decisions were forgotten.', morePhotos: 'Show {n} more photos',
     photoN: 'Photo {n}', selectPost: 'Select post {c}', discardPost: 'Discard post {c}', restorePost: 'Restore post {c}', postN: 'Post {n}', progressLabel: 'Reading progress',
   },
 } as const;

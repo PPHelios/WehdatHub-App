@@ -1,4 +1,5 @@
 import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { WhatsAppImportScreen } from '../src/screens/WhatsAppImportScreen';
 import { api } from '../src/api';
@@ -26,7 +27,8 @@ const m = api as unknown as Record<string, jest.Mock>;
 const post = (i: number, code: string) => ({ i, sender: '+20 111 161 6455', at: '15/11/2026 5:48', text: `Code ${code} Mivida 154m 2 bedrooms Price 65k`, code, over: 0, videos: 0, verify: false, files: [{ name: `IMG-${i}.jpg`, i, at: null }] });
 const base = { property_type: 'apartment', compound: 'Mivida', price_value: '65000', area_value: '154', bedrooms: '2' };
 
-beforeEach(() => {
+beforeEach(async () => {
+  await AsyncStorage.removeItem('wa_import_mem:me:fp1');
   jest.clearAllMocks();
   const posts = [post(1, 'MIR23'), post(2, 'MIR40'), post(3, 'MIR590')];
   const present = new Map<string, string>();
@@ -112,7 +114,7 @@ test('the card shows the land area, floor and rent period the reader found (not 
     { fields: { ...base, code: 'MIR590', listing_type: 'rent' }, missing: ['owner_phone'] },
   ] });
   await open();
-  const card = JSON.stringify(screen.toJSON());
+  const card = JSON.stringify(screen.toJSON(), (k, v) => (k === 'ListHeaderComponent' || k === 'renderItem' || k === 'extraData' ? undefined : v));
   expect(card).toContain('347');
   expect(card).toMatch(/سنوي|Yearly/);
   expect(card).toMatch(/الدور|Floor/);

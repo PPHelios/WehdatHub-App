@@ -41,6 +41,7 @@ beforeEach(async () => {
   jest.clearAllMocks();
   const store = AsyncStorage as unknown as { removeItem: (k: string) => Promise<void> };
   await store.removeItem('wa_import_wm:me:fpR');
+  await store.removeItem('wa_import_mem:me:fpR');
   await store.removeItem('wa_import_att:me:fpR:HP1');
   truncated = 0;
   posts = [post(1, 'HP-1', 5), post(2, 'HP-3', 1, '25/10/2026 09:00')];

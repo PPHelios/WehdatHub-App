@@ -65,6 +65,8 @@ export interface ImportPost {
   /** One key per post, kept until it is saved, so a retry (or a double tap) never makes a second unit. */
   saveKey?: string;
   savedCode?: string;
+  /** Stable id of the post (sender, time, wording) used to remember what was decided about it across imports. */
+  pfp?: string;
 }
 
 /** Posts ready for the list. `dir` is where the photos were unpacked (a folder path without a trailing slash). Photos not in the zip are dropped. */
