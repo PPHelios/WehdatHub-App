@@ -19,7 +19,7 @@ export const FURNISHING: Opt[] = [
 const MORE_TYPES: Opt[] = [
   { value: 'commercial', ar: 'وحدة تجارية', en: 'Commercial unit' }, { value: 'triplex', ar: 'تريبلكس', en: 'Triplex' },
   { value: 'triplex_roof', ar: 'تريبلكس روف', en: 'Triplex with roof' }, { value: 'sky_loft', ar: 'سكاي لوفت', en: 'Sky loft' },
-  { value: 'basement', ar: 'بدروم', en: 'Basement' }, { value: 'mazonette', ar: 'مازونيت', en: 'Mazonette' }, { value: 'maisonette', ar: 'ميزونيت', en: 'Maisonette' },
+  { value: 'basement', ar: 'بدروم', en: 'Basement' }, { value: 'maisonette', ar: 'مازونيت', en: 'Maisonette' },
 ];
 export const ALL_TYPES: Opt[] = [...PROPERTY_TYPES, ...MORE_TYPES];
 /** Unit status (listings.status). */

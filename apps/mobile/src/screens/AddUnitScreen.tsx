@@ -34,7 +34,7 @@ import { VoiceBar } from '../components/VoiceBar';
 import { featureChip } from '../featureLabels';
 import { draftText, isAutoDraft } from '../unitDraft';
 import { uf } from '../unitFormText';
-import { sendable, stepOf, stepsFor, withImpliedFeatures } from '../unitRules';
+import { sendable, stepOf, stepsFor, withFurnishingSync, withImpliedFeatures } from '../unitRules';
 import type { Step } from '../unitRules';
 import { toastError } from '../components/Toast';
 
@@ -107,7 +107,7 @@ export function AddUnitScreen() {
   const patch = (p: UnitFields) => {
     dirty.current = true;
     setAck(false);
-    setFields((f) => withImpliedFeatures({ ...f, ...p }));
+    setFields((f) => withImpliedFeatures(withFurnishingSync(f, { ...f, ...p })));
   };
   const set = (k: string, v: UnitFields[string]) => {
     if (k === 'clean_summary') descAuto.current = isAutoDraft(String(v ?? ''));
@@ -430,7 +430,12 @@ export function AddUnitScreen() {
               <VoiceBar id="unit" label={t(lang, 'mic')} onFile={onVoice} onError={setError} />
             </>
           )}
-          {notice ? <Text testID="unit-notice" style={{ color: colors.accentInk }}>{notice}</Text> : null}
+          {notice ? (
+            notice === t(lang, 'draftRestored')
+              // A restored draft is loud on purpose: old values must not be saved by mistake.
+              ? <View testID="unit-notice" style={[styles.box, { backgroundColor: colors.warnSoft, borderColor: colors.warn, borderStartWidth: 5 }]}><Text style={{ color: colors.text, fontWeight: '700' }}>↩️ {notice}</Text></View>
+              : <Text testID="unit-notice" style={{ color: colors.accentInk }}>{notice}</Text>
+          ) : null}
           <UnitBox fields={fields} patch={patch} lang={lang} invalid={failedCheck && missing('location')} />
           {editCode ? null : field('code', lang === 'en' ? 'Unit code (optional)' : 'كود الوحدة (اختياري)', { autoCapitalize: 'characters', autoCorrect: false })}
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fDeal')}</Text>

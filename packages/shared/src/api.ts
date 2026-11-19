@@ -579,6 +579,8 @@ export function createApiClient(opts: ApiClientOptions) {
       if (o.fields) form.append('fields', JSON.stringify(o.fields));
       return request<{ fields: UnitFields }>('POST', '/units/extract', form);
     },
+    /** The owner's phone is already one of the broker's clients: the owner's name and the lead code to fill in (nothing is saved). */
+    ownerLookup: (phone: string) => request<{ found: boolean; ref?: string; name?: string }>('GET', `/units/owner-lookup?phone=${encodeURIComponent(phone)}`),
     /** `code` set (edit): the review also lists what would change. */
     reviewUnit: (fields: UnitFields, photoCount: number, code?: string) => request<ReviewResult>('POST', '/units/review', { fields, photoCount, ...(code ? { code } : { new_unit: true }) }),
     /** An error caught inside the app (a screen crash); the server keeps it with the failures and alerts the owner. */

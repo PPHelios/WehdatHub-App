@@ -5,9 +5,10 @@ import { BusySwitch } from './BusySwitch';
 import type { Lang, UnitFields } from '@wehdathub/shared';
 import { ux } from '../unitExtraText';
 import { uf } from '../unitFormText';
-import { readPhone, readPrice, plain, withCommas } from '../readback';
+import { readArea, readPhone, readPrice, readSum, plain, withCommas } from '../readback';
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { sizeShows } from '../unitRules';
+import { api } from '../api';
 import { spacing, useTheme } from '../theme';
 import { Chips } from './Chips';
 
@@ -76,7 +77,7 @@ export function SizeSection({ fields, set, field, lang }: SectionProps) {
         </>
       ) : null}
       <View style={styles.row}>
-        <View style={styles.flex}>{field('area_value', lang === 'en' ? 'Area m²' : 'المساحة م²', { keyboardType: 'decimal-pad' })}</View>
+        <View style={styles.flex}>{field('area_value', lang === 'en' ? 'Area m²' : 'المساحة م²', { keyboardType: 'decimal-pad', hint: readArea(str(fields.area_value), str(fields.price_value), ['land', 'farm'].includes(type), lang) })}</View>
         <View style={styles.flex}>{field('bedrooms', lang === 'en' ? 'Bedrooms' : 'الغرف', { keyboardType: 'number-pad' })}</View>
       </View>
       <View style={styles.row}>
@@ -119,7 +120,7 @@ export function DeliverySection({ fields, set, field, lang }: SectionProps) {
       {primary ? <Chips options={[{ value: 'resale', label: lang === 'en' ? 'Resale with installments' : 'ريسيل بالتقسيط' }, { value: 'primary', label: lang === 'en' ? 'Primary' : 'برايمري' }]} value="primary" onChange={(v) => set('market', v)} testID="f-market" /> : null}
       {primary ? (
         <View style={styles.stack}>
-          {field('cash_price', lang === 'en' ? 'Cash price' : 'سعر الكاش', { keyboardType: 'decimal-pad' })}
+          {field('cash_price', lang === 'en' ? 'Cash price' : 'سعر الكاش', { keyboardType: 'decimal-pad', hint: readPrice(str(fields.cash_price), lang), value: withCommas(str(fields.cash_price)), onChangeText: (v: string) => set('cash_price', plain(v)) })}
           <View style={styles.row}>
             <View style={styles.flex}>{field('maintenance_pct', x.maintPct, { keyboardType: 'decimal-pad' })}</View>
             <View style={styles.flex}>{field('maintenance_terms', x.maintTerms)}</View>
@@ -142,11 +143,11 @@ export function DeliverySection({ fields, set, field, lang }: SectionProps) {
       ) : (
         <View style={styles.stack}>
           <View style={styles.row}>
-            <View style={styles.flex}>{field('down_payment_value', lang === 'en' ? 'Paid (cash required)' : 'المدفوع (الكاش المطلوب)', { keyboardType: 'numbers-and-punctuation', value: withCommas(str(fields.down_payment_value)), onChangeText: (v: string) => set('down_payment_value', plain(v)) })}</View>
-            <View style={styles.flex}>{field('remaining_amount', lang === 'en' ? 'Remaining installments' : 'المتبقي أقساط', { keyboardType: 'numbers-and-punctuation', value: withCommas(str(fields.remaining_amount)), onChangeText: (v: string) => set('remaining_amount', plain(v)) })}</View>
+            <View style={styles.flex}>{field('down_payment_value', lang === 'en' ? 'Paid (cash required)' : 'المدفوع (الكاش المطلوب)', { keyboardType: 'numbers-and-punctuation', hint: readPrice(str(fields.down_payment_value), lang), value: withCommas(str(fields.down_payment_value)), onChangeText: (v: string) => set('down_payment_value', plain(v)) })}</View>
+            <View style={styles.flex}>{field('remaining_amount', lang === 'en' ? 'Remaining installments' : 'المتبقي أقساط', { keyboardType: 'numbers-and-punctuation', hint: readSum(str(fields.down_payment_value), str(fields.remaining_amount), lang) || readPrice(str(fields.remaining_amount), lang), value: withCommas(str(fields.remaining_amount)), onChangeText: (v: string) => set('remaining_amount', plain(v)) })}</View>
           </View>
           <View style={styles.row}>
-            <View style={styles.flex}>{field('installment_value', x.installment, { keyboardType: 'decimal-pad' })}</View>
+            <View style={styles.flex}>{field('installment_value', x.installment, { keyboardType: 'decimal-pad', hint: readPrice(str(fields.installment_value), lang), value: withCommas(str(fields.installment_value)), onChangeText: (v: string) => set('installment_value', plain(v)) })}</View>
             <View style={styles.flex}>{field('installments_end', x.last, { keyboardType: 'numbers-and-punctuation' })}</View>
           </View>
           <Label>{x.freq}</Label>
@@ -163,11 +164,32 @@ export function OwnerSection({ fields, set, field, lang, expanded, onDescribeAga
   const x = ux(lang);
   const [more, setMore] = React.useState(expanded);
   const { colors } = useTheme();
+  // A phone that is already one of the broker's clients fills the owner's name and the lead code (only fields still empty).
+  const latest = React.useRef(fields);
+  latest.current = fields;
+  const [found, setFound] = React.useState('');
+  const phoneDigits = plain(str(fields.owner_phone));
+  React.useEffect(() => {
+    setFound('');
+    if (!/^(20)?0?1[0125]\d{8}$/.test(phoneDigits)) return undefined;
+    let live = true;
+    const h = setTimeout(() => {
+      api.ownerLookup?.(phoneDigits).then((r) => {
+        if (!live || !r?.found || !r.ref) return;
+        const f = latest.current;
+        if (!str(f.owner_name).trim() && f.owner_name_from_phone !== '1' && r.name) set('owner_name', r.name);
+        if (!str(f.owner_lead).trim()) set('owner_lead', r.ref);
+        setFound(`🔗 ${r.name ? `${r.name} · ` : ''}${r.ref}`);
+      }).catch(() => undefined);
+    }, 500);
+    return () => { live = false; clearTimeout(h); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phoneDigits]);
   return (
     <View style={styles.stack}>
       <Text style={{ color: colors.muted }}>{L.ownerPrivate}</Text>
       {field('owner_name', lang === 'en' ? 'Owner' : 'المالك')}
-      {field('owner_phone', lang === 'en' ? 'Owner phone' : 'تليفون المالك', { keyboardType: 'phone-pad', hint: readPhone(str(fields.owner_phone)) })}
+      {field('owner_phone', lang === 'en' ? 'Owner phone' : 'تليفون المالك', { keyboardType: 'phone-pad', hint: [readPhone(str(fields.owner_phone)), found].filter(Boolean).join('  ') })}
       <SwitchRow label={lang === 'en' ? 'No name: use the phone as the name' : 'مفيش اسم: استخدم التليفون كاسم'} value={fields.owner_name_from_phone === '1'} onChange={(v) => set('owner_name_from_phone', v ? '1' : '')} testID="f-owner_name_from_phone" />
       {field('owner_lead', x.ownerLead, { autoCapitalize: 'characters', autoCorrect: false, placeholder: 'L-0042' })}
       <Pressable accessibilityRole="button" testID="more-details" onPress={() => setMore((m) => !m)} style={styles.more}>

@@ -31,3 +31,25 @@ export function withCommas(raw: string): string {
 export function plain(raw: string): string {
   return digits(raw).replace(/[^\d.]/g, '');
 }
+
+const numberOf = (raw: string): number => {
+  const m = /^(\d+(?:\.\d+)?)$/.exec(digits(raw));
+  return m ? Number(m[1]) : 0;
+};
+
+/** Under the area: a typo guard ("1500" for a 150 m² flat; not for land) and, once the price is filled too, the price per m². */
+export function readArea(area: string, price: string, isLand: boolean, lang: 'ar' | 'en'): string {
+  const a = numberOf(area);
+  if (!a) return '';
+  if (!isLand && a < 15) return lang === 'ar' ? '⚠️ صغيرة أوي: راجع المساحة' : '⚠️ Very small: check the area';
+  if (!isLand && a > 3000) return lang === 'ar' ? '⚠️ كبيرة أوي: راجع المساحة' : '⚠️ Very large: check the area';
+  const p = numberOf(price);
+  return p >= 1000 ? `≈ ${Math.round(p / a).toLocaleString('en')} ${lang === 'ar' ? 'ج.م للمتر' : 'EGP per m²'}` : '';
+}
+
+/** Paid + remaining installments, added up: a plain sum for the person to see, never a check (the two are not always the price). */
+export function readSum(paid: string, remaining: string, lang: 'ar' | 'en'): string {
+  const a = numberOf(paid);
+  const b = numberOf(remaining);
+  return a && b ? `${lang === 'ar' ? 'المدفوع + المتبقي' : 'Paid + remaining'} = ${(a + b).toLocaleString('en')}` : '';
+}

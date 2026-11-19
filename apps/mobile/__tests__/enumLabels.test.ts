@@ -5,7 +5,7 @@
 import { ALL_TYPES, FINISHING, FURNISHING, UNIT_STATUS, VIEWING_STATUS, labelOf } from '../src/unitOptions';
 
 const SERVER = {
-  types: ['apartment', 'duplex', 'penthouse', 'chalet', 'triplex', 'triplex_roof', 'sky_loft', 'basement', 'mazonette', 'roof', 'studio', 'villa', 'townhouse', 'i_villa', 'twin_villa', 'maisonette', 'office', 'shop', 'clinic', 'commercial', 'land'],
+  types: ['apartment', 'duplex', 'penthouse', 'chalet', 'triplex', 'triplex_roof', 'sky_loft', 'basement', 'roof', 'studio', 'villa', 'townhouse', 'i_villa', 'twin_villa', 'maisonette', 'office', 'shop', 'clinic', 'commercial', 'land'],
   finishing: ['core_and_shell', 'semi_finished', 'fully_finished', 'super_lux', 'ultra_super_lux'],
   furnishing: ['furnished', 'semi_furnished', 'unfurnished', 'kitchen_and_ac', 'ac_only', 'kitchen_only'],
   unitStatus: ['draft', 'active', 'sold', 'archived', 'deleted'],

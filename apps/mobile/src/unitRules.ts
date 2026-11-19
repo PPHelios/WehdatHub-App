@@ -3,7 +3,7 @@ import type { UnitFields } from '@wehdathub/shared';
 // The add/edit unit rules, the same as the website (web/static/unitFields.js) and the server's field table (domain/fieldRules.js).
 // Copied here because the app works offline; if the server's table changes, change it here too.
 
-const APARTMENT_LIKE = ['apartment', 'duplex', 'penthouse', 'chalet', 'triplex', 'triplex_roof', 'sky_loft', 'basement', 'mazonette', 'roof'];
+const APARTMENT_LIKE = ['apartment', 'duplex', 'penthouse', 'chalet', 'triplex', 'triplex_roof', 'sky_loft', 'basement', 'roof'];
 const VILLA_LIKE = ['villa', 'townhouse', 'i_villa', 'twin_villa', 'maisonette'];
 const COMMERCIAL = ['office', 'shop', 'clinic', 'commercial'];
 
@@ -33,6 +33,38 @@ export function withImpliedFeatures(f: UnitFields): UnitFields {
     Number(f.roof_area) > 0 ? 'roof' : null,
   ].filter((k): k is string => Boolean(k) && !keys.includes(k as string));
   return implied.length ? { ...f, feature: [...keys, ...implied] } : f;
+}
+
+/**
+ * The fitted kitchen and ACs features and the Furnishing field are one fact (web: unitBox.js): a change in either shows in the other.
+ * kitchen + AC = "kitchen and AC", AC only, kitchen only. "Furnished" and "semi-furnished" mean more, so they stay as they are.
+ * `prev` is the fields before a change, `next` after it; the returned fields have the other side brought into line.
+ */
+const KITCHEN = 'kitchen_installed';
+const AC = 'ac_installed';
+const HALF: Record<string, [boolean, boolean]> = { kitchen_and_ac: [true, true], ac_only: [false, true], kitchen_only: [true, false] };
+export function withFurnishingSync(prev: UnitFields, next: UnitFields): UnitFields {
+  const keysOf = (f: UnitFields) => (Array.isArray(f.feature) ? (f.feature as string[]) : []);
+  const pk = keysOf(prev);
+  const nk = keysOf(next);
+  const pf = String(prev.furnishing ?? '');
+  const nf = String(next.furnishing ?? '');
+  if (pf !== nf) {
+    const want = HALF[nf];
+    let keys = nk;
+    if (want || nf === 'unfurnished' || (nf === '' && HALF[pf])) {
+      keys = keys.filter((k) => k !== KITCHEN && k !== AC);
+      if (want?.[0]) keys = [...keys, KITCHEN];
+      if (want?.[1]) keys = [...keys, AC];
+    }
+    return keys.length === nk.length && keys.every((k, i) => k === nk[i]) ? next : { ...next, feature: keys };
+  }
+  if (pk.includes(KITCHEN) === nk.includes(KITCHEN) && pk.includes(AC) === nk.includes(AC)) return next;
+  if (nf === 'furnished' || nf === 'semi_furnished') return next;
+  const k = nk.includes(KITCHEN);
+  const a = nk.includes(AC);
+  const furnishing = k && a ? 'kitchen_and_ac' : a ? 'ac_only' : k ? 'kitchen_only' : HALF[nf] ? '' : nf;
+  return furnishing === nf ? next : { ...next, furnishing };
 }
 
 const filled = (v: UnitFields[string]) => v !== undefined && v !== null && v !== '' && v !== false && !(Array.isArray(v) && v.length === 0);
