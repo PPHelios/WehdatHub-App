@@ -20,7 +20,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import type { VoiceFile } from '@wehdathub/shared';
 import { currentLang } from '../auth';
 import { t } from '../i18n';
-import { cancelRecording, ensureMic, startRecording, stopRecording } from '../voice';
+import { cancelRecording, EmptyRecordingError, ensureMic, startRecording, stopRecording } from '../voice';
 import { reportError } from '../errorReport';
 import * as haptics from '../haptics';
 import { Icon } from './Icon';
@@ -216,9 +216,14 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
       haptics.sent();
       await onFile(file);
     } catch (e) {
-      reportError(e, 'voice-stop');
-      haptics.failed();
-      onError(t(lang, 'micFailed'));
+      if (e instanceof EmptyRecordingError) {
+        haptics.failed();
+        showTip();
+      } else {
+        reportError(e, 'voice-stop');
+        haptics.failed();
+        onError(t(lang, 'micFailed'));
+      }
     } finally {
       go('idle');
     }
@@ -287,9 +292,12 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     try {
       kept.current = await stopRecording();
     } catch (e) {
-      reportError(e, 'voice-stop');
+      if (e instanceof EmptyRecordingError) showTip();
+      else {
+        reportError(e, 'voice-stop');
+        onError(t(lang, 'micFailed'));
+      }
       haptics.failed();
-      onError(t(lang, 'micFailed'));
       go('idle');
       resetUi();
       return;

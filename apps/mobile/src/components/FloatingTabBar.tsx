@@ -11,6 +11,8 @@ import { useTheme } from '../theme';
 export const FAB_TEST_ID = 'tab-fab';
 const BAR = 68;
 const INSET = 5;
+/** The system bar (buttons or gesture line) is drawn opaque under the app, so most of its inset only showed as an empty strip above it. */
+const GAP_TRIM = 32;
 
 /**
  * The tab bar: a floating capsule. One highlight sits behind the active tab and slides to the tab you press (it follows the reading
@@ -30,7 +32,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
   }, [index, slot, x]);
 
   return (
-    <View style={[styles.wrap, { backgroundColor: colors.bg, paddingBottom: Math.max(bottom, 10) }]}>
+    <View style={[styles.wrap, { backgroundColor: colors.bg, paddingBottom: Math.max(bottom - GAP_TRIM, 10) }]}>
       <View testID="tab-bar" onLayout={(e) => setWidth(e.nativeEvent.layout.width - INSET * 2)} style={[styles.bar, { backgroundColor: colors.card, borderColor: colors.border }, elev('lg')]}>
         {width > 0 && !isFab(state.routes[state.index]?.key) ? (
           <Animated.View testID="tab-highlight" pointerEvents="none" style={[styles.pill, { width: slot, backgroundColor: scheme === 'dark' ? 'rgba(0,0,0,0.38)' : colors.primarySoft, transform: [{ translateX: x }] }]} />

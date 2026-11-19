@@ -9,13 +9,28 @@ export async function ensureMic(): Promise<boolean> {
   return r === PermissionsAndroid.RESULTS.GRANTED;
 }
 
+/** The recorder held no sound when stopped; treated like a too-short note, not reported as an error. */
+export class EmptyRecordingError extends Error {
+  constructor() {
+    super('empty recording');
+    this.name = 'EmptyRecordingError';
+  }
+}
+
 export async function startRecording(): Promise<void> {
   await AudioRecorderPlayer.startRecorder();
 }
 
 /** Stops and returns the recorded note as an upload (AAC in an m4a/mp4 container on both phones). */
 export async function stopRecording(): Promise<VoiceFile> {
-  const uri = await AudioRecorderPlayer.stopRecorder();
+  let uri: string;
+  try {
+    uri = await AudioRecorderPlayer.stopRecorder();
+  } catch (e) {
+    // Android's MediaRecorder.stop() throws "stop failed" when it caught no sound yet (a very short note): not a fault.
+    if (/stop failed/i.test(String((e as Error)?.message ?? e))) throw new EmptyRecordingError();
+    throw e;
+  }
   return { uri: uri.startsWith('file://') || uri.startsWith('content://') ? uri : `file://${uri}`, name: 'search.m4a', type: 'audio/mp4' };
 }
 

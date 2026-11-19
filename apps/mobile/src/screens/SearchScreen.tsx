@@ -171,6 +171,6 @@ const styles = StyleSheet.create({
   askTitle: { fontSize: 18, fontWeight: '700' },
   count: { padding: spacing.lg },
   quick: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.xs },
-  chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, height: 40, justifyContent: 'center' },
 });

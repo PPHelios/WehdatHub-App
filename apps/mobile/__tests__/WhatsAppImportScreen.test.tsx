@@ -70,11 +70,14 @@ beforeEach(async () => {
   ] });
 });
 
+// Unchanged units are hidden by default; most tests look at their cards, so show them.
+const showUnchanged = async () => { const t = screen.queryByTestId('wa-hide-unchanged'); if (t?.props.accessibilityState.checked) await act(async () => { fireEvent.press(t); }); };
 const open = async () => {
   await act(async () => { render(<WhatsAppImportScreen />); });
   await waitFor(() => expect(screen.getByTestId('wa-range-read')).toBeTruthy());
   await act(async () => { fireEvent.press(screen.getByTestId('wa-range-read')); });
   await waitFor(() => expect(screen.getByTestId('wa-summary')).toBeTruthy());
+  await showUnchanged();
 };
 
 const clearErrors = async () => { await act(async () => { fireEvent.press(screen.getByTestId('wa-discard-errors')); }); };
@@ -190,7 +193,7 @@ test('the photos have no arrows (the order is set in the edit screen) and the de
   expect(screen.getAllByText(/Original message|الرسالة الأصلية/).length).toBe(4);
   expect(screen.getAllByText(/Show the full message|عرض الرسالة كاملة/).length).toBe(4);
   await act(async () => { fireEvent.press(screen.getByTestId('wa-desc-3')); });
-  expect(screen.getAllByText(/Hide|إخفاء/).length).toBe(1);
+  expect(screen.getAllByText(/^(Hide|إخفاء)$/).length).toBe(1);
 });
 
 const split = (txt: string) => (txt.match(/\d+/g) ?? []).map(Number);
