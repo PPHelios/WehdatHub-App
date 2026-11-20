@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { timed } from '../usage';
-import { ActivityIndicator, Keyboard, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
@@ -28,13 +28,6 @@ export function SearchScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [text, setText] = useState('');
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  // The keyboard can cover the floating bar (the window is not always resized): lift the bar by the keyboard's height.
-  const [kb, setKb] = useState(0);
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', (e) => setKb(e.endCoordinates?.height ?? 0));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKb(0));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
   // The search box and mic float at the bottom like a chat app: they slide away on scrolling down and come back on scrolling up.
   const slide = useSharedValue(0);
   const lastY = useSharedValue(0);
@@ -156,7 +149,7 @@ export function SearchScreen() {
         </View>
       ) : null}
       <View style={styles.flex}>{body}</View>
-      <Animated.View style={[styles.bar, { backgroundColor: colors.bg, borderColor: colors.border, bottom: kb }, barSlide]}>
+      <Animated.View style={[styles.bar, { backgroundColor: colors.bg, borderColor: colors.border, bottom: 0 }, barSlide]}>
       <VoiceBar id="search" label={t(lang, 'mic')} value={text} onChangeText={setText} placeholder={t(lang, 'searchPlaceholder')} onSubmit={() => run(text)} onFile={onVoice} onError={setVoiceError} disabled={search.isPending} busy={search.isPending} />
       </Animated.View>
     </View>

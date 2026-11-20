@@ -100,6 +100,8 @@ export interface LeadsPage { items: ApiLead[]; more: boolean; total: number; off
 export interface LeadEvent { id: string; kind: string; at: string; by: string | null; text: string | null; stage: string | null }
 export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; start: number; end: number; days: number[]; max_jumps: number }; roundRobin: boolean; order: string[]; brokers: { id: string; name: string; role: string; away: boolean; open: number }[] }
 export interface FormerMember { id: string; name: string; role: string; deactivatedAt: string | null }
+/** What a portal enquiry message (Bayut, Dubizzle, Nawy) states. */
+export interface PortalEnquiryRead { portal: string; name: string | null; link: string; listingNo: string | null }
 export interface TeamMember { id: string; name: string; role: string; teamLeadId?: string | null; me: boolean; away: boolean; open: number; overdue: number; soon: number }
 /** One matching offer of a project (Ask): a unit type with its numbers. */
 export interface AskOffer { type?: string | null; area: number | null; floor: string | number | null; bedrooms?: number | null; price: number | null; down: number | null; monthly: number | null; years?: number | null; discount_pct?: number | null }
@@ -549,7 +551,7 @@ export function createApiClient(opts: ApiClientOptions) {
     setViewing: (ref: string, o: { version: number; at: string; unitCode?: string; place?: string; lang: Lang }) => request<ViewingSet>('POST', `/leads/${encodeURIComponent(ref)}/viewing`, o),
     viewings: (o: { from?: string; to?: string } = {}) => request<{ items: ApiViewing[] }>('GET', '/viewings', undefined, { from: o.from, to: o.to }),
     sentLinks: (offset = 0) => request<{ offset: number; hasMore: boolean; items: SentLink[] }>('GET', '/links', undefined, { offset: offset || undefined }),
-    extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string }>('POST', '/leads/extract', { message }),
+    extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string; portal?: undefined } | { portal: true; enquiry: PortalEnquiryRead }>('POST', '/leads/extract', { message }),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
     askResults: (a: AskQuery) => request<AskResults>('GET', '/ask/results', undefined, { q: a.q, page: a.page ?? 1, per: a.per, sort: a.sort ?? 'best', drop: a.drop?.length ? a.drop.join(',') : undefined, pmin: a.pmin, pmax: a.pmax, amin: a.amin, amax: a.amax, dmax: a.dmax, imax: a.imax, bed: a.bed, units: a.units, f: a.token, sl: a.token ? a.logId : undefined }),
     /** What the broker did next, for the search log. Never blocks the screen. */
@@ -639,6 +641,10 @@ export function createApiClient(opts: ApiClientOptions) {
     commissionMove: (id: string, body: Row) => request<{ ok: true }>('POST', `/commissions/${id}`, body),
     sources: (month?: string) => request<SourcesData>('GET', '/sources', undefined, { month }),
     saveSpend: (month: string, spend: Record<string, string>) => request<{ ok: true }>('POST', '/sources/spend', { month, spend }),
+    /** Reads a pasted portal message (managers and the owner): nothing is saved. 422 when it is not a portal enquiry. */
+    readPortalEnquiry: (message: string) => request<{ ok: true } & PortalEnquiryRead>('POST', '/portal-enquiries/read', { message }),
+    /** Keeps a portal enquiry; with phone + brokerId it also becomes a lead. */
+    savePortalEnquiry: (b: { message: string; phone?: string; brokerId?: string }) => request<{ id: string; deduped: boolean; assigned: boolean; leadRef: string | null; outcome?: string }>('POST', '/portal-enquiries', b),
     portalEnquiries: () => request<{ items: Row[] }>('GET', '/portal-enquiries'),
     assignEnquiry: (id: string, b: { phone: string; brokerId?: string }) => request<{ ok: true; outcome: string }>('POST', `/portal-enquiries/${id}/assign`, b),
     linkEnquiry: (id: string, unitCode: string) => request<{ ok: true }>('POST', `/portal-enquiries/${id}/link`, { unitCode }),

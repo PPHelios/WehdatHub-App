@@ -42,6 +42,8 @@ export function NewLeadScreen() {
     setMessage(null);
     try {
       const r = await timed('lead_paste', () => api.extractLead(paste.trim()));
+      // A portal enquiry (managers and the owner): its own screen, not this form.
+      if (r.portal) return nav.replace('PortalEnquiry', { message: paste.trim(), enquiry: r.enquiry });
       if (r.name) setName(r.name);
       if (r.phones[0]) setPhone(r.phones[0]);
       if (r.kind) setKind(r.kind);

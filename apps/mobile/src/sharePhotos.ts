@@ -37,7 +37,11 @@ export async function sharePhotos(
       type: files.length === 1 ? files[0].type : 'image/*',
       message,
       failOnCancel: false,
-    });
+      // Android: the pictures must go to the app's own cache. The default (external cache) is outside the
+      // library's file provider paths, so the share carried no file and WhatsApp did nothing.
+      // The native side reads this option; the library's TypeScript type just does not list it.
+      useInternalStorage: true,
+    } as Parameters<typeof Share.open>[0]);
     outcome = res.dismissedAction ? 'cancelled' : 'sent';
   } catch (e) {
     outcome = e instanceof Error && /cancel|dismiss/i.test(e.message) ? 'cancelled' : 'failed';

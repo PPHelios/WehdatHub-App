@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import type { LeadTab, UnitFields, UploadFile } from '@wehdathub/shared';
+import type { LeadTab, PortalEnquiryRead, UnitFields, UploadFile } from '@wehdathub/shared';
 import { trackScreen } from './analytics';
 import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -85,6 +85,7 @@ const lazyScreens = {
   Commissions: lazy(() => require('./screens/DealsScreens').CommissionsScreen),
   Sources: lazy(() => require('./screens/DealsScreens').SourcesScreen),
   Portal: lazy(() => require('./screens/DealsScreens').PortalScreen),
+  PortalEnquiry: lazy(() => require('./screens/PortalEnquiryScreen').PortalEnquiryScreen),
   Links: lazy(() => require('./screens/DealsScreens').LinksScreen),
   Projects: lazy(() => require('./screens/CatalogueScreens').ProjectsScreen),
   Project: lazy(() => require('./screens/CatalogueScreens').ProjectScreen),
@@ -109,7 +110,7 @@ export type AddUnitParams = {
   /** The post as the import read it (the server's rules reader): the form opens with these fields filled. */ fields?: UnitFields;
   /** The code the post writes: filled even when the reader could not be reached. */ code?: string;
 };
-export type RootStackParams = { Tabs: undefined; MoreMenu: undefined; Settings: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string; me?: boolean; teamLeadId?: string | null }; Ask: undefined; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
+export type RootStackParams = { Tabs: undefined; MoreMenu: undefined; Settings: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; PortalEnquiry: { message: string; enquiry?: PortalEnquiryRead }; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string; me?: boolean; teamLeadId?: string | null }; Ask: undefined; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = Record<TabKey | 'AddUnitTab', undefined>;
 
@@ -236,6 +237,7 @@ export function RootNavigation() {
           <Stack.Screen name="Commissions" getComponent={lazyScreens.Commissions} options={{ title: t(currentLang(), 'commissions') }} />
           <Stack.Screen name="Sources" getComponent={lazyScreens.Sources} options={{ title: t(currentLang(), 'sources') }} />
           <Stack.Screen name="Portal" getComponent={lazyScreens.Portal} options={{ title: t(currentLang(), 'portal') }} />
+          <Stack.Screen name="PortalEnquiry" getComponent={lazyScreens.PortalEnquiry} options={{ title: t(currentLang(), 'peTitle') }} />
           <Stack.Screen name="Links" getComponent={lazyScreens.Links} options={{ title: t(currentLang(), 'links') }} />
           <Stack.Screen name="Projects" getComponent={lazyScreens.Projects} options={{ title: t(currentLang(), 'projects') }} />
           <Stack.Screen name="Project" getComponent={lazyScreens.Project} options={({ route }) => ({ title: route.params.name })} />

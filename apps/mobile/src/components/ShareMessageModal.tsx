@@ -5,6 +5,7 @@ import type { Lang } from '@wehdathub/shared';
 import { api } from '../api';
 import { radius, spacing, useTheme } from '../theme';
 import { Button } from './Button';
+import { KeyboardLift } from './KeyboardLift';
 import { Chips } from './Chips';
 
 /** The client message for a unit, shown before it is sent: the broker edits it or switches its language (the server writes both). */
@@ -24,7 +25,7 @@ export function ShareMessageModal({ visible, code, startLang, lang, onSend, onCa
   }, [visible, code, msgLang]);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.back}>
+      <KeyboardLift style={styles.back}>
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.h, { color: colors.text }]}>{lang === 'en' ? 'Message to the client' : 'الرسالة للعميل'}</Text>
           <Text style={{ color: colors.muted }}>{lang === 'en' ? 'Edit it before you send, or change its language.' : 'عدّلها قبل ما تبعت، أو غيّر لغتها.'}</Text>
@@ -34,7 +35,7 @@ export function ShareMessageModal({ visible, code, startLang, lang, onSend, onCa
           <Button testID="msg-send" label={lang === 'en' ? 'Send' : 'ابعت'} loading={busy} disabled={busy || failed || !text.trim()} onPress={async () => { setBusy(true); try { await onSend(text.trim()); } finally { setBusy(false); } }} />
           <Button label={lang === 'en' ? 'Cancel' : 'إلغاء'} variant="secondary" onPress={onCancel} />
         </View>
-      </View>
+      </KeyboardLift>
     </Modal>
   );
 }

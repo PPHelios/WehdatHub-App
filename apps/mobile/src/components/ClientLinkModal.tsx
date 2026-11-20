@@ -8,6 +8,7 @@ import type { PhoneContact } from '../contacts';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
 import { Button } from './Button';
+import { KeyboardLift } from './KeyboardLift';
 import { Field } from './Field';
 
 /** Asks who a client link is for: a lead code, a mobile number, a phone contact, or nobody. */
@@ -27,7 +28,7 @@ export function ClientLinkModal({ visible, busy, error, onSubmit, onCancel }: { 
   const matches = looksLikeName && contacts ? filterContacts(contacts, text).slice(0, 5) : [];
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.back}>
+      <KeyboardLift style={styles.back}>
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'linkToClient')}</Text>
           <Field testID="client-to" label={t(lang, 'clientHint')} value={text} onChangeText={setText} autoCapitalize="characters" autoCorrect={false} />
@@ -60,7 +61,7 @@ export function ClientLinkModal({ visible, busy, error, onSubmit, onCancel }: { 
           <Button testID="client-skip" label={t(lang, 'skipClient')} variant="secondary" disabled={busy} onPress={() => onSubmit('')} />
           <Button label={t(lang, 'cancel')} variant="secondary" onPress={onCancel} />
         </View>
-      </View>
+      </KeyboardLift>
     </Modal>
   );
 }

@@ -3,6 +3,7 @@ import { startUsage, usage } from './src/usage';
 import { Alert, AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
 import { BusyProvider } from './src/busy';
 import { ToastHost } from './src/components/Toast';
+import { KeyboardLift } from './src/components/KeyboardLift';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, focusManager } from '@tanstack/react-query';
@@ -13,7 +14,8 @@ import { PlanBlockedGate } from './src/components/PlanBlockedGate';
 import { PlanLockSheet } from './src/components/PlanLockSheet';
 import { isOutdated } from '@wehdathub/shared';
 import type { AppConfig } from '@wehdathub/shared';
-import { configOptions } from './src/queries';
+import { configOptions, meOptions } from './src/queries';
+import { api } from './src/api';
 import { useAuth } from './src/auth';
 import { LockScreen } from './src/components/LockScreen';
 import { UpdateScreen } from './src/components/UpdateScreen';
@@ -84,8 +86,17 @@ export default function App() {
       // A WhatsApp chat export (a zip) opens the import screen; everything else opens Add unit.
       if (s.zip) usage('wa_import_share', true);
       const go = () => (s.zip ? navigationRef.navigate('WhatsAppImport', { zip: s.zip }) : navigationRef.navigate('AddUnit', s));
-      if (navigationRef.isReady()) go();
-      else setTimeout(go, 800);
+      const open = (fn: () => void) => (navigationRef.isReady() ? fn() : void setTimeout(fn, 800));
+      // Text only, shared by a manager or the owner: a portal enquiry (Bayut, Dubizzle, Nawy) opens its own screen.
+      const rights = queries.getQueryData(meOptions().queryKey)?.rights;
+      const text = s.text;
+      if (text && !s.zip && !s.photos?.length && !s.voice && (rights?.manager || rights?.agencyOwner)) {
+        api.readPortalEnquiry(text)
+          .then((r) => open(() => navigationRef.navigate('PortalEnquiry', { message: text, enquiry: { portal: r.portal, name: r.name, link: r.link, listingNo: r.listingNo } })))
+          .catch(() => open(go));
+        return;
+      }
+      open(go);
     });
   }, [status]);
 
@@ -142,7 +153,9 @@ export default function App() {
       ) : (
         <PersistQueryClientProvider client={queries} persistOptions={{ persister: listsStore, maxAge: DAY, buster: 'v2', dehydrateOptions: { shouldDehydrateQuery: (q) => q.state.status === 'success' && KEPT.includes(String(q.queryKey[0])) } }}>
           <BusyProvider>
-            <RootNavigation />
+            <KeyboardLift>
+              <RootNavigation />
+            </KeyboardLift>
           </BusyProvider>
           {locked && status === 'signedIn' ? <LockScreen /> : null}
           <PlanBlockedGate />
