@@ -137,7 +137,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         {contact.data?.phone ? (
           <View style={styles.actions}>
             <View style={styles.flex}><Button testID="call-owner" label={`${t(lang, 'callOwner')}`} onPress={() => { Linking.openURL(`tel:${contact.data?.phone}`).catch(() => undefined); }} /></View>
-            <View style={styles.flex}><Button testID="whatsapp-owner" variant="secondary" label={`${t(lang, 'whatsappOwner')}`} onPress={() => { usage('whatsapp_tap', true, undefined, { kind: 'owner' }); Linking.openURL(`https://wa.me/${waNumber(contact.data?.phone ?? '')}`).catch(() => undefined); }} /></View>
+            <View style={styles.flex}><Button testID="whatsapp-owner" variant="whatsapp" label={`${t(lang, 'whatsappOwner')}`} onPress={() => { usage('whatsapp_tap', true, undefined, { kind: 'owner' }); Linking.openURL(`https://wa.me/${waNumber(contact.data?.phone ?? '')}`).catch(() => undefined); }} /></View>
           </View>
         ) : null}
         {hidden === 'pending' ? <Text testID="access-pending" style={{ color: colors.muted }}>{t(lang, 'accessPending')}</Text> : null}

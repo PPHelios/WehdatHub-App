@@ -3,7 +3,6 @@ import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from
 import { AppText as Text } from '../components/AppText';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { TodayTask } from '@wehdathub/shared';
 import { api } from '../api';
@@ -21,31 +20,31 @@ const KIND_LABEL: Record<TodayTask['kind'], StringKey> = { late: 'late', viewing
 export function TodayScreen() {
   const { colors, elev } = useTheme();
   const lang = currentLang();
-  const nav = useNavigation<BottomTabNavigationProp<{ Units: undefined }>>();
   const stack = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const q = useQuery({ queryKey: ['today'], queryFn: () => api.today() });
 
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
-  if (q.isError || !q.data) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} altLabel={t(lang, 'openUnits')} onAlt={() => nav.navigate('Units')} />;
+  if (q.isError || !q.data) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} altLabel={t(lang, 'openUnits')} onAlt={() => stack.navigate('UnitsList')} />;
   const { counts, tasks, moreTasks } = q.data;
   const leases = q.data.leases ?? [];
-  const stats: [StringKey, number][] = [['followUps', counts.followUpsToday], ['viewings', counts.viewings], ['newLeads', counts.newLeads]];
+  const stats: [StringKey, number, string][] = [['followUps', counts.followUpsToday, colors.primary], ['viewings', counts.viewings, colors.accent], ['newLeads', counts.newLeads, colors.ok]];
+  const KIND_TONE: Record<TodayTask['kind'], string> = { late: colors.danger, hot: colors.warn, viewing: colors.accent, call: colors.primary, matches: colors.primary };
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={async () => { await q.refetch(); }} />}>
       <View style={styles.stats}>
-        {stats.map(([k, n]) => (
-          <View key={k} style={[styles.stat, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.statN, { color: colors.text }]}>{n}</Text>
+        {stats.map(([k, n, tone]) => (
+          <View key={k} style={[styles.stat, elev('md'), { backgroundColor: tone + '22', borderColor: colors.border }]}>
+            <Text style={[styles.statN, { color: tone }]}>{n}</Text>
             <Text style={{ color: colors.muted }}>{t(lang, k)}</Text>
           </View>
         ))}
       </View>
       {tasks.length === 0 ? (
-        <View style={styles.empty}><EmptyView title={t(lang, 'allClear')} hint={t(lang, 'allClearHint')} actionLabel={t(lang, 'openUnits')} onAction={() => nav.navigate('Units')} /></View>
+        <View style={styles.empty}><EmptyView title={t(lang, 'allClear')} hint={t(lang, 'allClearHint')} actionLabel={t(lang, 'openUnits')} actionVariant="primary" onAction={() => stack.navigate('UnitsList')} /></View>
       ) : (
         tasks.map((task) => (
-          <View key={task.ref} testID="today-task" style={[styles.task, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View key={task.ref} testID="today-task" style={[styles.task, { backgroundColor: colors.card, borderColor: colors.border, borderStartWidth: 4, borderStartColor: KIND_TONE[task.kind] }]}>
             <View style={styles.taskInfo}>
               <Text style={[styles.name, { color: colors.text }]}>{task.name || task.ref}</Text>
               <Text style={{ color: colors.accentInk, fontWeight: '600' }}>{t(lang, KIND_LABEL[task.kind])}{task.matches ? ` · ${task.matches}` : ''}</Text>
@@ -57,7 +56,7 @@ export function TodayScreen() {
       )}
       {leases.length ? (
         <View testID="today-leases" style={styles.leases}>
-          <Text style={[styles.name, { color: colors.text }]}>🔑 {t(lang, 'leasesSoon')}</Text>
+          <Text style={[styles.name, styles.head, { color: colors.text, backgroundColor: colors.primarySoft }]}>🔑 {t(lang, 'leasesSoon')}</Text>
           {leases.map((z) => (
             <Pressable key={z.code} testID={`today-lease-${z.code}`} accessibilityRole="button" onPress={() => stack.navigate('Unit', { code: z.code })} style={[styles.task, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.taskInfo}>
@@ -85,5 +84,6 @@ const styles = StyleSheet.create({
   task: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   taskInfo: { flex: 1, gap: 2 },
   name: { fontSize: 16, fontWeight: '700' },
+  head: { padding: spacing.sm, borderRadius: radius.sm },
   more: { textAlign: 'center' },
 });

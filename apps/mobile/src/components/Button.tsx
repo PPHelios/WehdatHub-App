@@ -4,7 +4,7 @@ import { AppText as Text } from './AppText';
 import { useBusy } from '../busy';
 import { buttonHeight, buttonRadius, spacing, useTheme } from '../theme';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger' | 'whatsapp';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface Props {
@@ -35,8 +35,9 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
   const blocked = spin || disabled || anyBusy;
   // Filled buttons (primary, danger) carry an "on" colour; secondary has an edge; quiet has neither.
   const filled = variant === 'primary' || variant === 'danger';
+  const wa = variant === 'whatsapp';
   const fill = variant === 'danger' ? colors.danger : colors.primary;
-  const ink = filled ? (variant === 'danger' ? colors.onDanger : colors.onPrimary) : variant === 'quiet' ? colors.primaryInk : colors.text;
+  const ink = wa ? '#06260F' : filled ? (variant === 'danger' ? colors.onDanger : colors.onPrimary) : variant === 'quiet' ? colors.primaryInk : colors.text;
   const handle = async () => {
     if (blocked || busy.current) return;
     busy.current = true;
@@ -59,8 +60,8 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
       onPress={handle}
       style={({ pressed }) => [
         styles.base,
-        variant === 'primary' || variant === 'secondary' ? elev('sm') : null,
-        { minHeight: buttonHeight[size], backgroundColor: filled ? fill : variant === 'secondary' ? colors.card : 'transparent', borderColor: variant === 'primary' ? colors.primaryHi : variant === 'danger' ? fill : variant === 'quiet' ? 'transparent' : colors.lineStrong, opacity: blocked ? 0.6 : pressed ? 0.85 : 1, transform: [{ scale: pressed && !blocked ? 0.98 : 1 }] },
+        variant === 'primary' || variant === 'secondary' || wa ? elev('sm') : null,
+        { minHeight: buttonHeight[size], backgroundColor: wa ? (pressed ? '#1EBE5A' : '#25D366') : filled ? fill : variant === 'secondary' ? colors.card : 'transparent', borderColor: wa ? (pressed ? '#1EBE5A' : '#25D366') : variant === 'primary' ? colors.primaryHi : variant === 'danger' ? fill : variant === 'quiet' ? 'transparent' : colors.lineStrong, opacity: blocked ? 0.6 : pressed ? 0.85 : 1, transform: [{ scale: pressed && !blocked ? 0.98 : 1 }] },
       ]}
     >
       {progress !== undefined ? <View testID="button-progress" pointerEvents="none" style={[styles.fill, { width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`, backgroundColor: filled ? ink : colors.primary }]} /> : null}

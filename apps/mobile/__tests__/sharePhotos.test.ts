@@ -22,6 +22,11 @@ test('sends at most 10 photos with the text', async () => {
   expect(arg.message).toBe('A-1\n9,000,000 EGP');
 });
 
+test('pictures go to internal storage, or Android shares no file and WhatsApp does nothing', async () => {
+  await sharePhotos(['https://x/1.jpg'], '', 'unit_share');
+  expect((Share.open as jest.Mock).mock.calls[0][0].useInternalStorage).toBe(true);
+});
+
 test('a download that fails reports failed, and a cancelled sheet is not an error', async () => {
   (globalThis as unknown as { fetch: unknown }).fetch = jest.fn().mockRejectedValue(new Error('offline'));
   expect(await sharePhotos(['https://x/1.jpg'], 't', 'unit_share')).toBe('failed');

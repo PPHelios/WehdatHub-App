@@ -17,7 +17,7 @@ import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 import { VoiceBar } from '../components/VoiceBar';
 
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList<ApiUnitListItem>);
@@ -92,7 +92,17 @@ export function SearchScreen() {
   ) : search.isError ? (
     <ErrorView message={errorText(search.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => run(text)} />
   ) : !data ? (
-    <EmptyView title={t(lang, 'searchTab')} hint={t(lang, 'searchHint')} />
+    <View style={styles.hero}>
+      <View style={[styles.heroIcon, { backgroundColor: colors.primarySoft }]}><Text style={{ fontSize: 36 }}>🔎</Text></View>
+      <Text style={[styles.heroTitle, { color: colors.text }]}>{t(lang, 'searchTab')}</Text>
+      <Text style={{ color: colors.muted, textAlign: 'center' }}>{t(lang, 'searchHint')}</Text>
+      <Text style={{ color: colors.muted, fontSize: 13 }}>{t(lang, 'searchTry')}</Text>
+      {(['searchExample1', 'searchExample2', 'searchExample3'] as const).map((k) => (
+        <Pressable key={k} testID={k} accessibilityRole="button" onPress={() => { setText(t(lang, k)); run(t(lang, k)); }} style={[styles.example, { backgroundColor: colors.accent + '22' }]}>
+          <Text style={{ color: colors.text, fontWeight: '600' }}>{t(lang, k)}</Text>
+        </Pressable>
+      ))}
+    </View>
   ) : data.status === 'ask' ? (
     <View style={styles.ask}>
       <Text style={[styles.askTitle, { color: colors.text }]}>{t(lang, 'askTitle')}</Text>
@@ -158,6 +168,10 @@ export function SearchScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
+  heroIcon: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
+  heroTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  example: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.lg },
   bar: { position: 'absolute', start: 0, end: 0, bottom: 0, padding: spacing.md, gap: spacing.sm, borderTopWidth: 1 },
   err: { padding: spacing.lg, textAlign: 'center' },
   ask: { padding: spacing.xl, gap: spacing.md },

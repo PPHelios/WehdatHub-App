@@ -73,8 +73,8 @@ export function ProjectCardView({ p, lang, onOpen, onSend }: { p: ProjectCard; l
         </View>
       ) : null}
       {p.client_text ? (
-        <Pressable testID="project-whatsapp" accessibilityRole="button" onPress={() => { onSend?.(); void sendOnWhatsApp(p.client_text as string); }} style={[styles.send, { borderColor: colors.primary }]}>
-          <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{T.whatsapp}</Text>
+        <Pressable testID="project-whatsapp" accessibilityRole="button" onPress={() => { onSend?.(); void sendOnWhatsApp(p.client_text as string); }} style={({ pressed }) => [styles.send, { borderColor: pressed ? '#1EBE5A' : '#25D366', backgroundColor: pressed ? '#1EBE5A' : '#25D366' }]}>
+          <Text style={{ color: '#06260F', fontWeight: '700' }}>{T.whatsapp}</Text>
         </Pressable>
       ) : null}
     </View>

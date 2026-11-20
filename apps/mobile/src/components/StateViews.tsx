@@ -29,13 +29,13 @@ export function ErrorView({ message, retryLabel, onRetry, altLabel, onAlt }: { m
 }
 
 /** An empty list always offers an action. */
-export function EmptyView({ title, hint, actionLabel, onAction }: { title: string; hint?: string; actionLabel?: string; onAction?: () => void }) {
+export function EmptyView({ title, hint, actionLabel, onAction, actionVariant = 'secondary' }: { title: string; hint?: string; actionLabel?: string; onAction?: () => void; actionVariant?: 'primary' | 'secondary' }) {
   const { colors } = useTheme();
   return (
     <View style={styles.center}>
       <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       {hint ? <Text style={[styles.text, { color: colors.muted }]}>{hint}</Text> : null}
-      {actionLabel && onAction ? <View style={styles.actions}><Button label={actionLabel} onPress={onAction} variant="secondary" /></View> : null}
+      {actionLabel && onAction ? <View style={styles.actions}><Button label={actionLabel} onPress={onAction} variant={actionVariant} /></View> : null}
     </View>
   );
 }

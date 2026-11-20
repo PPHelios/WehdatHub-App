@@ -1,11 +1,12 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TodayScreen } from '../src/screens/TodayScreen';
 import { api } from '../src/api';
 
 jest.mock('../src/api', () => ({ api: { today: jest.fn() } }));
-jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));
+const mockNavigate = jest.fn();
+jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: mockNavigate }) }));
 const mocked = api as unknown as { today: jest.Mock };
 const wrap = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><TodayScreen /></QueryClientProvider>);
 
@@ -44,4 +45,11 @@ test('shows the role cards', async () => {
   await wrap();
   await waitFor(() => expect(screen.getByTestId('today-card-old')).toBeTruthy());
   expect(screen.getByTestId('today-card-info')).toBeTruthy();
+});
+
+test('Open units goes to the UnitsList stack screen (it exists for every role, unlike the Units tab)', async () => {
+  mocked.today.mockResolvedValue({ counts: { followUpsToday: 0, viewings: 0, newLeads: 0 }, tasks: [], moreTasks: 0 });
+  await wrap();
+  await fireEvent.press(await screen.findByText(/Open units|افتح الوحدات/));
+  expect(mockNavigate).toHaveBeenCalledWith('UnitsList');
 });

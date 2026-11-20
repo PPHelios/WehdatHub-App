@@ -15,7 +15,7 @@ export function TodayCards({ cards, only, onShowAll }: { cards: Cards; only?: 'o
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const box = [styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }];
-  const chev = lang === 'ar' ? '‹' : '›';
+  const chev = '›'; // the glyph is bidi-mirrored, so it already points outward in RTL
   const row = (key: string, text: string, onPress: () => void, side?: string) => (
     <Pressable key={key} accessibilityRole="button" onPress={onPress} style={[styles.row, { borderTopColor: colors.border }]}>
       <Text style={[styles.grow, { color: colors.text }]}>{text}</Text>
@@ -62,7 +62,7 @@ export function TodayCards({ cards, only, onShowAll }: { cards: Cards; only?: 'o
       {info.length ? <View testID="today-card-info" style={[box, styles.flush]}>{info}</View> : null}
       {cards.oldUnits ? (
         <View testID="today-card-old" style={box}>
-          <View style={styles.head}>
+          <View style={[styles.head, { backgroundColor: colors.primarySoft, borderRadius: radius.sm, padding: spacing.sm }]}>
             <Text style={[styles.title, styles.grow, { color: colors.text }]}>{t(lang, 'tcOldUnits')}</Text>
             <View style={[styles.pill, { backgroundColor: colors.accent + '22' }]}><Text style={{ color: colors.text, fontWeight: '700' }}>{cards.oldUnits.total}</Text></View>
           </View>
