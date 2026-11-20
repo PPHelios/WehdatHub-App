@@ -870,7 +870,7 @@ const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, 
           </View>
         </Pressable>
         <View style={styles.flex}>
-          <BadgeLine W={W} badge={badge} colors={colors} />
+          <BadgeLine W={W} badge={badge} colors={colors} willChange={p.plan?.kind === 'update'} />
           {kind === 'unchanged' ? <Text testID={`wa-unchanged-${p.id}`} style={{ color: colors.muted, fontWeight: '600' }}>{W.unchangedBadge}</Text> : null}
           {kind === 'updated' && changes?.length ? <Text testID={`wa-changes-${p.id}`} style={{ color: colors.accent, fontWeight: '600' }}>{fill(W.changesLine, { list: changes.map((c) => changeLine(c)).join(J) })}</Text> : null}
           {blockNote ? <Text testID={`wa-blocker-${p.id}`} style={{ color: colors.danger, fontWeight: '600' }}>{blockNote}</Text> : null}
@@ -915,10 +915,11 @@ const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, 
   return a.badge === b.badge || JSON.stringify(a.badge) === JSON.stringify(b.badge);
 });
 
-function BadgeLine({ W, badge, colors }: { W: ReturnType<typeof wi>; badge: CodeBadge; colors: { muted: string; accent: string; danger: string; text: string } }) {
+function BadgeLine({ W, badge, colors, willChange }: { W: ReturnType<typeof wi>; badge: CodeBadge; colors: { muted: string; accent: string; danger: string; text: string }; willChange: boolean }) {
   if (badge.kind === 'none') return null;
+  // The code check only says the unit exists; the 🔄 shows only when the server's plan says the post really changes it.
   const [text, color] =
-    badge.kind === 'update' ? [`🔄 ${fill(W.badgeUpdate, { c: badge.code })}${badge.photos ? ` · ${fill(W.badgeHas, { n: badge.photos })}` : ''}`, colors.accent]
+    badge.kind === 'update' ? [`${willChange ? '🔄' : '✔'} ${fill(W.badgeUpdate, { c: badge.code })}${badge.photos ? ` · ${fill(W.badgeHas, { n: badge.photos })}` : ''}`, willChange ? colors.accent : colors.muted]
     : badge.kind === 'new' ? [`🆕 ${fill(W.badgeNew, { c: badge.code })}`, colors.text]
     : badge.kind === 'taken' ? [`⛔ ${W.badgeTaken}`, colors.danger]
     : badge.kind === 'dup' ? [`⚠️ ${fill(W.badgeDup, { n: badge.of })}`, colors.danger]

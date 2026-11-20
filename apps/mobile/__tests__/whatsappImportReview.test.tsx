@@ -232,11 +232,13 @@ describe('every plan kind maps to the card', () => {
     await open();
     expect(ticked('1')).toBe(true);
     expect(screen.getByTestId('wa-changes-1').props.children).toMatch(/8,000,000.*9,500,000/);
+    expect(screen.getByTestId('wa-badge-update').props.children).toMatch(/🔄/); // the badge says "changes" only for a real change
   });
   test('unchanged: unticked and skipped', async () => {
     await kindOfCard({ kind: 'unchanged' });
     expect(ticked('1')).toBe(false);
     expect(screen.getByTestId('wa-unchanged-1')).toBeTruthy();
+    expect(screen.getByTestId('wa-badge-update').props.children).not.toMatch(/🔄/); // "unit exists", not "updates": same zip, nothing changed
   });
   test('other_unit and older: unticked errors that cannot be ticked', async () => {
     await kindOfCard({ kind: 'other_unit' });
