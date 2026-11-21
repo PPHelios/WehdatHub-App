@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { timed } from '../usage';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
@@ -19,6 +20,8 @@ import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 import { VoiceBar } from '../components/VoiceBar';
+
+const RECENT_KEY = 'wehdathub.recentSearches';
 
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList<ApiUnitListItem>);
 
@@ -50,6 +53,10 @@ export function SearchScreen() {
   const [extra, setExtra] = useState<ApiUnitListItem[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [done, setDone] = useState(false);
+  const [recent, setRecent] = useState<string[]>([]);
+  useEffect(() => {
+    AsyncStorage.getItem(RECENT_KEY).then((raw) => { const p = raw ? JSON.parse(raw) : []; if (Array.isArray(p)) setRecent(p.filter((x) => typeof x === 'string').slice(0, 3)); }).catch(() => undefined);
+  }, []);
 
   const run = async (q: string, drop = false, status: UnitStatus = 'active') => {
     const clean = q.trim();
@@ -58,6 +65,9 @@ export function SearchScreen() {
     setExtra([]);
     setDone(false);
     setLast({ q: clean, drop, status });
+    const next = [clean, ...recent.filter((x) => x !== clean)].slice(0, 3);
+    setRecent(next);
+    AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next)).catch(() => undefined);
     await search.mutateAsync({ q: clean, drop, status }).catch(() => undefined);
   };
   const loadMore = async () => {
@@ -96,10 +106,10 @@ export function SearchScreen() {
       <View style={[styles.heroIcon, { backgroundColor: colors.primarySoft }]}><Text style={{ fontSize: 36 }}>🔎</Text></View>
       <Text style={[styles.heroTitle, { color: colors.text }]}>{t(lang, 'searchTab')}</Text>
       <Text style={{ color: colors.muted, textAlign: 'center' }}>{t(lang, 'searchHint')}</Text>
-      <Text style={{ color: colors.muted, fontSize: 13 }}>{t(lang, 'searchTry')}</Text>
-      {(['searchExample1', 'searchExample2', 'searchExample3'] as const).map((k) => (
-        <Pressable key={k} testID={k} accessibilityRole="button" onPress={() => { setText(t(lang, k)); run(t(lang, k)); }} style={[styles.example, { backgroundColor: colors.accent + '22' }]}>
-          <Text style={{ color: colors.text, fontWeight: '600' }}>{t(lang, k)}</Text>
+      <Text style={{ color: colors.muted, fontSize: 13 }}>{t(lang, recent.length ? 'searchRecent' : 'searchTry')}</Text>
+      {(recent.length ? recent : (['searchExample1', 'searchExample2', 'searchExample3'] as const).map((k) => t(lang, k))).map((q, i) => (
+        <Pressable key={q} testID={recent.length ? `searchRecent${i + 1}` : `searchExample${i + 1}`} accessibilityRole="button" onPress={() => { setText(q); run(q); }} style={[styles.example, { backgroundColor: colors.accent + '22' }]}>
+          <Text style={{ color: colors.text, fontWeight: '600' }}>{q}</Text>
         </Pressable>
       ))}
     </View>
