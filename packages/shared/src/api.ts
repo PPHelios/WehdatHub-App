@@ -42,6 +42,9 @@ export interface ApiUnit {
   bathrooms: number | null;
   compound: string | null;
   compoundEn?: string | null;
+  /** The compound's phase the unit is filed under (Madinaty B10), in Arabic and English; null when none. */
+  phase?: string | null;
+  phaseEn?: string | null;
   district: string | null;
   city: string | null;
   finishing: string | null;
@@ -227,7 +230,9 @@ export interface PlaceList { version: string; places: import('./placeMatch').Lis
 export type PlaceListReply = PlaceList | { version: string; unchanged: true };
 export type UnitFields = Record<string, string | string[] | boolean | undefined>;
 /** The unit box (docs/plans/unified-unit-box.md): a place (its parents and zones are shown under the box) or a feature. */
-export interface BoxPlace extends PlaceSuggestion { label: string; zones: string[] }
+/** A compound's phase (Madinaty B10): a sub-zone the unit can be filed under. `selected` = the one already picked. */
+export interface BoxPhase { id: string; label: string; selected: boolean }
+export interface BoxPlace extends PlaceSuggestion { label: string; zones: string[]; phases?: BoxPhase[]; phasesBase?: string }
 export interface BoxFeature { kind: 'feature'; key: string; label: string }
 export type BoxItem = BoxPlace | BoxFeature;
 export interface BoxResolve { place: BoxPlace | null; features: { key: string; label: string }[]; /** Drop-down values the message states (older servers send none). */ furnishing?: string | null; finishing?: string | null }

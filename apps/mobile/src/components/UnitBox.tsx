@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from './AppText';
-import type { BoxFeature, BoxPlace, BoxResolve, Lang, UnitFields } from '@wehdathub/shared';
+import type { BoxFeature, BoxPhase, BoxPlace, BoxResolve, Lang, UnitFields } from '@wehdathub/shared';
 import { api } from '../api';
 import { featureChip } from '../featureLabels';
 import { syncPlaces } from '../placeList';
@@ -24,20 +24,38 @@ export const featureKeys = (f: UnitFields): string[] => (Array.isArray(f.feature
 export const otherFeatures = (f: UnitFields): string[] => str(f.features_other).split(/[,،\n]/).map((s) => s.trim()).filter(Boolean);
 /** The place the box shows: the compound, or the sub-area or area the unit is filed under. */
 export const placeLabel = (f: UnitFields): string => str(f.place_label) || str(f.compound);
+/** The chip text: the place with its phase, "Madinaty · B10". */
+export const chipLabel = (f: UnitFields): string => {
+  const place = placeLabel(f);
+  const phase = str(f.phase_label);
+  return phase && phase !== place ? `${place} · ${phase}` : place;
+};
+/** A compound's phases as the server sent them with the picked place: the list and the sub-zone a tap on the chosen phase goes back to. */
+export const phasesOf = (f: UnitFields): { base: string; list: BoxPhase[] } => {
+  try {
+    const v = JSON.parse(str(f.place_phases) || 'null');
+    return v && Array.isArray(v.list) ? { base: String(v.base ?? ''), list: v.list } : { base: '', list: [] };
+  } catch {
+    return { base: '', list: [] };
+  }
+};
 
 const nameOf = (p: BoxPlace) => p.label || p.name_ar || p.name_en || '';
 const pathOf = (p: BoxPlace) => [p.path, ...(p.zones ?? [])].filter(Boolean).join(' · ');
 
-/** The fields a picked place writes. A compound brings its own area; an area or sub-zone leaves the compound empty. */
+/** The fields a picked place writes. A compound brings its own area; an area or sub-zone leaves the compound empty. A picked phase is the sub-zone. */
 export function placePatch(p: BoxPlace): UnitFields {
+  const sel = p.phases?.find((x) => x.selected);
   return {
     compound: p.kind === 'compound' ? nameOf(p) : '',
     compound_new: '',
     area_id: p.area_id ?? '',
-    subzone_id: p.subzone_id ?? '',
+    subzone_id: sel ? sel.id : (p.subzone_id ?? ''),
     place_label: nameOf(p),
     place_path: p.path,
     place_zones: (p.zones ?? []).join(' · '),
+    phase_label: sel ? sel.label : '',
+    place_phases: p.phases?.length ? JSON.stringify({ base: p.phasesBase ?? '', list: p.phases }) : '',
   };
 }
 
@@ -60,7 +78,7 @@ export async function readMessage(text: string, f: UnitFields): Promise<UnitFiel
 }
 
 /** The fields that clear the place (its chip, its area and the new-place fields). */
-export const NO_PLACE: UnitFields = { compound: '', compound_new: '', area_id: '', subzone_id: '', place_label: '', place_path: '', place_zones: '' };
+export const NO_PLACE: UnitFields = { compound: '', compound_new: '', area_id: '', subzone_id: '', place_label: '', place_path: '', place_zones: '', phase_label: '', place_phases: '' };
 
 interface Props {
   fields: UnitFields;
@@ -84,7 +102,13 @@ export function UnitBox({ fields, patch, lang, testID = 'unit-box', invalid = fa
   useEffect(() => { syncPlaces(true).catch(() => undefined); }, []);
   const chosen = featureKeys(fields);
   const others = otherFeatures(fields);
-  const label = placeLabel(fields);
+  const label = chipLabel(fields);
+  const phases = phasesOf(fields);
+  const pickPhase = (ph: BoxPhase) => {
+    // Tapping the chosen phase again files the unit back under its compound (or area).
+    const on = str(fields.subzone_id) === ph.id;
+    patch({ subzone_id: on ? phases.base : ph.id, phase_label: on ? '' : ph.label });
+  };
   const items = typed.length >= 2 ? found : [];
   const places = items.filter((it) => it.kind !== 'feature') as BoxPlace[];
   const features = items.filter((it) => it.kind === 'feature' && !chosen.includes(it.key)) as BoxFeature[];
@@ -146,6 +170,14 @@ export function UnitBox({ fields, patch, lang, testID = 'unit-box', invalid = fa
             <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fields.compound_new === '1' ? `${label} · ${L.boxNew}` : label}  ×</Text>
           </Pressable>
         ) : null}
+        {phases.list.map((ph) => {
+          const on = str(fields.subzone_id) === ph.id;
+          return (
+            <Pressable key={ph.id} testID={`ubox-phase-${ph.id}`} onPress={() => pickPhase(ph)} accessibilityRole="button" accessibilityState={{ selected: on }} style={[styles.chip, { backgroundColor: on ? colors.primary : 'transparent', borderColor: colors.primary }]}>
+              <Text style={{ color: on ? colors.onPrimary : colors.primaryInk, fontWeight: on ? '700' : '400' }}>{ph.label}</Text>
+            </Pressable>
+          );
+        })}
         {chosen.map((k) => {
           const f = featureChip(k, lang);
           return (
@@ -180,7 +212,7 @@ export function UnitBox({ fields, patch, lang, testID = 'unit-box', invalid = fa
               <Text style={{ color: colors.text, fontSize: 16 }}>{it.label}</Text>
             </Pressable>
           ))}
-          <Pressable testID="ubox-request" onPress={() => { setInput(''); setRequesting(true); patch({ compound: typed, compound_new: '1', area_id: '', subzone_id: '', place_label: typed, place_path: '', place_zones: '' }); }} accessibilityRole="button" style={styles.opt}>
+          <Pressable testID="ubox-request" onPress={() => { setInput(''); setRequesting(true); patch({ compound: typed, compound_new: '1', area_id: '', subzone_id: '', place_label: typed, place_path: '', place_zones: '', phase_label: '', place_phases: '' }); }} accessibilityRole="button" style={styles.opt}>
             <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(L.boxRequest, { s: typed })}</Text>
           </Pressable>
           <Pressable testID="ubox-other" onPress={() => addOther(typed)} accessibilityRole="button" style={styles.opt}>
@@ -207,7 +239,7 @@ function NewPlace({ fields, patch, lang, onCancel, onDone }: { fields: UnitField
 
   const save = () => {
     if (!ok || !parent) return;
-    patch({ compound: name, compound_new: '1', compound_ar: str(fields.compound_ar), compound_pin: str(fields.compound_pin), area_id: parent.id, subzone_id: '', place_label: name, place_path: parent.label, place_zones: '' });
+    patch({ compound: name, compound_new: '1', compound_ar: str(fields.compound_ar), compound_pin: str(fields.compound_pin), area_id: parent.id, subzone_id: '', place_label: name, place_path: parent.label, place_zones: '', phase_label: '', place_phases: '' });
     onDone();
   };
 

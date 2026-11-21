@@ -129,7 +129,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
           {u.dealType === 'sale' || u.dealType === 'rent' ? <Pill solid tone={u.dealType === 'rent' ? 'accent' : 'primary'} label={t(lang, u.dealType)} /> : null}
           <Text style={[styles.code, { color: colors.muted }]}>{u.code}</Text>
         </View>
-        {u.compound || u.compoundEn ? <Text style={[styles.title, { color: colors.text }]}>{u.compound || u.compoundEn}</Text> : null}
+        {u.compound || u.compoundEn || u.phase ? <Text testID="unit-place" style={[styles.title, { color: colors.text }]}>{[u.compound || u.compoundEn, lang === 'en' ? u.phaseEn : u.phase].filter(Boolean).join(' · ')}</Text> : null}
         {u.priceText ? <Text style={[styles.price, { color: colors.primaryInk }]}>{u.priceText}</Text> : u.price !== null ? <Text style={[styles.price, { color: colors.primaryInk }]}>{formatEgp(u.price)} {t(lang, 'egp')}</Text> : null}
         <View style={styles.chips}>
           {u.propertyType ? <Pill testID="unit-type" tone="primary" label={labelOf(ALL_TYPES, u.propertyType, lang) ?? ''} /> : null}

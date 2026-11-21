@@ -21,6 +21,11 @@ export const UnitCard = memo(function UnitCard({ unit, lang, onPress, onEdit }: 
   const { colors, elev } = useTheme();
   const facts = [unit.bedrooms !== null ? `${unit.bedrooms} ${t(lang, 'beds')}` : null, unit.bathrooms !== null ? `${unit.bathrooms} ${t(lang, 'baths')}` : null, unit.area !== null ? `${Math.round(unit.area)} ${t(lang, 'sqm')}` : null].filter((x): x is string => Boolean(x));
   const place = [unit.district, unit.city].filter(Boolean).join(' · ');
+  // The compound and its phase on the title: "Madinaty · B10". A part equal to another (or to the code) is shown once.
+  const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  const parts = [unit.compound, lang === 'en' ? unit.phaseEn : unit.phase].filter((x): x is string => Boolean(x)).filter((x, i, all) => all.findIndex((y) => sameText(y, x)) === i);
+  const name = unit.compound ? parts.join(' · ') : unit.code;
+  const showCode = Boolean(unit.compound) && !parts.some((x) => sameText(x, unit.code));
   const deal = unit.dealType === 'sale' || unit.dealType === 'rent' ? <Pill testID={`deal-${unit.code}`} solid tone={unit.dealType === 'rent' ? 'accent' : 'primary'} label={t(lang, unit.dealType)} /> : null;
   const mine = unit.mine ? <Pill solid tone="accent" label={t(lang, 'mine')} /> : null;
   return (
@@ -39,8 +44,8 @@ export const UnitCard = memo(function UnitCard({ unit, lang, onPress, onEdit }: 
       )}
       <View style={styles.info}>
         <View style={styles.row}>
-          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>{unit.compound ?? unit.code}</Text>
-          {unit.compound ? <Text style={[styles.code, { color: colors.muted }]}>{unit.code}</Text> : null}
+          <Text testID={`title-${unit.code}`} style={[styles.title, { color: colors.text }]} numberOfLines={1}>{name}</Text>
+          {showCode ? <Text style={[styles.code, { color: colors.muted }]}>{unit.code}</Text> : null}
         </View>
         {place ? <Text testID={`place-${unit.code}`} style={[styles.place, { color: colors.muted }]} numberOfLines={1}>{place}</Text> : null}
         {unit.price !== null ? <Text style={[styles.price, { color: colors.primaryInk }]}>{formatEgp(unit.price)} {t(lang, 'egp')}</Text> : null}
@@ -61,11 +66,11 @@ const styles = StyleSheet.create({
   photo: { height: UNIT_PHOTO_HEIGHT, width: '100%' },
   none: { alignItems: 'center', justifyContent: 'center' },
   place: { fontSize: 14 },
-  over: { position: 'absolute', top: spacing.sm, start: spacing.sm, end: spacing.sm, flexDirection: 'row', justifyContent: 'space-between' },
+  over: { position: 'absolute', top: spacing.sm, start: spacing.sm, end: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.xs },
   info: { padding: spacing.md, gap: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm },
-  title: { fontSize: 17, fontWeight: '800', flexShrink: 1 },
-  code: { fontSize: 13, fontWeight: '700' },
+  row: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
+  title: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '800' },
+  code: { flexShrink: 0, fontSize: 13, fontWeight: '700' },
   price: { fontSize: 22, fontWeight: '800' },
   facts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   edit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, minHeight: 44, borderWidth: 1, borderRadius: radius.md },
