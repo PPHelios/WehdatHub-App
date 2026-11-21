@@ -85,7 +85,11 @@ export function UnitScreen({ code }: { code?: string } = {}) {
   const sendMessage = async (text: string) => {
     const imgs = unit.data?.images ?? [];
     const r = imgs.length ? await sharePhotos(imgs.slice(0, 6).map((i) => i.url), text, 'unit_share') : 'failed';
-    if (r === 'failed') await Share.share({ message: text }).catch(() => undefined);
+    if (r === 'failed') {
+      // Pictures failed (logged in sharePhotos): say so, then still send the text.
+      if (imgs.length) toast(t(lang, 'shareFailed'), true);
+      await Share.share({ message: text }).catch(() => undefined);
+    }
     setMsgOpen(false);
   };
   const shareLink = async (to: string) => {
@@ -125,8 +129,8 @@ export function UnitScreen({ code }: { code?: string } = {}) {
           {u.dealType === 'sale' || u.dealType === 'rent' ? <Pill solid tone={u.dealType === 'rent' ? 'accent' : 'primary'} label={t(lang, u.dealType)} /> : null}
           <Text style={[styles.code, { color: colors.muted }]}>{u.code}</Text>
         </View>
-        {u.compound ? <Text style={[styles.title, { color: colors.text }]}>{u.compound}</Text> : null}
-        {u.price !== null ? <Text style={[styles.price, { color: colors.primaryInk }]}>{formatEgp(u.price)} {t(lang, 'egp')}</Text> : null}
+        {u.compound || u.compoundEn ? <Text style={[styles.title, { color: colors.text }]}>{u.compound || u.compoundEn}</Text> : null}
+        {u.priceText ? <Text style={[styles.price, { color: colors.primaryInk }]}>{u.priceText}</Text> : u.price !== null ? <Text style={[styles.price, { color: colors.primaryInk }]}>{formatEgp(u.price)} {t(lang, 'egp')}</Text> : null}
         <View style={styles.chips}>
           {u.propertyType ? <Pill testID="unit-type" tone="primary" label={labelOf(ALL_TYPES, u.propertyType, lang) ?? ''} /> : null}
           {rows.slice(0, 3).filter(([, v]) => v).map(([k, v]) => <Pill key={k} label={`${v} ${k}`} />)}

@@ -41,6 +41,7 @@ export interface ApiUnit {
   bedrooms: number | null;
   bathrooms: number | null;
   compound: string | null;
+  compoundEn?: string | null;
   district: string | null;
   city: string | null;
   finishing: string | null;

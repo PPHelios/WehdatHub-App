@@ -35,6 +35,14 @@ test('a download that fails reports failed, and a cancelled sheet is not an erro
   expect(await sharePhotos(['https://x/1.jpg'], 't', 'unit_share')).toBe('failed');
 });
 
+test('a picture never goes out as application/octet-stream (that became a .bin file)', async () => {
+  (globalThis as unknown as { fetch: unknown }).fetch = jest.fn().mockResolvedValue({ headers: { get: () => 'application/octet-stream' }, blob: async () => ({ type: 'application/octet-stream' }) });
+  await sharePhotos(['https://x/1.jpg'], '', 'unit_share');
+  const arg = (Share.open as jest.Mock).mock.calls[0][0];
+  expect(arg.urls[0]).toMatch(/^data:image\/jpeg;base64,/);
+  expect(arg.type).toBe('image/jpeg');
+});
+
 test('one picture is shared with its image type, several with image/*', async () => {
   await sharePhotos(['https://x/f.png'], '', 'flyer_share');
   expect((Share.open as jest.Mock).mock.calls[0][0].type).toBe('image/jpeg');

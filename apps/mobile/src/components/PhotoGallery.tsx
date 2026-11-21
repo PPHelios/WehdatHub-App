@@ -51,8 +51,6 @@ export function PhotoGallery({ photos, closeLabel }: { photos: Photo[]; closeLab
         showsHorizontalScrollIndicator={false}
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
         onMomentumScrollEnd={(e) => onEnd(e.nativeEvent.contentOffset.x)}
-        // A drag that ends without momentum skips the line above, so recentre here too (same picture, one copy over).
-        onScrollEndDrag={(e) => { const x = e.nativeEvent.contentOffset.x; if (loop && (x < width * (n - 0.5) || x > width * (2 * n - 0.5))) listRef.current?.scrollToOffset({ offset: x + (x < width * n ? width * n : -width * n), animated: false }); }}
         renderItem={({ item, index: i }) => (
           <Pressable accessibilityRole="imagebutton" testID={!loop ? `photo-${i}` : i >= n && i < 2 * n ? `photo-${i - n}` : undefined} onPress={() => setFull(realIndex(i, n))}>
             <Image source={{ uri: item.url }} style={{ width, height: h }} resizeMode="cover" resizeMethod="resize" />
@@ -100,8 +98,6 @@ function FullScreen({ photos, start, onClose, closeLabel }: { photos: Photo[]; s
         keyExtractor={(p, i) => `${p.id}-${i}`}
         getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
         onMomentumScrollEnd={(e) => onEnd(e.nativeEvent.contentOffset.x)}
-        // A drag that ends without momentum skips the line above, so recentre here too (same picture, one copy over).
-        onScrollEndDrag={(e) => { const x = e.nativeEvent.contentOffset.x; if (loop && (x < width * (n - 0.5) || x > width * (2 * n - 0.5))) listRef.current?.scrollToOffset({ offset: x + (x < width * n ? width * n : -width * n), animated: false }); }}
         renderItem={({ item }) => <ZoomPhoto url={item.url} width={width} height={height} />}
       />
       <Text style={styles.fullCount}>{at + 1} / {photos.length}</Text>

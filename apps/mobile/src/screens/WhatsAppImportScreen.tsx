@@ -718,7 +718,7 @@ export function WhatsAppImportScreen() {
           </View>
         ) : null}
         {counts.discarded > 0 ? (
-          <View testID="wa-discarded-bar" style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <View testID="wa-discarded-bar" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
             <View style={styles.row}>
               <Pressable testID="wa-discarded-toggle" accessibilityRole="button" style={styles.flex} onPress={() => { setShowDiscarded((v) => !v); }}>
                 <Text style={{ color: colors.text }}>{fill(W.discardedLine, { n: counts.discarded })}</Text>
@@ -862,7 +862,7 @@ const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, 
   const label = p.post.code ?? p.id;
   const blockNote = p.blocker === 'other_unit' ? W.noteOtherUnit : p.blocker === 'older' ? W.noteOlder : p.blocker === 'invalid' ? W.noteInvalid : p.blocker === 'forbidden' ? W.noteForbidden : p.blocker === 'compare_failed' || (badge.kind === 'update' && !p.plan) ? W.noteCompare : null;
   return (
-    <View testID={`wa-post-${p.id}`} style={[styles.card, elev('md'), { borderColor: missingFor(p).length ? colors.danger : colors.border, backgroundColor: colors.card }]}>
+    <View testID={`wa-post-${p.id}`} style={[styles.card, { borderColor: missingFor(p).length ? colors.danger : colors.border, backgroundColor: colors.card }]}>
       <View style={styles.row}>
         <Pressable testID={`wa-pick-${p.id}`} accessibilityRole="checkbox" accessibilityLabel={fill(W.selectPost, { c: label })} accessibilityState={{ checked: p.picked, disabled: kind === 'error' || locked }} disabled={kind === 'error' || locked} onPress={() => onPick(p.id)} style={styles.hit}>
           <View style={[styles.box, { borderColor: colors.primary, backgroundColor: p.picked ? colors.primary : 'transparent' }]}>

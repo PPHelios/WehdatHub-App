@@ -59,7 +59,7 @@ export const photoChanges = (original: string[], list: UploadFile[]) => {
 type Blocker = { field: string; label: string };
 
 export function AddUnitScreen() {
-  const { colors, elev } = useTheme();
+  const { colors } = useTheme();
   const lang = currentLang();
   const L = uf(lang);
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -168,7 +168,7 @@ export function AddUnitScreen() {
       if (editCode) {
         try {
           const [r, u] = await Promise.all([api.unitEditFields(editCode), api.unit(editCode)]);
-          setFields(unphoneName(r.fields));
+          setFields(unphoneName({ ...r.fields, code: r.code }));
           descAuto.current = isAutoDraft(str(r.fields.clean_summary));
           setVersion(r.version);
           setPhotos(u.images.map((i) => ({ uri: i.url, name: i.id, type: EXISTING })));
@@ -177,7 +177,8 @@ export function AddUnitScreen() {
           const sh = shared.current;
           if (sh?.photos?.length) setPhotos((p) => addPicked(p, sh.photos!));
           if (sh?.text) { setDescribe(sh.text); if (!sh.noAi) await runFill({ describe: sh.text }); }
-          if (sh?.fields) setFields((f) => withImpliedFeatures(unphoneName({ ...f, ...Object.fromEntries(Object.entries(sh.fields!).filter(([k, v]) => k !== 'code' && v !== '' && v !== undefined && v !== null)) })));
+          // Edit: the post only fills what the unit leaves empty; its values never replace the stored ones (a silent overwrite on save).
+          if (sh?.fields) setFields((f) => withImpliedFeatures(unphoneName({ ...Object.fromEntries(Object.entries(sh.fields!).filter(([k, v]) => k !== 'code' && v !== '' && v !== undefined && v !== null)), ...Object.fromEntries(Object.entries(f).filter(([, v]) => v !== '' && v !== undefined && v !== null)) })));
         } catch (e) {
           setError(toastError(errorText(e, lang)));
         }
@@ -412,13 +413,13 @@ export function AddUnitScreen() {
 
         {/* A refused save and a look-alike unit show at the top. */}
         {failedCheck && allBlockers.length ? (
-          <View testID="blockers" style={[styles.box, elev('md'), { borderColor: colors.danger }]}>
+          <View testID="blockers" style={[styles.box, { borderColor: colors.danger, backgroundColor: colors.card }]}>
             <Text style={{ color: colors.danger, fontWeight: '700' }}>{t(lang, 'stillNeeded')}</Text>
             {allBlockers.map((b) => <Text key={b.field} style={{ color: colors.text }}>• {b.label}</Text>)}
           </View>
         ) : null}
         {(duplicate ?? (editCode ? null : review?.duplicate ?? null)) !== null ? (
-          <View testID="duplicate" style={[styles.box, elev('md'), { borderColor: colors.accent }]}>
+          <View testID="duplicate" style={[styles.box, { borderColor: colors.accent, backgroundColor: colors.card }]}>
             <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'duplicateAsk')} {duplicate ?? review?.duplicate}</Text>
             <SwitchRow label={t(lang, 'dupOk')} value={dupAck} onChange={setDupAck} testID="dup-ack" />
             <Button label={t(lang, 'saveAnyway')} onPress={() => save(true)} />
@@ -442,7 +443,9 @@ export function AddUnitScreen() {
               : <Text testID="unit-notice" style={{ color: colors.accentInk }}>{notice}</Text>
           ) : null}
           <UnitBox fields={fields} patch={patch} lang={lang} invalid={failedCheck && missing('location')} />
-          {editCode ? null : field('code', lang === 'en' ? 'Unit code (optional)' : 'كود الوحدة (اختياري)', { autoCapitalize: 'characters', autoCorrect: false })}
+          {field('code', lang === 'en' ? 'Unit code (optional)' : 'كود الوحدة (اختياري)', { autoCapitalize: 'characters', autoCorrect: false })}
+          {/* The server's pre-save check: a code another unit already uses is shown here, before Save. */}
+          {allBlockers.find((b) => b.field === 'code') ? <Text testID="code-taken" style={{ color: colors.danger }}>{allBlockers.find((b) => b.field === 'code')?.label}</Text> : null}
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fDeal')}</Text>
           <Chips options={[{ value: 'sale', label: t(lang, 'sale') }, { value: 'rent', label: t(lang, 'rent') }]} value={str(fields.listing_type)} onChange={(v) => set('listing_type', v)} testID="f-listing_type" required invalid={failedCheck && missing('listing_type')} />
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fType')}</Text>
@@ -491,14 +494,14 @@ export function AddUnitScreen() {
 
         <View style={styles.stack}>
           {editCode && review?.changes?.length ? (
-            <View testID="changes" style={[styles.box, elev('md'), { borderColor: colors.border }]}>
+            <View testID="changes" style={[styles.box, { borderColor: colors.border, backgroundColor: colors.card }]}>
               <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'willChange')}</Text>
               {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {(lang === 'ar' ? c.from_ar : c.from_en) ?? c.from ?? '—'} {lang === 'ar' ? '←' : '→'} {(lang === 'ar' ? c.to_ar : c.to_en) ?? c.to ?? '—'}</Text>)}
             </View>
           ) : null}
           {review && !review.warnings.length && !review.blockers.length ? <Text testID="no-warnings" style={{ color: colors.muted }}>✓ {t(lang, 'noWarnings')}</Text> : null}
           {review?.warnings.length && !review.blockers.length ? (
-            <View testID="warnings" style={[styles.box, elev('md'), { borderColor: colors.accent }]}>
+            <View testID="warnings" style={[styles.box, { borderColor: colors.accent, backgroundColor: colors.card }]}>
               {review.warnings.map((w) => <Text key={w.field + w.text} style={{ color: colors.text }}>• {w.text}</Text>)}
               <SwitchRow label={t(lang, 'warnOk')} value={ack} onChange={setAck} testID="ack" />
             </View>
