@@ -215,3 +215,13 @@ test('the new-place form lists sub-zones of the chosen area, only after an area 
   await fireEvent.press(screen.getByTestId('ubox-new-save'));
   expect(patch).toHaveBeenCalledWith(expect.objectContaining({ area_id: 'a1', subzone_id: 's1' }));
 });
+
+test('new place: offline with no saved list, the sub-zone area says to connect', async () => {
+  m.placeBox.mockImplementation(async (q: string) => ({ items: q === 'zed' ? [] : [newCairo] }));
+  usePlaces.setState({ list: null });
+  await wrap(<UnitBox fields={{ compound: 'Zed', compound_new: '1' }} patch={jest.fn()} lang="ar" />);
+  await fireEvent.changeText(screen.getByTestId('ubox-new-parent-input'), 'new');
+  await waitFor(() => expect(screen.getByTestId('ubox-new-area-a1')).toBeTruthy());
+  await fireEvent.press(screen.getByTestId('ubox-new-area-a1'));
+  expect(screen.getByTestId('ubox-new-subs-offline')).toHaveTextContent('اتصل بالإنترنت عشان تحمّل قائمة المناطق');
+});

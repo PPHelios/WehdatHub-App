@@ -1,5 +1,6 @@
+import { waitFor } from '@testing-library/react-native';
 import { api } from '../src/api';
-import { clearPlaces, matchPlaces, syncPlaces, usePlaces } from '../src/placeList';
+import { clearPlaces, matchPlaces, syncPlaces, usePlaceSync, usePlaces } from '../src/placeList';
 
 jest.mock('../src/api', () => ({ api: { placeList: jest.fn() } }));
 const m = api as unknown as { placeList: jest.Mock };
@@ -42,4 +43,13 @@ test('a failed check keeps the saved list, and sign-out clears it', async () => 
   expect(matchPlaces('mivida')).not.toBeNull();
   await clearPlaces();
   expect(matchPlaces('mivida')).toBeNull();
+});
+
+test('the list is downloaded once the user is signed in, not before', async () => {
+  m.placeList.mockResolvedValue(list);
+  const { renderHook } = require('@testing-library/react-native');
+  const h = await renderHook(({ on }: { on: boolean }) => usePlaceSync(on), { initialProps: { on: false } });
+  expect(m.placeList).not.toHaveBeenCalled();
+  await h.rerender({ on: true });
+  await waitFor(() => expect(m.placeList).toHaveBeenCalledTimes(1));
 });

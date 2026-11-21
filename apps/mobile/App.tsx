@@ -21,7 +21,7 @@ import { LockScreen } from './src/components/LockScreen';
 import { UpdateScreen } from './src/components/UpdateScreen';
 import { APP_VERSION } from './src/config';
 import { LOCK_AFTER_MS, useLock } from './src/lock';
-import { clearPlaces, syncPlaces } from './src/placeList';
+import { clearPlaces, usePlaceSync } from './src/placeList';
 import { RootNavigation, navigationRef } from './src/navigation';
 import { startAnalytics } from './src/analytics';
 import { installErrorReporting } from './src/errorReport';
@@ -109,13 +109,8 @@ export default function App() {
       void listsStore.removeClient();
       return;
     }
-    if (status !== 'signedIn') return;
-    syncPlaces().catch(() => undefined);
-    const sub = AppState.addEventListener('change', (st) => {
-      if (st === 'active') syncPlaces().catch(() => undefined);
-    });
-    return () => sub.remove();
   }, [status]);
+  usePlaceSync(status === 'signedIn');
 
   // Alerts and crash reports start once signed in, if the server has the phone's Firebase identifiers.
   useEffect(() => {
