@@ -1,19 +1,24 @@
 import Share from 'react-native-share';
 import { usage, UsageEvent } from './usage';
+import { reportError } from './errorReport';
 
 export type ShareOutcome = 'sent' | 'cancelled' | 'failed';
 
 /** A picture's address turned into inline data, with its image type (WhatsApp rejects a share that does not name the type). */
 async function toDataUri(url: string): Promise<{ data: string; type: string }> {
-  const blob = await (await fetch(url)).blob();
-  const data = await new Promise<string>((resolve, reject) => {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  // The blob's own type is often empty on the phone, and FileReader then labels it application/octet-stream,
+  // which the share saves as a .bin file. So the type comes from the server's content-type, not from the blob.
+  const served = /^image\/[a-z+.-]+$/i.exec(String(res.headers?.get('content-type') ?? '').split(';')[0].trim())?.[0];
+  const type = served ?? 'image/jpeg';
+  const b64 = await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
-    r.onloadend = () => resolve(String(r.result));
+    r.onloadend = () => resolve(String(r.result).split(',')[1] ?? '');
     r.onerror = () => reject(new Error('read failed'));
     r.readAsDataURL(blob);
   });
-  const type = /^data:(image\/[a-z+.-]+);/i.exec(data)?.[1] ?? 'image/jpeg';
-  return { data, type };
+  return { data: `data:${type};base64,${b64}`, type };
 }
 
 /**
@@ -45,6 +50,8 @@ export async function sharePhotos(
     outcome = res.dismissedAction ? 'cancelled' : 'sent';
   } catch (e) {
     outcome = e instanceof Error && /cancel|dismiss/i.test(e.message) ? 'cancelled' : 'failed';
+    // Keep the real error (message and stack) on the server, next to the usage row that says where it failed.
+    if (outcome === 'failed') reportError(e, `share_${event}_${stage}`);
   }
   const failedAt = outcome === 'failed' ? stage : undefined;
   usage(event, outcome !== 'failed', Date.now() - t0, { ...meta, pictures: urls.length, result: outcome, ...(failedAt ? { stage: failedAt } : {}) });

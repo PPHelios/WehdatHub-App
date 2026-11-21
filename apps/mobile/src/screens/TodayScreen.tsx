@@ -18,7 +18,7 @@ import { radius, spacing, useTheme } from '../theme';
 const KIND_LABEL: Record<TodayTask['kind'], StringKey> = { late: 'late', viewing: 'viewing', hot: 'hot', call: 'callTask', matches: 'matches' };
 
 export function TodayScreen() {
-  const { colors, elev } = useTheme();
+  const { colors } = useTheme();
   const lang = currentLang();
   const stack = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const q = useQuery({ queryKey: ['today'], queryFn: () => api.today() });
@@ -34,7 +34,7 @@ export function TodayScreen() {
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={async () => { await q.refetch(); }} />}>
       <View style={styles.stats}>
         {stats.map(([k, n, tone]) => (
-          <View key={k} style={[styles.stat, elev('md'), { backgroundColor: tone + '22', borderColor: colors.border }]}>
+          <View key={k} style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border, borderTopWidth: 3, borderTopColor: tone }]}>
             <Text style={[styles.statN, { color: tone }]}>{n}</Text>
             <Text style={{ color: colors.muted }}>{t(lang, k)}</Text>
           </View>

@@ -46,6 +46,7 @@ test('Send the flyer opens the share sheet with the flyer picture (WhatsApp gets
   mocked.unit.mockResolvedValue(unit);
   mocked.unitContact.mockRejectedValue(new Error('hidden'));
   mocked.unitFlyer.mockResolvedValue({ url: 'https://x/f.png' });
+  asGlobal.fetch = jest.fn().mockResolvedValue({ headers: { get: () => 'image/png; charset=binary' }, blob: async () => ({ type: '' }) });
   await wrap();
   await waitFor(() => expect(screen.getByTestId('flyer')).toBeTruthy());
   await act(async () => { fireEvent.press(screen.getByTestId('flyer')); });
