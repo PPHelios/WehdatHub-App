@@ -39,6 +39,8 @@ const fpOf = (i: number) => fingerprintOf(posts[i - 1] as never);
 const remembered = (map: Record<string, string>) => ({ decisions: Object.fromEntries(Object.entries(map).map(([k, o]) => [k, { outcome: o, at: iso(Date.now()) }])), last_import_at: null });
 
 beforeEach(() => {
+  // The Save confirm: tests answer it with its last button (Save).
+  jest.spyOn(require('react-native').Alert, 'alert').mockImplementation((...a: unknown[]) => { (a[2] as { onPress?: () => void }[] | undefined)?.slice(-1)[0]?.onPress?.(); });
   jest.clearAllMocks();
   resetMemoryCache();
   posts = [post(1, 'HP-1', 5), post(2, 'HP-3', 1, '25/10/2026 09:00')];
@@ -149,7 +151,7 @@ describe('the screen remembers decisions on the server', () => {
     expect(screen.queryByTestId('wa-post-2')).toBeNull();
     expect(screen.getByTestId('wa-post-1')).toBeTruthy();
     expect(screen.getByTestId('wa-earlier-line')).toBeTruthy();
-    await act(async () => { fireEvent.press(screen.getByText(/^(1 discarded|1 بوست متجاهل)$/)); });
+    await act(async () => { fireEvent.press(screen.getByText(/^(1 discarded|1 بوست مستبعد)$/)); });
     await act(async () => { fireEvent.press(screen.getByTestId('wa-restore-2')); });
     expect(screen.getByTestId('wa-pick-2').props.accessibilityState.checked).toBe(true);
     await settle(() => expect(m.forgetChatDecisions).toHaveBeenCalledWith('fpR', [fpOf(2)]));
@@ -186,6 +188,17 @@ describe('the screen remembers decisions on the server', () => {
     await act(async () => { fireEvent.press(screen.getByTestId('wa-forget')); });
     expect(screen.getByTestId('wa-forgot-note')).toBeTruthy();
     expect(m.forgetChatDecisions).toHaveBeenCalledWith('fpR');
+  });
+
+  test('forget asks first: Cancel clears nothing', async () => {
+    m.chatDecisions.mockResolvedValue(remembered({ [fpOf(2)]: 'discarded' }));
+    const alert = require('react-native').Alert.alert as jest.Mock;
+    await open();
+    alert.mockImplementationOnce(() => undefined); // the broker taps Cancel
+    await act(async () => { fireEvent.press(screen.getByTestId('wa-forget')); });
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('wa-forgot-note')).toBeNull();
+    expect(m.forgetChatDecisions).not.toHaveBeenCalled();
   });
 
   test('when the server cannot be reached the screen still opens and works', async () => {

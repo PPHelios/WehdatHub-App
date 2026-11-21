@@ -4,7 +4,7 @@ import { AppText as Text, AppTextInput as TextInput } from './AppText';
 import type { BoxFeature, BoxPhase, BoxPlace, Lang, UnitFields } from '@wehdathub/shared';
 import { api } from '../api';
 import { featureChip } from '../featureLabels';
-import { syncPlaces } from '../placeList';
+import { syncPlaces, usePlaces } from '../placeList';
 import { fill, uf } from '../unitFormText';
 import { useBoxItems } from '../useBoxItems';
 import { radius, spacing, useTheme } from '../theme';
@@ -108,7 +108,7 @@ export function UnitBox({ fields, patch, lang, testID = 'unit-box', invalid = fa
         placeholderTextColor={colors.muted}
         autoCorrect={false}
         returnKeyType="done"
-        style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : colors.primary, backgroundColor: colors.card }]}
+        style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : !label ? colors.warn : colors.primary, backgroundColor: colors.card }]}
       />
       {/* The chips sit under the typing line, not inside it. */}
       <View style={styles.chips} testID="ubox-chips">
@@ -168,25 +168,29 @@ export function UnitBox({ fields, patch, lang, testID = 'unit-box', invalid = fa
         </View>
       ) : null}
 
-      {requesting ? <NewPlace fields={fields} patch={patch} lang={lang} onCancel={removePlace} onDone={() => setRequesting(false)} /> : null}
+      {requesting ? <NewPlace fields={fields} patch={patch} lang={lang} invalid={invalid}onCancel={removePlace} onDone={() => setRequesting(false)} /> : null}
     </View>
   );
 }
 
 /** "Request a new place": a compound the box does not know. It is saved with the unit and its area is required. */
-function NewPlace({ fields, patch, lang, onCancel, onDone }: { fields: UnitFields; patch: (p: UnitFields) => void; lang: Lang; onCancel: () => void; onDone: () => void }) {
+function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: UnitFields; patch: (p: UnitFields) => void; lang: Lang; invalid: boolean; onCancel: () => void; onDone: () => void }) {
   const { colors } = useTheme();
   const L = uf(lang);
   const [parentQ, setParentQ] = useState('');
   const [parent, setParent] = useState<{ id: string; label: string } | null>(null);
+  const [sub, setSub] = useState<string>('');
+  const areas = usePlaces((s) => s.list?.areas);
+  const subs = (areas ?? []).filter((a) => parent && a.parent_id === parent.id);
   const pq = parentQ.trim();
-  const areaHits = useBoxItems(parent ? '' : pq, lang).filter((it): it is BoxPlace => it.kind === 'area');
+  const areaHits = useBoxItems(parent ? '' : pq, lang, true).filter((it): it is BoxPlace => it.kind === 'area' || it.kind === 'subzone')
+    .filter((it, i, all) => all.findIndex((x) => x.id === it.id) === i); // an alias hit is the same place: one row
   const name = str(fields.compound).trim();
   const ok = Boolean(name && parent);
 
   const save = () => {
     if (!ok || !parent) return;
-    patch({ compound: name, compound_new: '1', compound_ar: str(fields.compound_ar), compound_pin: str(fields.compound_pin), area_id: parent.id, subzone_id: '', place_label: name, place_path: parent.label, place_zones: '', phase_label: '', place_phases: '' });
+    patch({ compound: name, compound_new: '1', compound_ar: str(fields.compound_ar), compound_pin: str(fields.compound_pin), area_id: parent.id, subzone_id: sub, place_label: name, place_path: parent.label, place_zones: '', phase_label: '', place_phases: '' });
     onDone();
   };
 
@@ -194,7 +198,7 @@ function NewPlace({ fields, patch, lang, onCancel, onDone }: { fields: UnitField
     <View testID="ubox-new" style={[styles.newBox, { borderColor: colors.primary, backgroundColor: colors.card }]}>
       <Text style={[styles.groupTitle, { color: colors.text }]}>{L.newTitle}</Text>
       <Text style={{ color: colors.muted }}>{L.newHint}</Text>
-      <Field testID="ubox-new-name" label={L.newName} value={str(fields.compound)} onChangeText={(v) => patch({ compound: v, compound_new: '1', place_label: v })} autoCorrect={false} />
+      <Field testID="ubox-new-name" required label={L.newName} value={str(fields.compound)} onChangeText={(v) => patch({ compound: v, compound_new: '1', place_label: v })} autoCorrect={false} />
       <Field testID="ubox-new-ar" label={L.newAr} value={str(fields.compound_ar)} onChangeText={(v) => patch({ compound_ar: v })} />
       <Field testID="ubox-new-map" label={L.newMap} value={str(fields.compound_pin)} onChangeText={(v) => patch({ compound_pin: v })} autoCapitalize="none" autoCorrect={false} />
       <View style={styles.row}>
@@ -203,21 +207,30 @@ function NewPlace({ fields, patch, lang, onCancel, onDone }: { fields: UnitField
       </View>
       <Text style={[styles.label, { color: colors.text }]}>{L.newArea}</Text>
       {parent ? (
-        <Pressable testID="ubox-new-parent" onPress={() => setParent(null)} accessibilityRole="button" style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary, alignSelf: 'flex-start' }]}>
+        <Pressable testID="ubox-new-parent" onPress={() => { setParent(null); setSub(''); }} accessibilityRole="button" style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary, alignSelf: 'flex-start' }]}>
           <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{parent.label}  ×</Text>
         </Pressable>
       ) : (
         <>
-          <TextInput testID="ubox-new-parent-input" value={parentQ} onChangeText={setParentQ} placeholder={L.newAreaSearch} placeholderTextColor={colors.muted} autoCorrect={false} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} />
+          <TextInput testID="ubox-new-parent-input" value={parentQ} onChangeText={setParentQ} placeholder={L.newAreaSearch} placeholderTextColor={colors.muted} autoCorrect={false} style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : colors.warn, backgroundColor: colors.card }]} />
           {areaHits.map((a) => (
             <Pressable key={a.id} testID={`ubox-new-area-${a.id}`} onPress={() => { setParent({ id: a.id, label: nameOf(a) }); setParentQ(''); }} accessibilityRole="button" style={styles.opt}>
-              <Text style={{ color: colors.text, fontSize: 16 }}>{nameOf(a)}</Text>
-              {a.path ? <Text style={{ color: colors.muted, fontSize: 13 }}>{a.path}</Text> : null}
+              <Text style={{ color: colors.text, fontSize: 16 }}>{nameOf(a)}{a.path ? <Text style={{ color: colors.muted, fontSize: 14 }}>{` — ${a.path}`}</Text> : null}</Text>
             </Pressable>
           ))}
           {!areaHits.length && pq.length >= 2 ? <Text style={{ color: colors.muted }}>{L.newAreaPick}</Text> : null}
         </>
       )}
+      {subs.length ? (
+        <View testID="ubox-new-subs">
+          <Text style={[styles.label, { color: colors.text }]}>{L.newSub}</Text>
+          {subs.map((a) => (
+            <Pressable key={a.id} testID={`ubox-new-sub-${a.id}`} onPress={() => setSub(sub === a.id ? '' : a.id)} accessibilityRole="button" accessibilityState={{ selected: sub === a.id }} style={styles.opt}>
+              <Text style={{ color: sub === a.id ? colors.primaryInk : colors.text, fontSize: 16, fontWeight: sub === a.id ? '700' : '400' }}>{(lang === 'en' ? a.name_en || a.name_ar : a.name_ar || a.name_en) ?? ''}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <View style={styles.row}>
         <Pressable testID="ubox-new-save" onPress={save} disabled={!ok} accessibilityRole="button" accessibilityState={{ disabled: !ok }} style={[styles.btn, { backgroundColor: colors.primary, opacity: ok ? 1 : 0.4 }]}>
           <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{L.newSave}</Text>

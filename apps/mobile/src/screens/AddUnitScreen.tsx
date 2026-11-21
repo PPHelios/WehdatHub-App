@@ -10,6 +10,7 @@ import { ApiClientError } from '@wehdathub/shared';
 import type { ReviewResult, UnitFields, UploadFile, VoiceFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
+import { KeyboardLift } from '../components/KeyboardLift';
 import { Button } from '../components/Button';
 import { useRights } from '../rights';
 import { Chips } from '../components/Chips';
@@ -404,8 +405,8 @@ export function AddUnitScreen() {
   const saveDisabled = saving || Boolean(review?.warnings.length && !review.blockers.length && !ack);
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.bg }]}>
-      <ScrollView ref={scroll} style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.content, saving && styles.locked]} keyboardShouldPersistTaps="handled" scrollEnabled={!dragging} pointerEvents={saving ? 'none' : 'auto'}>
+    <KeyboardLift style={[styles.screen, { backgroundColor: colors.bg }]}>
+      <ScrollView ref={scroll} style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.content, saving && styles.locked]} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets scrollEnabled={!dragging} pointerEvents={saving ? 'none' : 'auto'}>
         <View style={styles.jump}>
           {flow.map((n) => <Pressable key={n} testID={`jump-${n}`} accessibilityRole="link" onPress={() => jump(n)} style={[styles.jumpChip, { borderColor: colors.border }]}><Text style={{ color: colors.text, fontWeight: '600' }}>{stepName(n)}</Text></Pressable>)}
         </View>
@@ -519,7 +520,7 @@ export function AddUnitScreen() {
           <Button testID="save-unit" label={saving ? `${t(lang, 'saving')} ${Math.round(progress * 100)}%` : t(lang, 'saveUnit')} progress={saving ? progress : undefined} onPress={() => save(false)} loading={saving} disabled={saveDisabled} />
         </View>
       </View>
-    </View>
+    </KeyboardLift>
   );
 }
 

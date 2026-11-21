@@ -53,7 +53,7 @@ export function resetBusy() {
 }
 
 /** Writes that must never lock the screen: the app talking to the server on its own, not because of a tap. */
-export const BACKGROUND_WRITE = /^\/(devices|client-error|auth\/logout|ask\/action)(\/|$)/;
+export const BACKGROUND_WRITE = /^\/(devices|client-error|auth\/logout|ask\/action|units\/review)(\/|$)/;
 
 const value = (busy: boolean): BusyValue => ({ busy, begin: beginBusy });
 

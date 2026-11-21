@@ -32,6 +32,8 @@ let planKinds: Record<string, Record<string, unknown>> = {};
 const planFor = async (b: { id: string }[]) => ({ posts: b.map((x) => ({ id: x.id, kind: 'new', code: null, existing: null, changes: [], patch: {}, errors: [], ...(planKinds[x.id] ?? {}) })) });
 
 beforeEach(async () => {
+  // The Save confirm: tests answer it with its last button (Save).
+  jest.spyOn(require('react-native').Alert, 'alert').mockImplementation((...a: unknown[]) => { (a[2] as { onPress?: () => void }[] | undefined)?.slice(-1)[0]?.onPress?.(); });
   jest.clearAllMocks();
   resetMemoryCache();
   planKinds = {};
@@ -123,7 +125,7 @@ test('the card shows the land area, floor and rent period the reader found (not 
     { fields: { ...base, code: 'MIR590', listing_type: 'rent' }, missing: ['owner_phone'] },
   ] });
   await open();
-  const card = JSON.stringify(screen.toJSON(), (k, v) => (k === 'ListHeaderComponent' || k === 'renderItem' || k === 'extraData' ? undefined : v));
+  const card = JSON.stringify(screen.toJSON(), (k, v) => (k === 'ListHeaderComponent' || k === 'ListEmptyComponent' || k === 'renderItem' || k === 'extraData' ? undefined : v));
   expect(card).toContain('347');
   expect(card).toMatch(/سنوي|Yearly/);
   expect(card).toMatch(/الدور|Floor/);

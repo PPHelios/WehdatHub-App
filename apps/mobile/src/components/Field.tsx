@@ -25,7 +25,7 @@ export function Field({ label, required, invalid, hint, ...props }: { label: str
     <View style={styles.wrap}>
       <Text style={[styles.label, { color: colors.muted }]}>{label}{required ? <Text style={{ color: colors.primaryInk }}> *</Text> : null}</Text>
       <View style={[styles.ring, focus && !invalid && { backgroundColor: colors.primarySoft }]}>
-      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} onFocus={(e) => { setFocus(true); props.onFocus?.(e); }} onBlur={(e) => { setFocus(false); props.onBlur?.(e); }} editable={props.editable !== false && !busy} style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : focus || required ? colors.primary : colors.lineStrong, backgroundColor: colors.field }, props.multiline && styles.multi, alignOf(props.value ?? props.defaultValue), props.style]} />
+      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} onFocus={(e) => { setFocus(true); props.onFocus?.(e); }} onBlur={(e) => { setFocus(false); props.onBlur?.(e); }} editable={props.editable !== false && !busy} style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : required && !String(props.value ?? '').trim() ? colors.warn : focus || required ? colors.primary : colors.lineStrong, backgroundColor: colors.field }, props.multiline && styles.multi, alignOf(props.value ?? props.defaultValue), props.style]} />
       </View>
       {hint ? <Text testID="field-hint" style={[styles.label, { color: colors.accent }]}>{`\u202A${hint}\u202C`}</Text> : null}
     </View>

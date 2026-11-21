@@ -13,7 +13,7 @@ interface Props {
   loading?: boolean;
   disabled?: boolean;
   variant?: ButtonVariant;
-  /** sm 40, md 48 (default), lg 56. */
+  /** sm 44, md 48 (default), lg 56. */
   size?: ButtonSize;
   testID?: string;
   /** 0 to 1: a fill that moves across the button while a long action runs. */

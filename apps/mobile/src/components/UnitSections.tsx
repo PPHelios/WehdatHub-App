@@ -111,7 +111,7 @@ export function DeliverySection({ fields, set, field, lang }: SectionProps) {
           <View style={styles.flex}>{field('delivery_year', lang === 'en' ? 'Delivery year' : 'سنة التسليم', { keyboardType: 'number-pad' })}</View>
           <View style={styles.flex}>
             <Label>{x.quarter}</Label>
-            <Chips options={['1', '2', '3', '4'].map((q) => ({ value: q, label: `Q${q}` }))} value={str(fields.delivery_quarter)} onChange={(v) => set('delivery_quarter', v)} />
+            <Chips required options={['1', '2', '3', '4'].map((q) => ({ value: q, label: `Q${q}` }))} value={str(fields.delivery_quarter)} onChange={(v) => set('delivery_quarter', v)} />
           </View>
         </View>
       )}
