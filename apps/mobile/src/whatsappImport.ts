@@ -191,6 +191,8 @@ export type PostKind = 'new' | 'updated' | 'unchanged' | 'error' | 'discarded' |
 
 /** The changes a post makes in the existing unit its code points to, as the server's plan lists them (null when it is not an update). */
 export function changesOf(p: ImportPost, badge: CodeBadge): ChatPlanChange[] | null {
+  // A post that names another unit: what differs from the stored one, so the warning card can say it.
+  if (p.plan?.kind === 'other_unit') return p.plan.changes?.length ? p.plan.changes : null;
   if (badge.kind !== 'update' || !p.plan || p.plan.kind !== 'update') return null;
   return p.plan.changes;
 }
