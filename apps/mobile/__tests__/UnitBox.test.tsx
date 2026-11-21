@@ -190,3 +190,14 @@ test('opening the form checks the saved list against the server', async () => {
   await wrap(<UnitBox fields={{}} patch={jest.fn()} lang="en" />);
   await waitFor(() => expect((api as unknown as { placeList: jest.Mock }).placeList).toHaveBeenCalled());
 });
+
+test('new-place area list shows the parent next to each name, and an alias hit is one row', async () => {
+  const road: BoxPlace = { ...golden, id: 's9', name_en: 'Cairo-Suez Road', label: 'Cairo-Suez Road', path: 'Nasr City' };
+  m.placeBox.mockResolvedValue({ items: [road, { ...road, via: 'alias' }] });
+  await wrap(<UnitBox fields={{ compound: 'Zed', compound_new: '1' }} patch={jest.fn()} lang="en" />);
+  await fireEvent.changeText(screen.getByTestId('ubox-new-parent-input'), 'suez');
+  await waitFor(() => expect(screen.getByTestId('ubox-new-area-s9')).toBeTruthy());
+  expect(screen.getAllByTestId('ubox-new-area-s9')).toHaveLength(1);
+  expect(screen.getByText(/Cairo-Suez Road/)).toBeTruthy();
+  expect(screen.getByText(/— Nasr City/)).toBeTruthy();
+});

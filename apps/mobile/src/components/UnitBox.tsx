@@ -180,7 +180,8 @@ function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: 
   const [parentQ, setParentQ] = useState('');
   const [parent, setParent] = useState<{ id: string; label: string } | null>(null);
   const pq = parentQ.trim();
-  const areaHits = useBoxItems(parent ? '' : pq, lang, true).filter((it): it is BoxPlace => it.kind === 'area' || it.kind === 'subzone');
+  const areaHits = useBoxItems(parent ? '' : pq, lang, true).filter((it): it is BoxPlace => it.kind === 'area' || it.kind === 'subzone')
+    .filter((it, i, all) => all.findIndex((x) => x.id === it.id) === i); // an alias hit is the same place: one row
   const name = str(fields.compound).trim();
   const ok = Boolean(name && parent);
 
@@ -211,8 +212,7 @@ function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: 
           <TextInput testID="ubox-new-parent-input" value={parentQ} onChangeText={setParentQ} placeholder={L.newAreaSearch} placeholderTextColor={colors.muted} autoCorrect={false} style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : colors.warn, backgroundColor: colors.card }]} />
           {areaHits.map((a) => (
             <Pressable key={a.id} testID={`ubox-new-area-${a.id}`} onPress={() => { setParent({ id: a.id, label: nameOf(a) }); setParentQ(''); }} accessibilityRole="button" style={styles.opt}>
-              <Text style={{ color: colors.text, fontSize: 16 }}>{nameOf(a)}</Text>
-              {a.path ? <Text style={{ color: colors.muted, fontSize: 13 }}>{a.path}</Text> : null}
+              <Text style={{ color: colors.text, fontSize: 16 }}>{nameOf(a)}{a.path ? <Text style={{ color: colors.muted, fontSize: 14 }}>{` — ${a.path}`}</Text> : null}</Text>
             </Pressable>
           ))}
           {!areaHits.length && pq.length >= 2 ? <Text style={{ color: colors.muted }}>{L.newAreaPick}</Text> : null}
