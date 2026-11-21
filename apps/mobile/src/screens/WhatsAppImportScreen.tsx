@@ -13,7 +13,7 @@ import { currentLang, useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
 import { SmartImage } from '../components/SmartImage';
-import { placeLabel } from '../components/UnitBox';
+import { placeLabel } from '../unitBoxRules';
 import { ALL_TYPES, FINISHING, FURNISHING, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { toggleKeep } from '../photos';

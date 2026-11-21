@@ -2,7 +2,8 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { BoxPlace } from '@wehdathub/shared';
-import { NO_PLACE, PASTE_MIN, UnitBox, placePatch, resolvePatch } from '../src/components/UnitBox';
+import { PASTE_MIN, UnitBox } from '../src/components/UnitBox';
+import { NO_PLACE, placePatch, resolvePatch } from '../src/unitBoxRules';
 import { api } from '../src/api';
 import { usePlaces } from '../src/placeList';
 
@@ -130,7 +131,7 @@ test('request a new place: name, area and the save writes a pending compound wit
   await fireEvent.press(screen.getByTestId('ubox-new-area-a1'));
   expect(screen.getByTestId('ubox-new-save').props.accessibilityState.disabled).toBe(false);
   await fireEvent.press(screen.getByTestId('ubox-new-save'));
-  expect(patch).toHaveBeenCalledWith({ compound: 'Zed', compound_new: '1', compound_ar: '', compound_pin: '', area_id: 'a1', subzone_id: '', place_label: 'Zed', place_path: 'New Cairo', place_zones: '' });
+  expect(patch).toHaveBeenCalledWith({ compound: 'Zed', compound_new: '1', compound_ar: '', compound_pin: '', area_id: 'a1', subzone_id: '', place_label: 'Zed', place_path: 'New Cairo', place_zones: '', phase_label: '', place_phases: '' });
 });
 
 test('the new-place form asks for the district and city, and cancel clears the place', async () => {
