@@ -5,7 +5,7 @@ import { ApiClientError } from '@wehdathub/shared';
 import { AddUnitScreen } from '../src/screens/AddUnitScreen';
 import { api } from '../src/api';
 
-jest.mock('../src/api', () => ({ api: { unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn(), unit: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn(), unit: jest.fn(), reviewUnit: jest.fn().mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null }) } }));
 const mockGoBack = jest.fn();
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: mockGoBack, navigate: jest.fn(), replace: jest.fn() }), useRoute: () => ({ params: { edit: 'A-1' } }) }));
 jest.mock('../src/voice', () => ({ ensureMic: jest.fn(), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
