@@ -21,7 +21,7 @@ const mockAddListener = jest.fn(() => jest.fn());
 const mockZip = { uri: 'file:///cache/chat.zip', name: 'chat.zip', type: 'application/zip' };
 let mockRoute: { params: Record<string, unknown> } = { params: { zip: mockZip } };
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: mockNavigate, replace: jest.fn(), dispatch: jest.fn(), addListener: mockAddListener }),
+  useNavigation: () => ({ push: mockNavigate, navigate: jest.fn(), replace: jest.fn(), dispatch: jest.fn(), addListener: mockAddListener }),
   useRoute: () => mockRoute,
 }));
 
@@ -40,6 +40,8 @@ const planFor = async (b: { id: string }[]) => ({ posts: b.map((x) => ({ id: x.i
 const unit = (code: string, version = 7) => ({ code, version, updated_at: null });
 
 beforeEach(async () => {
+  // The Save confirm: tests answer it with its last button (Save).
+  jest.spyOn(require('react-native').Alert, 'alert').mockImplementation((...a: unknown[]) => { (a[2] as { onPress?: () => void }[] | undefined)?.slice(-1)[0]?.onPress?.(); });
   jest.clearAllMocks();
   resetMemoryCache();
   planKinds = { '1': { kind: 'unchanged', code: 'HP-1', existing: unit('HP-1') } };
@@ -254,7 +256,7 @@ test('Restore brings a discarded post back, one by one and all at once', async (
   await open();
   await act(async () => { fireEvent.press(screen.getByTestId('wa-discard-3')); });
   await act(async () => { fireEvent.press(screen.getByTestId('wa-discard-4')); });
-  await act(async () => { fireEvent.press(screen.getByText(/2 discarded|2 بوست متجاهل/)); });
+  await act(async () => { fireEvent.press(screen.getByText(/2 discarded|2 بوست مستبعد/)); });
   await act(async () => { fireEvent.press(screen.getByTestId('wa-restore-3')); });
   expect(screen.getByTestId('wa-post-3')).toBeTruthy();
   await act(async () => { fireEvent.press(screen.getByTestId('wa-restore-all')); });
@@ -338,9 +340,20 @@ test('Discard then Restore: a restored valid unit is ticked again, a restored er
   await open();
   await act(async () => { fireEvent.press(screen.getByTestId('wa-discard-3')); });
   await act(async () => { fireEvent.press(screen.getByTestId('wa-discard-4')); });
-  await act(async () => { fireEvent.press(screen.getByText(/2 discarded|2 بوست متجاهل/)); });
+  await act(async () => { fireEvent.press(screen.getByText(/2 discarded|2 بوست مستبعد/)); });
   await act(async () => { fireEvent.press(screen.getByTestId('wa-restore-3')); });
   await act(async () => { fireEvent.press(screen.getByTestId('wa-restore-4')); });
   expect(ticked('3')).toBe(true);
   expect(ticked('4')).toBe(false);
+});
+
+test('Save asks first (counts, overwrite) and saves nothing until confirmed; labels use the new wording', async () => {
+  const alert = jest.spyOn(require('react-native').Alert, 'alert').mockImplementation(() => undefined);
+  await open();
+  expect(screen.getAllByText(/Review and update|راجع وحدّث/).length).toBeGreaterThan(0);
+  expect(screen.queryByText(/Open the unit|افتح الوحدة/)).toBeNull();
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
+  expect(alert).toHaveBeenCalledTimes(1);
+  expect(String(alert.mock.calls[0][1])).toMatch(/overwritten|هتتغطى/);
+  expect(m.createUnit).not.toHaveBeenCalled();
 });

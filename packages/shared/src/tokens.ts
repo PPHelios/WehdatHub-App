@@ -82,7 +82,7 @@ export const SHAPE = {
   radius: 20,
   'radius-btn': 14,
   'radius-field': 12,
-  'btn-sm': 40,
+  'btn-sm': 44,
   'btn-md': 48,
   'btn-lg': 56,
 } as const;

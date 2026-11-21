@@ -47,6 +47,8 @@ const updatePlan = (version = 7) => ({ kind: 'update', code: 'HP-1', existing: u
 const replan = (id: string, over: Record<string, unknown>) => ({ posts: [{ id, kind: 'new', code: null, existing: null, changes: [], patch: {}, errors: [], ...over }] });
 
 beforeEach(async () => {
+  // The Save confirm: tests answer it with its last button (Save).
+  jest.spyOn(require('react-native').Alert, 'alert').mockImplementation((...a: unknown[]) => { (a[2] as { onPress?: () => void }[] | undefined)?.slice(-1)[0]?.onPress?.(); });
   jest.clearAllMocks();
   resetMemoryCache();
   planKinds = { '1': updatePlan() };
@@ -321,10 +323,10 @@ describe('the list', () => {
     const box = screen.getByTestId('wa-pick-1');
     expect(box.props.accessibilityRole).toBe('checkbox');
     expect(box.props.accessibilityLabel).toMatch(/HP-1/);
-    expect(screen.getByText(/Discard post HP-1|تجاهل البوست HP-1/)).toBeTruthy();
+    expect(screen.getByText(/Leave out post HP-1|استبعد البوست HP-1/)).toBeTruthy();
     const ph = screen.getByTestId('wa-photo-1-0');
-    expect(ph.props.accessibilityRole).toBe('button');
-    expect(ph.props.accessibilityState.selected).toBe(true);
+    expect(ph.props.accessibilityRole).toBe('checkbox');
+    expect(ph.props.accessibilityState.checked).toBe(true);
   });
 
   test('leaving with units still to save asks first; leaving with nothing to save does not', async () => {

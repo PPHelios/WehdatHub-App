@@ -88,6 +88,7 @@ export function WhatsAppImportScreen() {
   const [readFailed, setReadFailed] = useState(false);
   const [openText, setOpenText] = useState<Record<string, boolean>>({});
   const [progress, setProgress] = useState(0);
+  const [saveTotal, setSaveTotal] = useState(0);
   const [showDiscarded, setShowDiscarded] = useState(false);
   const [result, setResult] = useState<{ saved: number; created: number; updated: number; unchanged: string[]; failed: number; photosFailed: string[] } | null>(null);
   // What was decided about this chat's posts in earlier imports (see whatsappImportMemory).
@@ -421,7 +422,7 @@ export function WhatsAppImportScreen() {
   const edit = (p: ImportPost, badge: CodeBadge) => {
     usage('wa_import_edit', true, undefined, { kind: badge.kind, missing: p.missing?.length ?? 0 });
     const ordered = [...keptOf(p), ...p.photos.filter((x) => x.notKept)];
-    nav.navigate('AddUnit', { text: p.post.orig || p.post.text, photos: ordered, fresh: true, noAi: true, fields: p.fields, ...(p.post.code ? { code: p.post.code } : {}), importId: p.id, ...(badge.kind === 'update' ? { edit: badge.code } : {}) });
+    nav.push('AddUnit', { text: p.post.orig || p.post.text, photos: ordered, fresh: true, noAi: true, fields: p.fields, ...(p.post.code ? { code: p.post.code } : {}), importId: p.id, ...(badge.kind === 'update' ? { edit: badge.code } : {}) });
   };
 
   /** The post's save key: made once and kept on the post until it is saved, so a retry reuses it. */
@@ -520,6 +521,7 @@ export function WhatsAppImportScreen() {
     const todo = list.map((p, i) => ({ p, b: badges[i] })).filter(({ p, b }) => savable(p, b));
     if (!todo.length) return;
     savingRef.current = true;
+    setSaveTotal(todo.length);
     const unchanged = list.map((p, i) => ({ p, b: badges[i] })).filter(({ p, b }) => kindOf(p, b) === 'unchanged').map(({ b }) => (b.kind === 'update' ? b.code : ''));
     const tally = { created: 0, updated: 0, failed: 0 };
     photoFails.current = [];
@@ -578,7 +580,8 @@ export function WhatsAppImportScreen() {
 
   const counts = importCounts(list, badges);
   const canSave = counts.willSave > 0;
-  const buttonLabel = `${W.addSelected} (${counts.willSave})`;
+  const buttonLabel = `${counts.unticked > 0 ? W.saveTicked : W.addSelected} (${counts.willSave})`;
+  const confirmSave = () => Alert.alert(W.confirmTitle, fill(W.confirmBody, { n: counts.willSave, a: counts.newCount, b: counts.updated }), [{ text: W.cancel, style: 'cancel' }, { text: W.confirmGo, onPress: () => { void addSelected(); } }]);
 
   // Leaving while a save runs, or with units still ticked, asks first (a save in progress stops at the next post).
   const dirty = useRef(false);
@@ -610,7 +613,8 @@ export function WhatsAppImportScreen() {
     return (
       <View style={[styles.screen, { backgroundColor: colors.bg }, styles.center]}>
         <ActivityIndicator color={colors.primary} />
-        <Text testID="wa-stage" style={[styles.h, { color: colors.text }]}>{label} · {pct}%</Text>
+        <Text testID="wa-stage" accessibilityLiveRegion="polite" style={[styles.h, { color: colors.text }]}>{label} · {pct}%</Text>
+        <Text style={{ color: colors.muted }}>{fill(W.stepOf, { i: ['list', 'chat', 'photos', 'match'].indexOf(stage) + 1 || 5, n: 5 })}</Text>
         <View accessibilityRole="progressbar" accessibilityLabel={W.progressLabel} accessibilityValue={{ min: 0, max: 100, now: pct }} style={[styles.bar, { backgroundColor: colors.border }]}><View testID="wa-bar" style={[styles.barFill, { backgroundColor: colors.primary, width: `${pct}%` }]} /></View>
         <Text style={{ color: colors.muted, textAlign: 'center' }}>{W.keepOpen}</Text>
         <Button label={W.cancel} variant="secondary" onPress={() => { signal.current.cancelled = true; cancelUnpack(); }} />
@@ -622,7 +626,7 @@ export function WhatsAppImportScreen() {
     return (
       <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={{ color: colors.muted }}>{W.intro}</Text>
-        {error ? <Text testID="wa-error" style={{ color: colors.danger }}>{error}</Text> : null}
+        {error ? <Text accessibilityRole="alert" testID="wa-error" style={{ color: colors.danger }}>{error}</Text> : null}
         <Text style={{ color: colors.muted }}>{W.rulesHint}</Text>
         <Button testID="wa-pick-zip" label={W.pick} onPress={choose} />
       </ScrollView>
@@ -641,7 +645,7 @@ export function WhatsAppImportScreen() {
       <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.h, { color: colors.text }]}>{W.rangeTitle}</Text>
         {zipName ? <Text style={{ color: colors.muted }} numberOfLines={1}>{zipName}</Text> : null}
-        {error ? <Text testID="wa-error" style={{ color: colors.danger }}>{error}</Text> : null}
+        {error ? <Text accessibilityRole="alert" testID="wa-error" style={{ color: colors.danger }}>{error}</Text> : null}
         <Text testID="wa-chat-span" style={{ color: colors.text }}>{fill(W.chatSpan, { a: utcDay(info.firstAt) || '-', b: utcDay(info.lastAt) || '-', n: info.total })}</Text>
         <View style={styles.chips}>
           {options.map((o) => (
@@ -657,7 +661,7 @@ export function WhatsAppImportScreen() {
             <Field testID="wa-until-input" label={W.untilInput} value={untilText} onChangeText={(v: string) => { setUntilText(v); setRangeError(null); }} autoCapitalize="none" keyboardType="numbers-and-punctuation" />
           </View>
         ) : null}
-        {err ? <Text testID="wa-range-error" style={{ color: colors.danger }}>{err}</Text> : null}
+        {err ? <Text accessibilityRole="alert" testID="wa-range-error" style={{ color: colors.danger }}>{err}</Text> : null}
         {inRange !== null ? <Text testID="wa-range-count" style={{ color: colors.muted }}>{fill(W.rangeCount, { n: inRange })}</Text> : null}
         <Button testID="wa-range-read" label={W.read} onPress={() => read()} />
       </ScrollView>
@@ -700,7 +704,7 @@ export function WhatsAppImportScreen() {
               <View style={{ gap: spacing.sm }}>
                 <Text style={{ color: colors.text }}>{fill(W.bulkOwner, { n: bulkCount.owner })}</Text>
                 <Field testID="wa-owner-all" label="" value={ownerAll} onChangeText={(v: string) => { setOwnerAll(v); setOwnerBad(false); }} keyboardType="phone-pad" placeholder={W.bulkOwnerPlaceholder} hint={phoneHelp(lang)} />
-                {ownerBad ? <Text testID="wa-owner-bad" style={{ color: colors.danger }}>{W.bulkBadPhone}</Text> : null}
+                {ownerBad ? <Text accessibilityRole="alert" testID="wa-owner-bad" style={{ color: colors.danger }}>{W.bulkBadPhone}</Text> : null}
                 <Button testID="wa-owner-apply" label={W.bulkOwnerApply} variant="secondary" loading={bulkBusy} disabled={adding} onPress={() => {
                   const ok = contactPhoneSchema.safeParse(ownerAll.trim());
                   if (!ok.success) { setOwnerBad(true); return undefined; }
@@ -724,7 +728,7 @@ export function WhatsAppImportScreen() {
                 <Text style={{ color: colors.text }}>{fill(W.discardedLine, { n: counts.discarded })}</Text>
                 {earlierN > 0 ? <Text testID="wa-earlier-line" style={[styles.small, { color: colors.muted }]}>{fill(W.earlierLine, { n: earlierN })}</Text> : null}
               </Pressable>
-              <Pressable testID="wa-restore-all" accessibilityRole="button" disabled={adding} onPress={restoreAll}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{W.restoreAll}</Text></Pressable>
+              <Pressable testID="wa-restore-all" accessibilityRole="button" disabled={adding} style={styles.hit} onPress={restoreAll}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{W.restoreAll}</Text></Pressable>
             </View>
             {showDiscarded ? list.filter((p) => p.discarded && p.state !== 'saved').map((p) => (
               <View key={p.id} style={styles.row}>
@@ -740,7 +744,7 @@ export function WhatsAppImportScreen() {
             <Text style={{ color: colors.text }}>{fill(W.resultLine, { n: result.saved, a: result.created, b: result.updated, y: result.unchanged.length })}</Text>
             {result.unchanged.length ? <Text testID="wa-result-unchanged" style={{ color: colors.muted }}>{fill(W.resultUnchanged, { list: result.unchanged.join(J) })}</Text> : null}
             {result.photosFailed.length ? <Text testID="wa-result-photos" style={{ color: colors.danger }}>{fill(W.resultPhotosFailed, { list: result.photosFailed.join(J) })}</Text> : null}
-            {result.failed ? <Text style={{ color: colors.danger }}>{fill(W.resultFailed, { n: result.failed })}</Text> : null}
+            {result.failed ? <Text style={{ color: colors.danger }}>{fill(W.resultFailed, { n: result.failed })} · {W.failedNext}</Text> : <Text style={{ color: colors.muted }}>{W.resultNext}</Text>}
           </View>
         ) : null}
         {counts.errors + counts.unchanged > 0 ? <Button testID="wa-discard-errors" label={fill(W.discardErrors, { n: counts.errors + counts.unchanged })} variant="secondary" size="sm" disabled={adding} onPress={discardErrors} /> : null}
@@ -779,6 +783,7 @@ export function WhatsAppImportScreen() {
       </View>
         )}
         renderItem={renderPost}
+        ListEmptyComponent={counts.remaining > 0 ? <Text testID="wa-empty-filter" style={{ color: colors.muted, textAlign: 'center' }}>{W.emptyFilter}</Text> : undefined}
         ListFooterComponent={hideUnchanged && filter === 'all' && viewCounts.unchanged > 0 ? (
           <Pressable testID="wa-unchanged-hidden" accessibilityRole="button" style={styles.hit} onPress={() => setHideUnchanged(false)}>
             <Text style={{ color: colors.primaryInk, textAlign: 'center' }}>{fill(W.unchangedHidden, { n: viewCounts.unchanged })}</Text>
@@ -787,8 +792,8 @@ export function WhatsAppImportScreen() {
       />
       <View style={[styles.bottom, { borderColor: colors.border, backgroundColor: colors.bg }]}>
         <Text testID="wa-ready" style={{ color: colors.muted, textAlign: 'center' }}>{`${fill(W.willSave, { n: counts.willSave, a: counts.newCount, b: counts.updated, m: counts.skipped, x: counts.errors, y: counts.unchanged, z: counts.discarded })}${counts.unticked > 0 ? fill(W.willSaveUnticked, { u: counts.unticked }) : ''}`}</Text>
-        <Button testID="wa-add" label={buttonLabel} progress={adding ? progress : undefined} disabled={adding || !canSave} onPress={addSelected} />
-        {adding ? <Text style={{ color: colors.muted, textAlign: 'center' }}>{Math.round(progress * 100)}% · {W.leaveWarn}</Text> : null}
+        <Button testID="wa-add" label={buttonLabel} progress={adding ? progress : undefined} disabled={adding || !canSave} onPress={confirmSave} />
+        {adding ? <Text style={{ color: colors.muted, textAlign: 'center' }}>{fill(W.savingLine, { d: Math.round(progress * saveTotal), t: saveTotal })} · {W.leaveWarn}</Text> : null}
       </View>
     </View>
   );
@@ -881,7 +886,7 @@ const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, 
         {p.state === 'working' ? <ActivityIndicator color={colors.primary} /> : null}
       </View>
       <SummaryGrid W={W} lang={lang} J={J} post={p} colors={colors} changed={new Set((changes ?? []).map((c) => c.field.replace(/^details./, '')))} />
-      <Pressable testID={`wa-desc-${p.id}`} accessibilityRole="button" onPress={() => onToggleText(p.id)}>
+      <Pressable testID={`wa-desc-${p.id}`} accessibilityRole="button" accessibilityLabel={`${W.originalTitle}: ${open ? W.showLess : W.showMore}`} accessibilityState={{ expanded: open }} onPress={() => onToggleText(p.id)}>
         <Text style={[styles.small, styles.bold, { color: colors.muted }]}>💬 {W.originalTitle}</Text>
         <Text style={[styles.small, { color: colors.muted }]} numberOfLines={open ? undefined : 3}>{p.post.orig || p.post.text}</Text>
         <Text style={[styles.small, { color: colors.primaryInk }]}>{open ? W.showLess : W.showMore}</Text>
@@ -892,7 +897,7 @@ const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, 
           {p.photos.length > 15 ? <Text style={{ color: colors.accent }}>{W.pickNote}</Text> : null}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
             {(moreOpen ? p.photos : p.photos.slice(0, THUMB_CAP)).map((f, n) => (
-              <Pressable key={f.uri} testID={`wa-photo-${p.id}-${n}`} accessibilityRole="button" accessibilityLabel={fill(W.photoN, { n: n + 1 })} accessibilityState={{ selected: !f.notKept, disabled: locked }} disabled={locked} onPress={() => onTogglePhoto(p.id, f.uri)} style={f.notKept ? styles.dim : undefined}>
+              <Pressable key={f.uri} testID={`wa-photo-${p.id}-${n}`} accessibilityRole="checkbox" accessibilityLabel={`${fill(W.photoN, { n: n + 1 })}: ${f.notKept ? W.photoOut : W.photoKept}`} accessibilityState={{ checked: !f.notKept, disabled: locked }} disabled={locked} onPress={() => onTogglePhoto(p.id, f.uri)} style={f.notKept ? styles.dim : undefined}>
                 <SmartImage uri={f.uri} style={styles.thumb} />
                 <Text style={[styles.tick, { color: colors.onPrimary, backgroundColor: f.notKept ? colors.border : colors.primary }]}>{f.notKept ? '–' : '✓'}</Text>
               </Pressable>
@@ -938,7 +943,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   flex: { flex: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  chip: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, minHeight: 44, justifyContent: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   cell: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4, minWidth: 96 },
   bar: { height: 12, borderRadius: 6, alignSelf: 'stretch', overflow: 'hidden' },
