@@ -190,6 +190,17 @@ describe('the screen remembers decisions on the server', () => {
     expect(m.forgetChatDecisions).toHaveBeenCalledWith('fpR');
   });
 
+  test('forget asks first: Cancel clears nothing', async () => {
+    m.chatDecisions.mockResolvedValue(remembered({ [fpOf(2)]: 'discarded' }));
+    const alert = require('react-native').Alert.alert as jest.Mock;
+    await open();
+    alert.mockImplementationOnce(() => undefined); // the broker taps Cancel
+    await act(async () => { fireEvent.press(screen.getByTestId('wa-forget')); });
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('wa-forgot-note')).toBeNull();
+    expect(m.forgetChatDecisions).not.toHaveBeenCalled();
+  });
+
   test('when the server cannot be reached the screen still opens and works', async () => {
     m.chatDecisions.mockRejectedValue(new Error('net'));
     m.saveChatDecisions.mockRejectedValue(new Error('net'));

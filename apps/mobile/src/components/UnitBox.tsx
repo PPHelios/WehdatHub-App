@@ -4,7 +4,7 @@ import { AppText as Text, AppTextInput as TextInput } from './AppText';
 import type { BoxFeature, BoxPhase, BoxPlace, Lang, UnitFields } from '@wehdathub/shared';
 import { api } from '../api';
 import { featureChip } from '../featureLabels';
-import { syncPlaces } from '../placeList';
+import { syncPlaces, usePlaces } from '../placeList';
 import { fill, uf } from '../unitFormText';
 import { useBoxItems } from '../useBoxItems';
 import { radius, spacing, useTheme } from '../theme';
@@ -179,6 +179,9 @@ function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: 
   const L = uf(lang);
   const [parentQ, setParentQ] = useState('');
   const [parent, setParent] = useState<{ id: string; label: string } | null>(null);
+  const [sub, setSub] = useState<string>('');
+  const areas = usePlaces((s) => s.list?.areas);
+  const subs = (areas ?? []).filter((a) => parent && a.parent_id === parent.id);
   const pq = parentQ.trim();
   const areaHits = useBoxItems(parent ? '' : pq, lang, true).filter((it): it is BoxPlace => it.kind === 'area' || it.kind === 'subzone')
     .filter((it, i, all) => all.findIndex((x) => x.id === it.id) === i); // an alias hit is the same place: one row
@@ -187,7 +190,7 @@ function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: 
 
   const save = () => {
     if (!ok || !parent) return;
-    patch({ compound: name, compound_new: '1', compound_ar: str(fields.compound_ar), compound_pin: str(fields.compound_pin), area_id: parent.id, subzone_id: '', place_label: name, place_path: parent.label, place_zones: '', phase_label: '', place_phases: '' });
+    patch({ compound: name, compound_new: '1', compound_ar: str(fields.compound_ar), compound_pin: str(fields.compound_pin), area_id: parent.id, subzone_id: sub, place_label: name, place_path: parent.label, place_zones: '', phase_label: '', place_phases: '' });
     onDone();
   };
 
@@ -204,7 +207,7 @@ function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: 
       </View>
       <Text style={[styles.label, { color: colors.text }]}>{L.newArea}</Text>
       {parent ? (
-        <Pressable testID="ubox-new-parent" onPress={() => setParent(null)} accessibilityRole="button" style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary, alignSelf: 'flex-start' }]}>
+        <Pressable testID="ubox-new-parent" onPress={() => { setParent(null); setSub(''); }} accessibilityRole="button" style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary, alignSelf: 'flex-start' }]}>
           <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{parent.label}  ×</Text>
         </Pressable>
       ) : (
@@ -218,6 +221,16 @@ function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: 
           {!areaHits.length && pq.length >= 2 ? <Text style={{ color: colors.muted }}>{L.newAreaPick}</Text> : null}
         </>
       )}
+      {subs.length ? (
+        <View testID="ubox-new-subs">
+          <Text style={[styles.label, { color: colors.text }]}>{L.newSub}</Text>
+          {subs.map((a) => (
+            <Pressable key={a.id} testID={`ubox-new-sub-${a.id}`} onPress={() => setSub(sub === a.id ? '' : a.id)} accessibilityRole="button" accessibilityState={{ selected: sub === a.id }} style={styles.opt}>
+              <Text style={{ color: sub === a.id ? colors.primaryInk : colors.text, fontSize: 16, fontWeight: sub === a.id ? '700' : '400' }}>{(lang === 'en' ? a.name_en || a.name_ar : a.name_ar || a.name_en) ?? ''}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <View style={styles.row}>
         <Pressable testID="ubox-new-save" onPress={save} disabled={!ok} accessibilityRole="button" accessibilityState={{ disabled: !ok }} style={[styles.btn, { backgroundColor: colors.primary, opacity: ok ? 1 : 0.4 }]}>
           <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{L.newSave}</Text>

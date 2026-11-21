@@ -370,6 +370,7 @@ export function WhatsAppImportScreen() {
     setForgotNote(true);
     await forgetAll(info.fingerprint);
   };
+  const confirmForget = () => Alert.alert(W.forget, undefined, [{ text: W.cancel, style: 'cancel' }, { text: W.forgetGo, style: 'destructive', onPress: () => { void forget(); } }]);
   // A post that was imported before comes back to the list (not ticked).
   const bringBack = (id: string) => {
     const p = priorSaved.find((x) => x.id === id);
@@ -778,7 +779,7 @@ export function WhatsAppImportScreen() {
             )) : null}
           </View>
         ) : null}
-        {memCount > 0 ? <Pressable testID="wa-forget" accessibilityRole="button" disabled={adding} style={styles.hit} onPress={forget}><Text style={{ color: colors.muted, textDecorationLine: 'underline' }}>{W.forget}</Text></Pressable> : null}
+        {memCount > 0 ? <Pressable testID="wa-forget" accessibilityRole="button" disabled={adding} style={styles.hit} onPress={confirmForget}><Text style={{ color: colors.muted, textDecorationLine: 'underline' }}>{W.forget}</Text></Pressable> : null}
         {forgotNote ? <Text testID="wa-forgot-note" style={{ color: colors.muted }}>{W.forgotten}</Text> : null}
       </View>
         )}

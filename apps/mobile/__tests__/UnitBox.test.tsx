@@ -201,3 +201,17 @@ test('new-place area list shows the parent next to each name, and an alias hit i
   expect(screen.getByText(/Cairo-Suez Road/)).toBeTruthy();
   expect(screen.getByText(/— Nasr City/)).toBeTruthy();
 });
+
+test('the new-place form lists sub-zones of the chosen area, only after an area is chosen, and saves the pick', async () => {
+  m.placeBox.mockImplementation(async (q: string) => ({ items: q === 'zed' ? [] : [newCairo] }));
+  usePlaces.setState({ list: { areas: [{ id: 'a1', parent_id: null, name_en: 'New Cairo', name_ar: null, lat: null, lng: null }, { id: 's1', parent_id: 'a1', name_en: 'Golden Square', name_ar: null, lat: null, lng: null }] } as never });
+  const patch = jest.fn();
+  await wrap(<UnitBox fields={{ compound: 'Zed', compound_new: '1' }} patch={patch} lang="en" />);
+  expect(screen.queryByTestId('ubox-new-subs')).toBeNull();
+  await fireEvent.changeText(screen.getByTestId('ubox-new-parent-input'), 'new');
+  await waitFor(() => expect(screen.getByTestId('ubox-new-area-a1')).toBeTruthy());
+  await fireEvent.press(screen.getByTestId('ubox-new-area-a1'));
+  await fireEvent.press(screen.getByTestId('ubox-new-sub-s1'));
+  await fireEvent.press(screen.getByTestId('ubox-new-save'));
+  expect(patch).toHaveBeenCalledWith(expect.objectContaining({ area_id: 'a1', subzone_id: 's1' }));
+});
