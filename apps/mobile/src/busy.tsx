@@ -41,6 +41,7 @@ export function beginBusy(): () => void {
     emit();
   };
   const timer = setTimeout(end, FAILSAFE_MS);
+  (timer as unknown as { unref?: () => void })?.unref?.();
   count += 1;
   emit();
   return end;
