@@ -794,11 +794,11 @@ export function WhatsAppImportScreen() {
   );
 }
 
-type SummaryColors = { text: string; muted: string; border: string; danger: string; card: string; badSoft: string; badInk: string };
+type SummaryColors = { text: string; muted: string; border: string; danger: string; card: string; badSoft: string; badInk: string; primary: string; primarySoft: string; primaryInk: string };
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '');
 
 /** The unit read from the post as an organised summary (type, place, price, rooms, finishing...), the mandatory things it lacks in red. */
-function SummaryGrid({ W, lang, J, post, colors }: { W: ReturnType<typeof wi>; lang: string; J: string; post: ImportPost; colors: SummaryColors }) {
+function SummaryGrid({ W, lang, J, post, colors, changed }: { W: ReturnType<typeof wi>; lang: string; J: string; post: ImportPost; colors: SummaryColors; changed: Set<string> }) {
   const f = post.fields;
   if (!f) return null;
   const L2 = lang === 'en' ? 'en' : 'ar';
@@ -829,9 +829,10 @@ function SummaryGrid({ W, lang, J, post, colors }: { W: ReturnType<typeof wi>; l
       <View style={styles.grid}>
         {shown.map((c) => {
           const bad = miss.has(c.k);
+          const diff = !bad && changed.has(c.k);
           return (
-            <View key={c.k} testID={bad ? `wa-missing-${post.id}-${c.k}` : undefined} style={[styles.cell, { backgroundColor: bad ? colors.badSoft : colors.card, borderColor: bad ? colors.danger : colors.border }]}>
-              <Text style={{ color: bad ? colors.badInk : colors.muted, fontSize: 11 }}>{c.label}</Text>
+            <View key={c.k} testID={bad ? `wa-missing-${post.id}-${c.k}` : undefined} style={[styles.cell, { backgroundColor: bad ? colors.badSoft : diff ? colors.primarySoft : colors.card, borderColor: bad ? colors.danger : diff ? colors.primary : colors.border }]}>
+              <Text style={{ color: bad ? colors.badInk : diff ? colors.text : colors.muted, fontSize: 11 }}>{diff ? `✎ ${c.label}` : c.label}</Text>
               <Text style={{ color: bad ? colors.badInk : colors.text, fontWeight: '700' }}>{bad && !c.value ? `⚠️ ${L2 === 'en' ? 'Missing' : 'ناقص'}` : c.value}</Text>
             </View>
           );
@@ -874,11 +875,12 @@ const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, 
           {kind === 'unchanged' ? <Text testID={`wa-unchanged-${p.id}`} style={{ color: colors.muted, fontWeight: '600' }}>{W.unchangedBadge}</Text> : null}
           {kind === 'updated' && changes?.length ? <Text testID={`wa-changes-${p.id}`} style={{ color: colors.accent, fontWeight: '600' }}>{fill(W.changesLine, { list: changes.map((c) => changeLine(c)).join(J) })}</Text> : null}
           {blockNote ? <Text testID={`wa-blocker-${p.id}`} style={{ color: colors.danger, fontWeight: '600' }}>{blockNote}</Text> : null}
+          {p.blocker === 'other_unit' && changes?.length ? <Text testID={`wa-diff-${p.id}`} style={{ color: colors.primaryInk, fontWeight: '600' }}>{fill(W.otherDiff, { list: changes.map((c) => changeLine(c)).join(J) })}</Text> : null}
           <Text style={[styles.small, { color: colors.muted }]} numberOfLines={1}>{[p.post.sender && looksLikePhone(p.post.sender) ? ltr(displayPhone(p.post.sender)) : p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
         </View>
         {p.state === 'working' ? <ActivityIndicator color={colors.primary} /> : null}
       </View>
-      <SummaryGrid W={W} lang={lang} J={J} post={p} colors={colors} />
+      <SummaryGrid W={W} lang={lang} J={J} post={p} colors={colors} changed={new Set((changes ?? []).map((c) => c.field.replace(/^details./, '')))} />
       <Pressable testID={`wa-desc-${p.id}`} accessibilityRole="button" onPress={() => onToggleText(p.id)}>
         <Text style={[styles.small, styles.bold, { color: colors.muted }]}>💬 {W.originalTitle}</Text>
         <Text style={[styles.small, { color: colors.muted }]} numberOfLines={open ? undefined : 3}>{p.post.orig || p.post.text}</Text>
