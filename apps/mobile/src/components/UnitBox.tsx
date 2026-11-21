@@ -221,6 +221,7 @@ function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: 
           {!areaHits.length && pq.length >= 2 ? <Text style={{ color: colors.muted }}>{L.newAreaPick}</Text> : null}
         </>
       )}
+      {parent && !areas ? <Text testID="ubox-new-subs-offline" style={{ color: colors.muted }}>{L.newSubOffline}</Text> : null}
       {subs.length ? (
         <View testID="ubox-new-subs">
           <Text style={[styles.label, { color: colors.text }]}>{L.newSub}</Text>

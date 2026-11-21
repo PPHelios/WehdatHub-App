@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { create } from 'zustand';
 import { suggestPlaces, type ListPlace, type PlaceList, type PlaceMatch } from '@wehdathub/shared';
 import { api } from './api';
@@ -76,4 +78,16 @@ export async function clearPlaces(): Promise<void> {
   usePlaces.setState({ list: null, pending: [], checkedAt: 0 });
   await AsyncStorage.removeItem(KEY).catch(() => undefined);
   await AsyncStorage.removeItem(PENDING_KEY).catch(() => undefined);
+}
+
+/** Downloads the list once signed in and each time the app comes back, so a fresh install has it before any form opens. */
+export function usePlaceSync(signedIn: boolean): void {
+  useEffect(() => {
+    if (!signedIn) return;
+    syncPlaces().catch(() => undefined);
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') syncPlaces().catch(() => undefined);
+    });
+    return () => sub.remove();
+  }, [signedIn]);
 }
