@@ -10,7 +10,7 @@ const COMMERCIAL = ['office', 'shop', 'clinic', 'commercial'];
 /** The unit types each optional size field is asked for. A field with a value always shows, whatever the type. */
 export const FIELD_TYPES: Record<'land_area' | 'garden_area' | 'roof_area' | 'floor_level', string[]> = {
   land_area: [...VILLA_LIKE, 'land'],
-  garden_area: [...VILLA_LIKE, 'duplex', 'apartment', 'chalet', 'triplex'],
+  garden_area: [...APARTMENT_LIKE, 'studio', ...VILLA_LIKE, ...COMMERCIAL, 'land'], // every type, as domain/fieldRules.js
   roof_area: [...VILLA_LIKE, 'duplex', 'penthouse', 'triplex', 'triplex_roof', 'sky_loft', 'roof'],
   floor_level: [...APARTMENT_LIKE, 'studio', ...COMMERCIAL],
 };
@@ -23,7 +23,7 @@ export const PAYMENT_FIELDS = [
   ...[1, 2, 3].flatMap((i) => [`plan_down_${i}`, `plan_years_${i}`, `plan_freq_${i}`]),
 ];
 /** Only on the phone: what the box shows (never sent to the server). */
-export const LOCAL_FIELDS = ['place_label', 'place_path', 'place_zones', 'area_path'];
+export const LOCAL_FIELDS = ['place_label', 'place_path', 'place_zones', 'area_path', 'phase_label', 'place_phases'];
 
 /** A garden or roof area is the feature too: a unit with one has the matching chip (web: unitFields.js). */
 export function withImpliedFeatures(f: UnitFields): UnitFields {

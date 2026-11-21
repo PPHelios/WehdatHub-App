@@ -10,7 +10,7 @@ import { syncPlaces } from '../placeList';
 import { useBoxItems } from '../useBoxItems';
 import { radius, spacing, useTheme } from '../theme';
 import { Field } from './Field';
-import { featureKeys, otherFeatures } from './UnitBox';
+import { featureKeys, otherFeatures } from '../unitBoxRules';
 
 const OTHER_MAX = 20;
 const OTHER_LEN = 60;
