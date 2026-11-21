@@ -5,6 +5,7 @@ import { SearchScreen } from '../src/screens/SearchScreen';
 import { api } from '../src/api';
 import * as voice from '../src/voice';
 import { AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
 jest.mock('../src/api', () => ({ api: { search: jest.fn(), voiceToText: jest.fn() } }));
@@ -203,4 +204,19 @@ test('no credits note when the AI simply was not needed', async () => {
   await fireEvent.press(screen.getByTestId('search-go'));
   await waitFor(() => expect(screen.getByText(/No results|مفيش نتايج/)).toBeTruthy());
   expect(screen.queryByTestId('quick-reader-note')).toBeNull();
+});
+
+test('samples show when there are no recent searches, then the last searches replace them', async () => {
+  mocked.search.mockResolvedValue({ status: 'none', source: 'parser', total: 0, items: [] });
+  await AsyncStorage.removeItem('wehdathub.recentSearches'); // earlier tests searched too
+  const first = await wrap();
+  expect(screen.getByTestId('searchExample1')).toBeTruthy();
+  await fireEvent.changeText(screen.getByTestId('search-input'), ' villa ');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(mocked.search).toHaveBeenCalled());
+  await first.unmount();
+  await wrap();
+  await waitFor(() => expect(screen.getByTestId('searchRecent1')).toBeTruthy());
+  expect(screen.getByText('villa')).toBeTruthy();
+  expect(screen.queryByTestId('searchExample1')).toBeNull();
 });
