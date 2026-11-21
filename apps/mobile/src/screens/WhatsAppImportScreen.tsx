@@ -57,7 +57,7 @@ const utcDay = (ms: number | null) => (ms === null ? '' : new Date(ms).toISOStri
  * and put them in order.
  */
 export function WhatsAppImportScreen() {
-  const { colors, elev } = useTheme();
+  const { colors } = useTheme();
   const lang = currentLang();
   const W = wi(lang);
   const J = lang === 'en' ? ', ' : '، ';
@@ -851,7 +851,7 @@ type PostCardProps = {
 
 /** One post to decide on. Memoized: it redraws only when its own post, badge or flags change (the badge object is rebuilt on every list change, so it is compared by value). */
 const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, onPick, onToggleText, onTogglePhoto, onMore, onEdit, onDiscard }: PostCardProps) {
-  const { colors, elev } = useTheme();
+  const { colors } = useTheme();
   const lang = currentLang();
   const W = wi(lang);
   const J = lang === 'en' ? ', ' : '، ';
