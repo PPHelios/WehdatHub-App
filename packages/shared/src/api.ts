@@ -446,6 +446,7 @@ export type PlanPayErrorCode = 'plan' | 'forbidden' | 'too_many' | 'amount' | 's
 export const PLAN_PAY_ERRORS: readonly PlanPayErrorCode[] = ['plan', 'forbidden', 'too_many', 'amount', 'same_plan', 'downgrade', 'period_switch', 'upgrade_required', 'upgrade_pending', 'lapsed', 'not_paid', 'not_allowed', 'upgrade_stale'];
 export const isPlanPayError = (c: unknown): c is PlanPayErrorCode => typeof c === 'string' && (PLAN_PAY_ERRORS as readonly string[]).includes(c);
 export type PlanPayBody = { kind: 'plan' | 'upgrade' | 'credit_bundle'; plan?: string; months?: number; bundle?: string };
+export type PaymentChoice = PlanPayBody & { name: [string, string]; amount: number };
 
 /** The per-month equivalent of a period price, rounded (6 months for 1,075 is 179 a month). */
 export const perMonthPrice = (price: number, months: number): number => Math.round(price / Math.max(1, months));
@@ -699,12 +700,13 @@ export function createApiClient(opts: ApiClientOptions) {
     library: (q?: string, page = 0) => request<{ items: Row[]; pages: number }>('GET', '/library', undefined, { q, page }),
     useLibrary: (id: string) => request<{ ok: true; projectId: string }>('POST', `/library/${id}/use`, {}),
     compare: (codes: string[], lang: 'ar' | 'en') => request<{ url: string; codes: string[] }>('POST', '/compare', { codes, lang }),
-    plan: () => request<{ allowance: PlanAllowance; payTo: { instapay: string; bank: string }; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean; canBuyCredits?: boolean; managerCanRenewPlan?: boolean; managerCanBuyCredits?: boolean }>('GET', '/plan'),
+    plan: () => request<{ allowance: PlanAllowance; payTo: { instapay: string; bank: string }; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean; canBuyCredits?: boolean; managerCanRenewPlan?: boolean; managerCanBuyCredits?: boolean; paymentChoices?: PaymentChoice[] }>('GET', '/plan'),
     planPay: (body: PlanPayBody) => request<{ ok: true; payment: Row }>('POST', '/plan/pay', body),
     updateBillingPermissions: (body: { managerCanRenewPlan?: boolean; managerCanBuyCredits?: boolean }) => request<{ ok: true; permissions: { managerCanRenewPlan: boolean; managerCanBuyCredits: boolean } }>('POST', '/agency/billing-permissions', body),
     creditRequest: (credits: number, note: string) => request<{ ok: true }>('POST', '/plan/credit-request', { credits, note }),
     usage: (signal?: AbortSignal) => request<{ allowance: PlanAllowance; ai?: AiUsage }>('GET', '/usage', undefined, undefined, signal),
-    platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean; pendingPayments?: Row[] }>('GET', '/platform'),
+    platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean; pendingPayments?: Row[]; paymentChannels?: { sms: boolean; telegram: boolean } }>('GET', '/platform'),
+    platformPaymentChannels: (body: { sms: boolean; telegram: boolean }) => request<{ ok: true }>('POST', '/platform/payment-channels', body),
     platformConfirmPayment: (id: string) => request<{ ok: true; payment: Row }>('POST', `/platform/payments/${id}/confirm`, {}),
     platformCancelPayment: (id: string) => request<{ ok: true; payment: Row }>('POST', `/platform/payments/${id}/cancel`, {}),
     platformAgency: (id: string, action: 'suspend' | 'resume') => request<{ ok: boolean }>('POST', `/platform/agencies/${id}/${action}`, {}),

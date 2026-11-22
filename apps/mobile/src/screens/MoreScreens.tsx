@@ -8,7 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../api';
 import { usageOptions } from '../queries';
 import { UNLIMITED_UNITS } from '@wehdathub/shared';
-import type { AiUsage, PlanAllowance } from '@wehdathub/shared';
+import type { AiUsage, PaymentChoice, PlanAllowance } from '@wehdathub/shared';
 import { planT } from '../planText';
 import { priceRows, unitWarnPct } from '../planState';
 import { currentLang } from '../auth';
@@ -193,6 +193,17 @@ export function UsageScreen() {
   const qc = useQueryClient();
   const query = useQuery(usageOptions());
   const planQ = useQuery({ queryKey: ['plan'], queryFn: () => api.plan(), enabled: rights.manager || rights.agencyOwner });
+  const [announced, setAnnounced] = useState<{ reference: string; amount: number } | null>(null);
+  async function announce(choice: PaymentChoice) {
+    try {
+      const { kind, plan, months, bundle } = choice;
+      const { payment } = await api.planPay({ kind, plan, months, bundle });
+      setAnnounced({ reference: str(payment.reference), amount: Number(payment.amount_egp ?? choice.amount) });
+      await qc.invalidateQueries({ queryKey: ['plan'] });
+    } catch (error) {
+      toast(errorText(error, lang), true);
+    }
+  }
   return (
     <Gate q={query}>
       {(d) => {
@@ -254,13 +265,25 @@ export function UsageScreen() {
                 </View>
               </Card>
             ) : null}
-            {plan?.payTo && (rights.agencyOwner || plan.canPay) ? (
+            {plan?.payTo && (rights.agencyOwner || plan.canPay || plan.canBuyCredits) ? (
               <Card testID="pay-to-card">
                 <Text style={[styles.h, { color: colors.text }]}>{ar ? 'طرق الدفع' : 'Payment methods'}</Text>
                 {plan.payTo.instapay ? <StatRow label={ar ? 'عنوان إنستاباي' : 'InstaPay address'} value={plan.payTo.instapay} /> : null}
                 {plan.payTo.bank ? <StatRow label={ar ? 'الحساب البنكي' : 'Bank account'} value={plan.payTo.bank} /> : null}
               </Card>
             ) : null}
+            {announced ? <Card>
+              <StatRow label={ar ? 'مرجع الدفع' : 'Payment reference'} value={announced.reference} />
+              <StatRow label={ar ? 'المبلغ' : 'Amount'} value={`${num(announced.amount)} ${t(lang, 'egp')}`} />
+            </Card> : null}
+            {plan?.paymentChoices?.length ? <Card>
+              <Text style={[styles.h, { color: colors.text }]}>{ar ? 'اعمل طلب دفع' : 'Request a payment reference'}</Text>
+              {plan.paymentChoices.map((choice) => (
+                <Button key={`${choice.kind}:${choice.plan ?? choice.bundle}:${choice.months ?? ''}`} variant="secondary"
+                  label={`${choice.name[ar ? 0 : 1]}${choice.months ? ` · ${planT(lang, 'months', choice.months)}` : ''} · ${num(choice.amount)} ${t(lang, 'egp')}`}
+                  onPress={() => announce(choice)} />
+              ))}
+            </Card> : null}
             <Card testID="usage-credits">
               {meters(d.allowance, ar, colors.warn)}
             </Card>
@@ -300,6 +323,16 @@ export function PlatformScreen() {
               <Text style={{ color: colors.text }}>{ar ? 'التسجيل مفتوح' : 'Sign-up open'}</Text>
               <BusySwitch testID="platform-signup" value={d.signupOpen} onValueChange={(v) => run(async () => { await api.platformSignup(v); })} />
             </View>
+            {d.paymentChannels ? (['sms', 'telegram'] as const).map((channel) => (
+              <View key={channel} style={styles.row}>
+                <Text style={[styles.flex, { color: colors.text }]}>{channel === 'sms'
+                  ? (ar ? 'التحقق برسائل البنك' : 'Bank SMS verification')
+                  : (ar ? 'الموافقة اليدوية في تليجرام' : 'Manual Telegram approval')}</Text>
+                <BusySwitch value={d.paymentChannels?.[channel] === true} onValueChange={(v) => run(async () => {
+                  if (d.paymentChannels) await api.platformPaymentChannels({ ...d.paymentChannels, [channel]: v });
+                })} />
+              </View>
+            )) : null}
           </Card>
           {d.pendingPayments?.length ? (
             <Card testID="platform-pending-payments">

@@ -38,12 +38,20 @@ export interface PreEndStatus {
   daysLeft: number;
 }
 
-/** Pre-expiration countdown warning: 7 days for paid, 3 days for trial, down to 0 (last day). */
+const cairoDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+function cairoDay(date: Date): number {
+  const parts = Object.fromEntries(cairoDate.formatToParts(date).map(({ type, value }) => [type, value]));
+  return Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+}
+
+/** Pre-expiration countdown warning in Cairo calendar days. */
 export function preEndStatus(a: Pick<PlanAllowance, 'source' | 'until'> | null | undefined, now: Date = new Date()): PreEndStatus | null {
   if (!a || !a.until) return null;
   if (a.source !== 'paid' && a.source !== 'trial') return null;
-  const days = daysUntil(a.until, now);
-  if (days === null) return null;
+  const until = new Date(a.until);
+  if (!Number.isFinite(until.getTime()) || until <= now) return null;
+  const days = (cairoDay(until) - cairoDay(now)) / DAY;
   const maxDays = a.source === 'paid' ? 7 : 3;
   if (days >= 0 && days <= maxDays) {
     return { source: a.source, daysLeft: days };
