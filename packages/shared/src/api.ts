@@ -62,6 +62,10 @@ export interface ApiUnit {
 export interface ApiUnitListItem extends ApiUnit { photo: string | null }
 export interface ApiUnitDetail extends ApiUnit {
   canEdit?: boolean;
+  canEditColleague?: boolean;
+  canDelete?: boolean;
+  canManagePrivate?: boolean;
+  colleagueEdit?: { version: number; description: string | null };
   features: string[];
   images:{ id: string; url: string; position: number }[];
 }
@@ -207,7 +211,7 @@ export interface OwnerEvent { kind: string; data: Record<string, unknown> | null
 export interface OwnerRename { id: number; code: string; old_value: string | null; new_value: string; requested_by_name: string | null; created_at: string }
 export interface AccessRequest { id: number; status: 'pending' | 'approved' | 'declined'; created_at: string; code: string; broker_name: string; decided_by_name: string | null }
 export interface ActivityRow { id: string | number; at: string; who: string; text: string; device: string }
-export interface DashboardData { days: number; weekly: number[]; sources: { source: string; n: number }[]; pipeline: Record<string, number>; unassigned: number; uncontacted: number; overdue: number; units: { active: number; stale: number }; deals: { n: number; commission: number; value: number }; leads: number; board: { id: string; name: string; leads: number; contacted: number; forward: number; deals: number; commission: number }[] }
+export interface DashboardData { mode?: ApiWorkspace['mode']; reports?: { sources: boolean; winLoss: boolean }; days: number; weekly: number[]; sources: { source: string; n: number }[]; pipeline: Record<string, number>; unassigned: number; uncontacted: number; overdue: number; units: { active: number; stale: number }; deals: { n: number; commission: number; value: number }; leads: number; board: { id: string; name: string; leads: number; contacted: number; forward: number; deals: number; commission: number }[] }
 export interface PriceRow { place: string; listing_type: 'sale' | 'rent'; units: number; median: number; low: number; high: number }
 export interface WinLossGroup { key: string; name?: string; won: number; lost: number; rate: number | null; top: string | null }
 export interface WinLossData { days: number; won: number; lost: number; rate: number | null; reasons: { key: string; n: number; pct: number }[]; brokers: WinLossGroup[]; sources: WinLossGroup[] }
@@ -220,7 +224,14 @@ export interface UnitImage { id: string; url: string; position: number }
 export interface ApiViewing { id: string; startsAt: string; place: string | null; status: string; proposedAt: string | null; clientNote: string | null; leadRef: string; leadName: string | null; unitCode: string | null }
 export interface SentLink { createdAt: string; unitCode: string; compound: string | null; opens: number; lastOpenedAt: string | null; recipientPhone: string | null; leadRef: string | null; leadName: string | null; note: string | null }
 export interface ViewingSet { lead: ApiLead; viewing: { id: string; startsAt: string; place: string | null; status: string }; url: string; message: string; wa: string | null }
-export interface LeadDetail { lead: ApiLead; timeline: LeadEvent[] }
+export interface LeadDetail { lead: ApiLead; timeline: LeadEvent[]; canClaim?: boolean; canCollaborate?: boolean; canWork?: boolean; canAssign?: boolean }
+export interface AppSettingsSwitches {
+  brokersMayWrite: boolean;
+  dataEntryOwners: boolean;
+  brokersSeeAllLeads?: boolean;
+  brokersWorkSharedLeads?: boolean;
+  brokersEditColleagueUnits?: boolean;
+}
 export interface NewLead { phone1: string; phone2?: string; name?: string; kind?: ApiLead['kind']; notes?: string; lawfulBasis?: 'client_request' | 'consent' | 'existing_client' }
 /** The fields of the add-unit form use the website form's names (strings, features as an array). */
 /** One entry of the place suggestion list: a compound (or its other name), an area, or a sub-zone. area_id and subzone_id are what a unit stores when it is picked. */
@@ -422,6 +433,10 @@ export interface PlanAllowance {
   seats: PlanMeter;
   units: PlanMeter;
   extraSeats?: number;
+  canPay?: boolean;
+  canBuyCredits?: boolean;
+  managerCanRenewPlan?: boolean;
+  managerCanBuyCredits?: boolean;
 }
 
 /** The plan guard's 402 codes on the app API. */
@@ -460,14 +475,14 @@ export interface ApiClientOptions {
   /** Sent with every call (the app's platform and version), so the server's failure log can tell the phones apart. */
   headers?: Record<string, string>;
   /** Called before a write (POST or PUT); the function it returns is called when the call ends. The app uses it to lock the screen while a write runs (busy rule). Return nothing to skip. */
-  onWrite?: (method: 'POST' | 'PUT' | 'DELETE', path: string) => (() => void) | void;
+  onWrite?: (method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string) => (() => void) | void;
   fetchImpl?: typeof fetch;
 }
 
 export function createApiClient(opts: ApiClientOptions) {
   const doFetch = opts.fetchImpl ?? fetch;
 
-  async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>, signal?: AbortSignal): Promise<T> {
+  async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>, signal?: AbortSignal): Promise<T> {
     const end = method === 'GET' ? undefined : opts.onWrite?.(method, path);
     try {
       return await send<T>(method, path, body, query, signal);
@@ -476,7 +491,7 @@ export function createApiClient(opts: ApiClientOptions) {
     }
   }
 
-  async function send<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>, signal?: AbortSignal): Promise<T> {
+  async function send<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>, signal?: AbortSignal): Promise<T> {
     // An array repeats the key (f=roof&f=garden), as the server reads it.
     const qs = query
       ? Object.entries(query)
@@ -529,8 +544,8 @@ export function createApiClient(opts: ApiClientOptions) {
   return {
     notificationSettings: () => request<NotificationSettings>('GET', '/notification-settings'),
     saveNotificationSettings: (body: NotificationSettingsInput) => request<NotificationSettings>('PUT', '/notification-settings', body),
-    appSettings: () => request<{ draftStyle: string; quietLine: boolean; switches: { brokersMayWrite: boolean; dataEntryOwners: boolean } | null }>('GET', '/settings'),
-    saveAppSettings: (body: { draftStyle?: string; quietLine?: boolean; switches?: { brokersMayWrite?: boolean; dataEntryOwners?: boolean } }) => request<{ ok: true }>('POST', '/settings', body),
+    appSettings: () => request<{ draftStyle: string; quietLine: boolean; switches: AppSettingsSwitches | null }>('GET', '/settings'),
+    saveAppSettings: (body: { draftStyle?: string; quietLine?: boolean; switches?: Partial<AppSettingsSwitches> }) => request<{ ok: true }>('POST', '/settings', body),
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
@@ -636,6 +651,7 @@ export function createApiClient(opts: ApiClientOptions) {
     accessRequests: (status: string, page = 0) => request<{ items: AccessRequest[]; total: number }>('GET', '/access-requests', undefined, { status, page }),
     answerAccess: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/access-requests/${id}`, { decision: approve ? 'approve' : 'decline' }),
     dashboard: (days = 30) => request<DashboardData>('GET', '/dashboard', undefined, { days }),
+    setTeamStyle: (style: ApiWorkspace['teamStyle']) => request<{ ok: true; style: ApiWorkspace['teamStyle'] }>('POST', '/team/style', { style }),
     pricePerM2: () => request<{ minUnits: number; items: PriceRow[] }>('GET', '/insights/prices'),
     winLoss: (days = 30) => request<WinLossData>('GET', '/insights/winloss', undefined, { days }),
     report: (text: string, extra?: { type?: 'bug' | 'suggestion' | 'request'; device?: Record<string, unknown> }) => request<{ ok: true; id: number }>('POST', '/report', { text, ...(extra ?? {}) }),
@@ -683,11 +699,14 @@ export function createApiClient(opts: ApiClientOptions) {
     library: (q?: string, page = 0) => request<{ items: Row[]; pages: number }>('GET', '/library', undefined, { q, page }),
     useLibrary: (id: string) => request<{ ok: true; projectId: string }>('POST', `/library/${id}/use`, {}),
     compare: (codes: string[], lang: 'ar' | 'en') => request<{ url: string; codes: string[] }>('POST', '/compare', { codes, lang }),
-    plan: () => request<{ allowance: PlanAllowance; payTo: { instapay: string; bank: string }; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean }>('GET', '/plan'),
+    plan: () => request<{ allowance: PlanAllowance; payTo: { instapay: string; bank: string }; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean; canBuyCredits?: boolean; managerCanRenewPlan?: boolean; managerCanBuyCredits?: boolean }>('GET', '/plan'),
     planPay: (body: PlanPayBody) => request<{ ok: true; payment: Row }>('POST', '/plan/pay', body),
+    updateBillingPermissions: (body: { managerCanRenewPlan?: boolean; managerCanBuyCredits?: boolean }) => request<{ ok: true; permissions: { managerCanRenewPlan: boolean; managerCanBuyCredits: boolean } }>('POST', '/agency/billing-permissions', body),
     creditRequest: (credits: number, note: string) => request<{ ok: true }>('POST', '/plan/credit-request', { credits, note }),
     usage: (signal?: AbortSignal) => request<{ allowance: PlanAllowance; ai?: AiUsage }>('GET', '/usage', undefined, undefined, signal),
-    platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean }>('GET', '/platform'),
+    platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean; pendingPayments?: Row[] }>('GET', '/platform'),
+    platformConfirmPayment: (id: string) => request<{ ok: true; payment: Row }>('POST', `/platform/payments/${id}/confirm`, {}),
+    platformCancelPayment: (id: string) => request<{ ok: true; payment: Row }>('POST', `/platform/payments/${id}/cancel`, {}),
     platformAgency: (id: string, action: 'suspend' | 'resume') => request<{ ok: boolean }>('POST', `/platform/agencies/${id}/${action}`, {}),
     platformSignup: (open: boolean) => request<{ ok: true }>('POST', '/platform/signup', { open }),
     platformAnnounce: (title: string, body: string) => request<{ ok: true; sent: number }>('POST', '/platform/announce', { title, body }),
@@ -695,8 +714,10 @@ export function createApiClient(opts: ApiClientOptions) {
     activityLog: (page = 0) => request<{ items: ActivityRow[]; more: boolean }>('GET', '/activity-log', undefined, { page }),
     /** Moves a lead to a broker of the team, or back to the managers with null. */
     assignLead: (ref: string, version: number, brokerId: string | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/assign`, { version, brokerId }),
+    claimLead: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/claim`, { version }),
     ask: (question: string) => request<AskAnswer>('POST', '/ask', { question }),
     unitStatus: (code: string, status: 'active' | 'sold' | 'archived') => request<{ ok: true; status: string }>('POST', `/units/${encodeURIComponent(code)}/status`, { status }),
+    editColleagueUnit: (code: string, body: { version: number; price?: number; description?: string; status?: UnitStatus }) => request<{ ok: true }>('PATCH', `/units/${encodeURIComponent(code)}/colleague`, body),
     unitDelete: (code: string) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/delete`, {}),
     unitRestore: (code: string) => request<{ ok: true; code: string }>('POST', `/units/${encodeURIComponent(code)}/restore`, {}),
     unitLease: (code: string) => request<{ rent: boolean; lease: { startDate: string; months: number; rent: number | null; increasePct: number | null; tenantName: string | null; remind: boolean; done?: boolean } | null }>('GET', `/units/${encodeURIComponent(code)}/lease`),
@@ -759,7 +780,7 @@ export function createApiClient(opts: ApiClientOptions) {
 }
 export type ApiClient = ReturnType<typeof createApiClient>;
 
-export type NotifyChannel = 'both' | 'telegram' | 'web' | 'whatsapp';
+export type NotifyChannel = 'both' | 'telegram' | 'web' | 'app' | 'whatsapp';
 export type NotifyFrequency = 'immediate' | 'hourly' | 'daily';
 export interface NotifyKind { label: { ar: string; en: string }; on: boolean; channel: NotifyChannel; frequency: NotifyFrequency; locked: 'owner' | 'manager' | null; urgent: boolean }
 export interface NotificationSettings { kinds: Record<string, NotifyKind>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number }; telegramLinked: boolean }

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { BusySwitch } from './BusySwitch';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { AppSettingsSwitches } from '@wehdathub/shared';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { pickPhotos } from '../photos';
@@ -12,15 +13,16 @@ import { spacing, useTheme } from '../theme';
 import { Button } from './Button';
 import { Field } from './Field';
 
-/** Draft style and quiet line for everyone; the two agency switches only when the server sends them (agency owner). */
+/** Draft style and quiet line for everyone, with owner switches selected by the server. */
 export function AppSettings() {
   const { colors } = useTheme();
   const lang = useAuth((s) => s.broker?.lang) ?? 'ar';
   const rights = useRights();
+  const qc = useQueryClient();
   const q = useQuery({ queryKey: ['app-settings'], queryFn: () => api.appSettings() });
   const [style, setStyle] = useState('');
   const [quiet, setQuiet] = useState(true);
-  const [sw, setSw] = useState<{ brokersMayWrite: boolean; dataEntryOwners: boolean } | null>(null);
+  const [sw, setSw] = useState<AppSettingsSwitches | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   useEffect(() => {
@@ -34,6 +36,7 @@ export function AppSettings() {
     setBusy(true);
     try {
       await api.saveAppSettings({ draftStyle: style, quietLine: quiet, ...(sw ? { switches: sw } : {}) });
+      await Promise.all(['app-settings', 'me', 'unit', 'units', 'lead', 'leads', 'today'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
       setMsg(t(lang, 'notifSaved'));
     } catch {
       setMsg(t(lang, 'notifSaveFail'));
@@ -60,6 +63,16 @@ export function AppSettings() {
             <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'dataEntryOwnersLabel')}</Text>
             <BusySwitch testID="sw-owners" value={sw.dataEntryOwners} onValueChange={(v) => setSw({ ...sw, dataEntryOwners: v })} />
           </View>
+          {([
+            ['brokersEditColleagueUnits', 'Can edit colleagues’ units', 'البروكرز يقدروا يعدّلوا وحدات زمايلهم', !sw.brokersMayWrite],
+            ['brokersSeeAllLeads', 'Brokers see all shared leads', 'البروكرز يشوفوا كل العملاء المشتركين', false],
+            ['brokersWorkSharedLeads', 'Brokers can work shared leads', 'البروكرز يقدروا يتابعوا العملاء المشتركين', !sw.brokersSeeAllLeads],
+          ] as const).map(([key, en, ar, disabled]) => typeof sw[key] === 'boolean' && (
+            <View key={key} style={styles.row}>
+              <Text style={[styles.flex, { color: colors.text }]}>{lang === 'ar' ? ar : en}</Text>
+              <BusySwitch testID={key} accessibilityLabel={lang === 'ar' ? ar : en} disabled={busy || disabled} value={sw[key]} onValueChange={(value) => setSw({ ...sw, [key]: value })} />
+            </View>
+          ))}
         </>
       ) : null}
       {rights.manager || rights.agencyOwner ? (

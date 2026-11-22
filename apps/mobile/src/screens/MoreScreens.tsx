@@ -190,6 +190,7 @@ export function UsageScreen() {
   const lang = currentLang();
   const ar = lang === 'ar';
   const rights = useRights();
+  const qc = useQueryClient();
   const query = useQuery(usageOptions());
   const planQ = useQuery({ queryKey: ['plan'], queryFn: () => api.plan(), enabled: rights.manager || rights.agencyOwner });
   return (
@@ -216,6 +217,48 @@ export function UsageScreen() {
                     <Text style={{ color: colors.muted }}>{planT(lang, 'payNote')}</Text>
                   </View>
                 ) : null}
+              </Card>
+            ) : null}
+            {rights.agencyOwner && plan ? (
+              <Card testID="billing-delegation-card">
+                <Text style={[styles.h, { color: colors.text }]}>{ar ? 'صلاحيات المديرين في الفواتير' : 'Manager Billing Permissions'}</Text>
+                <View style={styles.row}>
+                  <Text style={[styles.flex, { color: colors.text }]}>{ar ? 'السماح للمديرين بتجديد الباقة' : 'Allow managers to renew plan'}</Text>
+                  <BusySwitch
+                    testID="sw-manager-renew"
+                    value={Boolean(plan.managerCanRenewPlan)}
+                    onValueChange={async (v) => {
+                      try {
+                        await api.updateBillingPermissions({ managerCanRenewPlan: v });
+                        await qc.invalidateQueries({ queryKey: ['plan'] });
+                      } catch (e) {
+                        toast(errorText(e, lang), true);
+                      }
+                    }}
+                  />
+                </View>
+                <View style={styles.row}>
+                  <Text style={[styles.flex, { color: colors.text }]}>{ar ? 'السماح للمديرين بشحن باقات الذكاء الاصطناعي' : 'Allow managers to buy AI credits'}</Text>
+                  <BusySwitch
+                    testID="sw-manager-credits"
+                    value={Boolean(plan.managerCanBuyCredits)}
+                    onValueChange={async (v) => {
+                      try {
+                        await api.updateBillingPermissions({ managerCanBuyCredits: v });
+                        await qc.invalidateQueries({ queryKey: ['plan'] });
+                      } catch (e) {
+                        toast(errorText(e, lang), true);
+                      }
+                    }}
+                  />
+                </View>
+              </Card>
+            ) : null}
+            {plan?.payTo && (rights.agencyOwner || plan.canPay) ? (
+              <Card testID="pay-to-card">
+                <Text style={[styles.h, { color: colors.text }]}>{ar ? 'طرق الدفع' : 'Payment methods'}</Text>
+                {plan.payTo.instapay ? <StatRow label={ar ? 'عنوان إنستاباي' : 'InstaPay address'} value={plan.payTo.instapay} /> : null}
+                {plan.payTo.bank ? <StatRow label={ar ? 'الحساب البنكي' : 'Bank account'} value={plan.payTo.bank} /> : null}
               </Card>
             ) : null}
             <Card testID="usage-credits">
@@ -258,6 +301,21 @@ export function PlatformScreen() {
               <BusySwitch testID="platform-signup" value={d.signupOpen} onValueChange={(v) => run(async () => { await api.platformSignup(v); })} />
             </View>
           </Card>
+          {d.pendingPayments?.length ? (
+            <Card testID="platform-pending-payments">
+              <Text style={[styles.h, { color: colors.text }]}>{ar ? 'مدفوعات مستنية التأكيد' : 'Pending payments'}</Text>
+              {d.pendingPayments.map((p) => (
+                <View key={str(p.id)} testID={`pending-payment-${str(p.id)}`} style={[styles.gap, { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.xs }]}>
+                  <Text style={{ color: colors.text, fontWeight: '700' }}>{str(p.agency_name)} · {num(p.amount_egp)} EGP</Text>
+                  <Text style={{ color: colors.muted }}>{str(p.reference)} · {str(p.kind)} {p.plan ? `(${str(p.plan)})` : ''}</Text>
+                  <View style={styles.row}>
+                    <Button variant="primary" label={ar ? '✅ تأكيد' : '✅ Confirm'} onPress={() => run(async () => { await api.platformConfirmPayment(str(p.id)); })} />
+                    <Button variant="secondary" label={ar ? '❌ إلغاء' : '❌ Cancel'} onPress={() => run(async () => { await api.platformCancelPayment(str(p.id)); })} />
+                  </View>
+                </View>
+              ))}
+            </Card>
+          ) : null}
           {d.agencies.map((a) => (
             <Card key={str(a.id)} testID={`agency-${str(a.id)}`}>
               <Text style={[styles.h, { color: colors.text }]}>{str(a.name)} · {str(a.plan)}</Text>
@@ -295,5 +353,6 @@ const styles = StyleSheet.create({
   gap: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.md, alignItems: 'center', justifyContent: 'space-between' },
   card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
+  flex: { flex: 1 },
   h: { fontSize: 16, fontWeight: '700' },
 });

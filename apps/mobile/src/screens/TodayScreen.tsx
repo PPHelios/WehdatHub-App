@@ -7,6 +7,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { TodayTask } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
+import { bannerText, preEndStatus, unitWarnPct, usePlanState } from '../planState';
+import { planT, preEndText, unitCapText } from '../planText';
 import { Button } from '../components/Button';
 import { TodayCards } from '../components/TodayCards';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
@@ -22,6 +24,7 @@ export function TodayScreen() {
   const lang = currentLang();
   const stack = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const q = useQuery({ queryKey: ['today'], queryFn: () => api.today() });
+  const planState = usePlanState();
 
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
   if (q.isError || !q.data) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} altLabel={t(lang, 'openUnits')} onAlt={() => stack.navigate('UnitsList')} />;
@@ -30,8 +33,56 @@ export function TodayScreen() {
   const stats: [StringKey, number, string][] = [['followUps', counts.followUpsToday, colors.primary], ['viewings', counts.viewings, colors.accent], ['newLeads', counts.newLeads, colors.ok]];
   const KIND_TONE: Record<TodayTask['kind'], string> = { late: colors.danger, hot: colors.warn, viewing: colors.accent, call: colors.primary, matches: colors.primary };
 
+  const preEnd = planState.phase === 'none' ? preEndStatus(planState.allowance) : null;
+  const unitPct = unitWarnPct(planState.allowance?.units);
+
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={async () => { await q.refetch(); }} />}>
+      {planState.phase !== 'none' ? (
+        <View testID="today-plan-expired" style={[styles.cardAlert, { backgroundColor: colors.card, borderColor: colors.border, borderStartColor: planState.phase === 'grace' ? colors.warn : colors.danger }]}>
+          <View style={styles.taskInfo}>
+            <Text style={[styles.name, { color: colors.text }]}>{planState.phase === 'grace' ? (lang === 'ar' ? '⏳ فترة سماح' : '⏳ Grace period') : planState.phase === 'readonly' ? (lang === 'ar' ? '🔒 الحساب للقراءة فقط' : '🔒 Read-only') : (lang === 'ar' ? '🛑 الحساب متوقف' : '🛑 Account stopped')}</Text>
+            <Text style={{ color: colors.text }}>{bannerText(lang, planState.phase, planState.daysLeft, planState.manager)}</Text>
+          </View>
+          {planState.manager ? <Button testID="today-plan-renew" label={planT(lang, 'renewCta')} variant="secondary" onPress={() => stack.navigate('Plan')} /> : null}
+        </View>
+      ) : null}
+
+      {preEnd ? (
+        <View testID="today-plan-pre-end" style={[styles.cardAlert, { backgroundColor: colors.card, borderColor: colors.border, borderStartColor: colors.warn }]}>
+          <View style={styles.taskInfo}>
+            <Text style={[styles.name, { color: colors.text }]}>{lang === 'ar' ? '⏳ تنبيه الباقة' : '⏳ Plan alert'}</Text>
+            <Text style={{ color: colors.text }}>{preEndText(lang, preEnd.source, preEnd.daysLeft)}</Text>
+            {!planState.manager ? <Text style={{ color: colors.muted }}>{planT(lang, 'askManager')}</Text> : null}
+          </View>
+          {planState.manager ? (
+            <Button
+              testID="today-pre-end-renew"
+              label={preEnd.source === 'trial' ? (lang === 'ar' ? 'اختار باقة' : 'Choose plan') : planT(lang, 'renewCta')}
+              variant="secondary"
+              onPress={() => stack.navigate('Plan')}
+            />
+          ) : null}
+        </View>
+      ) : null}
+
+      {unitPct !== null ? (
+        <View testID="today-unit-cap-warn" style={[styles.cardAlert, { backgroundColor: colors.card, borderColor: colors.border, borderStartColor: unitPct >= 100 ? colors.danger : colors.warn }]}>
+          <View style={styles.taskInfo}>
+            <Text style={[styles.name, { color: colors.text }]}>{unitPct >= 100 ? (lang === 'ar' ? '🚨 حد الوحدات مكتمل' : '🚨 Unit limit reached') : (lang === 'ar' ? '⚠️ تنبيه حد الوحدات' : '⚠️ Unit limit warning')}</Text>
+            <Text style={{ color: colors.text }}>{unitCapText(lang, unitPct)}</Text>
+          </View>
+          {planState.manager ? (
+            <Button
+              testID="today-unit-cap-upgrade"
+              label={lang === 'ar' ? 'رقّي الباقة' : 'Upgrade plan'}
+              variant="secondary"
+              onPress={() => stack.navigate('Plan')}
+            />
+          ) : null}
+        </View>
+      ) : null}
+
       <View style={styles.stats}>
         {stats.map(([k, n, tone]) => (
           <View key={k} style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border, borderTopWidth: 3, borderTopColor: tone }]}>
@@ -82,6 +133,7 @@ const styles = StyleSheet.create({
   statN: { fontSize: 24, fontWeight: '800' },
   empty: { flex: 1, minHeight: 300 },
   task: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  cardAlert: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderStartWidth: 4 },
   taskInfo: { flex: 1, gap: 2 },
   name: { fontSize: 16, fontWeight: '700' },
   head: { padding: spacing.sm, borderRadius: radius.sm },

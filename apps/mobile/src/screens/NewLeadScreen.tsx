@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { timed } from '../usage';
 import { ScrollView, StyleSheet } from 'react-native';
 import { AppText as Text } from '../components/AppText';
@@ -6,11 +6,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ApiClientError, contactPhoneSchema } from '@wehdathub/shared';
+import { ApiClientError, PlanLockedError, contactPhoneSchema } from '@wehdathub/shared';
 import { phoneHelp } from '../readback';
 import type { ApiLead } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
+import { usePlanLock } from '../planLock';
+import { usePlanState } from '../planState';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
@@ -28,6 +30,13 @@ export function NewLeadScreen() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const qc = useQueryClient();
   const picked = useRoute<RouteProp<RootStackParams, 'NewLead'>>().params;
+  const planState = usePlanState();
+  useEffect(() => {
+    if (planState.phase === 'readonly') {
+      usePlanLock.getState().show(new PlanLockedError('plan_readonly'));
+      if (nav.canGoBack()) nav.goBack();
+    }
+  }, [planState.phase, nav]);
   const [name, setName] = useState(picked?.name ?? '');
   const [phone, setPhone] = useState(picked?.phone ?? '');
   const [kind, setKind] = useState<ApiLead['kind']>('buyer');

@@ -92,7 +92,7 @@ export function NotificationsScreen() {
             {fixed ? <Text style={{ color: colors.muted }}>🔒 {t(lang, 'notifLockedBy')}</Text> : null}
             {/* No point choosing a channel for an alert that is switched off. */}
             <Text style={{ color: colors.muted }}>{t(lang, 'notifChannel')}</Text>
-            <Chips testID={`channel-${k}`} options={channels} value={v.channel} disabled={off || fixed} onChange={(channel) => setKind(k, { channel })} />
+            <Chips testID={`channel-${k}`} options={channels} value={v.channel === 'app' || !draft.telegramLinked ? 'web' : v.channel} disabled={off || fixed} onChange={(channel) => setKind(k, { channel })} />
             {v.urgent ? null : (
               <>
                 <Text style={{ color: colors.muted }}>{t(lang, 'notifFreq')}</Text>

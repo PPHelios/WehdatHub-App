@@ -23,14 +23,14 @@ function Mark({ height }: { height: number }) {
   );
 }
 
-/** The name in one language: "Wehdat Hub" (Hub in gold ink), or "وحدات هب". */
+/** The name in one language: "WehdatHub" (Hub in gold ink), or "وحدات هب". */
 function Word({ ar, fontSize }: { ar: boolean; fontSize: number }) {
   const { colors } = useTheme();
   return ar ? (
     <Text style={[styles.word, { color: colors.text, fontSize }]} numberOfLines={1}>وحدات هب</Text>
   ) : (
     <Text style={[styles.word, { color: colors.text, fontSize }]} numberOfLines={1}>
-      Wehdat <Text style={{ color: colors.primaryInk }}>Hub</Text>
+      Wehdat<Text style={{ color: colors.primaryInk }}>Hub</Text>
     </Text>
   );
 }
@@ -39,7 +39,7 @@ function Word({ ar, fontSize }: { ar: boolean; fontSize: number }) {
 export const BAR_WIDTH = 64;
 
 /**
- * The WehdatHub logo from the brand guide: the mark with the name. English reads "Wehdat Hub" (Hub in gold ink) with the mark first;
+ * The WehdatHub logo from the brand guide: the mark with the name. English reads "WehdatHub" (Hub in gold ink) with the mark first;
  * Arabic reads "وحدات هب" with the mark on the right. The row flips with the layout direction, so one order serves both.
  *  - default and compact: the name in the app language.
  *  - bar: for a screen header. A small mark with the name under it, at most BAR_WIDTH wide, so a long centred title never runs into it.

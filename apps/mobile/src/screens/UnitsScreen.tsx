@@ -5,8 +5,10 @@ import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { parseMoney } from '@wehdathub/shared';
+import { PlanLockedError, parseMoney } from '@wehdathub/shared';
 import type { UnitsPage } from '@wehdathub/shared';
+import { usePlanLock } from '../planLock';
+import { usePlanState } from '../planState';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
@@ -84,6 +86,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
   const counts = list.data?.pages[0]?.counts;
   const rights = useRights();
+  const planState = usePlanState();
   // Data entry has no Today: the units nobody has confirmed (agency-wide) sit above their list instead.
   const old = useQuery({ queryKey: ['today'], queryFn: () => api.today(), enabled: rights.dataEntry && status === 'active' });
   const editUnit = useCallback((code: string) => nav.navigate('AddUnit', { edit: code }), [nav]);
@@ -168,7 +171,21 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
           ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => list.fetchNextPage()} /> : null}
         />
       )}
-      {rights.addUnits ? <View style={styles.add}><Button testID="add-unit" label={`＋ ${t(lang, 'addUnit')}`} onPress={() => nav.navigate('AddUnit')} /></View> : null}
+      {rights.addUnits ? (
+        <View style={styles.add}>
+          <Button
+            testID="add-unit"
+            label={`＋ ${t(lang, 'addUnit')}`}
+            onPress={() => {
+              if (planState.phase === 'readonly') {
+                usePlanLock.getState().show(new PlanLockedError('plan_readonly'));
+                return;
+              }
+              nav.navigate('AddUnit');
+            }}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }

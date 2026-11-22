@@ -6,8 +6,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ApiClientError } from '@wehdathub/shared';
+import { ApiClientError, PlanLockedError } from '@wehdathub/shared';
 import type { ReviewResult, UnitFields, UploadFile, VoiceFile } from '@wehdathub/shared';
+import { usePlanLock } from '../planLock';
+import { usePlanState } from '../planState';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { KeyboardLift } from '../components/KeyboardLift';
@@ -94,6 +96,13 @@ export function AddUnitScreen() {
   const dirty = useRef(false);
   const shared = useRef(route.params);
   const editCode = route.params?.edit;
+  const planState = usePlanState();
+  useEffect(() => {
+    if (!editCode && planState.phase === 'readonly') {
+      usePlanLock.getState().show(new PlanLockedError('plan_readonly'));
+      if (nav.canGoBack()) nav.goBack();
+    }
+  }, [editCode, planState.phase, nav]);
   // Opened from the WhatsApp import: its own draft, not the person's saved one; saving goes back to the import list.
   const importId = route.params?.importId;
   const fresh = Boolean(route.params?.fresh);
@@ -411,7 +420,20 @@ export function AddUnitScreen() {
           {flow.map((n) => <Pressable key={n} testID={`jump-${n}`} accessibilityRole="link" onPress={() => jump(n)} style={[styles.jumpChip, { borderColor: colors.border }]}><Text style={{ color: colors.text, fontWeight: '600' }}>{stepName(n)}</Text></Pressable>)}
         </View>
 
-        {!editCode && !importId && canWhatsApp ? <Button testID="add-from-whatsapp" variant="secondary" label={`💬 ${t(lang, 'whatsappImport')}`} onPress={() => nav.navigate('WhatsAppImport')} /> : null}
+        {!editCode && !importId && canWhatsApp ? (
+          <Button
+            testID="add-from-whatsapp"
+            variant="secondary"
+            label={`💬 ${t(lang, 'whatsappImport')}`}
+            onPress={() => {
+              if (planState.phase === 'readonly') {
+                usePlanLock.getState().show(new PlanLockedError('plan_readonly'));
+                return;
+              }
+              nav.navigate('WhatsAppImport');
+            }}
+          />
+        ) : null}
 
         {/* A refused save and a look-alike unit show at the top. */}
         {failedCheck && allBlockers.length ? (

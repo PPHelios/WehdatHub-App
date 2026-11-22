@@ -6,6 +6,9 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ApiLead, Lang, LeadTab, LeadsPage } from '@wehdathub/shared';
+import { PlanLockedError } from '@wehdathub/shared';
+import { usePlanLock } from '../planLock';
+import { usePlanState } from '../planState';
 import { rowDate } from '../dates';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -89,6 +92,15 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   );
   const listExtra = useMemo(() => ({ selecting, sel }), [selecting, sel]);
 
+  const planState = usePlanState();
+  const onNewLead = useCallback(() => {
+    if (planState.phase === 'readonly') {
+      usePlanLock.getState().show(new PlanLockedError('plan_readonly'));
+      return;
+    }
+    nav.navigate('NewLead');
+  }, [nav, planState.phase]);
+
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
       <TextInput testID="leads-search" style={[styles.search, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'searchLeads')} placeholderTextColor={colors.muted} autoCorrect={false} returnKeyType="search" />
@@ -124,7 +136,7 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
             onEndReachedThreshold={0.6}
             refreshing={list.isRefetching && !list.isFetchingNextPage}
             onRefresh={() => list.refetch()}
-            ListEmptyComponent={<EmptyView title={t(lang, 'noLeads')} hint={t(lang, 'noLeadsHint')} actionLabel={t(lang, 'newLead')} onAction={() => nav.navigate('NewLead')} />}
+            ListEmptyComponent={<EmptyView title={t(lang, 'noLeads')} hint={t(lang, 'noLeadsHint')} actionLabel={t(lang, 'newLead')} onAction={onNewLead} />}
             ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : null}
           />
         )}
@@ -136,7 +148,7 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
         </View>
       ) : (
         <View style={styles.fab}>
-          <Button testID="new-lead" label={`＋ ${t(lang, 'newLead')}`} onPress={() => nav.navigate('NewLead')} />
+          <Button testID="new-lead" label={`＋ ${t(lang, 'newLead')}`} onPress={onNewLead} />
           {manager ? <Button testID="select-leads" variant="secondary" label={t(lang, 'selectLeads')} onPress={() => setSelecting(true)} /> : null}
         </View>
       )}

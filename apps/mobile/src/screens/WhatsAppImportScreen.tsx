@@ -5,7 +5,9 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { errorCodes, isErrorWithCode, pick, types } from '@react-native-documents/picker';
-import { ApiClientError, displayPhone, looksLikePhone, ltr, contactPhoneSchema } from '@wehdathub/shared';
+import { ApiClientError, PlanLockedError, displayPhone, looksLikePhone, ltr, contactPhoneSchema } from '@wehdathub/shared';
+import { usePlanLock } from '../planLock';
+import { usePlanState } from '../planState';
 import { phoneHelp } from '../readback';
 import type { ChatPlanChange, ChatPlanPost, CodeState, UnitFields, UploadFile } from '@wehdathub/shared';
 import { api } from '../api';
@@ -66,6 +68,13 @@ export function WhatsAppImportScreen() {
   const rights = useRights();
   const allowed = rights.manager || rights.agencyOwner || rights.dataEntry;
   const brokerId = String(useAuth.getState().broker?.id ?? 'me');
+  const planState = usePlanState();
+  useEffect(() => {
+    if (planState.phase === 'readonly') {
+      usePlanLock.getState().show(new PlanLockedError('plan_readonly'));
+      if (nav.canGoBack()) nav.goBack();
+    }
+  }, [planState.phase, nav]);
 
   const [zipName, setZipName] = useState<string>(route.params?.zip?.name ?? '');
   const [phase, setPhase] = useState<Phase>('pick');

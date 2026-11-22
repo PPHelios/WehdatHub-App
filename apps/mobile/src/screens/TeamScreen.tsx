@@ -9,7 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError } from '@wehdathub/shared';
 import type { ApiLead } from '@wehdathub/shared';
 import { api } from '../api';
-import { teamOptions } from '../queries';
+import { meOptions, teamOptions } from '../queries';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
@@ -28,10 +28,32 @@ export function TeamScreen() {
   const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const qc = useQueryClient();
   const rights = useRights();
+  const me = useQuery(meOptions());
+  const workspace = me.data?.workspace;
+  const [savingStyle, setSavingStyle] = React.useState(false);
   const [view, setView] = React.useState<'active' | 'former'>('active');
   const q = useQuery(teamOptions());
   const canManage = rights.manager || rights.agencyOwner;
+  const setStyle = async (style: 'shared' | 'structured') => {
+    if (savingStyle) return;
+    setSavingStyle(true);
+    try {
+      await api.setTeamStyle(style);
+      await Promise.all(['me', 'app-settings', 'team', 'today', 'dashboard', 'lead', 'leads'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+    } catch (e) {
+      toast(errorText(e, lang), true);
+    } finally {
+      setSavingStyle(false);
+    }
+  };
+  const styleSelector = rights.agencyOwner && workspace?.tier === 'team' ? (
+    <View style={styles.row}>
+      <Button testID="team-style-shared" variant={workspace.teamStyle === 'shared' ? 'primary' : 'secondary'} disabled={savingStyle} label={lang === 'ar' ? 'فريق مشترك' : 'Shared team'} onPress={() => setStyle('shared')} />
+      <Button testID="team-style-owner" variant={workspace.teamStyle === 'structured' ? 'primary' : 'secondary'} disabled={savingStyle} label={lang === 'ar' ? 'المالك بيوزّع العملاء' : 'Owner-controlled'} onPress={() => setStyle('structured')} />
+    </View>
+  ) : null;
   const switcher = canManage ? (
     <View style={{ flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
       <Button testID="team-view-active" variant={view === 'active' ? 'primary' : 'secondary'} label={lang === 'ar' ? 'الفريق' : 'Team'} onPress={() => setView('active')} />
@@ -47,7 +69,7 @@ export function TeamScreen() {
       keyExtractor={(m) => m.id}
       refreshing={q.isRefetching}
       onRefresh={() => { q.refetch(); }}
-      ListHeaderComponent={canManage ? <View>{switcher}<View style={{ padding: spacing.lg }}><Button testID="team-add" label={`➕ ${t(lang, 'invite')}`} onPress={() => nav.navigate('Invite')} /></View></View> : null}
+      ListHeaderComponent={canManage ? <View>{switcher}<View style={{ padding: spacing.lg, gap: spacing.md }}>{styleSelector}<Button testID="team-add" label={`➕ ${t(lang, 'invite')}`} onPress={() => nav.navigate('Invite')} /></View></View> : null}
       ListEmptyComponent={<EmptyView title={t(lang, 'teamEmpty')} />}
       renderItem={({ item }) => (
         <Pressable testID={`member-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('TeamMember', { id: item.id, name: item.name, role: item.role, me: item.me, teamLeadId: item.teamLeadId ?? null })} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>

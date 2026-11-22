@@ -99,6 +99,8 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
   if (q.isError || !q.data) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
   const { lead, timeline } = q.data;
+  const canWork = q.data.canWork ?? true;
+  const canCollaborate = canWork || q.data.canCollaborate;
   const followUp = (f: FollowUp) => run((l) => api.leadFollowUp(l.ref, l.version, f.at.toISOString(), f.kind));
   const stageOptions = LEAD_STAGES.map((s) => ({ value: s, label: stageLabel(lang, s) }));
 
@@ -114,12 +116,16 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
           <View style={styles.phoneBtn}><Button testID={`whatsapp-${p}`} label={`💬 ${t(lang, 'whatsappClient')}`} variant="whatsapp" onPress={() => { usage('whatsapp_tap', true, undefined, { kind: 'lead' }); Linking.openURL(`https://wa.me/${waNumber(p)}`).catch(() => undefined); }} /></View>
         </View>
       ))}
+      {q.data.canClaim ? <Button testID="lead-claim" label={lang === 'ar' ? 'استلم العميل' : 'Take lead'} loading={act.isPending} onPress={() => run((l) => api.claimLead(l.ref, l.version))} /> : null}
+      {canCollaborate ? <>
       <Button testID="lead-called" label={`✓ ${t(lang, 'iCalled')}`} loading={act.isPending} onPress={() => run((l) => api.leadCalled(l.ref, l.version))} />
 
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'stage')}</Text>
       <Chips<LeadStage> options={stageOptions} value={lead.stage} onChange={(s) => (s === 'lost' ? setAskLost(true) : run((l) => api.leadStage(l.ref, l.version, s)))} />
+      {canWork ? <>
       <Text style={{ color: colors.muted }}>{t(lang, 'leadLangTitle')}</Text>
       <Chips<'auto' | 'ar' | 'en'> testID="lead-lang" options={[{ value: 'auto', label: t(lang, 'leadLangAuto') }, { value: 'ar', label: 'العربية' }, { value: 'en', label: 'English' }]} value={lead.lang ?? 'auto'} onChange={(v) => run((l) => api.leadLang(l.ref, l.version, v === 'auto' ? null : v))} />
+      </> : null}
       {askLost ? (
         <View style={styles.box}>
           <Field label={t(lang, 'lostReason')} value={lostReason} onChangeText={setLostReason} />
@@ -142,7 +148,8 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
       </View>
       <FollowUpPicker onSave={followUp} />
       </Section>
-      {rights.team ? (
+      </> : <Text style={{ color: colors.muted }}>{t(lang, 'stage')} · {stageLabel(lang, lead.stage)}</Text>}
+      {(q.data.canAssign ?? rights.team) ? (
         <Section testID="sec-assign" title={t(lang, 'reassign')}>
           <Chips<string>
             options={[...(team.data?.items ?? []).map((m) => ({ value: m.id, label: m.name })), { value: '', label: t(lang, 'noOne') }]}
@@ -151,11 +158,13 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
           />
         </Section>
       ) : null}
+      {canWork ? <>
       <Section testID="sec-viewing" title={t(lang, 'addViewing')}>
         <ViewingForm lead={lead} />
       </Section>
 
       <LeadActions lead={lead} manager={rights.team} />
+      </> : null}
 
       <Section testID="sec-history" title={t(lang, 'history')}>
       {timeline.map((e) => (

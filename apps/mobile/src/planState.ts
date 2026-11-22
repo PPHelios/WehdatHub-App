@@ -33,6 +33,24 @@ export function bannerText(lang: Lang, phase: PlanPhase, daysLeft: number | null
   return manager ? line : `${line} ${planT(lang, 'askManager')}`;
 }
 
+export interface PreEndStatus {
+  source: 'paid' | 'trial';
+  daysLeft: number;
+}
+
+/** Pre-expiration countdown warning: 7 days for paid, 3 days for trial, down to 0 (last day). */
+export function preEndStatus(a: Pick<PlanAllowance, 'source' | 'until'> | null | undefined, now: Date = new Date()): PreEndStatus | null {
+  if (!a || !a.until) return null;
+  if (a.source !== 'paid' && a.source !== 'trial') return null;
+  const days = daysUntil(a.until, now);
+  if (days === null) return null;
+  const maxDays = a.source === 'paid' ? 7 : 3;
+  if (days >= 0 && days <= maxDays) {
+    return { source: a.source, daysLeft: days };
+  }
+  return null;
+}
+
 /** The unit meter's soft warning: the share used when it is 85% or more of a real cap (not unlimited), else null. */
 export function unitWarnPct(units: { used: number; limit: number } | null | undefined): number | null {
   if (!units || !(units.limit > 0) || units.limit >= UNLIMITED_UNITS) return null;

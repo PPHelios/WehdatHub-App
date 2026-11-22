@@ -41,11 +41,14 @@ export function DashboardScreen() {
   if (q.isError) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
   const d = q.data;
   const ar = lang === 'ar';
+  const personal = d.mode === 'solo';
+  const title = personal ? (ar ? 'ملخصي' : 'My summary') : d.mode === 'team' ? (ar ? 'لوحة الفريق' : 'Team dashboard') : (ar ? 'لوحة الشركة' : 'Agency dashboard');
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
+      <Text style={[styles.h, { color: colors.text }]}>{title}</Text>
       <Chips<(typeof DAYS)[number]> testID="dash-days" value={days} onChange={setDays} options={DAYS.map((x) => ({ value: x, label: ar ? `${x} يوم` : `${x} days` }))} />
       <Card title={ar ? 'دلوقتي' : 'Now'}>
-        <Text style={{ color: colors.text }}>{ar ? 'عملاء من غير بروكر' : 'Unassigned leads'}: {d.unassigned}</Text>
+        {!personal ? <Text style={{ color: colors.text }}>{ar ? 'عملاء من غير بروكر' : 'Unassigned leads'}: {d.unassigned}</Text> : null}
         <Text style={{ color: colors.text }}>{ar ? 'ماتكلمش' : 'Not contacted'}: {d.uncontacted}</Text>
         <Text style={{ color: d.overdue ? colors.danger : colors.text }}>{ar ? 'متابعات متأخرة' : 'Overdue follow-ups'}: {d.overdue}</Text>
         <Text style={{ color: colors.text }}>{ar ? 'وحدات متاحة' : 'Active units'}: {d.units.active} ({ar ? 'قديمة' : 'stale'} {d.units.stale})</Text>
@@ -54,16 +57,16 @@ export function DashboardScreen() {
         <Text style={{ color: colors.text }}>{ar ? 'عملاء جدد' : 'Leads'}: {d.leads}</Text>
         <Text style={{ color: colors.text }}>{ar ? 'صفقات' : 'Deals'}: {d.deals.n} · {num(d.deals.value)} {t(lang, 'egp')}</Text>
         <Text style={{ color: colors.text }}>{ar ? 'العمولة' : 'Commission'}: {num(d.deals.commission)}</Text>
-        {d.sources.length ? <Text style={{ color: colors.muted }}>{d.sources.map((s) => `${s.source} ${s.n}`).join(' · ')}</Text> : null}
+        {d.reports?.sources !== false && d.sources.length ? <Text style={{ color: colors.muted }}>{d.sources.map((s) => `${s.source} ${s.n}`).join(' · ')}</Text> : null}
       </Card>
       <Card title={ar ? 'المراحل' : 'Pipeline'}>
         {Object.entries(d.pipeline).map(([k, v]) => <StatRow key={k} label={k} value={String(v)} pct={(Number(v) / Math.max(1, ...Object.values(d.pipeline).map(Number))) * 100} />)}
       </Card>
-      <Card title={ar ? 'ترتيب البروكرز' : 'Leaderboard'}>
+      {!personal ? <Card title={d.mode === 'team' ? (ar ? 'شغل الفريق' : 'Team workload') : (ar ? 'ترتيب البروكرز' : 'Leaderboard')}>
         {d.board.map((b) => (
           <Text key={b.id} testID={`board-${b.id}`} style={{ color: colors.text }}>{b.name}: {b.deals} {ar ? 'صفقة' : 'deals'} · {b.leads} {ar ? 'عميل' : 'leads'} · {b.contacted} {ar ? 'تواصل' : 'contacted'}</Text>
         ))}
-      </Card>
+      </Card> : null}
     </ScrollView>
   );
 }

@@ -8,9 +8,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ApiClientError, formatEgp } from '@wehdathub/shared';
+import type { ApiUnitDetail, UnitStatus } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { Chips } from '../components/Chips';
+import { Field } from '../components/Field';
 import { ClientLinkModal } from '../components/ClientLinkModal';
 import { ShareMessageModal } from '../components/ShareMessageModal';
 import { PhotoGallery } from '../components/PhotoGallery';
@@ -27,6 +30,62 @@ import { clientLang } from '../prefs';
 import { toast } from '../components/Toast';
 
 type FlyerKind = 'dark' | 'light' | 'nobrand';
+
+function ColleagueUnitEdit({ unit, edit }: { unit: ApiUnitDetail; edit: NonNullable<ApiUnitDetail['colleagueEdit']> }) {
+  const lang = currentLang();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [version, setVersion] = useState(edit.version);
+  const [price, setPrice] = useState('');
+  const [description, setDescription] = useState('');
+  const [status, setStatus] = useState(unit.status);
+  const [busy, setBusy] = useState(false);
+  const start = () => {
+    setVersion(edit.version);
+    setPrice(unit.price === null ? '' : String(unit.price));
+    setDescription(edit.description ?? '');
+    setStatus(unit.status);
+    setOpen(true);
+  };
+  const save = async () => {
+    const nextPrice = price.trim() === '' ? null : Number(price);
+    if (nextPrice !== null && (!Number.isFinite(nextPrice) || nextPrice <= 0)) {
+      toast(lang === 'ar' ? 'اكتب سعر صحيح.' : 'Enter a valid price.', true);
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.editColleagueUnit(unit.code, {
+        version,
+        ...(nextPrice !== null && nextPrice !== unit.price ? { price: nextPrice } : {}),
+        ...(description !== (edit.description ?? '') ? { description } : {}),
+        ...(status !== unit.status ? { status } : {}),
+      });
+      setOpen(false);
+      await Promise.all(['unit', 'units'].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+    } catch (e) {
+      toast(errorText(e, lang), true);
+      if (e instanceof ApiClientError && e.status === 409) {
+        setOpen(false);
+        await qc.invalidateQueries({ queryKey: ['unit', unit.code] });
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!open) return <Button testID="edit-colleague-unit" variant="secondary" label={t(lang, 'editUnit')} onPress={start} />;
+  return <>
+    <Field label={lang === 'ar' ? 'السعر' : 'Price'} value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
+    <Field label={lang === 'ar' ? 'الوصف' : 'Description'} value={description} onChangeText={setDescription} multiline />
+    <Chips<UnitStatus> options={[
+      { value: 'active', label: t(lang, 'stActive') },
+      { value: 'sold', label: t(lang, 'stSold') },
+      { value: 'archived', label: t(lang, 'stArchived') },
+    ]} value={status} onChange={setStatus} />
+    <Button testID="save-colleague-unit" label={t(lang, 'save')} onPress={save} loading={busy} />
+    <Button label={t(lang, 'cancel')} variant="secondary" onPress={() => setOpen(false)} disabled={busy} />
+  </>;
+}
 
 export function UnitScreen({ code }: { code?: string } = {}) {
   const { colors } = useTheme();
@@ -162,8 +221,9 @@ export function UnitScreen({ code }: { code?: string } = {}) {
           </Modal>
         ) : null}
         {u.canEdit ? <Button testID="edit-unit" variant="secondary" label={`${t(lang, 'editUnit')}`} onPress={() => nav.navigate('AddUnit', { edit: u.code })} /> : null}
-        {u.canEdit ? <UnitLifecycle code={u.code} status={u.status} /> : null}
-        {u.canEdit ? <UnitPrivateForms code={u.code} prefill={routeParams?.lease} /> : null}
+        {u.canEditColleague && u.colleagueEdit ? <ColleagueUnitEdit unit={u} edit={u.colleagueEdit} /> : null}
+        {u.canEdit || u.canDelete ? <UnitLifecycle code={u.code} status={u.status} canChangeStatus={u.canEdit} canDelete={u.canDelete ?? u.canEdit} /> : null}
+        {(u.canManagePrivate ?? u.canEdit) ? <UnitPrivateForms code={u.code} prefill={routeParams?.lease} /> : null}
         <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} />
         <ClientLinkModal visible={pickClient} busy={sharing} error={clientErr} onSubmit={shareLink} onCancel={() => setPickClient(false)} />
         <Button
