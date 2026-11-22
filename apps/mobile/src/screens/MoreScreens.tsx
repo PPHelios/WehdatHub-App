@@ -216,7 +216,13 @@ export function UsageScreen() {
               <Card testID="plan-allowance">
                 <Text style={[styles.h, { color: colors.text }]}>{pa.plan?.name ? pa.plan.name[ar ? 0 : 1] : ''}</Text>
                 {src ? <Text style={{ color: colors.muted }}>{src[ar ? 0 : 1]}{pa.until ? ` · ${ar ? 'لحد' : 'until'} ${str(pa.until).slice(0, 10)}` : ''}</Text> : null}
-                {pa.source === 'trial' ? <Text testID="plan-trial-copy" style={{ color: colors.muted }}>{planT(lang, 'trial')}</Text> : null}
+                {pa.source === 'trial' ? (
+                  <Text testID="plan-trial-copy" style={{ color: colors.muted }}>
+                    {ar
+                      ? `${num(pa.plan.seats)} مستخدم · ${num(pa.plan.units)} وحدة · ${num(pa.plan.credits)} رصيد ذكاء اصطناعي`
+                      : `${num(pa.plan.seats)} ${pa.plan.seats === 1 ? 'user' : 'users'}, ${num(pa.plan.units)} units and ${num(pa.plan.credits)} AI credits`}
+                  </Text>
+                ) : null}
                 {priceRows(pa.plan).length ? (
                   <View testID="plan-prices" style={{ gap: 2 }}>
                     <Text style={{ color: colors.text, fontWeight: '700' }}>{planT(lang, 'pricesTitle')}</Text>

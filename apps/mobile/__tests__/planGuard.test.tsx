@@ -218,13 +218,13 @@ describe('plan and usage screen', () => {
     expect(screen.getByText(/no VAT/)).toBeTruthy();
     expect(screen.getByText(/InstaPay or bank transfer only/)).toBeTruthy();
   });
-  test('trial copy says 1 user, 50 units, 80 credits and never mentions a free plan', async () => {
+  test.each([['trial', 'Trial', 1, 80], ['trial_team', 'Team Trial', 5, 200]])('%s shows the server plan limits', async (id, name, seats, credits) => {
     asMember(true);
-    const trial = allowance({ source: 'trial', plan: { ...plan, id: 'trial', name: ['تجربة', 'Trial'], priceEgp: 0, units: 50, credits: 80, prices: {} }, units: { used: 3, limit: 50 }, credits: { used: 0, limit: 80, plan: 80, bundles: 0, grants: 0 } });
+    const trial = allowance({ source: 'trial', plan: { ...plan, id, name: ['تجربة', name], priceEgp: 0, seats, units: 50, credits, prices: {} }, units: { used: 3, limit: 50 }, credits: { used: 0, limit: 80, plan: 80, bundles: 0, grants: 0 } });
     m.usage.mockResolvedValue({ allowance: trial });
     m.plan.mockResolvedValue(planReply(trial));
     await wrap(<UsageScreen />);
-    await waitFor(() => expect(screen.getByTestId('plan-trial-copy')).toHaveTextContent(/1 user, 50 units and 80 AI credits/));
+    await waitFor(() => expect(screen.getByTestId('plan-trial-copy')).toHaveTextContent(`${seats} ${seats === 1 ? 'user' : 'users'}, 50 units and ${credits} AI credits`));
     expect(screen.queryByTestId('plan-prices')).toBeNull();
     expect(screen.queryByText(/free plan/i)).toBeNull();
   });
