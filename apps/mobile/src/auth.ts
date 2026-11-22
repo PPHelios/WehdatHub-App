@@ -1,5 +1,6 @@
 import * as Keychain from 'react-native-keychain';
 import { create } from 'zustand';
+import { track } from './analytics';
 import type { ApiBroker, LoginResult } from '@wehdathub/shared';
 
 const SERVICE = 'wehdathub.session';
@@ -42,6 +43,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
     });
     set({ status: 'signedIn', token: r.token, broker: r.broker, agencyName });
+    void track('sign_in');
   },
   async setLang(lang) {
     const { token, broker, agencyName } = get();

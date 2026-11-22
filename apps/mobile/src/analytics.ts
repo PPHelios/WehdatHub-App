@@ -12,22 +12,23 @@ export async function startAnalytics() {
   }
 }
 
-export type AppEvent = 'sign_in' | 'unit_saved' | 'unit_save_refused' | 'search_run' | 'lead_created' | 'link_shared' | 'alert_opened';
+export type AppEvent = 'sign_in' | 'sign_in_failed' | 'unit_saved' | 'unit_save_refused' | 'search_started' | 'search_run' | 'lead_created' | 'link_shared' | 'search_unit_opened' | 'unit_save_started' | 'lead_save_started' | 'feature_used';
 
 /** Params are short codes or counts only (e.g. { reason: 'incomplete' }). */
-export function track(name: AppEvent, params: Record<string, string | number> = {}) {
-  if (!on) return;
+export async function track(name: AppEvent, params: Record<string, string | number> = {}) {
+  if (!on) return false;
   try {
-    logEvent(getAnalytics(), name as string, params);
+    await logEvent(getAnalytics(), name, { ...params, surface: 'app' });
+    return true;
   } catch {
-    // Analytics must never break the app.
+    return false;
   }
 }
 
 export function trackScreen(name: string) {
   if (!on || !name) return;
   try {
-    logScreenView(getAnalytics(), { screen_name: name, screen_class: name });
+    void logScreenView(getAnalytics(), { screen_name: name, screen_class: name }).catch(() => undefined);
   } catch {
     // Same.
   }

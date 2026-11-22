@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from '../components/AppText';
-import { codeSchema, phoneSchema } from '@wehdathub/shared';
+import { ApiClientError, codeSchema, phoneSchema } from '@wehdathub/shared';
 import { api } from '../api';
+import { track } from '../analytics';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
 import { Logo } from '../components/Logo';
@@ -31,6 +32,7 @@ export function LoginScreen() {
       setStep('code');
       setMessage({ text: t(LANG, 'codeSent'), bad: false });
     } catch (e) {
+      void track('sign_in_failed', { stage: 'request', status: e instanceof ApiClientError ? e.status : 0 });
       setMessage({ text: errorText(e, LANG), bad: true });
     } finally {
       setBusy(false);
@@ -46,6 +48,7 @@ export function LoginScreen() {
     try {
       await signIn(await api.verifyCode(p.data, c.data));
     } catch (e) {
+      void track('sign_in_failed', { stage: 'verify', status: e instanceof ApiClientError ? e.status : 0 });
       setMessage({ text: errorText(e, LANG), bad: true });
       setBusy(false);
     }

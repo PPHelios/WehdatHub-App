@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { timed } from '../usage';
+import { track } from '../analytics';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -68,7 +69,10 @@ export function SearchScreen() {
     const next = [clean, ...recent.filter((x) => x !== clean)].slice(0, 3);
     setRecent(next);
     AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next)).catch(() => undefined);
-    await search.mutateAsync({ q: clean, drop, status }).catch(() => undefined);
+    const started = Date.now();
+    void track('search_started');
+    const result = await search.mutateAsync({ q: clean, drop, status }).catch(() => undefined);
+    void track('search_run', { outcome: result?.status ?? 'error', duration_ms: Date.now() - started });
   };
   const loadMore = async () => {
     if (!last || !search.data || loadingMore || done) return;
@@ -140,7 +144,7 @@ export function SearchScreen() {
           {data.ignoredTerms?.length ? <Text testID="ignored-note" style={[styles.count, { color: colors.accentInk }]}>{t(lang, 'ignoredNote')} {data.ignoredTerms.join(' · ')}</Text> : null}
         </View>
       }
-      renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => nav.navigate('Unit', { code: item.code })} />}
+      renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => { void track('search_unit_opened'); nav.navigate('Unit', { code: item.code }); }} />}
       onScroll={onScroll}
       scrollEventThrottle={16}
       contentContainerStyle={{ paddingBottom: 150 }}

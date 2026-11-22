@@ -292,6 +292,7 @@ export function AddUnitScreen() {
     if (!editCode && !accepted && review?.duplicate) return setDuplicate(review.duplicate);
     if (accepted) setDupAck(true);
     dirty.current = false;
+    void track('unit_save_started', { edit: Number(Boolean(editCode)) });
     setSaving(true);
     setProgress(0);
     setSlow(null);
@@ -361,7 +362,7 @@ export function AddUnitScreen() {
       saveKey.current = newSaveKey();
       saved.current = true;
       tick();
-      track('unit_saved', { photos: files.length });
+      void track('unit_saved', { photos: files.length, edit: Number(Boolean(editCode)) });
       // A compound the list does not know is saved as pending on the server; show it on this phone straight away.
       if (fields.compound_new === '1' && str(fields.compound)) addPendingPlace(str(fields.compound)).catch(() => undefined);
       if (!fresh) await clearDraft();
@@ -369,7 +370,7 @@ export function AddUnitScreen() {
       if (importId) return nav.popTo('WhatsAppImport', { saved: { id: importId, code: r.code } });
       nav.replace('Unit', { code: r.code });
     } catch (e) {
-      track('unit_save_refused', { reason: e instanceof ApiClientError ? String(e.code || e.status) : 'error' });
+      void track('unit_save_refused', { status: e instanceof ApiClientError ? e.status : 0 });
       if (e instanceof SaveNotConfirmed) return setError(t(lang, 'saveNotConfirmed'));
       if (!(e instanceof ApiClientError)) return setError(toastError(errorText(e, lang)));
       if (editCode && e.code === 'conflict') return setError(t(lang, 'changedElsewhere'));

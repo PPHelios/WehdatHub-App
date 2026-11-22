@@ -1,3 +1,4 @@
+import { track } from '../analytics';
 import React, { useState } from 'react';
 import { timed, usage } from '../usage';
 import { UnitLifecycle } from '../components/UnitLifecycle';
@@ -157,7 +158,8 @@ export function UnitScreen({ code }: { code?: string } = {}) {
     try {
       const { url } = await timed('client_link', () => api.unitShareLink(unitCode, clientLang(), to || undefined), { kind: to ? 'to_client' : 'open' });
       setPickClient(false);
-      await Share.share({ message: url });
+      const shared = await Share.share({ message: url });
+      if (shared.action === Share.sharedAction) void track('link_shared');
     } catch (e) {
       if (e instanceof ApiClientError && e.status === 422) setClientErr(t(lang, 'badRecipient'));
       else {

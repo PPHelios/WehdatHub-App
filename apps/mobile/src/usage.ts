@@ -1,6 +1,7 @@
 import { AppState, Platform } from 'react-native';
 import { API_BASE_URL, APP_VERSION } from './config';
 import { useAuth } from './auth';
+import { track } from './analytics';
 
 /**
  * Feature use and timings, sent to the server in small batches (POST /usage-events). Never a name, phone or free text:
@@ -13,7 +14,12 @@ export type SinceKind = 'last' | '7' | '30' | '90' | 'all' | 'custom';
 
 type Item = { event: UsageEvent; ok: boolean; ms?: number; meta?: Record<string, string | number | boolean> & { since_kind?: SinceKind } };
 
+// Import diagnostics feed the owner's import report. Other client-only feature events can go straight to GA.
+const IMPORT_STEPS = new Set<UsageEvent>(['wa_import_share', 'wa_import_read', 'wa_import_add']);
+const ANALYTICS_ONLY = new Set<UsageEvent>(['flyer_share', 'unit_share', 'call_tap', 'whatsapp_tap']);
+
 let queue: Item[] = [];
+let queueToken: string | null = null;
 const trail: string[] = [];
 /** The last few things the person did (names only), sent with a report so we can see what led up to it. */
 export const usageTrail = (): string[] => [...trail];
@@ -22,6 +28,21 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 export function usage(event: UsageEvent, ok = true, ms?: number, meta?: Item['meta']) {
   trail.push(`${event}${ok ? '' : ' (failed)'}`);
   if (trail.length > 10) trail.shift();
+  const token = useAuth.getState().token;
+  if (!token) return;
+  if (IMPORT_STEPS.has(event)) void track('feature_used', { feature: event, ok: Number(ok) });
+  if (ANALYTICS_ONLY.has(event)) {
+    void track('feature_used', { feature: event, ok: Number(ok), ...(ms === undefined ? {} : { duration_ms: Math.round(ms) }) })
+      .then((sent) => { if (!sent) enqueue(token, event, ok, ms, meta); });
+    return;
+  }
+  enqueue(token, event, ok, ms, meta);
+}
+
+function enqueue(token: string, event: UsageEvent, ok: boolean, ms?: number, meta?: Item['meta']) {
+  if (useAuth.getState().token !== token) return;
+  if (queueToken !== token) queue = [];
+  queueToken = token;
   queue.push({ event, ok, ms: ms === undefined ? undefined : Math.round(ms), meta: { platform: Platform.OS, app_version: APP_VERSION, ...(meta ?? {}) } });
   if (queue.length >= 20) void flushUsage();
   else if (!timer) {
@@ -47,6 +68,7 @@ export async function flushUsage() {
   if (timer) clearTimeout(timer);
   timer = null;
   const token = useAuth.getState().token;
+  if (token !== queueToken) queue = [];
   if (!token || !queue.length) return;
   const events = queue.splice(0, 20);
   try {

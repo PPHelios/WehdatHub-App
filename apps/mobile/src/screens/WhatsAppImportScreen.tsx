@@ -171,7 +171,7 @@ export function WhatsAppImportScreen() {
       setRangeError(null);
       setPhase('range');
     } catch (e) {
-      usage('wa_import_read', false, Date.now() - t0, { reason: e instanceof ZipImportError ? e.reason : 'unexpected', stage: stageRef.current, ...(e instanceof ZipImportError && e.detail ? { detail: e.detail } : {}) });
+      usage('wa_import_read', false, Date.now() - t0, { reason: e instanceof ZipImportError ? e.reason : 'unexpected', stage: stageRef.current });
       if (!(e instanceof ZipImportError)) reportError(e, 'WhatsAppImport.open');
       setPhase('pick');
       setError(reasonText(e));
@@ -263,7 +263,7 @@ export function WhatsAppImportScreen() {
       setPhase('review');
     } catch (e) {
       // Why it failed (a zip problem, or something unexpected that is also reported as an error) goes to the usage log.
-      usage('wa_import_read', false, Date.now() - t0, { reason: e instanceof ZipImportError ? e.reason : 'unexpected', stage: stageRef.current, since_kind: sinceKind, ...(e instanceof ZipImportError && e.detail ? { detail: e.detail } : {}) });
+      usage('wa_import_read', false, Date.now() - t0, { reason: e instanceof ZipImportError ? e.reason : 'unexpected', stage: stageRef.current, since_kind: sinceKind });
       if (!(e instanceof ZipImportError)) reportError(e, 'WhatsAppImport.read');
       setPhase('range');
       setError(reasonText(e));
