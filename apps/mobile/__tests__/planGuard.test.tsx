@@ -11,7 +11,7 @@ import { api } from '../src/api';
 import { useAuth } from '../src/auth';
 import { usePlanLock } from '../src/planLock';
 import { bannerText, planPhase, preEndStatus, priceRows, unitWarnPct } from '../src/planState';
-import { formatDaysArabic, formatDaysLeft, preEndText, unitCapText } from '../src/planText';
+import { formatDaysArabic, preEndText, unitCapText } from '../src/planText';
 import { errorText } from '../src/errors';
 
 jest.mock('../src/api', () => ({ api: { usage: jest.fn(), me: jest.fn(), plan: jest.fn() } }));
