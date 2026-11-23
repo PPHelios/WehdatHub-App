@@ -10,7 +10,7 @@ import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
-jest.mock('../src/api', () => ({ api: { search: jest.fn(), voiceToText: jest.fn(), ask: jest.fn(), askResults: jest.fn(), searchHome: jest.fn().mockResolvedValue({ hour: 9 }), overdueUnits: jest.fn(), today: jest.fn().mockResolvedValue({ counts: { followUpsToday: 0, viewings: 0, newLeads: 0 }, tasks: [], moreTasks: 0 }) } }));
+jest.mock('../src/api', () => ({ api: { searchCredits: jest.fn().mockResolvedValue({ personal: { limit: null, remaining: null, used: 0 } }), search: jest.fn(), voiceToText: jest.fn(), ask: jest.fn(), askResults: jest.fn(), searchHome: jest.fn().mockResolvedValue({ hour: 9 }), overdueUnits: jest.fn(), today: jest.fn().mockResolvedValue({ counts: { followUpsToday: 0, viewings: 0, newLeads: 0 }, tasks: [], moreTasks: 0 }) } }));
 jest.mock('../src/voice', () => ({ ensureMic: jest.fn(), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn() }), useIsFocused: () => true }));
 const mocked = api as unknown as { search: jest.Mock; voiceToText: jest.Mock; ask: jest.Mock; askResults: jest.Mock };
@@ -18,7 +18,7 @@ const v = voice as unknown as { ensureMic: jest.Mock; startRecording: jest.Mock;
 
 const wrap = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}><SearchScreen /></QueryClientProvider>);
 
-beforeEach(() => { jest.restoreAllMocks(); jest.clearAllMocks(); v.startRecording.mockReset(); });
+beforeEach(() => { useAuth.setState({ broker: { id: 'search-test', lang: 'en' } as ApiBroker }); jest.restoreAllMocks(); jest.clearAllMocks(); v.startRecording.mockReset(); });
 
 test('typed search shows the no-results state with a way forward', async () => {
   mocked.search.mockResolvedValue({ status: 'none', source: 'parser', total: 0, items: [] });

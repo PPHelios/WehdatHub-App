@@ -52,6 +52,7 @@ export function SearchScreen() {
   const broker = useAuth((state) => state.broker);
   const recentKey = broker?.id ? `${RECENT_KEY}:${broker.id}` : null;
   const generation = useRef(0);
+  const previousIdentity = useRef(recentKey);
   const practiceKey = broker?.id ? `search-practice-v1:${broker.id}:${broker.role}` : null;
   const [invitation, setInvitation] = useState<string | null>(null);
   const [practicing, setPracticing] = useState(false);
@@ -90,7 +91,7 @@ export function SearchScreen() {
   const [clarification, setClarification] = useState('');
   const [group, setGroup] = useState<'inventory' | 'primary'>('inventory');
   const refreshCredits = () => queries.invalidateQueries({ queryKey: ['search-credits'] });
-  const answer = useMutation({ mutationFn: (q: string) => timed('ask', () => api.ask(q)), onSettled: refreshCredits });
+  const answer = useMutation({ mutationFn: (q: string) => timed('ask', () => api.ask(q)), onSettled: () => { void refreshCredits(); } });
   const [text, setText] = useState('');
   const [transcribing, setTranscribing] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -116,6 +117,8 @@ export function SearchScreen() {
   const [extra, setExtra] = useState<ApiUnitListItem[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [done, setDone] = useState(false);
+  const resetSearch = search.reset;
+  const resetAnswer = answer.reset;
   const clearedRecents = useRef(false);
   const [recent, setRecent] = useState<string[]>([]);
   useEffect(() => {
@@ -123,20 +126,25 @@ export function SearchScreen() {
     generation.current += 1;
     clearedRecents.current = false;
     setRecent([]);
-    search.reset();
-    answer.reset();
-    setExtra([]);
-    setLast(null);
-    setReport(null);
-    setSubmitted('');
-    setText('');
+    if (previousIdentity.current !== recentKey) {
+      previousIdentity.current = recentKey;
+      resetSearch();
+      resetAnswer();
+      setExtra([]);
+      setLast(null);
+      setReport(null);
+      setSubmitted('');
+      setText('');
+      setTranscribing(false);
+      setLoadingMore(false);
+    }
     AsyncStorage.removeItem(RECENT_KEY).catch(() => undefined);
     if (recentKey) AsyncStorage.getItem(recentKey).then((raw) => {
       const values = raw ? JSON.parse(raw) : [];
       if (active && !clearedRecents.current && Array.isArray(values)) setRecent(values.filter((value) => typeof value === 'string').slice(0, 3));
     }).catch(() => undefined);
     return () => { active = false; generation.current += 1; };
-  }, [recentKey]);
+  }, [recentKey, resetSearch, resetAnswer]);
 
   const run = async (q: string, drop = false, status: UnitStatus = 'active') => {
     const clean = q.trim();
@@ -181,12 +189,13 @@ export function SearchScreen() {
       const { q } = await api.voiceToText(file);
       if (requestGeneration !== generation.current) return;
       void refreshCredits();
+      setTranscribing(false);
       setText(q);
       submit(q);
     } catch (e) {
-      setVoiceError(errorText(e, lang));
+      if (requestGeneration === generation.current) setVoiceError(errorText(e, lang));
     } finally {
-      setTranscribing(false);
+      if (requestGeneration === generation.current) setTranscribing(false);
     }
   };
 
@@ -325,7 +334,7 @@ export function SearchScreen() {
   const body = search.isPending ? (
     <Loading label={t(lang, 'loading')} />
   ) : search.isError ? (
-    <ErrorView message={errorText(search.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => run(text)} />
+    <ErrorView message={errorText(search.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => last ? run(last.q, last.drop, last.status) : run(submitted || text)} />
   ) : !data ? (
     <SearchHome openQueue={(queue) => openHomeReport('leads', queue)} openDeals={() => openHomeReport('deals')}
       invitation={invitation && invitation === practiceKey ? <View style={styles.invitation}>
@@ -451,7 +460,7 @@ export function SearchScreen() {
           <Button variant="secondary" label={t(lang, 'searchTab')} onPress={() => submit(submitted, chosenSource)} />
         </View> : report === 'lead-action' ? <SearchLeadAction key={submitted} command={readLeadCommand(submitted)} onClose={() => { setReport('leads'); setSubmitted(''); setText(''); }} /> :
           (report === 'dashboard' || report === 'ranking') ? <DashboardScreen embedded ranking={report === 'ranking'} key={report} /> :
-          report === 'leads' ? <SearchLeads key={JSON.stringify(leadFilters)} assignedInitially={Boolean(leadFilters.assigned)} initialQueue={leadFilters.queue} initialTab={leadFilters.tab} lookup={leadFilters.lookup} matching={leadFilters.matching} requestedAssignee={assignee} /> :
+          report === 'leads' ? <SearchLeads key={JSON.stringify([leadFilters, assignee])} assignedInitially={Boolean(leadFilters.assigned)} initialQueue={leadFilters.queue} initialTab={leadFilters.tab} lookup={leadFilters.lookup} matching={leadFilters.matching} requestedAssignee={assignee} /> :
           report === 'deals' ? <SearchDeals initialPeriod={dealLastMonth ? 'last' : 'recent'} key={String(dealLastMonth)} /> : primaryView ? (
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.projectContent}>
             {answer.isPending ? <Loading label={t(lang, 'loading')} /> : null}

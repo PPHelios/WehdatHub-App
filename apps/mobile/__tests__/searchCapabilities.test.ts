@@ -53,3 +53,9 @@ test('filters by the named broker directly from a fresh Search', () => {
 test('clarifies assignee and date combinations', () => {
   expect(parseSearchIntent('Show leads assigned to Sara Hassan last month')).toEqual({ kind: 'clarify' });
 });
+
+test('preserves names with diacritics and repeated spaces', () => {
+  expect(parseSearchIntent('Find options for سَارة   حسن')).toEqual({
+    kind: 'leads', filters: { lookup: 'سَارة   حسن', matching: true },
+  });
+});

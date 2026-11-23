@@ -31,7 +31,7 @@ export function LeadPicker({ initial = '', onPick }: { initial?: string; onPick:
     {q && list.isSuccess && !items.length ? <EmptyView title={t(lang, 'noLeads')} /> : null}
     {items.map((lead) => <Button key={lead.ref} variant="secondary"
       label={[lead.name, lead.ref, lead.assignee, lead.phones[0] ? '•••' + lead.phones[0].slice(-4) : null].filter(Boolean).join(' · ')}
-      onPress={() => { if (q === text.trim()) onPick(lead); }} />)}
+      disabled={q !== text.trim()} onPress={() => onPick(lead)} />)}
     {list.hasNextPage ? <Button variant="secondary" label={lang === 'ar' ? 'عملاء أكتر' : 'More leads'} loading={list.isFetchingNextPage} onPress={() => list.fetchNextPage()} /> : null}
   </View>;
 }

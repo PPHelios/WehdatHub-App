@@ -23,3 +23,9 @@ test.each([
 ])('keeps the lookup target in %s', (text, result) => {
   expect(readLeadCommand(text)).toMatchObject(result);
 });
+
+test('Egyptian spelling preserves the original name and note', () => {
+  expect(readLeadCommand('انقل سارة إلى معاينه; ملاحظه: اتفقنا على بكرة')).toEqual({
+    target: 'سارة', stage: 'viewing', note: 'اتفقنا على بكرة', lostReason: undefined,
+  });
+});

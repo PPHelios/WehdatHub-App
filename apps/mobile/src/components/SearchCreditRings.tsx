@@ -24,7 +24,7 @@ export function SearchCreditRings({ data }: { data: SearchCredits }) {
     <Svg width={SIZE} height={SIZE} viewBox="0 0 48 48">
       {meters.map((meter, index) => {
         const rotation = (data.agency ? 188 : -82) + index * 180;
-        const ratio = meter.limit && meter.remaining !== null ? Math.max(0, Math.min(1, meter.remaining / meter.limit)) : 0;
+        const ratio = meter.limit === null ? 1 : meter.limit && meter.remaining !== null ? Math.max(0, Math.min(1, meter.remaining / meter.limit)) : 0;
         const color = colors.onPrimary;
         return <React.Fragment key={index}>
           <Circle cx={24} cy={24} r={RADIUS} fill="none" stroke={color} strokeOpacity={0.25}

@@ -44,6 +44,20 @@ export function normalizeSearchWords(raw: string) {
     .replace(/[\u0640\u064b-\u065f'’]/g, '').replace(/\s+/g, ' ');
 }
 
+// Match normalized text while retaining the original spelling and spacing of names.
+function originalCapture(original: string, normalized: string, capture: string) {
+  const start = normalized.lastIndexOf(capture);
+  const end = start + capture.length;
+  let first = 0;
+  let last = original.length;
+  for (let index = 0; index <= original.length; index += 1) {
+    const length = normalizeSearchWords(original.slice(0, index)).length;
+    if (length <= start) first = index;
+    if (length >= end) { last = index; break; }
+  }
+  return original.slice(first, last).trim();
+}
+
 const noNextStep = /no next step|من غير خطوه|مفيش خطوه جايه/;
 const lastMonth = /last month|الشهر اللي فات|الشهر الماضي/;
 const leadWords = /\bleads?\b|عملاء|عملا|العملاء|عميل/;
@@ -54,7 +68,7 @@ export function parseSearchIntent(raw: string, active?: 'leads' | 'deals'): Sear
   const q = normalizeSearchWords(original).replace(/^(?:please\s+|ممكن\s+|لو سمحت\s+)/, '');
   const newLead = /^(?:new lead|create (?:a )?lead|add (?:a )?lead|ضيف عميل|اضف عميل|اعمل عميل|عميل جديد)(?:\s*[:،,]?\s+|$)/.exec(q);
   if (newLead) {
-    const details = original.slice(original.length - q.length + newLead[0].length).trim();
+    const details = originalCapture(original, normalizeSearchWords(original), q.slice(newLead[0].length).trim());
     const phone = /(?:\+?20|0)1[0125]\d{8}/.exec(normalizeSearchWords(details))?.[0];
     const name = phone ? details.replace(/[+٠-٩۰-۹0-9]+/g, '').replace(/[,،:\s]+$/, '').trim() : undefined;
     return { kind: 'new-lead', ...(phone ? { name, phone } : details ? { paste: details } : {}) };
@@ -67,7 +81,7 @@ export function parseSearchIntent(raw: string, active?: 'leads' | 'deals'): Sear
   if (active === 'deals' && /^(?:last month|this month|الشهر اللي فات|الشهر ده)(?: بس| only)?$/.test(q)) return { kind: 'deals', lastMonth: lastMonth.test(q) };
   const lookup = /^(find options for|what fits|match (?:properties|units) (?:for|to)|find lead|open lead|افتح العميل|دور علي العميل|هات العميل|دور علي وحدات ل(?:لعميل)?|ايه اللي يناسب|اخر حاجه وعدنا بيها|what did we (?:last )?promise)\s+(.+)$/.exec(q);
   if (lookup) return { kind: 'leads', filters: {
-    lookup: original.slice(-lookup[2].length).trim(),
+    lookup: originalCapture(original, normalizeSearchWords(original), lookup[2]),
     matching: /options|fits|match|وحدات|يناسب/.test(lookup[1]),
   } };
   if (/^l-\d+$|^(?:\+?20|0)1[0125]\d{8}$/.test(q)) return { kind: 'leads', filters: { lookup: q } };
@@ -81,8 +95,7 @@ export function parseSearchIntent(raw: string, active?: 'leads' | 'deals'): Sear
   if (/open(?:ed)? (?:my )?links|فتح (?:اللينكات|الروابط)/.test(q)) return { kind: 'links', opened: true };
   const sent = /^(?:find (?:the )?(?:offer|link) i sent|هات اللينك اللي بعته(?: ل)?|هات العرض اللي بعته(?: ل)?)\s*(.+?)(?:\s+(last week|الاسبوع اللي فات))?$/.exec(q);
   if (sent) {
-    const date = /\s+(?:last week|الأسبوع اللي فات|الاسبوع اللي فات)$/i.exec(original)?.[0] ?? '';
-    const name = original.slice(0, original.length - date.length).slice(-sent[1].length).trim();
+    const name = originalCapture(original, normalizeSearchWords(original), sent[1]);
     return { kind: 'links', name, days: sent[2] ? 7 : undefined };
   }
   for (const [destination, cap] of Object.entries(SEARCH_DESTINATIONS)) {

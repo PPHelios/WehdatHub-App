@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiClientError } from '@wehdathub/shared';
 import type { LeadStage } from '@wehdathub/shared';
+import { normalizeSearchWords } from '../searchCapabilities';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { errorText } from '../errors';
@@ -15,7 +16,7 @@ import { ErrorView, Loading } from './StateViews';
 
 const stageNames: Record<string, LeadStage> = {
   new: 'new', contacted: 'contacted', interested: 'interested', viewing: 'viewing', negotiation: 'negotiation', won: 'won', lost: 'lost',
-  جديد: 'new', اتكلمنا: 'contacted', مهتم: 'interested', معاينة: 'viewing', تفاوض: 'negotiation', اتقفلت: 'won', ضاعت: 'lost',
+  جديد: 'new', اتكلمنا: 'contacted', مهتم: 'interested', معاينه: 'viewing', تفاوض: 'negotiation', اتقفلت: 'won', ضاعت: 'lost',
 };
 
 type Command = { ref?: string; target?: string; stage?: LeadStage; note?: string; lostReason?: string };
@@ -28,20 +29,20 @@ function leadTarget(value: string) {
 }
 
 export function readLeadCommand(text: string): Parsed {
-  const move = /^(?:move|change|انقل|غيّر|غير)\s+(.+?)\s+(?:to|إلى|الى|لـ)\s+([^;؛]+)(.*)$/i.exec(text);
-  const noteOnly = /^(?:note|add (?:a )?note to|ملاحظة|ضيف ملاحظة (?:لـ|ل))\s+(.+?)(?:\s*:\s*|\s+(?:that|إن|ان)\s+)(.+)$/is.exec(text);
+  const move = /^(?:move|change|انقل|غيّر|غير)\s+(.+?)\s+(?:to|إلى|الى|الي|إلي|لـ)\s+([^;؛]+)(.*)$/i.exec(text);
+  const noteOnly = /^(?:note|add (?:a )?note to|ملاحظ[ةه]|ضيف ملاحظ[ةه] (?:لـ|ل))\s+(.+?)(?:\s*:\s*|\s+(?:that|إن|ان)\s+)(.+)$/is.exec(text);
   if (noteOnly) {
     const target = leadTarget(noteOnly[1]);
     return target && noteOnly[2].trim() ? { ...target, note: noteOnly[2].trim() } : 'incomplete';
   }
-  if (!move && /^(?:add (?:a )?note to|ضيف ملاحظة)\s+/i.test(text)) return 'incomplete';
-  if (!move && !/^(?:move|change|note|add (?:a )?note|انقل|غير|غيّر|ملاحظة|ضيف ملاحظة)\s+.*(?:L-\d|\blead\b|العميل)/i.test(text)) return null;
+  if (!move && /^(?:add (?:a )?note to|ضيف ملاحظ[ةه])\s+/i.test(text)) return 'incomplete';
+  if (!move && !/^(?:move|change|note|add (?:a )?note|انقل|غير|غيّر|ملاحظ[ةه]|ضيف ملاحظ[ةه])\s+.*(?:L-\d|\blead\b|العميل)/i.test(text)) return null;
   if (!move) return 'incomplete';
-  const stage = stageNames[move[2].trim().replace(/[.!؟]+$/, '').toLowerCase()];
+  const stage = stageNames[normalizeSearchWords(move[2].trim().replace(/[.!؟]+$/, ''))];
   const suffix = move[3].trim();
-  const note = /[;؛]\s*(?:note|ملاحظة)\s*:\s*([^;؛]+)/i.exec(suffix)?.[1].trim();
+  const note = /[;؛]\s*(?:note|ملاحظ[ةه])\s*:\s*([^;؛]+)/i.exec(suffix)?.[1].trim();
   const lostReason = /[;؛]\s*(?:reason|السبب)\s*:\s*([^;؛]+)/i.exec(suffix)?.[1].trim();
-  const rest = suffix.replace(/[;؛]\s*(?:note|ملاحظة|reason|السبب)\s*:\s*[^;؛]+/gi, '').trim();
+  const rest = suffix.replace(/[;؛]\s*(?:note|ملاحظ[ةه]|reason|السبب)\s*:\s*[^;؛]+/gi, '').trim();
   const target = leadTarget(move[1]);
   if (!target || (!stage && !/L-\d|lead|العميل/i.test(move[1]))) return target ? null : 'incomplete';
   if (!stage || rest || (stage === 'lost' && !lostReason) || (stage !== 'lost' && lostReason)) return 'incomplete';
@@ -69,7 +70,7 @@ export function SearchLeadAction({ command, onClose }: { command: Parsed; onClos
   const allowed = Boolean(detail.data?.canWork || detail.data?.canCollaborate);
   return <ScrollView contentContainerStyle={styles.content}>
     <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{ar ? 'راجع تعديل العميل' : 'Review lead update'}</Text>
-    {!change ? <Text style={{ color: colors.text }}>{ar ? 'اكتب اسم العميل أو رقمه أو كوده والمرحلة. مثال: انقل L-0002 إلى معاينة؛ ملاحظة: اتفقنا على السبت' : 'Include a lead name, phone, or code and the stage or note. Example: Move L-0002 to viewing; note: Saturday agreed'}</Text> : null}
+    {!change ? <Text style={{ color: colors.text }}>{ar ? 'اكتب اسم العميل أو رقمه أو كوده والمرحلة. مثال: انقل L-0002 إلى معاينة؛ ملاحظ[ةه]: اتفقنا على السبت' : 'Include a lead name, phone, or code and the stage or note. Example: Move L-0002 to viewing; note: Saturday agreed'}</Text> : null}
     {change?.target && !ref ? <LeadPicker initial={change.target} onPick={(lead) => setPickedRef(lead.ref)} /> : null}
     {ref && detail.isPending ? <Loading label={t(lang, 'loading')} /> : null}
     {detail.isError ? <ErrorView message={errorText(detail.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => detail.refetch()} /> : null}

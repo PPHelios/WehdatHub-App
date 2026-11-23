@@ -42,7 +42,7 @@ The floating composer sends typed text and voice transcripts to the same local p
 
 Unsupported or ambiguous reports keep the original question and offer an applicable route or clarification. Ordinary unclassified property text continues into unit search. Access checks, scope, and confirmation remain with the owning services.
 
-The trash icon beside the floating composer clears chat for its current result, composer, filters, and local recent searches. It does not delete leads or saved searches. The ring around the composer action button shows the signed-in person’s remaining personal allowance, or personal use when there is no personal cap. Owners and managers also see an agency segment. Exact balances are in More → My usage and limits. Lead rows open the lead, where Matching units is available. Explicit property matching requests open the matches directly.
+The trash icon beside the floating composer clears chat for its current result, composer, filters, and local recent searches. It does not delete leads or saved searches. The ring around the composer action button shows the signed-in person’s remaining personal allowance, or a full allowance ring when there is no personal cap (usage details are in the menu). Owners and managers also see an agency segment. Exact balances are in More → My usage and limits. Lead rows open the lead, where Matching units is available. Explicit property matching requests open the matches directly.
 
 ## Search home
 
