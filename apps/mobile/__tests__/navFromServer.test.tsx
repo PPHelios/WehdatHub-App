@@ -29,20 +29,29 @@ const dataEntry: Nav = {
   groups: [{ key: 'account', label: { ar: 'حسابي', en: 'Account' }, items: [item('notifications', 'Notifications', 'bell')] }],
 };
 
-test('the tabs come from the server, with Add as the centre button and the server labels', () => {
+test('Search is centred while the other tabs retain server labels', () => {
   const p = tabPlan(broker, base);
-  expect(p.tabs.map((t) => t.key)).toEqual(['Today', 'Search', 'AddUnit', 'Leads', 'Units']);
-  expect(p.tabs[2].label?.en).toBe('Add');
-  expect(p.initial).toBe('Today');
+  expect(p.tabs.map((t) => t.key)).toEqual(['AddUnit', 'Leads', 'Search', 'Map', 'Units']);
+  expect(p.tabs[0].label?.en).toBe('Add');
+  expect(p.initial).toBe('Search');
   const d = tabPlan(dataEntry, { ...base, dataEntry: true });
-  expect(d.tabs.map((t) => t.key)).toEqual(['Search', 'Units', 'AddUnit', 'Owners', 'Settings']);
-  expect(d.initial).toBe('Units');
+  expect(d.tabs.map((t) => t.key)).toEqual(['Units', 'AddUnit', 'Search', 'Owners', 'Settings']);
+  expect(d.initial).toBe('Search');
+});
+
+test('Data Entry opens centred Search even when the server omits it and Owners is disabled', () => {
+  const rights = { ...base, dataEntry: true, owners: false, leads: false, search: false };
+  const nav = { ...dataEntry, tabs: dataEntry.tabs.filter((tab) => tab.app !== 'Search' && tab.app !== 'Owners') };
+  const p = tabPlan(nav, rights);
+  expect(p.initial).toBe('Search');
+  expect(p.tabs.map((tab) => tab.key)).toEqual(['Units', 'AddUnit', 'Search', 'Settings', 'More']);
+  expect(p.tabs[2]).toMatchObject({ key: 'Search', icon: 'search', fab: true });
 });
 
 test('an old server (no menu) or the product owner keeps the older tabs', () => {
   expect(usableNav(undefined)).toBeNull();
   expect(usableNav({ ...broker, role: 'crm' })).toBeNull();
-  expect(tabPlan(undefined, base).tabs.map((t) => t.key)).toEqual(['Search', 'Leads', 'Today', 'Map', 'More']);
+  expect(tabPlan(undefined, base).tabs.map((t) => t.key)).toEqual(['Leads', 'Units', 'Search', 'Map', 'More']);
   expect(moreSections(undefined, base)).toBeNull();
 });
 
@@ -50,7 +59,7 @@ test('More: the server groups in order, only rows the app can open, none repeate
   const s = moreSections(broker, base)!;
   expect(s.map((g) => g.key)).toEqual(['clients', 'listings', 'account']);
   const ids = s.flatMap((g) => g.rows.map((r) => r.id));
-  expect(ids).toEqual(['requests', 'leases', 'inbox', 'map', 'waimport', 'settings', 'notifications']);
+  expect(ids).toEqual(['requests', 'leases', 'inbox', 'waimport', 'settings', 'notifications']);
   expect(ids).not.toContain('leads'); // on the bar
   expect(ids).not.toContain('import'); // a website page, no app screen
   expect(ids).toContain('settings'); // opens the Settings screen (Me, Agency, Plan and billing)
@@ -90,19 +99,25 @@ live('matches the server menu', () => {
   test('every icon the server menu names is in the app', () => {
     for (const name of spec().iconNames()) expect(ICON_NAMES).toContain(iconFor(name));
   });
-  test('each role gets five tabs with its own shortcut in the centre, and every tab opens a screen the app has', () => {
-    const centre: Record<string, string> = { broker: 'Search', team_lead: 'Search', manager: 'Leads', owner: 'Dashboard', data_entry: 'AddUnit' };
-    for (const role of Object.keys(centre)) {
-      const nav = spec().forBroker(who(role));
-      const p = tabPlan(nav, { ...base, dataEntry: role === 'data_entry' });
-      expect(p.tabs).toHaveLength(nav.tabs.length);
-      expect([role, p.tabs[2].key, p.tabs[2].fab]).toEqual([role, centre[role], true]);
-      expect(p.tabs.filter((t) => t.fab)).toHaveLength(1);
+  test('each role centres Search, including restricted Data Entry', () => {
+    for (const role of ['broker', 'team_lead', 'manager', 'owner', 'data_entry']) {
+      for (const owners of [true, false]) {
+        const rights = { ...base, owners, dataEntry: role === 'data_entry' };
+        const nav = spec().forBroker(who(role), { rights });
+        const p = tabPlan(nav, rights);
+        expect(p.initial).toBe('Search');
+        expect(p.tabs.length % 2).toBe(1);
+        expect(p.tabs[Math.floor(p.tabs.length / 2)]).toMatchObject({ key: 'Search', icon: 'search', fab: true });
+        expect(p.tabs.filter((t) => t.fab)).toHaveLength(1);
+        for (const tab of nav.tabs.filter((tab) => tab.app && tab.app !== 'Today')) {
+          expect(p.tabs.some((item) => item.key === tab.app)).toBe(true);
+        }
+      }
     }
   });
-  test('broker and team lead bars open on Today and Add is the first row of More', () => {
+  test('broker and team lead bars open on Search and Add is the first row of More', () => {
     for (const role of ['broker', 'team_lead']) {
-      expect(tabPlan(spec().forBroker(who(role)), base).initial).toBe('Today');
+      expect(tabPlan(spec().forBroker(who(role)), base).initial).toBe('Search');
       const rows = (moreSections(spec().forBroker(who(role)), base) ?? []).flatMap((g) => g.rows);
       expect(rows[0]).toMatchObject({ id: 'add', screen: 'AddUnit' });
     }

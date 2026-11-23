@@ -12,7 +12,7 @@ import { Field } from '../components/Field';
 import { StatRow } from '../components/StatRow';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
-import { t } from '../i18n';
+import { stageLabel, t } from '../i18n';
 import { APP_BUILD, APP_VERSION } from '../config';
 import { usageTrail } from '../usage';
 import { radius, spacing, useTheme } from '../theme';
@@ -32,21 +32,47 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 /** The agency dashboard for managers: pipeline, the period's totals and the leaderboard. */
-export function DashboardScreen() {
+export function DashboardScreen({ embedded = false, ranking = false }: { embedded?: boolean; ranking?: boolean } = {}) {
   const { colors } = useTheme();
   const lang = currentLang();
   const [days, setDays] = useState<(typeof DAYS)[number]>('30');
-  const q = useQuery({ queryKey: ['dashboard', days], queryFn: () => api.dashboard(Number(days)) });
+  const [metric, setMetric] = useState<'deals' | 'commission' | 'responseMin'>('deals');
+  const [scope, setScope] = useState('');
+  const [kind, id] = scope.split(':');
+  const filter = kind === 'broker' ? { broker: id } : kind === 'team' ? { team: id } : undefined;
+  const q = useQuery({
+    queryKey: ['dashboard', days, scope],
+    queryFn: () => filter ? api.dashboard(Number(days), filter) : api.dashboard(Number(days)),
+  });
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
-  if (q.isError) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
+  if (q.isError) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => q.refetch()} altLabel={scope ? t(lang, 'clear') : undefined} onAlt={scope ? () => setScope('') : undefined} />;
   const d = q.data;
   const ar = lang === 'ar';
   const personal = d.mode === 'solo';
-  const title = personal ? (ar ? 'ملخصي' : 'My summary') : d.mode === 'team' ? (ar ? 'لوحة الفريق' : 'Team dashboard') : (ar ? 'لوحة الشركة' : 'Agency dashboard');
+  const ranked = d.board.filter((row) => row[metric] != null).sort((a, b) => metric === 'responseMin'
+    ? Number(a[metric]) - Number(b[metric]) : Number(b[metric]) - Number(a[metric]));
+  const maximum = Math.max(1, ...ranked.map((row) => Number(row[metric])));
+  const title = ranking ? (ar ? 'ترتيب الوسطاء' : 'Broker rankings') : personal ? (ar ? 'ملخصي' : 'My summary') : d.mode === 'team' ? (ar ? 'لوحة الفريق' : 'Team dashboard') : (ar ? 'لوحة الشركة' : 'Agency dashboard');
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
+    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.pad, embedded && { paddingBottom: 150 }]}>
       <Text style={[styles.h, { color: colors.text }]}>{title}</Text>
       <Chips<(typeof DAYS)[number]> testID="dash-days" value={days} onChange={setDays} options={DAYS.map((x) => ({ value: x, label: ar ? `${x} يوم` : `${x} days` }))} />
+      {embedded && (d.team?.length || d.teamLeads?.length) ? <Chips testID="dash-scope" value={scope || 'all'} onChange={(value) => setScope(value === 'all' ? '' : value)} options={[
+        { value: 'all', label: ar ? 'كل الشركة' : 'All agency' },
+        ...(d.teamLeads ?? []).map((team) => ({ value: 'team:' + team.id, label: ar ? 'فريق ' + team.name : team.name + ' team' })),
+        ...(d.team ?? []).map((broker) => ({ value: 'broker:' + broker.id, label: broker.name })),
+      ]} /> : null}
+      {ranking ? <Card title={ar ? 'رتّب حسب' : 'Rank by'}>
+        <Chips value={metric} onChange={setMetric} options={[
+          { value: 'deals', label: ar ? 'عدد الصفقات' : 'Deals closed' },
+          { value: 'commission', label: ar ? 'العمولة' : 'Commission' },
+          { value: 'responseMin', label: ar ? 'وقت أول رد (الوسيط)' : 'Median first response' },
+        ]} />
+        {!ranked.length ? <Text style={{ color: colors.muted }}>{ar ? 'مفيش بيانات للفترة دي.' : 'No data for this period.'}</Text> : null}
+        {ranked.map((row) => <StatRow key={row.id} animate label={row.name}
+          value={num(Number(row[metric])) + (metric === 'responseMin' ? (ar ? ' دقيقة' : ' min') : metric === 'commission' ? ' ' + t(lang, 'egp') : '')}
+          pct={metric === 'responseMin' ? undefined : Number(row[metric]) / maximum * 100} />)}
+      </Card> : <>
       <Card title={ar ? 'دلوقتي' : 'Now'}>
         {!personal ? <Text style={{ color: colors.text }}>{ar ? 'عملاء من غير بروكر' : 'Unassigned leads'}: {d.unassigned}</Text> : null}
         <Text style={{ color: colors.text }}>{ar ? 'ماتكلمش' : 'Not contacted'}: {d.uncontacted}</Text>
@@ -60,13 +86,17 @@ export function DashboardScreen() {
         {d.reports?.sources !== false && d.sources.length ? <Text style={{ color: colors.muted }}>{d.sources.map((s) => `${s.source} ${s.n}`).join(' · ')}</Text> : null}
       </Card>
       <Card title={ar ? 'المراحل' : 'Pipeline'}>
-        {Object.entries(d.pipeline).map(([k, v]) => <StatRow key={k} label={k} value={String(v)} pct={(Number(v) / Math.max(1, ...Object.values(d.pipeline).map(Number))) * 100} />)}
+        {Object.entries(d.pipeline).map(([k, v]) => <StatRow key={k} animate={embedded} label={embedded ? stageLabel(lang, k) : k} value={String(v)} pct={(Number(v) / Math.max(1, ...Object.values(d.pipeline).map(Number))) * 100} />)}
       </Card>
+      {embedded && d.weekly.length ? <Card title={ar ? 'العملاء الجدد · آخر ٨ أسابيع' : 'New leads · last 8 weeks'}>
+        {d.weekly.map((value, i) => <StatRow key={i} animate label={(ar ? 'أسبوع ' : 'Week ') + String(i + 1)} value={String(value)} pct={value / Math.max(1, ...d.weekly) * 100} />)}
+      </Card> : null}
       {!personal ? <Card title={d.mode === 'team' ? (ar ? 'شغل الفريق' : 'Team workload') : (ar ? 'ترتيب البروكرز' : 'Leaderboard')}>
         {d.board.map((b) => (
           <Text key={b.id} testID={`board-${b.id}`} style={{ color: colors.text }}>{b.name}: {b.deals} {ar ? 'صفقة' : 'deals'} · {b.leads} {ar ? 'عميل' : 'leads'} · {b.contacted} {ar ? 'تواصل' : 'contacted'}</Text>
         ))}
       </Card> : null}
+      </>}
     </ScrollView>
   );
 }

@@ -43,7 +43,7 @@ export function NewLeadScreen() {
   const [kind, setKind] = useState<ApiLead['kind']>('buyer');
   const [notes, setNotes] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  const [paste, setPaste] = useState('');
+  const [paste, setPaste] = useState(picked?.paste ?? '');
   const [filling, setFilling] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 

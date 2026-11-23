@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ApiViewing } from '@wehdathub/shared';
 import { api } from '../api';
@@ -31,7 +31,8 @@ export function CalendarScreen() {
   const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const q = useQuery({ queryKey: ['viewings'], queryFn: () => api.viewings() });
+  const tomorrow = useRoute<RouteProp<RootStackParams, 'Calendar'>>().params?.tomorrow;
+  const q = useQuery({ queryKey: ['viewings', Boolean(tomorrow)], queryFn: () => tomorrow ? api.viewings({ tomorrow: true }) : api.viewings() });
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
   if (q.isError) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
   const sections = groupByDay(q.data.items, lang);
@@ -44,6 +45,7 @@ export function CalendarScreen() {
       refreshing={q.isRefetching}
       onRefresh={() => { q.refetch(); }}
       stickySectionHeadersEnabled={false}
+      ListHeaderComponent={tomorrow ? <Text style={[styles.day, { color: colors.text }]}>{lang === 'ar' ? 'معاينات بكرة' : 'Tomorrow’s viewings'}</Text> : undefined}
       ListEmptyComponent={<EmptyView title={t(lang, 'noViewings')} />}
       renderSectionHeader={({ section }) => <Text style={[styles.day, { color: colors.muted }]}>{section.title}</Text>}
       renderItem={({ item }) => (

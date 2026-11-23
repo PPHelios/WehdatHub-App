@@ -15,6 +15,9 @@ import { useDebounced } from '../useDebounced';
 import { Button } from './Button';
 import { Chips } from './Chips';
 import { Field } from './Field';
+import { EmptyView, ErrorView, Loading } from './StateViews';
+import { errorText } from '../errors';
+import { t } from '../i18n';
 import { Count, Pager, ProjectCardView } from './ProjectList';
 
 const SORTS: ProjectSort[] = ['best', 'cheap', 'pricey', 'small', 'big', 'down'];
@@ -30,7 +33,7 @@ export const chipText = (v: unknown): string => (v && typeof v === 'object' ? Ob
  * (price range, area range, max down payment, bedrooms), project cards with their offers or the notes that fit, WhatsApp, and pages.
  * The same cards as the catalogue list.
  */
-export function AskResults({ q, onOpenProject }: { q: string; onOpenProject?: (id: string, name: string) => void }) {
+export function AskResults({ q, onOpenProject, showStatus = false }: { q: string; onOpenProject?: (id: string, name: string) => void; showStatus?: boolean }) {
   const { colors } = useTheme();
   const lang = currentLang();
   const T = pt(lang);
@@ -56,7 +59,9 @@ export function AskResults({ q, onOpenProject }: { q: string; onOpenProject?: (i
     },
     placeholderData: keepPreviousData,
   });
-  if (!r.data || (!r.data.projects.length && !drop.length && !active)) return null;
+  if (showStatus && r.isError) return <ErrorView message={errorText(r.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => r.refetch()} />;
+  if (showStatus && r.isPending) return <Loading label={t(lang, 'loading')} />;
+  if (!r.data || (!r.data.projects.length && !drop.length && !active)) return showStatus ? <EmptyView title={T.noMatch} /> : null;
   const d = r.data;
   const reset = () => setPage(1);
   // What the broker does next goes to the search log; a failure never shows.

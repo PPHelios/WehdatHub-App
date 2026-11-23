@@ -28,7 +28,6 @@ import { PlanScreen } from './screens/MoreScreens';
 import { pt } from './projectText';
 import { DashboardScreen } from './screens/InsightsScreens';
 import { SearchScreen } from './screens/SearchScreen';
-import { TodayScreen } from './screens/TodayScreen';
 import { UnitsScreen } from './screens/UnitsScreen';
 import { narrow } from './layout';
 import { useRightsState } from './rights';
@@ -36,7 +35,6 @@ import { TAB_TITLE } from './roleNav';
 import { tabPlan } from './navFromServer';
 import type { TabKey } from './roleNav';
 
-const TodayNarrow = narrow(TodayScreen);
 const SearchNarrow = narrow(SearchScreen);
 function MoreTab() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -110,7 +108,7 @@ export type AddUnitParams = {
   /** The post as the import read it (the server's rules reader): the form opens with these fields filled. */ fields?: UnitFields;
   /** The code the post writes: filled even when the reader could not be reached. */ code?: string;
 };
-export type RootStackParams = { Tabs: undefined; MoreMenu: undefined; Settings: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; PortalEnquiry: { message: string; enquiry?: PortalEnquiryRead }; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string; me?: boolean; teamLeadId?: string | null }; Ask: undefined; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
+export type RootStackParams = { Tabs: undefined; MoreMenu: undefined; Settings: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string; paste?: string } | undefined; Contacts: undefined; Calendar: { tomorrow?: boolean } | undefined; SentLinks: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: { order?: 'overdue' | 'available' } | undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: { signedOnly?: boolean } | undefined; Portal: undefined; PortalEnquiry: { message: string; enquiry?: PortalEnquiryRead }; Links: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean; missingPhotos?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TeamMember: { id: string; name: string; role?: string; me?: boolean; teamLeadId?: string | null }; Ask: undefined; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = Record<TabKey | 'AddUnitTab', undefined>;
 
@@ -124,7 +122,7 @@ const tabIcon = (name: IconName) => ({ color, focused }: { color: string; focuse
 const NothingHere = () => null;
 
 /** Every tab's screen. Module level: the map never changes. */
-const TAB_SCREENS: Record<TabKey, React.ComponentType> = { Today: TodayNarrow, Search: SearchNarrow, Leads: LeadsScreen, Map: MapScreen, Units: UnitsScreen, More: MoreNarrow, Team: TeamNarrow, Dashboard: DashboardScreen, Owners: OwnersScreen, AddUnit: NothingHere, Plan: PlanScreen, Settings: SettingsNarrow };
+const TAB_SCREENS: Record<TabKey, React.ComponentType> = { Search: SearchNarrow, Leads: LeadsScreen, Map: MapScreen, Units: UnitsScreen, More: MoreNarrow, Team: TeamNarrow, Dashboard: DashboardScreen, Owners: OwnersScreen, AddUnit: NothingHere, Plan: PlanScreen, Settings: SettingsNarrow };
 const renderTabBar = (p: BottomTabBarProps) => <FloatingTabBar {...p} />;
 const openInbox = () => navigationRef.navigate('Inbox');
 const openMoreMenu = () => navigationRef.navigate('MoreMenu');
@@ -250,7 +248,6 @@ export function RootNavigation() {
           <Stack.Screen name="UnitsList" component={UnitsScreen} options={{ title: t(currentLang(), 'units') }} />
           <Stack.Screen name="LeadsList" component={LeadsScreen} options={{ title: t(currentLang(), 'leadsTab') }} />
           <Stack.Screen name="MapList" component={MapScreen} options={{ title: t(currentLang(), 'mapTab') }} />
-          <Stack.Screen name="TodayList" component={TodayNarrow} options={{ title: t(currentLang(), 'today') }} />
           <Stack.Screen name="Ask" getComponent={lazyScreens.Ask} options={{ title: t(currentLang(), 'ask') }} />
           <Stack.Screen name="AddUnit" getComponent={lazyScreens.AddUnit} options={{ title: t(currentLang(), 'addUnit') }} />
           <Stack.Screen name="WhatsAppImport" getComponent={lazyScreens.WhatsAppImport} options={{ title: t(currentLang(), 'whatsappImport') }} />

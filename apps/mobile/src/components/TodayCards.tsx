@@ -12,14 +12,14 @@ import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 import { toast } from './Toast';
+import { Chevron } from './Icon';
 
 /** The cards under Today's task list, from the same result the website shows (server: services/today.js). */
 export function TodayCards({ cards, only, onShowAll }: { cards: Cards; only?: 'oldUnits'; onShowAll?: () => void }) {
   const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  // Opened from the units list the section starts folded, so the list under it stays in reach.
-  const [open, setOpen] = useState(!only);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const qc = useQueryClient();
   // Quick action: available again (active, which vouches for the unit), sold or archived. The server decides who may.
@@ -35,7 +35,6 @@ export function TodayCards({ cards, only, onShowAll }: { cards: Cards; only?: 'o
     }
   };
   const box =[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }];
-  const chev = '›'; // the glyph is bidi-mirrored, so it already points outward in RTL
   /** An overview row: a tinted icon badge, a bold title, the figures under it, and an arrow. */
   const tile = (key: string, icon: string, title: string, detail: string, onPress: () => void, tone: string, side?: string) => (
     <Pressable key={key} accessibilityRole="button" onPress={onPress} style={[styles.tile, { borderTopColor: colors.border }, info.length === 0 && styles.first]}>
@@ -45,7 +44,7 @@ export function TodayCards({ cards, only, onShowAll }: { cards: Cards; only?: 'o
         {detail ? <Text style={{ color: colors.muted }}>{detail}</Text> : null}
       </View>
       {side ? <View style={[styles.pill, { backgroundColor: tone + '22' }]}><Text style={{ color: colors.text, fontSize: 12, fontWeight: '700' }}>{side}</Text></View> : null}
-      <Text style={{ color: colors.muted, fontSize: 18 }}>{chev}</Text>
+      <Chevron rtl={lang === 'ar'} color={colors.muted} />
     </Pressable>
   );
   const info: React.ReactNode[] = [];
@@ -78,7 +77,7 @@ export function TodayCards({ cards, only, onShowAll }: { cards: Cards; only?: 'o
           <Pressable testID="old-toggle" accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((v) => !v)} style={[styles.head, { backgroundColor: colors.primarySoft, borderRadius: radius.sm, padding: spacing.sm }]}>
             <Text style={[styles.title, styles.grow, { color: colors.text }]}>{t(lang, 'tcOldUnits')}</Text>
             <View style={[styles.pill, { backgroundColor: colors.accent + '22' }]}><Text style={{ color: colors.text, fontWeight: '700' }}>{cards.oldUnits.total}</Text></View>
-            <Text style={{ color: colors.muted, fontSize: 16 }}>{open ? '▾' : chev}</Text>
+            <Chevron rtl={lang === 'ar'} color={colors.muted} expanded={open} />
           </Pressable>
           {open ? (
             <>

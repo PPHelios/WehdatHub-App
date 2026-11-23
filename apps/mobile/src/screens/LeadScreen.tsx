@@ -146,6 +146,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
         <View style={styles.flex}><Button label={t(lang, 'fuWeek')} variant="secondary" onPress={() => followUp({ at: at10(7), kind: 'call' })} /></View>
         <View style={styles.flex}><Button label={`${t(lang, 'fuViewing')} · ${t(lang, 'fuTomorrow')}`} variant="secondary" onPress={() => followUp({ at: at10(1), kind: 'viewing' })} /></View>
       </View>
+      {lead.followUpKind ? <Button variant="secondary" testID="lead-follow-up-done" label={lang === 'ar' ? 'تمت المتابعة' : 'Complete follow-up'} loading={act.isPending} onPress={() => run((l) => api.completeLeadFollowUp(l.ref, l.version))} /> : null}
       <FollowUpPicker onSave={followUp} />
       </Section>
       </> : <Text style={{ color: colors.muted }}>{t(lang, 'stage')} · {stageLabel(lang, lead.stage)}</Text>}

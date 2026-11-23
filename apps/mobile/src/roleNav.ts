@@ -2,21 +2,24 @@ import type { Rights } from '@wehdathub/shared';
 import type { StringKey } from './i18n';
 import type { IconName } from './components/Icon';
 
-export type TabKey = 'Today' | 'Search' | 'Leads' | 'Map' | 'Units' | 'More' | 'Team' | 'Dashboard' | 'Owners' | 'AddUnit' | 'Plan' | 'Settings';
+export type TabKey = 'Search' | 'Leads' | 'Map' | 'Units' | 'More' | 'Team' | 'Dashboard' | 'Owners' | 'AddUnit' | 'Plan' | 'Settings';
 
 /** The tabs each role gets, left to right in English (the layout flips in Arabic), and the tab the app opens on. */
 export function navPlan(r: Rights): { tabs: TabKey[]; initial: TabKey } {
-  if (r.dataEntry) return { tabs: r.owners ? ['AddUnit', 'Units', 'Owners', 'More'] : ['AddUnit', 'Units', 'More'], initial: 'Units' };
-  if (r.agencyOwner) return { tabs: ['Today', 'Dashboard', 'Team', 'Search', 'More'], initial: 'Today' };
-  if (r.manager) return { tabs: ['Today', 'Leads', 'Team', 'Search', 'More'], initial: 'Today' };
-  if (r.teamLead) return { tabs: ['Search', 'Team', 'Today', 'More'], initial: 'Today' };
-  return { tabs: ['Search', 'Leads', 'Today', 'Map', 'More'], initial: 'Today' };
+  if (r.dataEntry) {
+    if (!r.addUnits && !r.owners) return { tabs: ['Units', 'Search', 'More'], initial: 'Search' };
+    return { tabs: ['Units', r.addUnits ? 'AddUnit' : 'Owners', 'Search', r.addUnits && r.owners ? 'Owners' : 'Settings', 'More'], initial: 'Search' };
+  }
+  if (r.agencyOwner) return { tabs: [r.team ? 'Team' : 'Units', 'Dashboard', 'Search', 'Leads', 'More'], initial: 'Search' };
+  if (r.manager) return { tabs: [r.team ? 'Team' : 'Units', 'Leads', 'Search', 'Dashboard', 'More'], initial: 'Search' };
+  if (r.teamLead) return { tabs: r.team ? ['Team', 'Leads', 'Search', 'Units', 'More'] : ['Units', 'Search', 'More'], initial: 'Search' };
+  return { tabs: ['Leads', 'Units', 'Search', 'Map', 'More'], initial: 'Search' };
 }
 
-export const TAB_ICON: Record<TabKey, IconName> = { Today: 'today', Search: 'search', Leads: 'leads', Map: 'map', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'add', Plan: 'plan', Settings: 'settings' };
-export const TAB_TITLE: Record<TabKey, StringKey> = { Today: 'today', Search: 'searchTab', Leads: 'leadsTab', Map: 'mapTab', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'addUnit', Plan: 'plan', Settings: 'more' };
+export const TAB_ICON: Record<TabKey, IconName> = { Search: 'search', Leads: 'leads', Map: 'map', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'add', Plan: 'plan', Settings: 'settings' };
+export const TAB_TITLE: Record<TabKey, StringKey> = { Search: 'searchTab', Leads: 'leadsTab', Map: 'mapTab', Units: 'units', More: 'more', Team: 'team', Dashboard: 'dashboard', Owners: 'owners', AddUnit: 'addUnit', Plan: 'plan', Settings: 'more' };
 
-export type MoreScreenName = 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Inbox' | 'ClientRequests' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Prices' | 'WinLoss' | 'Report' | 'UnitsList' | 'LeadsList' | 'MapList' | 'TodayList' | 'AddUnit' | 'WhatsAppImport' | 'LeadRules' | 'Pipeline' | 'Leases' | 'SavedSearches' | 'Settings';
+export type MoreScreenName = 'Calendar' | 'SentLinks' | 'Team' | 'Ask' | 'Notifications' | 'Inbox' | 'ClientRequests' | 'Owners' | 'Requests' | 'ActivityLog' | 'Dashboard' | 'Deals' | 'Projects' | 'Library' | 'Compare' | 'Plan' | 'Usage' | 'Platform' | 'Commissions' | 'Sources' | 'Portal' | 'Prices' | 'WinLoss' | 'Report' | 'UnitsList' | 'LeadsList' | 'MapList' | 'AddUnit' | 'WhatsAppImport' | 'LeadRules' | 'Pipeline' | 'Leases' | 'SavedSearches' | 'Settings';
 export interface MoreItem { id: string; icon: string; label: StringKey; screen: MoreScreenName }
 
 /**
@@ -31,7 +34,6 @@ export function moreItems(r: Rights, tabs: TabKey[], platformOwner: boolean): Mo
     [!tabs.includes('AddUnit') && r.addUnits, { id: 'add-unit', icon: '＋', label: 'addUnit', screen: 'AddUnit' }],
     [(manager || r.dataEntry) && r.addUnits, { id: 'whatsapp-import', icon: '💬', label: 'whatsappImport', screen: 'WhatsAppImport' }],
     [!tabs.includes('Units'), { id: 'units', icon: '▤', label: 'units', screen: 'UnitsList' }],
-    [work && r.leads && !tabs.includes('Today'), { id: 'today', icon: '🏠', label: 'today', screen: 'TodayList' }],
     [work && r.leads && !tabs.includes('Leads'), { id: 'leads', icon: '👤', label: 'leadsTab', screen: 'LeadsList' }],
     [work && !tabs.includes('Map'), { id: 'map', icon: '📍', label: 'mapTab', screen: 'MapList' }],
     [work, { id: 'calendar', icon: '🗓', label: 'calendar', screen: 'Calendar' }],

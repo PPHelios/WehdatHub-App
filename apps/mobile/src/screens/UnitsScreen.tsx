@@ -50,7 +50,8 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const route = useRoute<RouteProp<{ p: { old?: boolean } | undefined }, 'p'>>();
+  const route = useRoute<RouteProp<{ p: { old?: boolean; missingPhotos?: boolean } | undefined }, 'p'>>();
+  const [missingPhotos, setMissingPhotos] = useState(Boolean(route.params?.missingPhotos));
   const [oldOnly, setOldOnly] = useState(Boolean(route.params?.old));
   const [status, setStatus] = useState<(typeof STATUSES)[number]>('active');
   const [text, setText] = useState('');
@@ -78,9 +79,9 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const suggest = useQuery({ queryKey: ['compounds', typed], queryFn: () => api.unitCompounds(typed), enabled: showFilters && !compound });
 
   const list = useInfiniteQuery({
-    queryKey: ['units', status, q, compound, staleDays, oldOnly, deal, type, beds, finishing, furnishing, mine, pmin, pmax],
+    queryKey: ['units', status, q, compound, staleDays, oldOnly, missingPhotos, deal, type, beds, finishing, furnishing, mine, pmin, pmax],
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api.units({ status, q, compound: compound || undefined, staleDays: staleDays || undefined, deal: deal || undefined, type: type || undefined, bedrooms: beds ? Number(beds) : undefined, finishing: finishing || undefined, furnishing: furnishing || undefined, mine: mine || undefined, pmin: pmin || undefined, pmax: pmax || undefined, old: oldOnly && status === 'active' ? true : undefined, limit: PAGE, offset: pageParam }),
+    queryFn: ({ pageParam }) => api.units({ status, q, compound: compound || undefined, staleDays: staleDays || undefined, deal: deal || undefined, type: type || undefined, bedrooms: beds ? Number(beds) : undefined, finishing: finishing || undefined, furnishing: furnishing || undefined, mine: mine || undefined, missingPhotos: missingPhotos || undefined, pmin: pmin || undefined, pmax: pmax || undefined, old: oldOnly && status === 'active' ? true : undefined, limit: PAGE, offset: pageParam }),
     getNextPageParam: (last: UnitsPage) => (last.offset + last.items.length < last.total ? last.offset + last.items.length : undefined),
   });
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
@@ -113,6 +114,9 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
           <Text style={{ color: oldOnly ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, 'tcOldUnits')}</Text>
         </Pressable>
       </View>
+      {missingPhotos ? <Pressable accessibilityRole="button" accessibilityState={{ selected: true }} onPress={() => setMissingPhotos(false)} style={styles.chip}>
+        <Text style={{ color: colors.text }}>{lang === 'ar' ? 'من غير صور · إلغاء' : 'Missing photos · Clear'}</Text>
+      </Pressable> : null}
       {rights.dataEntry && status === 'active' && old.data?.cards?.oldUnits ? <View style={styles.oldStrip}><TodayCards cards={old.data.cards} only="oldUnits" onShowAll={() => { setStatus('active'); setOldOnly(true); }} /></View> : null}
       {showFilters ? (
         <ScrollView style={styles.panelBox} contentContainerStyle={styles.panel} keyboardShouldPersistTaps="handled">

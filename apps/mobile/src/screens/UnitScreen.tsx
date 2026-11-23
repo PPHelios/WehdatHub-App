@@ -15,6 +15,9 @@ import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
+import { LeadPicker } from '../components/LeadPicker';
+import { useRights } from '../rights';
+import type { ApiLead } from '@wehdathub/shared';
 import { ClientLinkModal } from '../components/ClientLinkModal';
 import { ShareMessageModal } from '../components/ShareMessageModal';
 import { PhotoGallery } from '../components/PhotoGallery';
@@ -126,6 +129,24 @@ export function UnitScreen({ code }: { code?: string } = {}) {
   const [asking, setAsking] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [clientErr, setClientErr] = useState<string | null>(null);
+  const rights = useRights();
+  const [pickLead, setPickLead] = useState(false);
+  const [recipient, setRecipient] = useState<ApiLead | null>(null);
+  const [leadSharing, setLeadSharing] = useState(false);
+  const sendToLead = async () => {
+    if (!recipient || leadSharing) return;
+    setLeadSharing(true);
+    try {
+      const { url } = await api.leadSend(recipient.ref, unitCode, recipient.lang ?? clientLang());
+      await Linking.openURL(url);
+      setPickLead(false);
+      setRecipient(null);
+    } catch {
+      toast(t(lang, 'linkFailed'), true);
+    } finally {
+      setLeadSharing(false);
+    }
+  };
   const [pickClient, setPickClient] = useState(false);
   const qc = useQueryClient();
   // 403 "hidden" says whether the person can ask for access, or has already asked.
@@ -227,6 +248,17 @@ export function UnitScreen({ code }: { code?: string } = {}) {
         {u.canEdit || u.canDelete ? <UnitLifecycle code={u.code} status={u.status} canChangeStatus={u.canEdit} canDelete={u.canDelete ?? u.canEdit} /> : null}
         {(u.canManagePrivate ?? u.canEdit) ? <UnitPrivateForms code={u.code} prefill={routeParams?.lease} /> : null}
         <Button testID="share-link" label={t(lang, 'shareLink')} onPress={() => { setClientErr(null); setPickClient(true); }} />
+        {rights.leads && u.status === 'active' ? <Button testID="unit-send-to-lead" variant="secondary" label={lang === 'ar' ? 'ابعت الوحدة لعميل' : 'Send unit to a lead'} onPress={() => { setRecipient(null); setPickLead(true); }} /> : null}
+        <Modal visible={pickLead} onRequestClose={() => { if (!leadSharing) setPickLead(false); }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: spacing.xl, gap: spacing.md, backgroundColor: colors.bg, flexGrow: 1 }}>
+            {recipient ? <>
+              <Text style={{ color: colors.text }}>{[unitCode, recipient.name, recipient.ref, recipient.phones[0] ? '•••' + recipient.phones[0].slice(-4) : null].filter(Boolean).join(' · ')}</Text>
+              <Button testID="unit-confirm-lead-send" label={lang === 'ar' ? 'افتح واتساب للعميل ده' : 'Open WhatsApp for this lead'} loading={leadSharing} onPress={sendToLead} />
+              <Button variant="secondary" label={lang === 'ar' ? 'اختار عميل تاني' : 'Choose another lead'} disabled={leadSharing} onPress={() => setRecipient(null)} />
+            </> : <LeadPicker onPick={setRecipient} />}
+            <Button variant="secondary" label={t(lang, 'cancel')} disabled={leadSharing} onPress={() => setPickLead(false)} />
+          </ScrollView>
+        </Modal>
         <ClientLinkModal visible={pickClient} busy={sharing} error={clientErr} onSubmit={shareLink} onCancel={() => setPickClient(false)} />
         <Button
           testID="share-unit"

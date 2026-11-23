@@ -110,9 +110,12 @@ function Meter({ label, used, limit, testID }: { label: string; used: number; li
   );
 }
 
-const meters = (a: Allowance, ar: boolean, warn: string) => (
+const meters = (a: Allowance, ar: boolean, warn: string, muted: string, showAgencyCredits: boolean) => (
   <>
-    {a.credits ? <Meter testID="meter-credits" label={ar ? 'رصيد الذكاء الاصطناعي (الشهر ده)' : 'AI credits (this month)'} used={a.credits.used} limit={a.credits.limit} /> : null}
+    {showAgencyCredits && a.credits ? <>
+      <Meter testID="meter-credits" label={ar ? 'رصيد الشركة للذكاء الاصطناعي' : 'Agency AI credits'} used={a.credits.used} limit={a.credits.limit} />
+      <Text style={{ color: muted }}>{num(Math.max(0, a.credits.limit - a.credits.used))} {ar ? 'متبقي' : 'remaining'}</Text>
+    </> : null}
     {a.seats ? <Meter testID="meter-seats" label={ar ? 'المستخدمين' : 'Users'} used={a.seats.used} limit={a.seats.limit} /> : null}
     {a.units ? <Meter testID="meter-units" label={ar ? 'الوحدات (متاحة ومؤرشفة ومباعة)' : 'Units (available, archived, sold)'} used={a.units.used} limit={a.units.limit} /> : null}
     {unitWarnPct(a.units) !== null ? <Text testID="units-warning" style={{ color: warn, fontWeight: '700' }}>{planT(ar ? 'ar' : 'en', 'unitsWarn', unitWarnPct(a.units)!)}</Text> : null}
@@ -142,6 +145,7 @@ export function AiUsageCard({ ai, ar }: { ai: AiUsage; ar: boolean }) {
             {ar ? `حدك في الذكاء الاصطناعي: ${num(own.allowance)} الشهر ده، استهلكت ${num(own.used)}` : `Your AI limit: ${num(own.allowance)} this month, used ${num(own.used)}`}
           </Text>
           <Meter testID="meter-ai-own" label={ar ? 'حدي' : 'My limit'} used={own.used} limit={own.allowance} />
+          {own.remaining != null ? <Text style={{ color: colors.muted }}>{num(own.remaining)} {ar ? 'متبقي' : 'remaining'}</Text> : null}
         </>
       ) : ai.mode === 'per_user' ? (
         <Text testID="ai-own-none" style={{ color: colors.muted }}>{ar ? `مفيش حد شخصي ليك. استهلكت ${num(own.used)} الشهر ده.` : `You have no personal limit. Used ${num(own.used)} this month.`}</Text>
@@ -291,7 +295,7 @@ export function UsageScreen() {
               ))}
             </Card> : null}
             <Card testID="usage-credits">
-              {meters(d.allowance, ar, colors.warn)}
+              {meters(d.allowance, ar, colors.warn, colors.muted, rights.manager || rights.agencyOwner)}
             </Card>
             {d.ai ? <AiUsageCard ai={d.ai} ar={ar} /> : null}
             {plan?.payments.length ? <Card><Text style={[styles.h, { color: colors.text }]}>{ar ? 'المدفوعات' : 'Payments'}</Text>{plan.payments.map((p) => <StatRow key={str(p.id ?? p.reference)} label={str(p.reference)} value={str(p.status)} />)}</Card> : null}

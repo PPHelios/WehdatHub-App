@@ -64,7 +64,11 @@ export function NotificationsScreen() {
         if (v.locked || v.urgent) continue;
         kinds[k] = { on: v.on, channel: v.channel, frequency: v.frequency };
       }
-      const saved = await api.saveNotificationSettings({ kinds, reminderMinutes: draft.reminderMinutes, quiet: draft.quiet });
+      const agencyUnitChecks = draft.agencyUnitChecks?.enabled;
+      const saved = await api.saveNotificationSettings({
+        kinds, reminderMinutes: draft.reminderMinutes, quiet: draft.quiet,
+        ...(!draft.agencyUnitChecks?.locked && agencyUnitChecks !== q.data?.agencyUnitChecks?.enabled ? { agencyUnitChecks } : {}),
+      });
       queries.setQueryData(['notification-settings'], saved);
       setDraft(noWhatsapp(saved));
       setMsg({ text: t(lang, 'notifSaved'), bad: false });
@@ -79,6 +83,16 @@ export function NotificationsScreen() {
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.body, { backgroundColor: colors.bg }]}>
       <Text style={[styles.h, { color: colors.text }]}>🔔 {t(lang, 'notifWhere')}</Text>
       <Text style={{ color: colors.muted }}>{t(lang, 'notifHint')}</Text>
+      {draft.agencyUnitChecks ? <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        <View style={styles.row}>
+          <Text style={[styles.flex, styles.kind, { color: colors.text }]}>{lang === 'ar' ? 'تنبيهات الوحدات اللي محتاجة تحديث' : 'Overdue unit reminders'}</Text>
+          <BusySwitch testID="agency-unit-checks" accessibilityLabel={lang === 'ar' ? 'تنبيهات الوحدات اللي محتاجة تحديث' : 'Overdue unit reminders'}
+            value={draft.agencyUnitChecks.enabled} disabled={busy || draft.agencyUnitChecks.locked}
+            onValueChange={(enabled) => setDraft({ ...draft, agencyUnitChecks: { enabled, locked: false } })} />
+        </View>
+        <Text style={{ color: colors.muted }}>{lang === 'ar' ? 'لكل الشركة. الوحدات هتفضل ظاهرة في قائمة المراجعة.' : 'Applies to the whole agency. Units stay in the review list.'}</Text>
+        {draft.agencyUnitChecks.locked ? <Text style={{ color: colors.muted }}>{t(lang, 'notifLockedBy')}</Text> : null}
+      </View> : null}
       {Object.entries(draft.kinds).map(([k, v]) => {
         const fixed = Boolean(v.locked);
         const off = !v.on;

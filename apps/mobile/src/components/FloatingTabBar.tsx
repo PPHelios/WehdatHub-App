@@ -40,8 +40,8 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
         {state.routes.map((route, i) => {
           const { options } = descriptors[route.key];
           const focused = state.index === i;
-          const isAdd = isFab(route.key); // the centre shortcut: a filled circle, never the sliding highlight
-          const color = isAdd ? colors.onPrimary : focused ? colors.primaryInk : colors.muted;
+          const featured = isFab(route.key);
+          const color = featured ? colors.onPrimary : focused ? colors.primaryInk : colors.muted;
           const label = typeof options.title === 'string' ? options.title : route.name;
           const press = () => {
             const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -50,8 +50,8 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
           };
           return (
             <Pressable key={route.key} testID={`tab-${route.name}`} accessibilityRole="tab" accessibilityState={{ selected: focused }} accessibilityLabel={label} onPress={press} onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })} style={({ pressed }) => [styles.item, { opacity: pressed ? 0.6 : 1 }]}>
-              {isAdd ? <View testID="tab-add-fab" style={[styles.fab, { backgroundColor: colors.primary }]}>{options.tabBarIcon?.({ focused: false, color, size: 26 })}</View> : options.tabBarIcon?.({ focused, color, size: 22 })}
-              <Text numberOfLines={1} allowFontScaling={false} style={[styles.label, { color: isAdd ? colors.muted : color, fontFamily: FONT_BOLD, fontWeight: focused && !isAdd ? '800' : '600' }]}>{label}</Text>
+              {featured ? <View testID={route.name === 'Search' ? 'tab-search-fab' : 'tab-add-fab'} style={[styles.fab, { backgroundColor: colors.primary }]}>{options.tabBarIcon?.({ focused: false, color, size: 26 })}</View> : options.tabBarIcon?.({ focused, color, size: 22 })}
+              <Text numberOfLines={1} allowFontScaling={false} style={[styles.label, { color: featured ? (focused ? colors.primaryInk : colors.muted) : color, fontFamily: FONT_BOLD, fontWeight: focused ? '800' : '600' }]}>{label}</Text>
             </Pressable>
           );
         })}

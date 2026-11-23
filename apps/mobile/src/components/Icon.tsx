@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 type Part = { d: string } | { c: [number, number, number] } | { r: [number, number, number, number, number] };
@@ -79,5 +80,15 @@ export function Icon({ name, color, size = 24, fill }: { name: IconName; color: 
         'd' in p ? <Path key={i} d={p.d} /> : 'c' in p ? <Circle key={i} cx={p.c[0]} cy={p.c[1]} r={p.c[2]} /> : <Rect key={i} x={p.r[0]} y={p.r[1]} width={p.r[2]} height={p.r[3]} rx={p.r[4]} />,
       )}
     </Svg>
+  );
+}
+
+/** Disclosure arrows use vertical motion; navigation arrows follow the current app language. */
+export function Chevron({ color, rtl, expanded }: { color: string; rtl: boolean; expanded?: boolean }) {
+  const rotation = expanded === undefined ? (rtl ? '180deg' : '0deg') : expanded ? '-90deg' : '90deg';
+  return (
+    <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ transform: [{ rotate: rotation }] }}>
+      <Icon name="back" size={18} color={color} />
+    </View>
   );
 }

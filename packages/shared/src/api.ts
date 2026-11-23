@@ -12,6 +12,8 @@ export interface NavItem { key: string; label: NavLabel; icon: string; web: stri
 export interface NavGroup { key: string; label: NavLabel; items: NavItem[] }
 export interface Nav { role: string; tabs: NavTab[]; groups: NavGroup[] }
 /** AI use per person (read only in the app): the agency's mode, this person's own allowance and use, and (managers) everyone. */
+export interface SearchCreditMeter { used: number; limit: number | null; remaining: number | null }
+export interface SearchCredits { personal: SearchCreditMeter; agency?: SearchCreditMeter }
 export interface AiUsage {
   mode: 'pool' | 'per_user';
   defaultCredits: number | null;
@@ -81,9 +83,23 @@ export interface TodayCards {
   approvals: { access: number; names: number } | null;
 }
 export interface LeaseRow { code: string; tenant_name: string | null; tenant_ref: string | null; broker_name: string | null; rent: number | null; end: string; daysLeft: number; done: boolean; doneKind: string | null }
+export interface SearchHomeData {
+  hour: number;
+  units?: { total: number; items: TodayOldUnit[] } | null;
+  completed?: number;
+  ops?: TodayCards['ops'];
+  overdue?: number;
+  calls?: number;
+  newLeads?: number;
+  tomorrowViewings?: number;
+  nextViewing?: TodayTask | null;
+}
 export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number; leases?: { code: string; tenant: string | null; end: string; daysLeft: number }[]; cards?: TodayCards }
 export type LeadStage = 'new' | 'contacted' | 'interested' | 'viewing' | 'negotiation' | 'won' | 'lost';
 export const LEAD_STAGES: LeadStage[] = ['new', 'contacted', 'interested', 'viewing', 'negotiation', 'won', 'lost'];
+export type LeadMatchField = 'price_min' | 'price_max' | 'area_min' | 'area_max' | 'bedrooms_min';
+export type LeadMatchAdjustments = { requestId: string } & Partial<Record<LeadMatchField, string>>;
+export type LeadQueue = 'unassigned' | 'uncontacted' | 'delayed-first-contact' | 'late-response' | 'overdue' | 'viewings-tomorrow';
 export type LeadTab = 'all' | LeadStage | 'due_today' | 'overdue' | 'no_next_step';
 export interface ApiLead {
   ref: string;
@@ -211,12 +227,12 @@ export interface OwnerEvent { kind: string; data: Record<string, unknown> | null
 export interface OwnerRename { id: number; code: string; old_value: string | null; new_value: string; requested_by_name: string | null; created_at: string }
 export interface AccessRequest { id: number; status: 'pending' | 'approved' | 'declined'; created_at: string; code: string; broker_name: string; decided_by_name: string | null }
 export interface ActivityRow { id: string | number; at: string; who: string; text: string; device: string }
-export interface DashboardData { mode?: ApiWorkspace['mode']; reports?: { sources: boolean; winLoss: boolean }; days: number; weekly: number[]; sources: { source: string; n: number }[]; pipeline: Record<string, number>; unassigned: number; uncontacted: number; overdue: number; units: { active: number; stale: number }; deals: { n: number; commission: number; value: number }; leads: number; board: { id: string; name: string; leads: number; contacted: number; forward: number; deals: number; commission: number }[] }
+export interface DashboardData { team?: { id: string; name: string }[]; teamLeads?: { id: string; name: string }[]; mode?: ApiWorkspace['mode']; reports?: { sources: boolean; winLoss: boolean }; days: number; weekly: number[]; sources: { source: string; n: number }[]; pipeline: Record<string, number>; unassigned: number; uncontacted: number; overdue: number; units: { active: number; stale: number }; deals: { n: number; commission: number; value: number }; leads: number; board: { id: string; name: string; leads: number; contacted: number; forward: number; deals: number; commission: number; responseMin?: number | null }[] }
 export interface PriceRow { place: string; listing_type: 'sale' | 'rent'; units: number; median: number; low: number; high: number }
 export interface WinLossGroup { key: string; name?: string; won: number; lost: number; rate: number | null; top: string | null }
 export interface WinLossData { days: number; won: number; lost: number; rate: number | null; reasons: { key: string; n: number; pct: number }[]; brokers: WinLossGroup[]; sources: WinLossGroup[] }
 export type Row = Record<string, unknown>;
-export interface DealsData { items: Row[]; more: boolean; totals: Row[]; statuses: string[] }
+export interface DealsData { summary?: { from: string; to: string; weeks: number[] }; items: Row[]; more: boolean; totals: Row[]; statuses: string[] }
 export interface CommissionsData { kind: string; period: string; items: Row[]; total: number; totals: Row | null; statuses: string[] }
 export interface SourcesData { month: string; rows: { source: string; leads: number; deals: number; commission: number; spend: number | null; perLead: number | null; perDeal: number | null }[]; totals: Row }
 export interface AskAnswer { answer: string; found: boolean; lang: Lang; dataDates: string | null; /** "local": the AI was off, out of credit or failed, and the answer is the line written from the data. */ source?: 'ai' | 'local'; log_id?: string | null }
@@ -354,6 +370,7 @@ export interface MapUnits {
 }
 
 export interface UnitsQuery {
+  missingPhotos?: boolean;
   status?: 'active' | 'sold' | 'archived';
   q?: string;
   compound?: string;
@@ -557,7 +574,7 @@ export function createApiClient(opts: ApiClientOptions) {
     map: (f: MapFilters = {}) => request<MapData>('GET', '/map', undefined, { ...f }),
     mapUnits: (placeId: string, f: MapFilters = {}) => request<MapUnits>('GET', `/map/places/${encodeURIComponent(placeId)}/units`, undefined, { ...f }),
     search: (q: string, o: { ai?: boolean; drop?: boolean; status?: UnitStatus; offset?: number } = {}) => request<SearchResult>('GET', '/search', undefined, { q, ai: o.ai, drop: o.drop, status: o.status, offset: o.offset }),
-    leadCounts: (q?: string, broker?: string) => request<{ counts: Record<string, number> }>('GET', '/leads/counts', undefined, { q, broker }),
+    leadCounts: (q?: string, broker?: string, assigned?: 'last', queue?: LeadQueue) => request<{ counts: Record<string, number> }>('GET', '/leads/counts', undefined, { q, broker, assigned, queue }),
     /** Sends a recorded note; the server writes it down and answers the text to search. */
     voiceToText: (file: VoiceFile) => {
       const form = new FormData();
@@ -567,11 +584,11 @@ export function createApiClient(opts: ApiClientOptions) {
     config: (signal?: AbortSignal) => request<AppConfig>('GET', '/config', undefined, undefined, signal),
     registerDevice: (token: string, platform: 'android' | 'ios') => request<{ ok: true }>('POST', '/devices', { token, platform }),
     removeDevice: (token: string) => request<{ ok: true }>('POST', '/devices/remove', { token }),
-    leads: (o: { tab?: LeadTab; q?: string; offset?: number; broker?: string } = {}) => request<LeadsPage>('GET', '/leads', undefined, { tab: o.tab && o.tab !== 'all' ? o.tab : undefined, q: o.q, offset: o.offset || undefined, broker: o.broker }),
+    leads: (o: { tab?: LeadTab; q?: string; offset?: number; broker?: string; assigned?: 'last'; queue?: LeadQueue } = {}) => request<LeadsPage>('GET', '/leads', undefined, { tab: o.tab && o.tab !== 'all' ? o.tab : undefined, q: o.q, offset: o.offset || undefined, broker: o.broker, assigned: o.assigned, queue: o.queue }),
     lead: (ref: string) => request<LeadDetail>('GET', `/leads/${encodeURIComponent(ref)}`),
     /** Sets a viewing. Nothing is sent: the answer carries the client's message and link for the broker to send or not. */
     setViewing: (ref: string, o: { version: number; at: string; unitCode?: string; place?: string; lang: Lang }) => request<ViewingSet>('POST', `/leads/${encodeURIComponent(ref)}/viewing`, o),
-    viewings: (o: { from?: string; to?: string } = {}) => request<{ items: ApiViewing[] }>('GET', '/viewings', undefined, { from: o.from, to: o.to }),
+    viewings: (o: { from?: string; to?: string; tomorrow?: boolean } = {}) => request<{ items: ApiViewing[] }>('GET', '/viewings', undefined, { from: o.from, to: o.to, tomorrow: o.tomorrow ? '1' : undefined }),
     sentLinks: (offset = 0) => request<{ offset: number; hasMore: boolean; items: SentLink[] }>('GET', '/links', undefined, { offset: offset || undefined }),
     extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string; portal?: undefined } | { portal: true; enquiry: PortalEnquiryRead }>('POST', '/leads/extract', { message }),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
@@ -590,7 +607,12 @@ export function createApiClient(opts: ApiClientOptions) {
     notificationsDeleteAll: () => request<{ ok: boolean; unread: number }>('POST', '/notifications/delete-all', {}),
     leadLang: (ref: string, version: number, lang: 'ar' | 'en' | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/lang`, { lang, version }),
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
+    unitMatchingLeads: (code: string) => request<{ partial: boolean; items: { ref: string; name: string | null; reason?: string }[] }>('GET', `/units/${encodeURIComponent(code)}/matching-leads`),
+    leadMatches: (ref: string, adjustments?: LeadMatchAdjustments) => request<{ requests: { id: string; summary: string; criteria: Record<LeadMatchField, number | null>; total: number; items: { code: string; title: string | null }[] }[] }>('GET', `/leads/${encodeURIComponent(ref)}/matches`, undefined, adjustments),
+    leadUpdate: (ref: string, change: { version: number; stage?: LeadStage; note?: string; lostReason?: string }) =>
+      request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/update`, change),
     leadStage: (ref: string, version: number, stage: LeadStage, lostReason?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/stage`, { version, stage, lostReason }),
+    completeLeadFollowUp: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/follow-up/complete`, { version }),
     leadFollowUp: (ref: string, version: number, at: string, kind: 'call' | 'viewing', note?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/follow-up`, { version, at, kind, note }),
     leadDraft: (ref: string, lang: 'ar' | 'en') => request<{ text: string; wa: string | null }>('POST', `/leads/${encodeURIComponent(ref)}/draft`, { lang }),
     leadSend: (ref: string, code: string, lang: 'ar' | 'en') => request<{ url: string }>('POST', `/leads/${encodeURIComponent(ref)}/send`, { code, lang }),
@@ -620,6 +642,8 @@ export function createApiClient(opts: ApiClientOptions) {
       for (const p of photos) form.append('photos', p as unknown as Blob);
       return request<{ code: string; photos: number; photosFailed: number }>('POST', '/units', form);
     },
+    searchHome: () => request<SearchHomeData>('GET', '/today/home'),
+    overdueUnits: (offset: number) => request<{ total: number; items: TodayOldUnit[] }>('GET', '/today/overdue-units', undefined, { offset }),
     today: () => request<TodayData>('GET', '/today'),
     unit: (code: string) => request<ApiUnitDetail>('GET', `/units/${encodeURIComponent(code)}`),
     unitContact: (code: string) => request<{ name: string | null; phone: string | null }>('GET', `/units/${encodeURIComponent(code)}/contact`),
@@ -651,18 +675,20 @@ export function createApiClient(opts: ApiClientOptions) {
     decideRename: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/owners/requests/${id}`, { decision: approve ? 'approve' : 'reject' }),
     accessRequests: (status: string, page = 0) => request<{ items: AccessRequest[]; total: number }>('GET', '/access-requests', undefined, { status, page }),
     answerAccess: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/access-requests/${id}`, { decision: approve ? 'approve' : 'decline' }),
-    dashboard: (days = 30) => request<DashboardData>('GET', '/dashboard', undefined, { days }),
+    dashboard: (days = 30, scope?: { broker?: string; team?: string }) => request<DashboardData>('GET', '/dashboard', undefined, { days, ...scope, strictScope: scope ? '1' : undefined }),
     setTeamStyle: (style: ApiWorkspace['teamStyle']) => request<{ ok: true; style: ApiWorkspace['teamStyle'] }>('POST', '/team/style', { style }),
     pricePerM2: () => request<{ minUnits: number; items: PriceRow[] }>('GET', '/insights/prices'),
     winLoss: (days = 30) => request<WinLossData>('GET', '/insights/winloss', undefined, { days }),
     report: (text: string, extra?: { type?: 'bug' | 'suggestion' | 'request'; device?: Record<string, unknown> }) => request<{ ok: true; id: number }>('POST', '/report', { text, ...(extra ?? {}) }),
     setLang: (lang: Lang) => request<{ ok: true; lang: Lang }>('POST', '/me/lang', { lang }),
     deals: (status?: string, page = 0) => request<DealsData>('GET', '/deals', undefined, { status, page }),
+    dealReport: (report: 'recent' | 'last', week?: number, page = 0) => request<DealsData>('GET', '/deals', undefined, { report, week, page }),
+    dealDetail: (ref: string) => request<{ deal: Row }>('GET', `/deals/${encodeURIComponent(ref)}`),
     dealStatus: (ref: string, status: string, version?: number) => request<{ ok: true }>('POST', `/deals/${ref}/status`, { status, version }),
     commissions: (kind: 'resale' | 'developers', status?: string, page = 0) => request<CommissionsData>('GET', '/commissions', undefined, { kind, status, page }),
     commission: (id: string) => request<{ commission: Row }>('GET', `/commissions/${id}`),
     commissionMove: (id: string, body: Row) => request<{ ok: true }>('POST', `/commissions/${id}`, body),
-    sources: (month?: string) => request<SourcesData>('GET', '/sources', undefined, { month }),
+    sources: (month?: string, signed?: boolean) => request<SourcesData>('GET', '/sources', undefined, { month, signed: signed ? '1' : undefined }),
     saveSpend: (month: string, spend: Record<string, string>) => request<{ ok: true }>('POST', '/sources/spend', { month, spend }),
     /** Reads a pasted portal message (managers and the owner): nothing is saved. 422 when it is not a portal enquiry. */
     readPortalEnquiry: (message: string) => request<{ ok: true } & PortalEnquiryRead>('POST', '/portal-enquiries/read', { message }),
@@ -671,7 +697,7 @@ export function createApiClient(opts: ApiClientOptions) {
     portalEnquiries: () => request<{ items: Row[] }>('GET', '/portal-enquiries'),
     assignEnquiry: (id: string, b: { phone: string; brokerId?: string }) => request<{ ok: true; outcome: string }>('POST', `/portal-enquiries/${id}/assign`, b),
     linkEnquiry: (id: string, unitCode: string) => request<{ ok: true }>('POST', `/portal-enquiries/${id}/link`, { unitCode }),
-    openedLinks: (status?: string, page?: number, q?: string, days?: number) => request<{ rows: Row[]; total: number; pages: number; page: number }>('GET', '/opened-links', undefined, { status, page, q, days }),
+    openedLinks: (status?: string, page?: number, q?: string, days?: number, leadRef?: string) => request<{ rows: Row[]; total: number; pages: number; page: number }>('GET', '/opened-links', undefined, { status, page, q, days, leadRef }),
     catalogue: (c: CatalogueQuery = {}) => request<CatalogueList>('GET', '/catalogue', undefined, { q: c.q, page: c.page, pl: c.place, f: c.features?.length ? c.features : undefined, dev: c.developer, bed: c.bed, max: c.max, archived: c.archived }),
     /** The catalogue box's developers and projects (the answer also carries places and features, as the website's). */
     catalogueSearch: (q: string) => request<{ items: CatalogueBoxItem[] }>('GET', '/catalogue/search-box', undefined, { q }),
@@ -704,6 +730,7 @@ export function createApiClient(opts: ApiClientOptions) {
     planPay: (body: PlanPayBody) => request<{ ok: true; payment: Row }>('POST', '/plan/pay', body),
     updateBillingPermissions: (body: { managerCanRenewPlan?: boolean; managerCanBuyCredits?: boolean }) => request<{ ok: true; permissions: { managerCanRenewPlan: boolean; managerCanBuyCredits: boolean } }>('POST', '/agency/billing-permissions', body),
     creditRequest: (credits: number, note: string) => request<{ ok: true }>('POST', '/plan/credit-request', { credits, note }),
+    searchCredits: () => request<SearchCredits>('GET', '/search/credits'),
     usage: (signal?: AbortSignal) => request<{ allowance: PlanAllowance; ai?: AiUsage }>('GET', '/usage', undefined, undefined, signal),
     platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean; pendingPayments?: Row[]; paymentChannels?: { sms: boolean; telegram: boolean } }>('GET', '/platform'),
     platformPaymentChannels: (body: { sms: boolean; telegram: boolean }) => request<{ ok: true }>('POST', '/platform/payment-channels', body),
@@ -785,5 +812,5 @@ export type ApiClient = ReturnType<typeof createApiClient>;
 export type NotifyChannel = 'both' | 'telegram' | 'web' | 'app' | 'whatsapp';
 export type NotifyFrequency = 'immediate' | 'hourly' | 'daily';
 export interface NotifyKind { label: { ar: string; en: string }; on: boolean; channel: NotifyChannel; frequency: NotifyFrequency; locked: 'owner' | 'manager' | null; urgent: boolean }
-export interface NotificationSettings { kinds: Record<string, NotifyKind>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number }; telegramLinked: boolean }
-export interface NotificationSettingsInput { kinds: Record<string, { on?: boolean; channel?: NotifyChannel; frequency?: NotifyFrequency }>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number } }
+export interface NotificationSettings { agencyUnitChecks?: { enabled: boolean; locked: boolean }; kinds: Record<string, NotifyKind>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number }; telegramLinked: boolean }
+export interface NotificationSettingsInput { agencyUnitChecks?: boolean; kinds: Record<string, { on?: boolean; channel?: NotifyChannel; frequency?: NotifyFrequency }>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number } }

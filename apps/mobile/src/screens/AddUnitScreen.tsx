@@ -347,7 +347,7 @@ export function AddUnitScreen() {
         }
         tick();
         saved.current = true;
-        await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] })]);
+        await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] }), qc.invalidateQueries({ queryKey: ['today'] })]);
         if (importId) // React Navigation 7: navigate() would push a second, empty import screen (the other posts would be lost); popTo returns to the one that is open.
         return nav.popTo('WhatsAppImport', { saved: { id: importId, code: editCode } });
         return nav.goBack();

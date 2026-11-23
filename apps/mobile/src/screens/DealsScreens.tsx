@@ -5,7 +5,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { api } from '../api';
@@ -118,7 +118,8 @@ export function SourcesScreen() {
   const lang = currentLang();
   const ar = lang === 'ar';
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['sources'], queryFn: () => api.sources() });
+  const signedOnly = Boolean(useRoute<RouteProp<RootStackParams, 'Sources'>>().params?.signedOnly);
+  const q = useQuery({ queryKey: ['sources', signedOnly], queryFn: () => signedOnly ? api.sources(undefined, true) : api.sources() });
   const [spend, setSpend] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const save = async (month: string) => {
@@ -130,6 +131,9 @@ export function SourcesScreen() {
       {(d) => (
         <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
           <Text style={[styles.h, { color: colors.text }]}>{d.month}</Text>
+          {signedOnly ? <Text style={{ color: colors.muted }}>{ar
+            ? 'صفقات اتسجلت في الشهر ده وحالتها اتوقّعت أو اتدفعت. عدد العملاء بيتحسب حسب يوم إضافتهم.'
+            : 'Deals dated in this month and currently signed or paid. Leads are counted by their creation date.'}</Text> : null}
           {d.rows.map((r) => (
             <Card key={r.source} testID={`source-${r.source}`}>
               <Text style={[styles.h, { color: colors.text }]}>{r.source}</Text>
@@ -201,14 +205,15 @@ export function LinksScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
   const ar = lang === 'ar';
-  const [days, setDays] = useState('7');
-  const [status, setStatus] = useState('all');
-  const [text, setText] = useState('');
-  const [search, setSearch] = useState('');
+  const picked = useRoute<RouteProp<RootStackParams, 'Links'>>().params;
+  const [days, setDays] = useState(picked?.days ? String(picked.days) : picked?.leadRef ? 'all' : '7');
+  const [status, setStatus] = useState(picked?.opened ? 'opened' : 'all');
+  const [text, setText] = useState(picked?.search ?? '');
+  const [search, setSearch] = useState(picked?.search ?? '');
   const list = useInfiniteQuery({
-    queryKey: ['openedLinks', days, status, search],
+    queryKey: ['openedLinks', days, status, search, picked?.leadRef],
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api.openedLinks(status === 'all' ? undefined : status, pageParam, search || undefined, days === 'all' ? undefined : Number(days)),
+    queryFn: ({ pageParam }) => api.openedLinks(status === 'all' ? undefined : status, pageParam, search || undefined, days === 'all' ? undefined : Number(days), picked?.leadRef),
     getNextPageParam: (last) => (last.page + 1 < last.pages ? last.page + 1 : undefined),
   });
   const rows = useMemo(() => list.data?.pages.flatMap((p) => p.rows) ?? [], [list.data]);
@@ -226,6 +231,7 @@ export function LinksScreen() {
       onEndReachedThreshold={0.6}
       ListHeaderComponent={(
         <View style={styles.head}>
+          {picked?.leadRef ? <Text style={{ color: colors.text }}>{[picked.leadLabel, picked.leadRef].filter(Boolean).join(' · ')}</Text> : null}
           <Chips testID="links-days" value={days} options={[{ value: '7', label: ar ? 'آخر 7 أيام' : 'Last 7 days' }, { value: '30', label: ar ? 'آخر 30 يوم' : 'Last 30 days' }, { value: 'all', label: ar ? 'الكل' : 'All' }]} onChange={setDays} />
           <Chips testID="links-status" value={status} options={[{ value: 'all', label: ar ? 'كل الحالات' : 'Any' }, { value: 'opened', label: ar ? 'اتفتحت' : 'Opened' }, { value: 'never', label: ar ? 'ما اتفتحتش' : 'Not opened' }, { value: 'repeat', label: ar ? 'اتفتحت أكتر من مرة' : 'Opened twice or more' }]} onChange={setStatus} />
           <Field testID="links-search" label={ar ? 'ابحث بكود الوحدة أو اسم العميل أو رقمه' : 'Search by unit code, client name or number'} value={text} onChangeText={setText} returnKeyType="search" onSubmitEditing={() => setSearch(text.trim())} />

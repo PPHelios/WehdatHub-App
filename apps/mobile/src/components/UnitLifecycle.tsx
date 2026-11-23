@@ -22,7 +22,7 @@ export function UnitLifecycle({ code, status, canDelete = true, canChangeStatus 
   const qc = useQueryClient();
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const after = async () => { await Promise.all([qc.invalidateQueries({ queryKey: ['unit', code] }), qc.invalidateQueries({ queryKey: ['units'] })]); };
+  const after = async () => { await Promise.all([qc.invalidateQueries({ queryKey: ['unit', code] }), qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['today'] })]); };
   const change = async (s: Status) => {
     if (s === status) return;
     setBusy(true);

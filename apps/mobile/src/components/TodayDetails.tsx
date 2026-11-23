@@ -1,6 +1,6 @@
 import React from 'react';
-import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { AppText as Text } from '../components/AppText';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { AppText as Text } from './AppText';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,9 +9,9 @@ import { api } from '../api';
 import { currentLang } from '../auth';
 import { bannerText, preEndStatus, unitWarnPct, usePlanState } from '../planState';
 import { planT, preEndText, unitCapText } from '../planText';
-import { Button } from '../components/Button';
-import { TodayCards } from '../components/TodayCards';
-import { EmptyView, ErrorView, Loading } from '../components/StateViews';
+import { Button } from './Button';
+import { TodayCards } from './TodayCards';
+import { EmptyView, ErrorView, Loading } from './StateViews';
 import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
@@ -19,7 +19,7 @@ import { radius, spacing, useTheme } from '../theme';
 
 const KIND_LABEL: Record<TodayTask['kind'], StringKey> = { late: 'late', viewing: 'viewing', hot: 'hot', call: 'callTask', matches: 'matches' };
 
-export function TodayScreen() {
+export function TodayDetails() {
   const { colors } = useTheme();
   const lang = currentLang();
   const stack = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -37,7 +37,7 @@ export function TodayScreen() {
   const unitPct = unitWarnPct(planState.allowance?.units);
 
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={async () => { await q.refetch(); }} />}>
+    <View testID="today-details" style={styles.content}>
       {planState.phase !== 'none' ? (
         <View testID="today-plan-expired" style={[styles.cardAlert, { backgroundColor: colors.card, borderColor: colors.border, borderStartColor: planState.phase === 'grace' ? colors.warn : colors.danger }]}>
           <View style={styles.taskInfo}>
@@ -121,17 +121,17 @@ export function TodayScreen() {
       ) : null}
       {q.data.cards ? <TodayCards cards={q.data.cards} /> : null}
       {moreTasks > 0 ? <Text style={[styles.more, { color: colors.muted }]}>{t(lang, 'moreTasks')} {moreTasks}</Text> : null}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   leases: { gap: 8, marginTop: 8 },
-  content: { padding: spacing.lg, gap: spacing.md, flexGrow: 1 },
+  content: { gap: spacing.md },
   stats: { flexDirection: 'row', gap: spacing.sm },
   stat: { flex: 1, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, alignItems: 'center' },
   statN: { fontSize: 24, fontWeight: '800' },
-  empty: { flex: 1, minHeight: 300 },
+  empty: { minHeight: 120 },
   task: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   cardAlert: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderStartWidth: 4 },
   taskInfo: { flex: 1, gap: 2 },

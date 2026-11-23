@@ -41,7 +41,7 @@ interface Props {
   /** Spoken name of the button, and the text shown in the box when there is no text input. */
   label: string;
   /** Called with the note when it is sent. */
-  onFile: (file: VoiceFile) => void | Promise<unknown>;
+  onFile?: (file: VoiceFile) => void | Promise<unknown>;
   /** Called with a ready message when the mic is refused, or recording failed. */
   onError: (message: string) => void;
   disabled?: boolean;
@@ -52,6 +52,8 @@ interface Props {
   onChangeText?: (v: string) => void;
   placeholder?: string;
   onSubmit?: () => void;
+  accessory?: React.ReactNode;
+  actionDecoration?: React.ReactNode;
 }
 
 const clamp = (n: number, lo: number, hi: number) => {
@@ -100,7 +102,7 @@ function BinDrop({ progress, color, reduced }: { progress: { value: number }; co
  * The button is a mic when the box is empty (hold to record, lift to send, slide left to cancel, slide up to lock)
  * and a send arrow when there is text. Without text input it is a mic-only bar.
  */
-export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = false, value, onChangeText, placeholder, onSubmit }: Props) {
+export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = false, value, onChangeText, placeholder, onSubmit, accessory, actionDecoration }: Props) {
   const { colors } = useTheme();
   const lang = currentLang();
   const reduced = useReducedMotion();
@@ -214,7 +216,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     try {
       const file = waiting ?? (await stopRecording());
       haptics.sent();
-      await onFile(file);
+      await onFile?.(file);
     } catch (e) {
       if (e instanceof EmptyRecordingError) {
         haptics.failed();
@@ -238,7 +240,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
 
   /** Finger down: the microphone starts only after HOLD_MS, so a quick tap never touches it. */
   const press = () => {
-    if (disabled || busy || live.current !== 'idle' || phaseRef.current !== 'idle') return;
+    if (!onFile || disabled || busy || live.current !== 'idle' || phaseRef.current !== 'idle') return;
     startAt.current = Date.now();
     released.current = false;
     away.current = false;
@@ -370,7 +372,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   const jsLock = useCallback(() => box.current.lockCrossed(), []);
 
   const showMic = !hasText || phase !== 'idle';
-  const gestureOn = showMic && !disabled && !busy && phase !== 'sending' && phase !== 'discarding' && phase !== 'stopped';
+  const gestureOn = Boolean(onFile) && showMic && !disabled && !busy && phase !== 'sending' && phase !== 'discarding' && phase !== 'stopped';
   const pan = useMemo(
     () =>
       Gesture.Pan()
@@ -523,6 +525,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
 
   return (
     <View style={[styles.row, rowDir]}>
+      {phase === 'idle' ? accessory : null}
       {phase === 'idle' || phase === 'sending' ? field : rail}
       <View style={styles.slot}>
         {tip ? (
@@ -534,7 +537,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
           <Icon name="lock" color={colors.muted} size={16} />
           <View style={styles.up}><Icon name="back" color={colors.muted} size={14} /></View>
         </Animated.View>
-        <GestureDetector gesture={pan}>
+        {onFile || showSend ? <GestureDetector gesture={pan}>
           <Animated.View
             testID={`${id}-mic`}
             accessible
@@ -546,13 +549,14 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
             onAccessibilityAction={(e) => onAction(e.nativeEvent.actionName)}
             style={[styles.btn, { backgroundColor: colors.primary, opacity: off ? 0.6 : 1 }, btnStyle]}
           >
+            {actionDecoration}
             {phase === 'sending' || busy ? (
               <ActivityIndicator testID="button-spinner" color={colors.onPrimary} />
             ) : (
               <Icon name={sendIcon ? 'send' : 'mic'} color={iconColor} size={22} />
             )}
           </Animated.View>
-        </GestureDetector>
+        </GestureDetector> : null}
         {showSend ? (
           <Pressable
             testID={`${id}-go`}

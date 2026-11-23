@@ -31,6 +31,7 @@ export function TeamScreen() {
   const qc = useQueryClient();
   const rights = useRights();
   const me = useQuery(meOptions());
+  const order = useRoute<RouteProp<RootStackParams, 'Team'>>().params?.order;
   const workspace = me.data?.workspace;
   const [savingStyle, setSavingStyle] = React.useState(false);
   const [view, setView] = React.useState<'active' | 'former'>('active');
@@ -63,13 +64,20 @@ export function TeamScreen() {
   if (view === 'former' && canManage) return <FormerList header={switcher} />;
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
   if (q.isError) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
+  const items = order === 'overdue' ? [...q.data.items].sort((a, b) => b.overdue - a.overdue)
+    : order === 'available' ? q.data.items.filter((item) => !item.away).sort((a, b) => a.open - b.open)
+    : q.data.items;
   return (
     <FlashList
-      data={q.data.items}
+      data={items}
       keyExtractor={(m) => m.id}
       refreshing={q.isRefetching}
       onRefresh={() => { q.refetch(); }}
-      ListHeaderComponent={canManage ? <View>{switcher}<View style={{ padding: spacing.lg, gap: spacing.md }}>{styleSelector}<Button testID="team-add" label={`➕ ${t(lang, 'invite')}`} onPress={() => nav.navigate('Invite')} /></View></View> : null}
+      ListHeaderComponent={<View>
+        {order ? <Text style={{ color: colors.muted, padding: spacing.lg }}>{order === 'overdue'
+          ? (lang === 'ar' ? 'الأكتر في المتابعات المتأخرة الأول' : 'Most overdue follow-ups first')
+          : (lang === 'ar' ? 'الوسطاء اللي مش في إجازة، الأقل في العملاء المفتوحين الأول' : 'Brokers who are not away, fewest open leads first')}</Text> : null}
+        {canManage ? <View>{switcher}<View style={{ padding: spacing.lg, gap: spacing.md }}>{styleSelector}<Button testID="team-add" label={`➕ ${t(lang, 'invite')}`} onPress={() => nav.navigate('Invite')} /></View></View> : null}</View>}
       ListEmptyComponent={<EmptyView title={t(lang, 'teamEmpty')} />}
       renderItem={({ item }) => (
         <Pressable testID={`member-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('TeamMember', { id: item.id, name: item.name, role: item.role, me: item.me, teamLeadId: item.teamLeadId ?? null })} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
