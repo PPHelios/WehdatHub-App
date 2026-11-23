@@ -25,17 +25,18 @@ test('no unread, no badge', async () => {
   expect(screen.queryByTestId('bell-badge')).toBeNull();
 });
 
-test('a unit card: status on the photo, price, facts as pills, edit with an icon (no emoji)', async () => {
-  const onEdit = jest.fn();
+test('a unit card shows the photo labels and opens details without a separate edit action', async () => {
+  const onOpen = jest.fn();
   const unit = { id: '1', code: 'HP302', dealType: 'sale', compound: 'Hyde Park', price: 13500000, bedrooms: 3, bathrooms: 3, area: 200, photo: 'https://x/p.jpg', mine: true } as never;
-  await render(<UnitCard unit={unit} lang="en" onPress={jest.fn()} onEdit={onEdit} />);
+  await render(<UnitCard unit={unit} lang="en" onPress={onOpen} />);
   expect(screen.getByTestId('deal-HP302')).toBeTruthy();
   expect(screen.getByText('Hyde Park')).toBeTruthy();
   expect(screen.getByText('HP302')).toBeTruthy();
   expect(screen.getByText(/200/)).toBeTruthy(); // area as a pill
-  expect(screen.getByTestId('icon-edit')).toBeTruthy();
-  await fireEvent.press(screen.getByTestId('edit-HP302'));
-  expect(onEdit).toHaveBeenCalled();
+  expect(screen.getByTestId('owner-HP302')).toHaveTextContent('Your unit');
+  expect(screen.queryByTestId('edit-HP302')).toBeNull();
+  await fireEvent.press(screen.getByText('Hyde Park'));
+  expect(onOpen).toHaveBeenCalledWith('HP302');
 });
 
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
@@ -46,8 +47,10 @@ test('the floating bar has one sliding highlight, fills the active icon, and nav
   const routes = [{ key: 'a', name: 'Today' }, { key: 'b', name: 'Search' }, { key: 'c', name: 'More' }];
   const descriptors = Object.fromEntries(routes.map((r) => [r.key, { options: { title: r.name, tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => <Icon name="search" color={color} fill={focused ? '#123456' : undefined} /> } }]));
   const navigation = { emit: jest.fn(() => ({ defaultPrevented: false })), navigate: jest.fn() };
-  await render(<FloatingTabBar state={{ index: 0, routes }} descriptors={descriptors} navigation={navigation} />);
-  await fireEvent(screen.getByTestId('tab-bar'), 'layout', { nativeEvent: { layout: { width: 310, height: 68 } } });
+  const bar = (index: number) => <FloatingTabBar state={{ index, routes }} descriptors={descriptors} navigation={navigation} />;
+  const { rerender } = await render(bar(0));
+  await fireEvent(screen.getByTestId('tab-Today'), 'layout', { nativeEvent: { layout: { x: 5, y: 5, width: 100, height: 58 } } });
+  await fireEvent(screen.getByTestId('tab-Search'), 'layout', { nativeEvent: { layout: { x: 105, y: 5, width: 100, height: 58 } } });
   await waitFor(() => expect(screen.getByTestId('tab-highlight')).toBeTruthy());
   expect(screen.getAllByTestId('tab-highlight')).toHaveLength(1);
   await fireEvent.press(screen.getByTestId('tab-Search'));
@@ -56,4 +59,8 @@ test('the floating bar has one sliding highlight, fills the active icon, and nav
   // The tab already open is not navigated to again.
   await fireEvent.press(screen.getByTestId('tab-Today'));
   expect(navigation.navigate).toHaveBeenCalledTimes(1);
+  const highlight = screen.getByTestId('tab-highlight');
+  await rerender(bar(1));
+  expect(screen.getByTestId('tab-highlight')).toBe(highlight);
+  expect(screen.getByRole('tab', { name: 'Search', selected: true })).toBeTruthy();
 });

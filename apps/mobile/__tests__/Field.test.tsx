@@ -1,8 +1,11 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
+import { COLORS } from '@wehdathub/shared';
 import { render, screen } from '@testing-library/react-native';
 import { Chips } from '../src/components/Chips';
 import { Field } from '../src/components/Field';
+import { usePrefs } from '../src/prefs';
+import { GREEN_PALETTE } from '../src/theme';
 
 const styleOf = () => StyleSheet.flatten(screen.getByLabelText('Owner').props.style);
 
@@ -18,11 +21,33 @@ test('Arabic text stays right-to-left and empty text has no forced direction', a
   expect(styleOf().writingDirection).toBeUndefined();
 });
 
-test('a required chip group shows the warn border while empty and loses it once a chip is chosen', async () => {
+test.each(['light', 'dark'] as const)('required fields and chip groups use green in %s mode and red for errors', async (appearance) => {
+  const previous = usePrefs.getState().appearance;
+  usePrefs.setState({ appearance });
   const opts = [{ value: 'sale', label: 'Sale' }, { value: 'rent', label: 'Rent' }];
-  const r = await render(<Chips testID="c" required options={opts} value="" onChange={() => undefined} />);
-  const border = () => StyleSheet.flatten(screen.getByTestId('c').props.style).borderColor;
-  const warn = border();
-  await r.rerender(<Chips testID="c" required options={opts} value="sale" onChange={() => undefined} />);
-  expect(border()).not.toBe(warn);
+  const form = (value: string, invalid = false) => (
+    <>
+      <Field label="Owner" value={value} required invalid={invalid} />
+      <Chips testID="c" required invalid={invalid} options={opts} value={value} onChange={() => undefined} />
+    </>
+  );
+  try {
+    const r = await render(form(''));
+    const chipStyle = () => StyleSheet.flatten(screen.getByTestId('c').props.style);
+    const ink = appearance === 'dark' ? GREEN_PALETTE.primaryInkDark : GREEN_PALETTE.primaryInk;
+    expect(styleOf().borderColor).toBe(ink);
+    expect(chipStyle().borderColor).toBe(ink);
+
+    await r.rerender(form('sale'));
+    const line = appearance === 'dark' ? GREEN_PALETTE.primaryLineDark : GREEN_PALETTE.primaryLine;
+    expect(styleOf().borderColor).toBe(line);
+    expect(chipStyle().borderColor).toBe(line);
+
+    await r.rerender(form('', true));
+    expect(styleOf().borderColor).toBe(COLORS[appearance].bad);
+    expect(chipStyle().borderColor).toBe(COLORS[appearance].bad);
+    await r.unmount();
+  } finally {
+    usePrefs.setState({ appearance: previous });
+  }
 });

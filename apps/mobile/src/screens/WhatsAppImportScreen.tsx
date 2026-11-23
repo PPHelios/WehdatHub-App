@@ -25,7 +25,8 @@ import { compressAhead, compressPhotos } from '../compress';
 import { reportError } from '../errorReport';
 import { useRights } from '../rights';
 import { newSaveKey, withSaveCheck } from '../saveKey';
-import { radius, spacing, useTheme } from '../theme';
+import { useSelectionHighlight } from '../components/SelectionHighlight';
+import { greenGradient, radius, spacing, useTheme } from '../theme';
 import { usage } from '../usage';
 import { sendable, withImpliedFeatures } from '../unitRules';
 import {
@@ -84,6 +85,7 @@ export function WhatsAppImportScreen() {
   const [info, setInfo] = useState<ChatInfo | null>(null);
   const [lastImportAt, setLastImportAt] = useState<string | null>(null);
   const [kind, setKind] = useState<SinceKind>('30');
+  const rangeSelection = useSelectionHighlight(kind, greenGradient);
   const [sinceText, setSinceText] = useState('');
   const [untilText, setUntilText] = useState('');
   const [rangeError, setRangeError] = useState<'since' | 'until' | 'order' | null>(null);
@@ -333,6 +335,7 @@ export function WhatsAppImportScreen() {
   // Only the posts still to decide are listed (virtualized: the cards and their photo strips are made for what is on screen).
   // View filter only: it never touches discarded, ticks or what is saved.
   const [filter, setFilter] = useState<'all' | 'new' | 'updated' | 'fix'>('all');
+  const filterSelection = useSelectionHighlight(filter, greenGradient);
   const [hideUnchanged, setHideUnchanged] = useState(true);
   const viewable = useMemo(() => list.map((p, index) => ({ p, index, k: kindOf(p, badges[index] ?? { kind: 'none' }) })).filter(({ p }) => p.state !== 'saved' && !p.discarded), [list, badges]);
   const viewCounts = useMemo(() => {
@@ -658,9 +661,10 @@ export function WhatsAppImportScreen() {
         {error ? <Text accessibilityRole="alert" testID="wa-error" style={{ color: colors.danger }}>{error}</Text> : null}
         <Text testID="wa-chat-span" style={{ color: colors.text }}>{fill(W.chatSpan, { a: utcDay(info.firstAt) || '-', b: utcDay(info.lastAt) || '-', n: info.total })}</Text>
         <View style={styles.chips}>
+          {rangeSelection.highlight}
           {options.map((o) => (
-            <Pressable key={o.k} testID={`wa-range-${o.k}`} accessibilityRole="button" accessibilityState={{ selected: kind === o.k }} onPress={() => { setKind(o.k); setRangeError(null); }}
-              style={[styles.chip, { borderColor: kind === o.k ? colors.primary : colors.border, backgroundColor: kind === o.k ? colors.primary : 'transparent' }]}>
+            <Pressable key={o.k} onLayout={rangeSelection.measure(o.k)} testID={`wa-range-${o.k}`} accessibilityRole="button" accessibilityState={{ selected: kind === o.k }} onPress={() => { setKind(o.k); setRangeError(null); }}
+              style={[styles.chip, { borderColor: kind === o.k ? colors.primary : colors.border }, kind === o.k && !rangeSelection.highlight && greenGradient]}>
               <Text style={{ color: kind === o.k ? colors.onPrimary : colors.text, fontWeight: kind === o.k ? '700' : '400' }}>{o.label}</Text>
             </Pressable>
           ))}
@@ -761,9 +765,10 @@ export function WhatsAppImportScreen() {
         {counts.remaining > 0 ? <Button testID="wa-select-valid" label={W.selectValid} variant="secondary" size="sm" disabled={adding} onPress={selectValid} /> : null}
         {kindsShown > 1 ? (
           <View style={styles.chips}>
+            {filterSelection.highlight}
             {([['all', W.filterAll, viewCounts.new + viewCounts.updated + viewCounts.fix + (hideUnchanged ? 0 : viewCounts.unchanged)], ['new', W.filterNew, viewCounts.new], ['updated', W.filterUpdated, viewCounts.updated], ['fix', W.filterFix, viewCounts.fix]] as const).map(([k, label, n]) => (
-              <Pressable key={k} testID={`wa-filter-${k}`} accessibilityRole="button" accessibilityState={{ selected: filter === k }} onPress={() => setFilter(k)}
-                style={[styles.chip, { borderColor: filter === k ? colors.primary : colors.border, backgroundColor: filter === k ? colors.primary : 'transparent' }]}>
+              <Pressable key={k} onLayout={filterSelection.measure(k)} testID={`wa-filter-${k}`} accessibilityRole="button" accessibilityState={{ selected: filter === k }} onPress={() => setFilter(k)}
+                style={[styles.chip, { borderColor: filter === k ? colors.primary : colors.border }, filter === k && !filterSelection.highlight && greenGradient]}>
                 <Text style={{ color: filter === k ? colors.onPrimary : colors.text, fontWeight: filter === k ? '700' : '400' }}>{label} ({n})</Text>
               </Pressable>
             ))}

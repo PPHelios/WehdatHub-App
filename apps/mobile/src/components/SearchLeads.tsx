@@ -17,6 +17,7 @@ import { t } from '../i18n';
 import { teamOptions } from '../queries';
 import { useRights } from '../rights';
 import { LeadScreen } from '../screens/LeadScreen';
+import { useSelectionHighlight } from './SelectionHighlight';
 import { radius, spacing, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 import { BottomSafe } from './BottomSafe';
@@ -24,6 +25,7 @@ import { Button } from './Button';
 import { Chips } from './Chips';
 import { ErrorView, Loading } from './StateViews';
 import { StatRow } from './StatRow';
+import { LeadCard } from './LeadCard';
 
 const MATCH_FIELDS: [LeadMatchField, string, string][] = [
   ['price_min', 'Minimum budget', 'أقل ميزانية'],
@@ -65,6 +67,7 @@ export function SearchLeads({ assignedInitially, initialQueue, lookup, matching 
   const [queue, setQueue] = useState<LeadQueue | undefined>(initialQueue);
   const activeQueue = queue;
   const [stage, setStage] = useState<LeadStage>();
+  const selection = useSelectionHighlight(stage, { backgroundColor: colors.primarySoft });
   const tab = stage ?? initialTab;
   const [broker, setBroker] = useState('');
   const [ref, setRef] = useState<string>();
@@ -102,7 +105,7 @@ export function SearchLeads({ assignedInitially, initialQueue, lookup, matching 
         <Field label={t(lang, 'searchLeads')} testID="search-lead-lookup" value={nameOrPhone} onChangeText={setNameOrPhone} />
         <Button variant="secondary" label={t(lang, 'newLead')} onPress={() => nav.navigate('NewLead')} />
       </View>
-      {!queryText ? <Chips<LeadQueue | 'all'> value={activeQueue ?? 'all'} options={[
+      {!queryText ? <Chips<LeadQueue | 'all'> animateFilter value={activeQueue ?? 'all'} options={[
         { value: 'all', label: t(lang, 'tabAll') },
         { value: 'unassigned', label: ar ? 'من غير وسيط' : 'Unassigned' },
         { value: 'uncontacted', label: ar ? 'محدش كلمهم' : 'Uncontacted' },
@@ -112,18 +115,19 @@ export function SearchLeads({ assignedInitially, initialQueue, lookup, matching 
         { value: 'viewings-tomorrow', label: t(lang, 'fuViewing') + ' · ' + (ar ? 'بكرة' : 'Tomorrow') },
       ]} onChange={(value) => { setQueue(value === 'all' ? undefined : value); setStage(undefined); }} /> : null}
       {activeQueue === 'viewings-tomorrow' ? <Button variant="secondary" label={ar ? 'معاينات التقويم بكرة' : 'Tomorrow’s calendar viewings'} onPress={() => nav.navigate('Calendar', { tomorrow: true })} /> : null}
-      <Chips value={assigned ?? 'all'} options={[
+      <Chips animateFilter value={assigned ?? 'all'} options={[
         { value: 'all', label: t(lang, 'tabAll') },
         { value: 'last', label: ar ? 'آخر تسليم الشهر اللي فات' : 'Last assigned last month' },
       ]} onChange={(value) => setAssigned(value === 'last' ? value : undefined)} />
-      {team.data?.items.length ? <Chips value={effectiveBroker || (resolvePending ? '' : 'all')} onChange={(value) => { setBroker(value === 'all' ? '' : value); setConfirmedAssignee(requestedAssignee); }} options={[
+      {team.data?.items.length ? <Chips animateFilter value={effectiveBroker || (resolvePending ? '' : 'all')} onChange={(value) => { setBroker(value === 'all' ? '' : value); setConfirmedAssignee(requestedAssignee); }} options={[
         { value: 'all', label: ar ? 'كل الوسطاء' : 'All brokers' },
         ...team.data.items.map((member) => ({ value: member.id, label: member.name })),
       ]} /> : null}
       {requestedAssignee && team.isFetched && !singleAssignee ? <Text style={{ color: colors.muted }}>{ar ? 'اختار الوسيط المطلوب من القائمة.' : 'Choose the broker from the list.'}</Text> : null}
       {counts.isError ? <ErrorView message={errorText(counts.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => counts.refetch()} /> : null}
       {stages && !queryText && !initialTab ? <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {STAGES.map((item) => <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: item === stage }} onPress={() => setStage(item === stage ? undefined : item)} style={[styles.stage, item === stage && { backgroundColor: colors.primarySoft }]}>
+        {selection.highlight}
+        {STAGES.map((item) => <Pressable key={item} onLayout={selection.measure(item)} accessibilityRole="button" accessibilityState={{ selected: item === stage }} onPress={() => setStage(item === stage ? undefined : item)} style={[styles.stage, item === stage && !selection.highlight && { backgroundColor: colors.primarySoft }]}>
           <StatRow animate label={t(lang, `st_${item}`)} value={number.format(stages[item] ?? 0)} pct={(stages[item] ?? 0) / max * 100} />
         </Pressable>)}
       </View> : null}
@@ -131,10 +135,7 @@ export function SearchLeads({ assignedInitially, initialQueue, lookup, matching 
       {list.isPending && !resolvePending ? <Loading label={t(lang, 'loading')} /> : null}
       {list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => list.refetch()} /> : null}
       {list.isSuccess && !rows.length ? <Text style={{ color: colors.muted }}>{t(lang, 'noLeads')}</Text> : null}
-      {rows.map((lead) => <Pressable key={lead.ref} accessibilityRole="button" onPress={() => matching ? selectMatch(lead.ref) : setRef(lead.ref)} style={[styles.row, { borderColor: colors.border }]}>
-        <Text style={[styles.name, { color: colors.text }]}>{lead.name || lead.ref}</Text>
-        <Text style={{ color: colors.muted }}>{lead.ref} · {t(lang, `st_${lead.stage}`)}{lead.assignee ? ' · ' + lead.assignee : ''}{lead.phones[0] ? ' · •••' + lead.phones[0].slice(-4) : ''}</Text>
-      </Pressable>)}
+      {rows.map((lead) => <LeadCard key={lead.ref} lead={lead} lang={lang} onPress={() => matching ? selectMatch(lead.ref) : setRef(lead.ref)} />)}
       {list.hasNextPage ? <Button variant="secondary" label={ar ? 'عملاء أكتر' : 'More leads'} loading={list.isFetchingNextPage} onPress={() => { void list.fetchNextPage(); }} /> : null}
       <Modal visible={Boolean(ref || matchRef)} onRequestClose={matchRef ? closeMatches : () => setRef(undefined)} animationType={reduceMotion ? 'none' : 'slide'}>
         <BottomSafe>
@@ -193,10 +194,8 @@ export function SearchLeads({ assignedInitially, initialQueue, lookup, matching 
 const styles = StyleSheet.create({
   tools: { gap: spacing.sm },
   detailsActions: { flexDirection: 'row', flexWrap: 'wrap', padding: spacing.sm, gap: spacing.sm },
-  content: { padding: spacing.lg, paddingBottom: 150, gap: spacing.md },
+  content: { padding: spacing.lg, paddingBottom: 90, gap: spacing.md },
   title: { fontSize: 20, fontWeight: '700' },
   card: { padding: spacing.sm, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.card },
   stage: { minHeight: 44, paddingHorizontal: spacing.sm, borderRadius: radius.sm, justifyContent: 'center' },
-  row: { minHeight: 48, paddingVertical: spacing.sm, gap: spacing.xs, borderBottomWidth: StyleSheet.hairlineWidth },
-  name: { fontWeight: '700' },
 });

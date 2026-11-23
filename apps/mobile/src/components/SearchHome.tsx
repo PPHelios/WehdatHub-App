@@ -1,25 +1,22 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, FadeOut, LinearTransition, ReduceMotion } from 'react-native-reanimated';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ApiClientError, type SearchHomeData } from '@wehdathub/shared';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
-import { Chevron, Icon, type IconName } from './Icon';
-import { TodayDetails } from './TodayDetails';
+import type { IconName } from './Icon';
+import { HomeRow } from './HomeRow';
+import { OldUnitActions } from './TodayCards';
+import { TodayCall, TodayDetails } from './TodayDetails';
 
-const enter = FadeInDown.duration(240).reduceMotion(ReduceMotion.System);
-const exit = FadeOut.duration(120).reduceMotion(ReduceMotion.System);
-const reflow = LinearTransition.duration(220).reduceMotion(ReduceMotion.System);
-
-export function SearchHome({ openQueue, openDeals, invitation, children }: {
+export function SearchHome({ openQueue, invitation, children }: {
   openQueue: (queue: 'unassigned' | 'uncontacted' | 'delayed-first-contact' | 'viewings-tomorrow') => void;
-  openDeals: () => void;
   invitation?: React.ReactNode;
   children?: React.ReactNode;
 }) {
@@ -34,7 +31,26 @@ export function SearchHome({ openQueue, openDeals, invitation, children }: {
   const [all, setAll] = useState(false);
   const queries = useQueryClient();
   const home = useQuery({
-    queryKey: ['today', 'home', broker?.id, lang], queryFn: () => api.searchHome(),
+    queryKey: ['today', 'home', broker?.id, lang],
+    queryFn: async (): Promise<Partial<SearchHomeData> & { legacy?: true }> => {
+      try {
+        return await api.searchHome();
+      } catch (error) {
+        if (!(error instanceof ApiClientError) || error.status !== 404) throw error;
+        // Older servers expose the scoped Today data without the dedicated brief.
+        const today = await queries.fetchQuery({ queryKey: ['today'], queryFn: () => api.today(), staleTime: 30_000 });
+        const now = Date.now();
+        return {
+          legacy: true,
+          units: today.cards?.oldUnits,
+          ops: today.cards?.ops,
+          overdue: today.moreTasks === 0 ? today.tasks.filter((task) => task.kind === 'late').length : undefined,
+          calls: today.counts.followUpsToday - today.counts.viewings,
+          newLeads: today.counts.newLeads,
+          nextViewing: today.tasks.find((task) => task.kind === 'viewing' && task.at && Date.parse(task.at) >= now),
+        };
+      }
+    },
     enabled: focused && Boolean(broker?.id), refetchInterval: 300_000, staleTime: 0,
   });
   const overdue = useInfiniteQuery({
@@ -57,54 +73,22 @@ export function SearchHome({ openQueue, openDeals, invitation, children }: {
   const manager = ['owner', 'manager', 'admin'].includes(broker?.role ?? '');
   const total = all ? overdue.data?.pages[0]?.total ?? data?.units?.total ?? 0 : data?.units?.total ?? 0;
 
-  const metric = (title: string, value: string, icon: IconName, detail?: string, countId?: string, action = false) => (
-    <View style={[styles.metric, { backgroundColor: colors.primarySoft }]}>
-      <View style={styles.grow}>
-        <Animated.View key={value} entering={enter}>
-          <Text accessibilityLiveRegion="polite" testID={countId} style={[styles.count, { color: colors.primaryInk }]}>{value}</Text>
-        </Animated.View>
-        <Text style={[styles.heading, { color: colors.text }]}>{title}</Text>
-        {detail ? <Text style={{ color: colors.muted }}>{detail}</Text> : null}
-        {action ? <View style={styles.action}><Text style={[styles.actionText, { color: colors.primaryInk }]}>{ar ? 'عرض التفاصيل' : 'View details'}</Text><Chevron rtl={ar} color={colors.primaryInk} /></View> : null}
-      </View>
-      <View accessible={false} importantForAccessibility="no-hide-descendants" style={[styles.medallion, { borderColor: colors.primary }]}>
-        <View style={[styles.medallionInner, { borderColor: colors.border, backgroundColor: colors.card }]}>
-          <Icon name={icon} size={32} color={colors.primaryInk} />
-        </View>
-      </View>
-    </View>
-  );
-  const row = (key: string, title: string, detail: string | undefined, onPress: () => void, side?: string, icon?: IconName, featured = false, ageRatio?: number) => (
-    <Animated.View key={key} entering={enter} exiting={exit} layout={reflow}>
-      <Pressable testID={key} accessibilityRole="button" onPress={onPress}
-        accessibilityLabel={featured ? [title, side, detail].filter(Boolean).join(', ') : undefined}
-        style={({ pressed }) => [!featured && styles.row, { borderTopColor: colors.border, opacity: pressed ? 0.65 : 1 }]}>
-        {featured && side && icon ? metric(title, side, icon, detail, undefined, true) : <>
-          {icon ? <View style={[styles.rowIcon, { backgroundColor: colors.primarySoft }]}><Icon name={icon} size={17} color={colors.primaryInk} /></View> : null}
-          <View style={styles.grow}>
-            <Text style={[styles.rowTitle, { color: colors.text }]}>{title}</Text>
-            {detail ? <Text style={{ color: colors.muted }} numberOfLines={2}>{detail}</Text> : null}
-            {ageRatio !== undefined ? <View importantForAccessibility="no-hide-descendants" style={[styles.ageTrack, { backgroundColor: colors.border }]}>
-              <Animated.View layout={reflow} style={[styles.ageFill, { width: String(Math.round(ageRatio * 100)) + '%' as `${number}%`, backgroundColor: colors.primary }]} />
-            </View> : null}
-          </View>
-          {side ? <Text style={[styles.rowCount, { color: colors.primaryInk }]}>{side}</Text> : null}
-          <Chevron rtl={ar} color={colors.muted} />
-        </>}
-      </Pressable>
-    </Animated.View>
+  const row = (key: string, title: string, onPress: () => void) => (
+    <HomeRow key={key} testID={key} title={title} onPress={onPress} />
   );
 
   const rows: React.ReactNode[] = [];
   const priority = (key: string, title: string, detail: string | undefined, onPress: () => void, value: number, icon: IconName) => {
-    rows.push(row(key, title, detail, onPress, n(value), icon, rows.length === 0));
+    rows.push(<HomeRow key={key} testID={key} title={title} detail={detail} onPress={onPress} value={n(value)} icon={icon} featured={rows.length === 0} />);
   };
+  const next = data?.nextViewing;
   if (entry) {
     const units = all ? overdue.data?.pages.flatMap((page) => page.items) ?? [] : data?.units?.items ?? [];
-    const oldest = Math.max(1, units[0]?.days ?? 0);
     for (const unit of units) {
-      rows.push(row(`home-unit-${unit.code}`, unit.code, unit.line, () => nav.navigate('Unit', { code: unit.code }),
-        unit.hidden ? (ar ? 'مخفية' : 'Hidden') : ar ? `من ${n(unit.days)} يوم` : `${n(unit.days)} days`, 'units', false, unit.days / oldest));
+      rows.push(<HomeRow key={unit.code} testID={`home-unit-${unit.code}`} title={unit.code} detail={unit.line} icon="units"
+        value={unit.hidden ? t(lang, 'tcHidden') : `${n(unit.days)} ${t(lang, 'tcDays')}`} onPress={() => nav.navigate('Unit', { code: unit.code })}>
+        <OldUnitActions code={unit.code} />
+      </HomeRow>);
     }
   } else if (data) {
     const ops = data.ops;
@@ -112,10 +96,13 @@ export function SearchHome({ openQueue, openDeals, invitation, children }: {
     if (ops?.uncontactedOld) priority('home-uncontacted', ar ? 'تأخر أول تواصل' : 'Delayed first contact', ar ? 'أكتر من ٢٤ ساعة' : 'Over 24 hours', () => openQueue('delayed-first-contact'), ops.uncontactedOld, 'pulse');
     const late = ops?.overdue ?? data.overdue;
     if (late) priority('home-late', ar ? 'متابعات متأخرة' : 'Overdue follow-ups', undefined, () => nav.navigate('LeadsList', { tab: 'overdue' }), late, 'bell');
-    if (data.nextViewing) {
-      const next = data.nextViewing;
-      const at = new Date(next.at!).toLocaleTimeString(locale, { timeZone: 'Africa/Cairo', hour: 'numeric', minute: '2-digit' });
-      rows.push(row('home-viewing', ar ? 'المعاينة الجاية' : 'Next viewing', next.name ?? next.ref, () => nav.navigate('Lead', { ref: next.ref }), at, 'calendar'));
+    if (next?.at) {
+      const at = new Date(next.at).toLocaleTimeString(locale, { timeZone: 'Africa/Cairo', hour: 'numeric', minute: '2-digit' });
+      rows.push(<HomeRow key="home-viewing" testID="home-viewing" title={ar ? 'المعاينة الجاية' : 'Next viewing'}
+        detail={[next.name ?? next.ref, next.unitCode].filter(Boolean).join(' · ')}
+        onPress={() => nav.navigate('Lead', { ref: next.ref })} value={at} icon="calendar" featured={rows.length === 0}>
+        {next.phone ? <TodayCall phone={next.phone} label={t(lang, 'call')} /> : null}
+      </HomeRow>);
     }
     if (data.tomorrowViewings) priority('home-tomorrow', ar ? 'معاينات بكرة' : 'Viewings tomorrow', undefined, () => openQueue('viewings-tomorrow'), data.tomorrowViewings, 'calendar');
     if (data.calls) priority('home-calls', ar ? 'مكالمات النهارده' : 'Calls due today', undefined, () => nav.navigate('LeadsList', { tab: 'due_today' }), data.calls, 'chat');
@@ -138,54 +125,35 @@ export function SearchHome({ openQueue, openDeals, invitation, children }: {
       <Text style={[styles.date, { color: colors.muted }]}>{date}</Text>
       <Text accessibilityRole="header" style={[styles.greeting, { color: colors.text }]}>{greeting}{name ? (ar ? ` يا ${name}` : `, ${name}`) : ''}</Text>
       {!all ? invitation : null}
-      {summary && !all ? (manager
-        ? <Pressable accessibilityRole="button" onPress={openDeals} accessibilityHint={ar ? 'افتح تقرير صفقات الشهر' : 'Open this month’s deals report'} style={styles.summaryAction}><Text style={{ color: colors.primaryInk }}>{summary}</Text><Chevron rtl={ar} color={colors.primaryInk} /></Pressable>
-        : <Text style={{ color: colors.muted }}>{summary}</Text>) : null}
+      {summary && !all ? <Text style={{ color: colors.muted }}>{summary}</Text> : null}
       <View style={styles.brief}>
         {!loading && !failed && entry ? <>
-          {metric(heading, n(total), 'units', undefined, 'home-overdue-total')}
-          {!all && total > 0 ? <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.muted }]}>{ar ? 'الأقدم أولاً' : 'Longest overdue'}</Text> : null}
+          <HomeRow testID="home-overdue-total" title={heading} value={n(total)} icon="units" featured />
+          {!all && total > 0 ? <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>{ar ? 'الأقدم أولاً' : 'Longest overdue'}</Text> : null}
         </> : null}
-        {!entry || loading || failed ? <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.muted }]}>{heading}</Text> : null}
-        {loading ? <View style={[styles.state, styles.loading, { backgroundColor: colors.primarySoft }]}><ActivityIndicator accessibilityLabel={t(lang, 'loading')} color={colors.primaryInk} /></View> :
-          failed ? row('home-retry', ar ? 'حاول تاني' : 'Retry brief', undefined, () => void refresh.refetch()) :
-          rows.length ? (all ? rows : rows.slice(0, 3)) :
-            <Animated.View entering={enter} exiting={exit} style={styles.state}>
-              <Text style={{ color: colors.muted }}>{entry ? (ar ? 'كل الوحدات محدّثة' : 'All units are up to date') : (ar ? 'مفيش حاجة عاجلة دلوقتي' : 'Nothing urgent right now')}</Text>
-            </Animated.View>}
-        {entry && !all && total > 0 ? row('home-all-units', ar ? 'عرض كل الوحدات المتأخرة' : 'View all overdue units', undefined, () => setAll(true)) : null}
-        {all && overdue.hasNextPage ? row('home-more-units', overdue.isFetchingNextPage ? t(lang, 'loading') : ar ? 'عرض وحدات أكتر' : 'Show more units', undefined,
+        {!entry || loading || failed ? <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>{heading}</Text> : null}
+        {loading ? <View style={[styles.loading, { backgroundColor: colors.card, borderColor: colors.border }]}><ActivityIndicator accessibilityLabel={t(lang, 'loading')} color={colors.primaryInk} /></View> :
+          failed ? row('home-retry', ar ? 'حاول تاني' : 'Retry brief', () => void refresh.refetch()) :
+          rows.length ? rows :
+            <HomeRow title={entry ? (ar ? 'كل الوحدات محدّثة' : 'All units are up to date') : (ar ? 'مفيش حاجة عاجلة دلوقتي' : 'Nothing urgent right now')} icon="check" />}
+        {entry && !all && total > 0 ? row('home-all-units',
+          data?.legacy ? t(lang, 'openUnits') : ar ? 'عرض كل الوحدات المتأخرة' : 'View all overdue units',
+          () => { if (data?.legacy) nav.navigate('UnitsList', { old: true }); else setAll(true); }) : null}
+        {all && overdue.hasNextPage ? row('home-more-units', overdue.isFetchingNextPage ? t(lang, 'loading') : ar ? 'عرض وحدات أكتر' : 'Show more units',
           () => { if (!overdue.isFetchingNextPage) void overdue.fetchNextPage(); }) : null}
-        {all ? row('home-back', ar ? 'رجوع للملخص' : 'Back to brief', undefined, () => setAll(false)) : null}
+        {all ? row('home-back', ar ? 'رجوع للملخص' : 'Back to brief', () => setAll(false)) : null}
       </View>
-      {!all ? <Animated.View entering={enter} style={styles.todayContent}><TodayDetails /></Animated.View> : null}
+      {!all ? <TodayDetails brief={failed ? undefined : { ops: Boolean(data?.ops), units: entry && Boolean(data?.units), viewing: !entry && next?.at ? next : null }} /> : null}
       {!all ? children : null}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 150, gap: spacing.sm },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 90, gap: spacing.sm },
   date: { fontSize: 13, fontWeight: '600' },
   greeting: { fontSize: 29, fontWeight: '800' },
-  todayContent: { marginTop: spacing.md },
-  brief: { marginTop: spacing.md, gap: spacing.xs },
-  metric: { minHeight: 120, flexDirection: 'row', alignItems: 'center', padding: spacing.lg, gap: spacing.md, borderRadius: radius.card },
-  medallion: { width: 78, height: 78, borderRadius: 39, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
-  medallionInner: { width: 61, height: 61, borderRadius: 31, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
-  sectionTitle: { fontSize: 13, fontWeight: '700', paddingVertical: spacing.sm },
-  rowIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  action: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs },
-  actionText: { fontSize: 13, fontWeight: '700' },
-  ageTrack: { borderRadius: 2, height: 3, width: '72%', overflow: 'hidden', marginTop: spacing.xs },
-  ageFill: { height: 3, borderRadius: 2 },
-  loading: { minHeight: 120, borderRadius: radius.card },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 48, paddingVertical: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth },
-  grow: { flex: 1, gap: 3 },
-  count: { fontSize: 45, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  rowCount: { fontSize: 17, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  heading: { fontSize: 17, fontWeight: '700' },
-  rowTitle: { fontSize: 14, fontWeight: '600' },
-  state: { minHeight: 64, justifyContent: 'center', borderTopWidth: 0 },
-  summaryAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' },
+  brief: { marginTop: spacing.md, gap: spacing.sm },
+  sectionTitle: { fontSize: 16, fontWeight: '800', paddingVertical: spacing.xs },
+  loading: { minHeight: 52, justifyContent: 'center', borderWidth: 1, borderRadius: radius.card },
 });

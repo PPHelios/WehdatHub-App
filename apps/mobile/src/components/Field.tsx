@@ -10,7 +10,7 @@ function alignOf(v: unknown) {
   const first = typeof v === 'string' ? v.match(/[A-Za-z؀-ۿ]/)?.[0] : undefined;
   if (!first) {
     // A bare phone number keeps its digit groups in order inside the RTL layout.
-    if (typeof v === 'string' && /\d/.test(v) && /^[\d\s+\-().]+$/.test(v)) return { textAlign: 'left' as const, writingDirection: 'ltr' as const };
+    if (typeof v === 'string' && /\d/.test(v) && /^[\d\s+\-().]+$/.test(v)) return { direction: 'ltr' as const, textAlign: 'left' as const, writingDirection: 'ltr' as const };
     return undefined;
   }
   return { textAlign: /[؀-ۿ]/.test(first) ? ('right' as const) : ('left' as const), writingDirection: /[؀-ۿ]/.test(first) ? ('rtl' as const) : ('ltr' as const) };
@@ -21,11 +21,14 @@ export function Field({ label, required, invalid, hint, ...props }: { label: str
   const { colors } = useTheme();
   const [focus, setFocus] = useState(false);
   const busy = useBusyDisabled(); // a server write is running: the field cannot be edited
+  const emptyRequired = required && !String(props.value ?? props.defaultValue ?? '').trim();
+  const labelText = required ? label.replace(/\s*\*$/, '') : label;
+  const borderColor = invalid ? colors.danger : (focus || emptyRequired) ? colors.primaryInk : required ? colors.primaryLine : colors.lineStrong;
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.label, { color: colors.muted }]}>{label}{required ? <Text style={{ color: colors.primaryInk }}> *</Text> : null}</Text>
-      <View style={[styles.ring, focus && !invalid && { backgroundColor: colors.primarySoft }]}>
-      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} onFocus={(e) => { setFocus(true); props.onFocus?.(e); }} onBlur={(e) => { setFocus(false); props.onBlur?.(e); }} editable={props.editable !== false && !busy} style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : required && !String(props.value ?? '').trim() ? colors.warn : focus || required ? colors.primary : colors.lineStrong, backgroundColor: colors.field }, props.multiline && styles.multi, alignOf(props.value ?? props.defaultValue), props.style]} />
+      <Text style={[styles.label, { color: colors.muted }]}>{labelText}{required ? <Text style={{ color: colors.primaryInk }}> *</Text> : null}</Text>
+      <View style={[styles.ring, focus && !invalid && !emptyRequired && { backgroundColor: colors.primarySoft }]}>
+      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} onFocus={(e) => { setFocus(true); props.onFocus?.(e); }} onBlur={(e) => { setFocus(false); props.onBlur?.(e); }} editable={props.editable !== false && !busy} style={[styles.input, { color: colors.text, borderColor, backgroundColor: emptyRequired && !invalid ? colors.requiredField : colors.field }, props.multiline && styles.multi, alignOf(props.value ?? props.defaultValue), props.style]} />
       </View>
       {hint ? <Text testID="field-hint" style={[styles.label, { color: colors.accent }]}>{`\u202A${hint}\u202C`}</Text> : null}
     </View>

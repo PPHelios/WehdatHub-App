@@ -19,6 +19,33 @@ export type ElevationLevel = keyof typeof elevation;
 export const buttonHeight = { sm: SHAPE['btn-sm'], md: SHAPE['btn-md'], lg: SHAPE['btn-lg'] } as const;
 export const buttonRadius = SHAPE['radius-btn'];
 
+/** Cool Depth Dark Green brand tokens. */
+export const GREEN_PALETTE = {
+  primary: '#0F3F34',
+  primaryDark: '#082921',
+  primaryLight: '#1A5647',
+  primarySoft: '#EBF5F3',
+  primarySoftDark: '#13352C',
+  primaryLine: '#B7DED5',
+  primaryLineDark: '#1D584C',
+  primaryInk: '#082D25',
+  primaryInkDark: '#6EE7B7',
+  emerald: '#10B981',
+  emeraldMint: '#34D399',
+  amber: '#F59E0B',
+  red: '#EF4444',
+} as const;
+
+export const greenGradient = {
+  backgroundColor: GREEN_PALETTE.primary,
+  experimental_backgroundImage: `linear-gradient(145deg, ${GREEN_PALETTE.primaryLight} 0%, ${GREEN_PALETTE.primary} 60%, ${GREEN_PALETTE.primaryDark} 100%)`,
+} as const;
+
+export const softGreenGradient = {
+  light: { backgroundColor: '#0F3F340D', experimental_backgroundImage: 'linear-gradient(145deg, #34D39908 0%, #1A564710 100%)' },
+  dark: { backgroundColor: '#34D39918', experimental_backgroundImage: 'linear-gradient(145deg, #34D3991C 0%, #34D3990D 100%)' },
+} as const;
+
 export function useTheme() {
   const system = useColorScheme() === 'dark' ? 'dark' : 'light';
   const appearance = usePrefs((s) => s.appearance);
@@ -33,17 +60,20 @@ export function useTheme() {
     colors: {
       bg: c.bg,
       text: c.ink,
-      // Main colour: satin gold in both modes (royal blue second in light, cobalt in dark). `primaryInk` is gold text that stays readable on the page.
-      primary: c.brand,
-      primaryInk: c['brand-ink'],
-      primarySoft: c['brand-soft'],
-      primaryHi: c['brand-hi'],
-      primaryStrong: c['brand-strong'],
-      onPrimary: c['on-brand'],
+      // Main colour: Cool Depth Dark Green (#0F3F34) with deep ink and soft sage surfaces.
+      primary: GREEN_PALETTE.primary,
+      primaryInk: scheme === 'dark' ? GREEN_PALETTE.primaryInkDark : GREEN_PALETTE.primaryInk,
+      primarySoft: scheme === 'dark' ? GREEN_PALETTE.primarySoftDark : GREEN_PALETTE.primarySoft,
+      requiredField: scheme === 'dark' ? `${GREEN_PALETTE.emeraldMint}14` : `${GREEN_PALETTE.primary}0A`,
+      primaryLine: scheme === 'dark' ? GREEN_PALETTE.primaryLineDark : GREEN_PALETTE.primaryLine,
+      primaryHi: GREEN_PALETTE.primaryLight,
+      primaryStrong: GREEN_PALETTE.primaryDark,
+      onPrimary: '#FFFFFF',
       accent: c.accent,
       accentInk: c['accent-ink'],
       onAccent: c['on-accent'],
       card: c.card,
+      cardSubtle: c.soft,
       border: c.line,
       muted: c.muted,
       soft: c.soft,

@@ -5,7 +5,7 @@ import { DealsScreen, SourcesScreen } from '../src/screens/DealsScreens';
 import { api } from '../src/api';
 
 const mockNavigate = jest.fn();
-jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: mockNavigate }) }));
+jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: mockNavigate }), useRoute: () => ({ params: {} }) }));
 jest.mock('../src/api', () => ({ api: { deals: jest.fn(), dealStatus: jest.fn(), sources: jest.fn(), saveSpend: jest.fn() } }));
 const m = api as unknown as Record<string, jest.Mock>;
 const wrap = async (ui: React.ReactElement) => await render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);

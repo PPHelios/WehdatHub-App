@@ -13,6 +13,7 @@ const SCREENS: ReadonlySet<string> = new Set<MoreScreenName>([
   'Calendar', 'SentLinks', 'Team', 'Ask', 'Notifications', 'Inbox', 'ClientRequests', 'Owners', 'Requests', 'ActivityLog', 'Dashboard', 'Deals', 'Projects', 'Library', 'Compare',
   'Plan', 'Usage', 'Platform', 'Commissions', 'Sources', 'Portal', 'Prices', 'WinLoss', 'Report', 'UnitsList', 'LeadsList', 'MapList', 'AddUnit', 'WhatsAppImport',
   'LeadRules', 'Pipeline', 'Leases', 'SavedSearches', 'Settings',
+  'ClientsHub', 'ProjectsHub', 'TrackingHub', 'DealsHub', 'AdminHub', 'ReportsHub', 'SettingsHub',
 ]);
 
 /** The website's icon names the app draws under another name. */

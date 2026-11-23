@@ -21,7 +21,7 @@ export type SearchIntent =
   | { kind: 'new-lead'; name?: string; phone?: string; paste?: string }
   | { kind: 'dashboard' | 'ranking' }
   | { kind: 'deals'; lastMonth: boolean }
-  | { kind: 'source'; source: 'inventory' | 'primary' | 'both' }
+  | { kind: 'source'; source: 'inventory' | 'primary' }
   | { kind: 'unit' | 'reverse'; code: string }
   | { kind: 'unit-work'; missingPhotos?: boolean }
   | { kind: 'links'; name?: string; opened?: boolean; days?: number }
@@ -118,8 +118,9 @@ export function parseSearchIntent(raw: string, active?: 'leads' | 'deals'): Sear
     return { kind: 'leads', filters: { assigned: lastMonth.test(q) } };
   }
   const primary = /\bprimary\b|(?:^|\s)(?:برايمري|برايمرى|اولي)(?=\s|[:،,.]|$)/.test(q);
+  if (primary) return { kind: 'source', source: 'primary' };
   const inventory = /\b(resale|inventory)\b|ريسيل|اعاده البيع/.test(q);
-  if (primary || inventory) return { kind: 'source', source: primary && inventory ? 'both' : primary ? 'primary' : 'inventory' };
+  if (inventory) return { kind: 'source', source: 'inventory' };
   if (/^(?:who|why|what|how many|مين|ليه|كام|ايه)(?:\s|$)/.test(q) && !leadWords.test(q)) return { kind: 'clarify' };
   return { kind: 'search' };
 }

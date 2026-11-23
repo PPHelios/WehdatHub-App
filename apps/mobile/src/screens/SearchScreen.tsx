@@ -15,7 +15,8 @@ import { SearchCreditRings, useSearchCredits } from '../components/SearchCreditR
 import { currentLang, useAuth } from '../auth';
 import { AskResults } from '../components/AskResults';
 import { Icon } from '../components/Icon';
-import { Chips } from '../components/Chips';
+import { useKeyboardVisible } from '../components/KeyboardLift';
+import { useSelectionHighlight } from '../components/SelectionHighlight';
 import { pt } from '../projectText';
 import { readLeadCommand, SearchLeadAction } from '../components/SearchLeadAction';
 import { LeadPicker } from '../components/LeadPicker';
@@ -26,6 +27,7 @@ import { parseSearchIntent, SEARCH_DESTINATIONS } from '../searchCapabilities';
 import type { SearchIntent } from '../searchCapabilities';
 import { SearchPractice } from '../components/SearchPractice';
 import { SearchHome } from '../components/SearchHome';
+import { HomeRow } from '../components/HomeRow';
 import { SearchDeals } from '../components/SearchDeals';
 import { Button } from '../components/Button';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
@@ -34,10 +36,9 @@ import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, useTheme } from '../theme';
 import { VoiceBar } from '../components/VoiceBar';
 
-type Source = 'inventory' | 'primary' | 'both';
 type SearchView = 'deals' | 'leads' | 'dashboard' | 'ranking' | 'lead-action' | 'clarify' | 'reverse' | 'lead-offers';
 
 const RECENT_KEY = 'wehdathub.recentSearches';
@@ -74,8 +75,7 @@ export function SearchScreen() {
     setPracticing(true);
   };
 
-  const [source, setSource] = useState<Source>('inventory');
-  const [chosenSource, setChosenSource] = useState<Source>('inventory');
+  const [source, setSource] = useState<'inventory' | 'primary'>('inventory');
   const credits = useSearchCredits();
   const [submitted, setSubmitted] = useState('');
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -89,7 +89,6 @@ export function SearchScreen() {
   const [reverseCode, setReverseCode] = useState('');
   const reverse = useQuery({ queryKey: ['reverse-leads', reverseCode], queryFn: () => api.unitMatchingLeads(reverseCode), enabled: report === 'reverse' && Boolean(reverseCode) });
   const [clarification, setClarification] = useState('');
-  const [group, setGroup] = useState<'inventory' | 'primary'>('inventory');
   const refreshCredits = () => queries.invalidateQueries({ queryKey: ['search-credits'] });
   const answer = useMutation({ mutationFn: (q: string) => timed('ask', () => api.ask(q)), onSettled: () => { void refreshCredits(); } });
   const [text, setText] = useState('');
@@ -100,10 +99,20 @@ export function SearchScreen() {
   const lastY = useSharedValue(0);
   const hidden = useSharedValue(false);
   const reduceMotion = useReducedMotion();
+  const keyboardVisible = useKeyboardVisible();
+  const keyboardOpen = useSharedValue(false);
+  useEffect(() => {
+    keyboardOpen.value = keyboardVisible;
+    if (keyboardVisible) {
+      hidden.value = false;
+      slide.value = 0;
+    }
+  }, [hidden, keyboardOpen, keyboardVisible, slide]);
   const onScroll = useAnimatedScrollHandler((e) => {
     const y = Math.max(0, e.contentOffset.y);
     const dy = y - lastY.value;
     lastY.value = y;
+    if (keyboardOpen.value) return;
     const hide = dy > 6 && y > 60 ? true : dy < -6 || y <= 60 ? false : hidden.value;
     if (hide !== hidden.value) {
       hidden.value = hide;
@@ -113,6 +122,7 @@ export function SearchScreen() {
   const barSlide = useAnimatedStyle(() => ({ transform: [{ translateY: slide.value }] }));
   const search = useMutation<SearchResult, Error, { q: string; drop?: boolean; status?: UnitStatus }>({ mutationFn: ({ q, drop, status }) => timed('search', () => api.search(q, { drop, status })) });
   // Active units first; Sold and Archived are one tap away, with their counts from the start. More results load on demand.
+  const [statusCounts, setStatusCounts] = useState<SearchResult['counts']>();
   const [last, setLast] = useState<{ q: string; drop: boolean; status: UnitStatus } | null>(null);
   const [extra, setExtra] = useState<ApiUnitListItem[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -146,14 +156,20 @@ export function SearchScreen() {
     return () => { active = false; generation.current += 1; };
   }, [recentKey, resetSearch, resetAnswer]);
 
+  const supersedePendingSearch = () => {
+    generation.current += 1;
+    setTranscribing(false);
+    setLoadingMore(false);
+    setVoiceError(null);
+  };
+
   const run = async (q: string, drop = false, status: UnitStatus = 'active') => {
     const clean = q.trim();
     if (!clean) return;
-    setVoiceError(null);
-    generation.current += 1;
-    setLoadingMore(false);
+    supersedePendingSearch();
     setExtra([]);
     setDone(false);
+    if (last?.q !== clean || last.drop !== drop) setStatusCounts(undefined);
     setLast({ q: clean, drop, status });
     const next = [clean, ...recent.filter((x) => x !== clean)].slice(0, 3);
     setRecent(next);
@@ -199,19 +215,19 @@ export function SearchScreen() {
     }
   };
 
-  const submit = (q: string, explicit?: Source) => {
+  const submit = (q: string, fromClarification = false) => {
     const clean = q.trim();
     if (!clean) return;
     Keyboard.dismiss();
-    setVoiceError(null);
+    supersedePendingSearch();
     setSubmitted(clean);
     hidden.value = false;
     slide.value = 0;
-    if (!explicit && rights.leads && readLeadCommand(clean)) {
+    if (!fromClarification && rights.leads && readLeadCommand(clean)) {
       setReport('lead-action');
       return;
     }
-    const intent = explicit ? { kind: 'source', source: explicit } as const :
+    const intent = fromClarification ? { kind: 'search' } as const :
       parseSearchIntent(clean, report === 'leads' || report === 'deals' ? report : undefined);
     const clarify = (message: string) => { setClarification(message); setReport('clarify'); };
     const denied = () => clarify(ar ? 'الطلب ده مش متاح لصلاحياتك.' : 'This request is unavailable for your role.');
@@ -269,28 +285,16 @@ export function SearchScreen() {
       };
       return clarify(messages[intent.feature]);
     }
-    if (intent.kind === 'clarify' && chosenSource === 'inventory') return clarify(ar
-      ? 'حدد تقصد أنهي نتيجة. لو بتدور في مشاريع المطورين، قول برايمري أو اختاره.'
-      : 'Choose a result or edit your question. For developer projects, say Primary or select it.');
-    const next = intent.kind === 'source' ? intent.source : chosenSource;
+    if (intent.kind === 'clarify') return clarify(ar
+      ? 'حدد تقصد أنهي نتيجة. لو بتدور في مشاريع المطورين، اكتب برايمري.'
+      : 'Choose a result or edit your question. For developer projects, include Primary.');
+    const next = intent.kind === 'source' ? intent.source : 'inventory';
     setReport(null);
     setSource(next);
-    setGroup(next === 'primary' ? 'primary' : 'inventory');
-    if (next !== 'primary') void run(clean);
-    if (next !== 'inventory') answer.mutate(clean);
+    if (next === 'primary') answer.mutate(clean);
+    else void run(clean);
   };
-  const pickSource = (next: Source) => {
-    setChosenSource(next);
-    if (submitted && !report) submit(submitted, next);
-    else {
-      setReport(null);
-      setSource(next);
-      setGroup(next === 'primary' ? 'primary' : 'inventory');
-      setSubmitted('');
-      search.reset();
-    }
-  };
-  const primaryView = Boolean(submitted && (source === 'primary' || (source === 'both' && group === 'primary')));
+  const primaryView = Boolean(submitted && source === 'primary');
   const busy = search.isPending || answer.isPending;
   const clearDisabled = busy || loadingMore || transcribing || !(submitted || text || report || recent.length);
   const clearChat = () => {
@@ -301,8 +305,6 @@ export function SearchScreen() {
     setReport(null);
     setToolsOpen(false);
     setSource('inventory');
-    setChosenSource('inventory');
-    setGroup('inventory');
     setLast(null);
     setExtra([]);
     setDone(false);
@@ -323,7 +325,10 @@ export function SearchScreen() {
     if (recentKey) AsyncStorage.removeItem(recentKey).catch(() => undefined);
   };
   const data = search.data;
+  const counts = data?.counts ?? (search.isPending ? statusCounts : undefined);
+  const statusSelection = useSelectionHighlight(last?.status, greenGradient);
   const atHome = !report && !submitted && !data && !search.isError && !busy;
+  const showInvitation = Boolean(invitation && invitation === practiceKey);
   const openHomeReport = (value: SearchView, queue?: 'unassigned' | 'uncontacted' | 'delayed-first-contact' | 'viewings-tomorrow') => {
     setReport(value);
     setSubmitted('');
@@ -336,31 +341,24 @@ export function SearchScreen() {
   ) : search.isError ? (
     <ErrorView message={errorText(search.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => last ? run(last.q, last.drop, last.status) : run(submitted || text)} />
   ) : !data ? (
-    <SearchHome openQueue={(queue) => openHomeReport('leads', queue)} openDeals={() => openHomeReport('deals')}
-      invitation={invitation && invitation === practiceKey ? <View style={styles.invitation}>
+    <SearchHome openQueue={(queue) => openHomeReport('leads', queue)}
+      invitation={showInvitation ? <View style={styles.invitation}>
         <Button label={ar ? 'جرّب البحث' : 'Try Search'} onPress={startPractice} variant="secondary" size="sm" testID="practice-start" />
         <Button label={ar ? 'تخطّي' : 'Skip'} onPress={dismissInvitation} variant="quiet" size="sm" testID="practice-skip" />
       </View> : null}>
-      <Pressable testID="search-tools" accessibilityRole="button" accessibilityState={{ expanded: toolsOpen }}
-        onPress={() => setToolsOpen((value) => !value)} style={[styles.toolRow, { borderColor: colors.border }]}>
-        <Text style={{ color: colors.text, fontWeight: '600' }}>{ar ? 'أدوات البحث' : 'Search tools'}</Text>
-        <Text accessible={false} style={{ color: colors.muted }}>{toolsOpen ? '−' : '+'}</Text>
-      </Pressable>
+      <HomeRow testID="search-tools" title={ar ? 'أدوات البحث' : 'Search tools'} icon="search" expanded={toolsOpen}
+        onPress={() => setToolsOpen((value) => !value)} />
       {toolsOpen ? <Animated.View entering={FadeIn.duration(180).reduceMotion(ReduceMotion.System)} exiting={FadeOut.duration(100).reduceMotion(ReduceMotion.System)} style={styles.tools}>
-        <Button label={ar ? 'جرّب البحث' : 'Try Search'} onPress={startPractice} variant="quiet" size="sm" testID="practice-replay" />
+        {!showInvitation ? <HomeRow title={ar ? 'جرّب البحث' : 'Try Search'} onPress={startPractice} icon="help" testID="practice-replay" /> : null}
         <Text style={{ color: colors.muted, fontSize: 13 }}>{t(lang, recent.length ? 'searchRecent' : 'searchTry')}</Text>
         {(recent.length ? recent : (['searchExample1', 'searchExample2', 'searchExample3'] as const).map((k) => t(lang, k))).map((q, i) => (
-          <Pressable key={q} testID={recent.length ? `searchRecent${i + 1}` : `searchExample${i + 1}`} accessibilityRole="button" onPress={() => { setText(q); submit(q); }} style={styles.toolRow}>
-            <Text style={{ color: colors.text }}>{q}</Text>
-          </Pressable>
+          <HomeRow key={q} title={q} testID={recent.length ? `searchRecent${i + 1}` : `searchExample${i + 1}`} onPress={() => { setText(q); submit(q); }} />
         ))}
         {([{ value: 'deals', label: ar ? 'الصفقات' : 'Closed deals' },
           ...(rights.leads ? [{ value: 'leads', label: t(lang, 'leadsTab') }] : []),
           ...(rights.manager ? [{ value: 'dashboard', label: t(lang, 'dashboard') }, { value: 'ranking', label: ar ? 'ترتيب الوسطاء' : 'Broker rankings' }] : []),
         ] as { value: SearchView; label: string }[]).map(({ value, label }) => (
-          <Pressable key={value} accessibilityRole="button" onPress={() => openHomeReport(value)} style={styles.toolRow}>
-            <Text style={{ color: colors.text }}>{label}</Text>
-          </Pressable>
+          <HomeRow key={value} title={label} onPress={() => openHomeReport(value)} />
         ))}
       </Animated.View> : null}
     </SearchHome>
@@ -394,7 +392,7 @@ export function SearchScreen() {
       renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => { void track('search_unit_opened'); nav.navigate('Unit', { code: item.code }); }} />}
       onScroll={onScroll}
       scrollEventThrottle={16}
-      contentContainerStyle={{ paddingBottom: 150 }}
+      contentContainerStyle={{ paddingBottom: 90 }}
       onEndReached={() => { if (data.items.length + extra.length < data.total) loadMore(); }}
       onEndReachedThreshold={0.6}
       ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.count} color={colors.primaryInk} /> : null}
@@ -404,32 +402,14 @@ export function SearchScreen() {
   if (practicing) return <SearchPractice onClose={() => { Keyboard.dismiss(); setPracticing(false); }} />;
 
   return (
-    <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+    <View style={[styles.flex, styles.composerFrame, { backgroundColor: colors.bg }]}>
       {voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{voiceError}</Text> : null}
-      <View testID="search-source" style={[styles.sources, { borderBottomColor: colors.border }]}>
-        {([
-          { value: 'inventory', label: ar ? 'الوحدات' : 'Inventory' },
-          { value: 'primary', label: ar ? 'برايمري' : 'Primary' },
-          { value: 'both', label: ar ? 'الاتنين' : 'Both' },
-        ] as const).map(({ value, label }) => {
-          const selected = !report && source === value;
-          return <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected, disabled: busy }} disabled={busy}
-            onPress={() => pickSource(value)} style={[styles.source, { borderBottomColor: selected ? colors.primary : 'transparent' }]}>
-            <Text style={[styles.sourceLabel, { color: selected ? colors.primaryInk : colors.muted }]}>{label}</Text>
-          </Pressable>;
-        })}
-      </View>
-      {source === 'both' && submitted && !report ? <View style={styles.chips}>
-        <Chips value={group} onChange={setGroup} options={[
-          { value: 'inventory', label: (ar ? 'الوحدات' : 'Inventory') + (data ? ' (' + data.total + ')' : '') },
-          { value: 'primary', label: ar ? 'مشروعات المطورين' : 'Developer projects' },
-        ]} />
-      </View> : null}
-      {!report && !primaryView && data?.counts && last ? (
+      {!report && !primaryView && counts && last ? (
         <View style={styles.chips}>
+          {statusSelection.highlight}
           {(['active', 'sold', 'archived'] as const).map((st) => (
-            <Pressable key={st} accessibilityRole="button" accessibilityState={{ selected: st === last.status }} onPress={() => run(last.q, last.drop, st)} style={[styles.chip, { borderColor: st === last.status ? colors.primary : colors.border }, st === last.status && { backgroundColor: colors.primary }]}>
-              <Text style={{ color: st === last.status ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, st)} ({data.counts?.[st] ?? 0})</Text>
+            <Pressable key={st} onLayout={statusSelection.measure(st)} accessibilityRole="button" accessibilityState={{ selected: st === last.status }} disabled={search.isPending} onPress={() => { setStatusCounts(counts); void run(last.q, last.drop, st); }} style={[styles.chip, { borderColor: st === last.status ? colors.primary : colors.border }, st === last.status && !statusSelection.highlight && greenGradient]}>
+              <Text style={{ color: st === last.status ? '#FFFFFF' : colors.text, fontWeight: '700' }}>{t(lang, st)} ({counts[st] ?? 0})</Text>
             </Pressable>
           ))}
         </View>
@@ -457,7 +437,7 @@ export function SearchScreen() {
         </ScrollView> : report === 'clarify' ? <View style={styles.ask}>
           <Text style={{ color: colors.text }}>{clarification}</Text>
           {rights.leads ? <Button variant="secondary" label={t(lang, 'leadsTab')} onPress={() => { if (!rights.leads) return; setLeadFilters({}); setAssignee(undefined); setReport('leads'); }} /> : null}
-          <Button variant="secondary" label={t(lang, 'searchTab')} onPress={() => submit(submitted, chosenSource)} />
+          <Button variant="secondary" label={t(lang, 'searchTab')} onPress={() => submit(submitted, true)} />
         </View> : report === 'lead-action' ? <SearchLeadAction key={submitted} command={readLeadCommand(submitted)} onClose={() => { setReport('leads'); setSubmitted(''); setText(''); }} /> :
           (report === 'dashboard' || report === 'ranking') ? <DashboardScreen embedded ranking={report === 'ranking'} key={report} /> :
           report === 'leads' ? <SearchLeads key={JSON.stringify([leadFilters, assignee])} assignedInitially={Boolean(leadFilters.assigned)} initialQueue={leadFilters.queue} initialTab={leadFilters.tab} lookup={leadFilters.lookup} matching={leadFilters.matching} requestedAssignee={assignee} /> :
@@ -475,13 +455,13 @@ export function SearchScreen() {
           </ScrollView>
         ) : body}
       </Animated.View>
-      <Animated.View style={[styles.bar, { backgroundColor: colors.bg, borderColor: colors.border, bottom: 0 }, barSlide]}>
-      <VoiceBar actionDecoration={credits.data ? <SearchCreditRings data={credits.data} /> : undefined}
-        accessory={<Pressable testID="search-clear-chat" accessibilityRole="button" accessibilityLabel={ar ? 'امسح المحادثة' : 'Clear chat'}
-          accessibilityState={{ disabled: clearDisabled }} disabled={clearDisabled} onPress={clearChat} style={styles.clearButton}>
-          <Icon name="trash" size={21} color={clearDisabled ? colors.border : colors.muted} />
-        </Pressable>}
-        id="search" label={t(lang, 'mic')} value={text} onChangeText={setText} placeholder={ar ? 'ابحث أو اسأل' : 'Search or ask'} onSubmit={() => submit(text)} onFile={onVoice} onError={setVoiceError} disabled={busy || transcribing} busy={busy || transcribing} />
+      <Animated.View testID="search-composer" style={[styles.bar, { backgroundColor: colors.card, borderColor: colors.border }, barSlide]}>
+        <VoiceBar compact actionDecoration={<SearchCreditRings data={credits.data} />}
+          accessory={<Pressable testID="search-clear-chat" accessibilityRole="button" accessibilityLabel={ar ? 'امسح المحادثة' : 'Clear chat'}
+            accessibilityState={{ disabled: clearDisabled }} disabled={clearDisabled} onPress={clearChat} style={styles.clearButton}>
+            <Icon name="trash" size={20} color={clearDisabled ? colors.border : colors.muted} />
+          </Pressable>}
+          id="search" label={t(lang, 'mic')} value={text} onChangeText={setText} placeholder={ar ? 'ابحث أو اسأل' : 'Search or ask'} onSubmit={() => submit(text)} onFile={onVoice} onError={setVoiceError} disabled={busy || transcribing} busy={busy || transcribing} />
       </Animated.View>
     </View>
   );
@@ -489,21 +469,18 @@ export function SearchScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  projectContent: { padding: spacing.lg, paddingBottom: 150, gap: spacing.md },
+  projectContent: { padding: spacing.lg, paddingBottom: 90, gap: spacing.md },
   answer: { borderRadius: radius.card, padding: spacing.lg, gap: spacing.sm },
   invitation: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  toolRow: { minHeight: 44, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tools: { gap: spacing.xs },
-  bar: { position: 'absolute', start: 0, end: 0, bottom: 0, padding: spacing.md, gap: spacing.sm, borderTopWidth: 1 },
+  tools: { gap: spacing.sm },
+  composerFrame: { overflow: 'hidden' },
+  bar: { position: 'absolute', start: 22, end: 22, bottom: 12, padding: 4, borderRadius: 26, borderWidth: 1, shadowColor: '#000000', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
   err: { padding: spacing.lg, textAlign: 'center' },
   ask: { padding: spacing.xl, gap: spacing.md },
   askTitle: { fontSize: 18, fontWeight: '700' },
-  count: { padding: spacing.lg },
+  count: { paddingHorizontal: spacing.lg, paddingVertical: 4, fontSize: 13, fontWeight: '700' },
   quick: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.xs },
-  clearButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  sources: { flexDirection: 'row', paddingHorizontal: spacing.lg, borderBottomWidth: StyleSheet.hairlineWidth },
-  source: { flex: 1, minHeight: 44, justifyContent: 'center', alignItems: 'center', borderBottomWidth: 2, paddingHorizontal: spacing.xs },
-  sourceLabel: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  clearButton: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, height: 40, justifyContent: 'center' },
+  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, height: 38, justifyContent: 'center' },
 });

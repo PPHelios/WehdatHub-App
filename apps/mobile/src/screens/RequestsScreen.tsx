@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { TimelineEntry } from '../components/TimelineEntry';
 import { Chips } from '../components/Chips';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
@@ -40,7 +41,7 @@ export function RequestsScreen() {
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <View style={styles.pad}><Chips<Status> testID="request-status" value={status} onChange={setStatus} options={STATUSES.map((s) => ({ value: s, label: ot(lang, s === 'all' ? 'all' : s) }))} /></View>
+      <View style={styles.pad}><Chips<Status> animateFilter testID="request-status" value={status} onChange={setStatus} options={STATUSES.map((s) => ({ value: s, label: ot(lang, s === 'all' ? 'all' : s) }))} /></View>
       {list.isPending ? <Loading label={t(lang, 'loading')} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} /> : (
         <FlashList
           data={items}
@@ -84,7 +85,7 @@ export function activityText(text: string, ar: boolean): string {
 
 /** Who did what, when (managers see data requests; the agency owner sees everything). Kept 90 days. */
 export function ActivityLogScreen() {
-  const { colors, elev } = useTheme();
+  const { colors } = useTheme();
   const lang = currentLang();
   const list = useInfiniteQuery({
     queryKey: ['activityLog'],
@@ -97,15 +98,15 @@ export function ActivityLogScreen() {
   const items = list.data.pages.flatMap((p) => p.items);
   return (
     <FlashList
+      style={{ backgroundColor: colors.bg }}
+      contentContainerStyle={styles.pad}
       data={items}
       keyExtractor={(r) => String(r.id)}
       onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
-      ListEmptyComponent={<EmptyView title={ot(lang, 'noRequests')} />}
-      renderItem={({ item }) => (
-        <View style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={{ color: colors.text }}>{activityText(item.text, lang === 'ar')}</Text>
-          <Text style={{ color: colors.muted }}>{item.who} · {new Date(item.at).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</Text>
-        </View>
+      ListEmptyComponent={<EmptyView title={lang === 'ar' ? 'مفيش نشاط لسه.' : 'No activity yet.'} />}
+      renderItem={({ item, index }) => (
+        <TimelineEntry at={item.at} title={activityText(item.text, lang === 'ar')} actor={item.who} lang={lang}
+          first={index === 0} last={index === items.length - 1} />
       )}
     />
   );

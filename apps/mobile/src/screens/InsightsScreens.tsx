@@ -54,10 +54,10 @@ export function DashboardScreen({ embedded = false, ranking = false }: { embedde
   const maximum = Math.max(1, ...ranked.map((row) => Number(row[metric])));
   const title = ranking ? (ar ? 'ترتيب الوسطاء' : 'Broker rankings') : personal ? (ar ? 'ملخصي' : 'My summary') : d.mode === 'team' ? (ar ? 'لوحة الفريق' : 'Team dashboard') : (ar ? 'لوحة الشركة' : 'Agency dashboard');
   return (
-    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.pad, embedded && { paddingBottom: 150 }]}>
+    <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.pad, embedded && { paddingBottom: 90 }]}>
       <Text style={[styles.h, { color: colors.text }]}>{title}</Text>
-      <Chips<(typeof DAYS)[number]> testID="dash-days" value={days} onChange={setDays} options={DAYS.map((x) => ({ value: x, label: ar ? `${x} يوم` : `${x} days` }))} />
-      {embedded && (d.team?.length || d.teamLeads?.length) ? <Chips testID="dash-scope" value={scope || 'all'} onChange={(value) => setScope(value === 'all' ? '' : value)} options={[
+      <Chips<(typeof DAYS)[number]> animateFilter testID="dash-days" value={days} onChange={setDays} options={DAYS.map((x) => ({ value: x, label: ar ? `${x} يوم` : `${x} days` }))} />
+      {embedded && (d.team?.length || d.teamLeads?.length) ? <Chips animateFilter testID="dash-scope" value={scope || 'all'} onChange={(value) => setScope(value === 'all' ? '' : value)} options={[
         { value: 'all', label: ar ? 'كل الشركة' : 'All agency' },
         ...(d.teamLeads ?? []).map((team) => ({ value: 'team:' + team.id, label: ar ? 'فريق ' + team.name : team.name + ' team' })),
         ...(d.team ?? []).map((broker) => ({ value: 'broker:' + broker.id, label: broker.name })),
@@ -140,7 +140,7 @@ export function WinLossScreen() {
   const rate = (r: number | null) => (r === null ? '—' : `${r}%`);
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
-      <Chips<(typeof DAYS)[number]> testID="wl-days" value={days} onChange={setDays} options={DAYS.map((x) => ({ value: x, label: ar ? `${x} يوم` : `${x} days` }))} />
+      <Chips<(typeof DAYS)[number]> animateFilter testID="wl-days" value={days} onChange={setDays} options={DAYS.map((x) => ({ value: x, label: ar ? `${x} يوم` : `${x} days` }))} />
       <Card title={ar ? 'الملخص' : 'Summary'}>
         <Text testID="wl-summary" style={{ color: colors.text }}>{ar ? 'اتقفلت' : 'Won'} {d.won} · {ar ? 'ضاعت' : 'Lost'} {d.lost} · {rate(d.rate)}</Text>
       </Card>

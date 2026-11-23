@@ -7,7 +7,7 @@ import { TeamScreen } from '../src/screens/TeamScreen';
 import { AddUnitScreen, EXISTING, photoChanges } from '../src/screens/AddUnitScreen';
 import { api } from '../src/api';
 
-jest.mock('../src/api', () => ({ api: { ask: jest.fn(), team: jest.fn(), unit: jest.fn(), unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn(), extractUnit: jest.fn(), voiceToText: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { ask: jest.fn(), team: jest.fn(), unit: jest.fn(), unitEditFields: jest.fn(), reviewUnit: jest.fn().mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null }), saveUnitEdit: jest.fn(), unitPhotos: jest.fn(), extractUnit: jest.fn(), voiceToText: jest.fn() } }));
 const mockGoBack = jest.fn();
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: mockGoBack, navigate: jest.fn(), replace: jest.fn() }), useRoute: () => ({ params: { edit: 'A-1' } }) }));
 jest.mock('../src/voice', () => ({ ensureMic: jest.fn().mockResolvedValue(true), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
@@ -38,6 +38,7 @@ test('saving an edited unit sends the photo changes after the fields', async () 
   await wrap(<AddUnitScreen />);
   await waitFor(() => expect(screen.getByTestId('photo-row-1')).toBeTruthy());
   await fireEvent.press(screen.getByTestId('photo-remove-1'));
+  await waitFor(() => expect(screen.getByTestId('save-unit')).toBeEnabled());
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(m.saveUnitEdit).toHaveBeenCalled());
   await waitFor(() => expect(m.unitPhotos).toHaveBeenCalledWith('A-1', expect.objectContaining({ remove: ['b'], order: ['a'] })));

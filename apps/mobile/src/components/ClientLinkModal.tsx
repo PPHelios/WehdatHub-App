@@ -53,7 +53,7 @@ export function ClientLinkModal({ visible, busy, error, onSubmit, onCancel }: { 
           ) : null}
           {!listOpen && matches.map((c) => (
             <Pressable key={c.id} accessibilityRole="button" onPress={() => setText(c.phone)} style={[styles.match, { borderColor: colors.border }]}>
-              <Text style={{ color: colors.text }}>{c.name} · {c.phone}</Text>
+              <Text style={{ color: colors.text }}>{c.name} · {ltr(c.phone)}</Text>
             </Pressable>
           ))}
           {error ? <Text testID="client-error" style={{ color: colors.danger }}>{error}</Text> : null}

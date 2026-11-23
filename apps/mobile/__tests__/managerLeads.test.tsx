@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LeadsScreen } from '../src/screens/LeadsScreen';
@@ -26,6 +27,22 @@ test('the Unassigned chip asks the server for unassigned leads', async () => {
   await waitFor(() => expect(screen.getByTestId('chip-unassigned')).toBeTruthy());
   await fireEvent.press(screen.getByTestId('chip-unassigned'));
   await waitFor(() => expect(m.leads).toHaveBeenCalledWith(expect.objectContaining({ broker: 'none' })));
+});
+
+test('typing a search keeps the selected stage and updates its count in the same space', async () => {
+  m.leadCounts.mockImplementation(async (q?: string) => ({ counts: { new: q ? 1 : 120 } }));
+  await wrap(<LeadsScreen />);
+  const filter = await screen.findByTestId('lead-filter-new');
+  await fireEvent.press(filter);
+  const count = await screen.findByText('(120)');
+  const width = StyleSheet.flatten(count.props.style).width;
+
+  await fireEvent.changeText(screen.getByTestId('leads-search'), 'Alpha');
+  await waitFor(() => expect(m.leads).toHaveBeenLastCalledWith(expect.objectContaining({ tab: 'new', q: 'Alpha' })));
+  await waitFor(() => expect(count).toHaveTextContent('(1)'));
+  expect(filter.props.accessibilityState.selected).toBe(true);
+  expect(width).toBe(32);
+  expect(StyleSheet.flatten(count.props.style).width).toBe(width);
 });
 
 test('select two leads and hand them to a broker, each with its own version', async () => {

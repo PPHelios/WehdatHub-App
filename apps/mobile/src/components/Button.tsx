@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { useBusy } from '../busy';
-import { buttonHeight, buttonRadius, spacing, useTheme } from '../theme';
+import { buttonHeight, buttonRadius, greenGradient, spacing, useTheme } from '../theme';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger' | 'whatsapp';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -62,6 +62,7 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
         styles.base,
         variant === 'primary' || variant === 'secondary' || wa ? elev('sm') : null,
         { minHeight: buttonHeight[size], backgroundColor: wa ? (pressed ? '#1EBE5A' : '#25D366') : filled ? fill : variant === 'secondary' ? colors.card : 'transparent', borderColor: wa ? (pressed ? '#1EBE5A' : '#25D366') : variant === 'primary' ? colors.primaryHi : variant === 'danger' ? fill : variant === 'quiet' ? 'transparent' : colors.lineStrong, opacity: blocked ? 0.6 : pressed ? 0.85 : 1, transform: [{ scale: pressed && !blocked ? 0.98 : 1 }] },
+        variant === 'primary' && greenGradient,
       ]}
     >
       {progress !== undefined ? <View testID="button-progress" pointerEvents="none" style={[styles.fill, { width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`, backgroundColor: filled ? ink : colors.primary }]} /> : null}

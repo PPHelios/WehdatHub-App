@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SearchScreen } from '../src/screens/SearchScreen';
 import { useAuth } from '../src/auth';
-import type { ApiBroker, SearchHomeData } from '@wehdathub/shared';
+import { ApiClientError, type ApiBroker, type SearchHomeData } from '@wehdathub/shared';
 import { api } from '../src/api';
 import * as voice from '../src/voice';
 import { AppState } from 'react-native';
@@ -44,6 +44,7 @@ test.each([
     await waitFor(() => expect(screen.getByText('Matching projects')).toBeTruthy());
     await waitFor(() => expect(screen.getByText(lang === 'ar' ? 'مفيش مشروع بالبحث ده.' : 'No project matches this search.')).toBeTruthy());
     expect(mocked.ask).toHaveBeenCalledWith(text);
+    expect(screen.queryByTestId('search-source')).toBeNull();
     expect(mocked.search).not.toHaveBeenCalled();
     await result.unmount();
   } finally {
@@ -125,6 +126,31 @@ test('hold, release, then the heard text is searched', async () => {
   await started();
   await up();
   await waitFor(() => expect(mocked.search).toHaveBeenCalledWith('شقة في التجمع', { drop: false, status: 'active' }));
+});
+
+test.each(['villa', 'Primary apartments'])('a recent search supersedes pending transcription (%s)', async (query) => {
+  await AsyncStorage.setItem('wehdathub.recentSearches:search-test', JSON.stringify([query]));
+  v.ensureMic.mockResolvedValue(true);
+  v.stopRecording.mockResolvedValue({ uri: 'file:///a.m4a', name: 'search.m4a', type: 'audio/mp4' });
+  let finishTranscription!: (result: { q: string }) => void;
+  mocked.voiceToText.mockReturnValueOnce(new Promise((resolve) => { finishTranscription = resolve; }));
+  mocked.search.mockResolvedValue({ status: 'none', source: 'parser', total: 0, items: [] });
+  mocked.ask.mockResolvedValue({ answer: 'Matching projects', found: true, lang: 'en' });
+  mocked.askResults.mockResolvedValue({ projects: [] });
+  clock(3000);
+  await wrap();
+  await down();
+  await started();
+  await up();
+  await waitFor(() => expect(mocked.voiceToText).toHaveBeenCalled());
+  await fireEvent.press(screen.getByTestId('search-tools'));
+  await fireEvent.press(await screen.findByTestId('searchRecent1'));
+  await screen.findByText(query === 'villa' ? /No results/ : 'Matching projects');
+  await act(async () => finishTranscription({ q: 'stale transcript' }));
+
+  expect(screen.getByTestId('search-input').props.value).toBe(query);
+  expect(screen.getByTestId('search-go')).toBeEnabled();
+  expect(mocked.search.mock.calls.map(([text]) => text)).toEqual(query === 'villa' ? [query] : []);
 });
 
 test('sliding left past the line cancels and sends nothing', async () => {
@@ -272,6 +298,40 @@ test('clear chat resets the composer and removes local recent searches', async (
   expect(AsyncStorage.removeItem).toHaveBeenCalledWith('wehdathub.recentSearches:search-test');
 });
 
+test('priorities use the Today endpoint when the brief route is unavailable', async () => {
+  jest.mocked(api.searchHome).mockRejectedValueOnce(new ApiClientError(404, 'not_found'));
+  jest.mocked(api.today).mockResolvedValueOnce({
+    counts: { followUpsToday: 3, viewings: 1, newLeads: 0 },
+    tasks: [{ kind: 'late', ref: 'L-1', name: null, at: null, unitCode: null, phone: null, matches: null }],
+    moreTasks: 0,
+  });
+  const result = await wrap();
+  await screen.findByTestId('home-late');
+  expect(screen.getByTestId('home-calls')).toBeTruthy();
+  expect(screen.queryByTestId('home-retry')).toBeNull();
+  await result.unmount();
+});
+
+test('Search home shows each shared priority once and keeps its actions and other tasks', async () => {
+  const ops = { unassigned: 2, uncontactedOld: 1, overdue: 3, team: true };
+  const viewing = { kind: 'viewing', ref: 'L-1', name: 'Fixture viewing', at: '2026-11-23T16:00:00Z', unitCode: 'HP-1', phone: '201000000000', matches: null } as const;
+  jest.mocked(api.searchHome).mockResolvedValueOnce({ hour: 9, ops, calls: 1, nextViewing: viewing });
+  jest.mocked(api.today).mockResolvedValueOnce({
+    counts: { followUpsToday: 2, viewings: 1, newLeads: 0 },
+    tasks: [viewing, { kind: 'call', ref: 'L-2', name: 'Fixture call', at: null, unitCode: null, phone: null, matches: null }],
+    cards: { ops, oldUnits: null, target: null, commissions: null, approvals: null },
+    moreTasks: 0,
+  });
+  await wrap();
+  await screen.findByTestId('home-viewing');
+  expect(screen.getAllByText(/Fixture viewing/)).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Call' })).toBeTruthy();
+  expect(screen.getByTestId('home-late')).toBeTruthy();
+  expect(screen.getByTestId('home-calls')).toBeTruthy();
+  expect(screen.getByText('Fixture call')).toBeTruthy();
+  expect(screen.queryByTestId('today-card-info')).toBeNull();
+});
+
 test.each([
   ['en', 'Good evening, Sara', 'Units overdue for an update'],
   ['ar', 'مساء الخير يا Sara', 'وحدات محتاجة تحديث'],
@@ -287,6 +347,7 @@ test.each([
     expect(screen.getByText(greeting)).toBeTruthy();
     expect(screen.getByText(heading)).toBeTruthy();
     expect(screen.getByTestId('home-unit-A-3')).toBeTruthy();
+    expect(screen.getByTestId('old-active-A-3')).toBeTruthy();
     expect(screen.queryByTestId('home-unit-A-4')).toBeNull();
     await fireEvent.press(screen.getByTestId('home-all-units'));
     await screen.findByTestId('home-unit-A-4');

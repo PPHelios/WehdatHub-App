@@ -1,7 +1,7 @@
 import { track } from '../analytics';
 import React, { useEffect, useState } from 'react';
 import { timed } from '../usage';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -20,7 +20,7 @@ import { Field } from '../components/Field';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { spacing, useTheme } from '../theme';
+import { radius, spacing, useTheme } from '../theme';
 
 const KINDS: ApiLead['kind'][] = ['buyer', 'tenant', 'seller', 'landlord'];
 const KIND_LABEL: Record<ApiLead['kind'], [string, string]> = { buyer: ['مشتري', 'Buyer'], tenant: ['مستأجر', 'Tenant'], seller: ['بائع', 'Seller'], landlord: ['مؤجر', 'Landlord'] };
@@ -84,18 +84,25 @@ export function NewLeadScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Button testID="from-contacts" variant="secondary" label={`📇 ${t(lang, 'fromContacts')}`} onPress={() => nav.navigate('Contacts')} />
-      <Field label={t(lang, 'pasteFrom')} value={paste} onChangeText={setPaste} multiline testID="lead-paste" placeholder={t(lang, 'pasteHint')} />
-      <Button testID="lead-fill" variant="secondary" label={`✨ ${t(lang, 'pasteFill')}`} onPress={fill} disabled={filling || !paste.trim()} />
-      {notice ? <Text style={{ color: colors.accentInk }}>{notice}</Text> : null}
-      <Field label={t(lang, 'leadName')} value={name} onChangeText={setName} testID="lead-name" />
-      <Field label={t(lang, 'leadPhone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="lead-phone" hint={phoneHelp(lang)} />
-      <Chips<ApiLead['kind']> options={KINDS.map((k) => ({ value: k, label: KIND_LABEL[k][lang === 'ar' ? 0 : 1] }))} value={kind} onChange={setKind} />
-      <Field label={t(lang, 'leadNotes')} value={notes} onChangeText={setNotes} multiline />
+      <View style={[styles.panel, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        <Button testID="from-contacts" size="sm" variant="secondary" label={t(lang, 'fromContacts')} onPress={() => nav.navigate('Contacts')} />
+        <Field label={t(lang, 'pasteFrom')} value={paste} onChangeText={setPaste} multiline testID="lead-paste" placeholder={t(lang, 'pasteHint')} />
+        <Button testID="lead-fill" size="sm" variant="secondary" label={t(lang, 'pasteFill')} onPress={fill} disabled={filling || !paste.trim()} />
+        {notice ? <Text style={{ color: colors.primaryInk }}>{notice}</Text> : null}
+      </View>
+      <View style={[styles.panel, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        <Field label={t(lang, 'leadName')} value={name} onChangeText={setName} testID="lead-name" />
+        <Field label={t(lang, 'leadPhone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="lead-phone" hint={phoneHelp(lang)} />
+        <Chips<ApiLead['kind']> options={KINDS.map((k) => ({ value: k, label: KIND_LABEL[k][lang === 'ar' ? 0 : 1] }))} value={kind} onChange={setKind} />
+        <Field label={t(lang, 'leadNotes')} value={notes} onChangeText={setNotes} multiline />
+      </View>
       {message ? <Text testID="lead-form-message" style={{ color: colors.danger }}>{message}</Text> : null}
       <Button testID="lead-save" label={t(lang, 'save')} onPress={save} />
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({ content: { padding: spacing.lg, gap: spacing.md } });
+const styles = StyleSheet.create({
+  content: { padding: spacing.lg, gap: spacing.md },
+  panel: { borderRadius: radius.card, borderWidth: 1, padding: spacing.md, gap: spacing.sm },
+});

@@ -30,3 +30,15 @@ export function KeyboardLift({ children, style }: { children: React.ReactNode; s
   const { lift, onLayout } = useKeyboardLift();
   return <View onLayout={onLayout} style={[{ flex: 1 }, style, { paddingBottom: lift }]}>{children}</View>;
 }
+
+
+/** Tracks whether an app keyboard occupies the space below a screen. */
+export function useKeyboardVisible() {
+  const [visible, setVisible] = useState(() => Keyboard.isVisible());
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setVisible(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setVisible(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  return visible;
+}

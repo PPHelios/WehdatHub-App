@@ -19,9 +19,11 @@ test('when the photos fail after the details saved, a second Save retries only t
   await render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AddUnitScreen /></QueryClientProvider>);
   await waitFor(() => expect(screen.getByTestId('photo-remove-0')).toBeTruthy());
   await fireEvent.press(screen.getByTestId('photo-remove-0'));
+  await waitFor(() => expect(screen.getByTestId('save-unit')).toBeEnabled());
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(screen.getByTestId('unit-error')).toBeTruthy());
   expect(mockGoBack).not.toHaveBeenCalled();
+  await waitFor(() => expect(screen.getByTestId('save-unit')).toBeEnabled());
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
   expect(m.saveUnitEdit).toHaveBeenCalledTimes(1);

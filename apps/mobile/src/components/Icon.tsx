@@ -65,6 +65,12 @@ const ICONS = {
   building: [{ r: [5, 3, 14, 18, 1] }, { d: 'M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M3 21h18' }],
   compare: [{ d: 'M7 4v16M17 4v16M3 8l4-4 4 4M13 16l4 4 4-4' }],
   check: [{ d: 'm5 12 5 5 9-10' }],
+  cross: [{ d: 'M18 6 6 18M6 6l12 12' }],
+  phone: [{ d: 'M5 3h4l2 5-3 2a13 13 0 0 0 6 6l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z' }],
+  share: [{ d: 'M12 16V3m-4 4 4-4 4 4M5 12v8h14v-8' }],
+  bed: [{ d: 'M3 19v-7m18 7v-7M3 16h18M5 12V7h14v5M3 12h18m-9-5v5' }],
+  bath: [{ d: 'M3 12h18v2a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5v-2zm3 0V6a2 2 0 0 1 4 0v1M7 19l-1 2m11-2 1 2' }],
+  area: [{ d: 'M3 4v16h17L3 4zm4 9v3h3' }],
   send: [{ d: 'M22 2 11 13M22 2l-7 20-4-9-9-4z' }],
 } satisfies Record<string, Part[]>;
 
@@ -83,9 +89,9 @@ export function Icon({ name, color, size = 24, fill }: { name: IconName; color: 
   );
 }
 
-/** Disclosure arrows use vertical motion; navigation arrows follow the current app language. */
+/** Closed disclosures and navigation point forward. Open disclosures point down. */
 export function Chevron({ color, rtl, expanded }: { color: string; rtl: boolean; expanded?: boolean }) {
-  const rotation = expanded === undefined ? (rtl ? '180deg' : '0deg') : expanded ? '-90deg' : '90deg';
+  const rotation = expanded ? '90deg' : rtl ? '180deg' : '0deg';
   return (
     <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ transform: [{ rotate: rotation }] }}>
       <Icon name="back" size={18} color={color} />

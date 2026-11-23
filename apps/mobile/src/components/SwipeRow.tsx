@@ -38,9 +38,9 @@ export function SwipeRow({ children, rightLabel, leftLabel, onSwipeRight, onSwip
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   return (
     <View>
-      <View style={[styles.under, { backgroundColor: colors.card }]}>
+      <View style={[styles.under, { backgroundColor: colors.primarySoft }]}>
         <Text style={[styles.label, { color: colors.primaryInk }]}>{rightLabel}</Text>
-        <Text style={[styles.label, { color: colors.accent }]}>{leftLabel}</Text>
+        <Text style={[styles.label, { color: colors.accentInk }]}>{leftLabel}</Text>
       </View>
       <GestureDetector gesture={pan}>
         <Animated.View style={rowStyle}>{children}</Animated.View>
@@ -50,6 +50,6 @@ export function SwipeRow({ children, rightLabel, leftLabel, onSwipeRight, onSwip
 }
 
 const styles = StyleSheet.create({
-  under: { position: 'absolute', top: 0, bottom: 0, start: 0, end: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, marginBottom: spacing.md },
+  under: { position: 'absolute', top: 0, bottom: 0, start: 0, end: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl },
   label: { fontWeight: '800', fontSize: 15 },
 });

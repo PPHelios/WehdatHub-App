@@ -13,6 +13,7 @@ import { api } from '../api';
 import { currentLang } from '../auth';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { Button } from '../components/Button';
+import { useSelectionHighlight } from '../components/SelectionHighlight';
 import { Chips } from '../components/Chips';
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { TodayCards } from '../components/TodayCards';
@@ -22,7 +23,7 @@ import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { Split, useColumns, useWide } from '../layout';
 import { UnitScreen } from './UnitScreen';
-import { radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 import { useRights } from '../rights';
 
@@ -62,6 +63,8 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const [compound, setCompound] = useState('');
   const [compoundText, setCompoundText] = useState('');
   const [staleDays, setStaleDays] = useState(0);
+  const statusSelection = useSelectionHighlight(status, greenGradient);
+  const staleSelection = useSelectionHighlight(String(staleDays), greenGradient);
   const [deal, setDeal] = useState('');
   const [type, setType] = useState('');
   const [beds, setBeds] = useState('');
@@ -90,11 +93,9 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const planState = usePlanState();
   // Data entry has no Today: the units nobody has confirmed (agency-wide) sit above their list instead.
   const old = useQuery({ queryKey: ['today'], queryFn: () => api.today(), enabled: rights.dataEntry && status === 'active' });
-  const editUnit = useCallback((code: string) => nav.navigate('AddUnit', { edit: code }), [nav]);
-  const canEditOthers = rights.dataEntry || rights.manager || rights.agencyOwner;
   const renderItem = useCallback(
-    ({ item }: { item: UnitsPage['items'][number] }) => <UnitCard unit={item} lang={lang} onPress={onOpen} onEdit={rights.editUnits && (item.mine || canEditOthers) ? editUnit : undefined} />,
-    [lang, onOpen, rights.editUnits, canEditOthers, editUnit],
+    ({ item }: { item: UnitsPage['items'][number] }) => <UnitCard unit={item} lang={lang} onPress={onOpen} />,
+    [lang, onOpen],
   );
 
   return (
@@ -105,12 +106,13 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
         <Pressable testID="units-filters" accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((v) => !v)} style={[styles.chip, { borderColor: filtered ? colors.primary : colors.border }]}>
           <Text style={{ color: colors.text, fontWeight: '600' }}>{t(lang, 'filters')}{filtered ? ' •' : ''}</Text>
         </Pressable>
+        {statusSelection.highlight}
         {STATUSES.map((s) => (
-          <Pressable key={s} accessibilityRole="button" accessibilityState={{ selected: s === status }} onPress={() => setStatus(s)} style={[styles.chip, { borderColor: s === status ? colors.primary : colors.border, backgroundColor: s === status ? colors.primary : 'transparent' }]}>
+          <Pressable key={s} onLayout={statusSelection.measure(s)} accessibilityRole="button" accessibilityState={{ selected: s === status }} onPress={() => setStatus(s)} style={[styles.chip, { borderColor: s === status ? colors.primary : colors.border }, s === status && !statusSelection.highlight && greenGradient]}>
             <Text style={{ color: s === status ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, s)}{counts ? ` (${counts[s]})` : ''}</Text>
           </Pressable>
         ))}
-        <Pressable testID="units-old" accessibilityRole="button" accessibilityState={{ selected: oldOnly }} onPress={() => { setStatus('active'); setOldOnly((v) => !v); }} style={[styles.chip, { borderColor: oldOnly ? colors.primary : colors.border, backgroundColor: oldOnly ? colors.primary : 'transparent' }]}>
+        <Pressable testID="units-old" accessibilityRole="button" accessibilityState={{ selected: oldOnly }} onPress={() => { setStatus('active'); setOldOnly((v) => !v); }} style={[styles.chip, { borderColor: oldOnly ? colors.primary : colors.border, }, oldOnly && greenGradient]}>
           <Text style={{ color: oldOnly ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, 'tcOldUnits')}</Text>
         </Pressable>
       </View>
@@ -120,17 +122,17 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
       {rights.dataEntry && status === 'active' && old.data?.cards?.oldUnits ? <View style={styles.oldStrip}><TodayCards cards={old.data.cards} only="oldUnits" onShowAll={() => { setStatus('active'); setOldOnly(true); }} /></View> : null}
       {showFilters ? (
         <ScrollView style={styles.panelBox} contentContainerStyle={styles.panel} keyboardShouldPersistTaps="handled">
-          <Chips testID="f-deal" options={DEALS.map((d) => ({ value: d.value, label: lang === 'ar' ? d.ar : d.en }))} value={deal} onChange={toggle(setDeal, deal)} />
-          <Chips testID="f-type" options={options(PROPERTY_TYPES, lang)} value={type} onChange={toggle(setType, type)} />
+          <Chips animateFilter testID="f-deal" options={DEALS.map((d) => ({ value: d.value, label: lang === 'ar' ? d.ar : d.en }))} value={deal} onChange={toggle(setDeal, deal)} />
+          <Chips animateFilter testID="f-type" options={options(PROPERTY_TYPES, lang)} value={type} onChange={toggle(setType, type)} />
           <Text style={{ color: colors.muted }}>{t(lang, 'beds')}</Text>
-          <Chips testID="f-beds" options={BEDS.map((b) => ({ value: b, label: b === '5' ? '5+' : b }))} value={beds} onChange={toggle(setBeds, beds)} />
+          <Chips animateFilter testID="f-beds" options={BEDS.map((b) => ({ value: b, label: b === '5' ? '5+' : b }))} value={beds} onChange={toggle(setBeds, beds)} />
           <View style={styles.chipsRow}>
             <TextInput testID="f-pmin" style={[styles.search2, styles.flex, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={pminText} onChangeText={setPminText} placeholder={t(lang, 'priceFrom')} placeholderTextColor={colors.muted} keyboardType="numeric" />
             <TextInput testID="f-pmax" style={[styles.search2, styles.flex, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={pmaxText} onChangeText={setPmaxText} placeholder={t(lang, 'priceTo')} placeholderTextColor={colors.muted} keyboardType="numeric" />
           </View>
-          <Chips testID="f-finishing" options={options(FINISHING, lang)} value={finishing} onChange={toggle(setFinishing, finishing)} />
-          <Chips testID="f-furnishing" options={options(FURNISHING, lang)} value={furnishing} onChange={toggle(setFurnishing, furnishing)} />
-          <Chips testID="f-mine" options={[{ value: 'mine', label: t(lang, 'mineOnly') }]} value={mine ? 'mine' : ''} onChange={() => setMine((v) => !v)} />
+          <Chips animateFilter testID="f-finishing" options={options(FINISHING, lang)} value={finishing} onChange={toggle(setFinishing, finishing)} />
+          <Chips animateFilter testID="f-furnishing" options={options(FURNISHING, lang)} value={furnishing} onChange={toggle(setFurnishing, furnishing)} />
+          <Chips animateFilter testID="f-mine" options={[{ value: 'mine', label: t(lang, 'mineOnly') }]} value={mine ? 'mine' : ''} onChange={() => setMine((v) => !v)} />
           {compound ? (
             <Pressable testID="compound-clear" accessibilityRole="button" onPress={() => { setCompound(''); setCompoundText(''); }} style={[styles.chip, { borderColor: colors.primary }]}>
               <Text style={{ color: colors.text, fontWeight: '600' }}>{compound} ✕</Text>
@@ -147,8 +149,9 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
           )}
           <Text style={{ color: colors.muted }}>{t(lang, 'staleDays')}</Text>
           <View style={styles.chipsRow}>
+            {staleSelection.highlight}
             {[0, 30, 60, 90].map((d) => (
-              <Pressable key={d} testID={`stale-${d}`} accessibilityRole="button" accessibilityState={{ selected: d === staleDays }} onPress={() => setStaleDays(d)} style={[styles.chip, { borderColor: d === staleDays ? colors.primary : colors.border, backgroundColor: d === staleDays ? colors.primary : 'transparent' }]}>
+              <Pressable key={d} onLayout={staleSelection.measure(String(d))} testID={`stale-${d}`} accessibilityRole="button" accessibilityState={{ selected: d === staleDays }} onPress={() => setStaleDays(d)} style={[styles.chip, { borderColor: d === staleDays ? colors.primary : colors.border }, d === staleDays && !staleSelection.highlight && greenGradient]}>
                 <Text style={{ color: d === staleDays ? colors.onPrimary : colors.text, fontWeight: '600' }}>{d === 0 ? '—' : d}</Text>
               </Pressable>
             ))}

@@ -1,3 +1,4 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useCallback, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -95,6 +96,13 @@ const lazyScreens = {
   Ask: lazy(() => require('./screens/AskScreen').AskScreen, true),
   AddUnit: lazy(() => require('./screens/AddUnitScreen').AddUnitScreen, true),
   WhatsAppImport: lazy(() => require('./screens/WhatsAppImportScreen').WhatsAppImportScreen, true),
+  ClientsHub: lazy(() => require('./screens/ClientsHubScreen').ClientsHubScreen),
+  ProjectsHub: lazy(() => require('./screens/ProjectsHubScreen').ProjectsHubScreen),
+  TrackingHub: lazy(() => require('./screens/TrackingHubScreen').TrackingHubScreen),
+  DealsHub: lazy(() => require('./screens/DealsHubScreen').DealsHubScreen),
+  AdminHub: lazy(() => require('./screens/AdminHubScreen').AdminHubScreen),
+  ReportsHub: lazy(() => require('./screens/ReportsHubScreen').ReportsHubScreen),
+  SettingsHub: lazy(() => require('./screens/SettingsHubScreen').SettingsHubScreen),
 };
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { t } from './i18n';
@@ -108,7 +116,7 @@ export type AddUnitParams = {
   /** The post as the import read it (the server's rules reader): the form opens with these fields filled. */ fields?: UnitFields;
   /** The code the post writes: filled even when the reader could not be reached. */ code?: string;
 };
-export type RootStackParams = { Tabs: undefined; MoreMenu: undefined; Settings: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string; paste?: string } | undefined; Contacts: undefined; Calendar: { tomorrow?: boolean } | undefined; SentLinks: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: { order?: 'overdue' | 'available' } | undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: { signedOnly?: boolean } | undefined; Portal: undefined; PortalEnquiry: { message: string; enquiry?: PortalEnquiryRead }; Links: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean; missingPhotos?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TeamMember: { id: string; name: string; role?: string; me?: boolean; teamLeadId?: string | null }; Ask: undefined; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
+export type RootStackParams = { Tabs: undefined; MoreMenu: undefined; Settings: undefined; ClientsHub: { initialTab?: 'calendar' | 'pipeline' | 'requests' | 'compare' } | undefined; ProjectsHub: { initialTab?: 'projects' | 'library' | 'prices' | 'ask' } | undefined; TrackingHub: { initialTab?: 'links' | 'leases' | 'searches' } | undefined; DealsHub: { initialTab?: 'deals' | 'commissions' } | undefined; AdminHub: { initialTab?: 'team' | 'rules' | 'requests' | 'portals' } | undefined; ReportsHub: { initialTab?: 'dashboard' | 'winloss' | 'sources' | 'activity' } | undefined; SettingsHub: { initialTab?: 'app' | 'notifications' | 'plan' | 'support' } | undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string; paste?: string } | undefined; Contacts: undefined; Calendar: { tomorrow?: boolean } | undefined; SentLinks: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: { order?: 'overdue' | 'available' } | undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: { signedOnly?: boolean } | undefined; Portal: undefined; PortalEnquiry: { message: string; enquiry?: PortalEnquiryRead }; Links: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean; missingPhotos?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TeamMember: { id: string; name: string; role?: string; me?: boolean; teamLeadId?: string | null }; Ask: undefined; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = Record<TabKey | 'AddUnitTab', undefined>;
 
@@ -123,7 +131,7 @@ const NothingHere = () => null;
 
 /** Every tab's screen. Module level: the map never changes. */
 const TAB_SCREENS: Record<TabKey, React.ComponentType> = { Search: SearchNarrow, Leads: LeadsScreen, Map: MapScreen, Units: UnitsScreen, More: MoreNarrow, Team: TeamNarrow, Dashboard: DashboardScreen, Owners: OwnersScreen, AddUnit: NothingHere, Plan: PlanScreen, Settings: SettingsNarrow };
-const renderTabBar = (p: BottomTabBarProps) => <FloatingTabBar {...p} />;
+const renderTabBar = (props: BottomTabBarProps) => <FloatingTabBar {...props} />;
 const openInbox = () => navigationRef.navigate('Inbox');
 const openMoreMenu = () => navigationRef.navigate('MoreMenu');
 const addUnitListeners = { tabPress: (e: { preventDefault: () => void }) => { e.preventDefault(); navigationRef.navigate('AddUnit'); } };
@@ -132,11 +140,11 @@ function TabsScreen() {
   const lang = currentLang();
   const { rights, ready, nav } = useRightsState();
   const { colors } = useTheme();
-  const { bg, border, text, muted, primaryInk } = colors;
+  const { bg, border, text } = colors;
   // The only poll of the unread count (once a minute, paused in the background); the bell reads the same query.
   useQuery({ ...inboxUnreadOptions, refetchInterval: 60_000, enabled: ready });
   const plan = useMemo(() => (ready ? tabPlan(nav, rights) : null), [ready, nav, rights]);
-  const hasMoreTab = Boolean(plan?.tabs.some((x) => x.key === 'More')); // the older bar has a More tab; the newer one a menu button
+  const hasMoreTab = Boolean(plan?.tabs.some((x) => x.key === 'More'));
   const headerRight = useCallback(() => (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <NotificationBell onPress={openInbox} />
@@ -149,16 +157,13 @@ function TabsScreen() {
     headerStyle: { backgroundColor: bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border },
     headerTitleStyle: { color: text, fontFamily: FONT_BOLD },
     headerShadowVisible: false,
-    tabBarActiveTintColor: primaryInk,
-    tabBarInactiveTintColor: muted,
-    // No More tab on this bar: a menu button opens the grouped More list.
     headerRight,
-  }), [bg, border, text, muted, primaryInk, headerRight]);
+  }), [bg, border, text, headerRight]);
   const tabOptions = useMemo(() => (plan?.tabs ?? []).map((spec) => ({ title: spec.label ? spec.label[lang] : t(lang, TAB_TITLE[spec.key]), tabBarIcon: tabIcon(spec.icon), tabBarButtonTestID: spec.fab ? FAB_TEST_ID : undefined })), [plan, lang]);
   if (!plan) {
     return (
       <View style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={primaryInk} />
+        <ActivityIndicator color={colors.primaryInk} />
       </View>
     );
   }
@@ -171,7 +176,7 @@ function TabsScreen() {
             key={k}
             name={k === 'AddUnit' ? 'AddUnitTab' : k}
             component={TAB_SCREENS[k]}
-            options={tabOptions[i]}
+            options={k === 'Search' ? { ...tabOptions[i], headerTitle: '', headerLeft: () => <View style={{ paddingHorizontal: 12 }}><Logo compact size={0.45} /></View> } : tabOptions[i]}
             listeners={k === 'AddUnit' ? addUnitListeners : undefined}
           />
         );
@@ -203,9 +208,18 @@ export function RootNavigation() {
           <Stack.Screen name="Tabs" component={LoginScreen} />
         </Stack.Navigator>
       ) : (
-        <Stack.Navigator screenLayout={({ children, options }) => <BottomSafe><PlanBanner topInset={options.headerShown === false} onOpenPlan={() => navigationRef.navigate('Plan')} />{children}</BottomSafe>} screenOptions={{ headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerStyle: { backgroundColor: colors.bg }, headerShadowVisible: false, headerRight: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View> }}>
+        <Stack.Navigator screenLayout={({ children, options, route }) => (
+          <BottomSafe>
+            {route.name === 'Unit' ? (
+              <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+                <PlanBanner onOpenPlan={() => navigationRef.navigate('Plan')} />
+                {children}
+              </SafeAreaView>
+            ) : <><PlanBanner topInset={options.headerShown === false} onOpenPlan={() => navigationRef.navigate('Plan')} />{children}</>}
+          </BottomSafe>
+        )} screenOptions={{ headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerStyle: { backgroundColor: colors.bg }, headerShadowVisible: false, headerRight: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View> }}>
           <Stack.Screen name="Tabs" component={TabsScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Unit" getComponent={lazyScreens.Unit} options={{ title: t(currentLang(), 'unit') }} />
+          <Stack.Screen name="Unit" getComponent={lazyScreens.Unit} options={{ headerShown: false }} />
           <Stack.Screen name="Lead" getComponent={lazyScreens.Lead} options={{ title: t(currentLang(), 'leadsTab') }} />
           <Stack.Screen name="Contacts" getComponent={lazyScreens.Contacts} options={{ title: t(currentLang(), 'fromContacts') }} />
           <Stack.Screen name="NewLead" getComponent={lazyScreens.NewLead} options={{ title: t(currentLang(), 'newLead') }} />
@@ -251,6 +265,13 @@ export function RootNavigation() {
           <Stack.Screen name="Ask" getComponent={lazyScreens.Ask} options={{ title: t(currentLang(), 'ask') }} />
           <Stack.Screen name="AddUnit" getComponent={lazyScreens.AddUnit} options={{ title: t(currentLang(), 'addUnit') }} />
           <Stack.Screen name="WhatsAppImport" getComponent={lazyScreens.WhatsAppImport} options={{ title: t(currentLang(), 'whatsappImport') }} />
+          <Stack.Screen name="ClientsHub" getComponent={lazyScreens.ClientsHub} options={{ title: currentLang() === 'ar' ? 'العملاء' : 'Clients' }} />
+          <Stack.Screen name="ProjectsHub" getComponent={lazyScreens.ProjectsHub} options={{ title: currentLang() === 'ar' ? 'المشاريع' : 'Projects' }} />
+          <Stack.Screen name="TrackingHub" getComponent={lazyScreens.TrackingHub} options={{ title: currentLang() === 'ar' ? 'المتابعة' : 'Tracking' }} />
+          <Stack.Screen name="DealsHub" getComponent={lazyScreens.DealsHub} options={{ title: currentLang() === 'ar' ? 'الصفقات' : 'Deals' }} />
+          <Stack.Screen name="AdminHub" getComponent={lazyScreens.AdminHub} options={{ title: currentLang() === 'ar' ? 'إدارة الشركة' : 'Agency Admin' }} />
+          <Stack.Screen name="ReportsHub" getComponent={lazyScreens.ReportsHub} options={{ title: currentLang() === 'ar' ? 'تقارير الشركة' : 'Agency Reports' }} />
+          <Stack.Screen name="SettingsHub" getComponent={lazyScreens.SettingsHub} options={{ title: currentLang() === 'ar' ? 'الإعدادات' : 'Settings' }} />
         </Stack.Navigator>
       )}
     </NavigationContainer>

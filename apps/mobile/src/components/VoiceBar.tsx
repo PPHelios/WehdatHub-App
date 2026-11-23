@@ -24,7 +24,7 @@ import { cancelRecording, EmptyRecordingError, ensureMic, startRecording, stopRe
 import { reportError } from '../errorReport';
 import * as haptics from '../haptics';
 import { Icon } from './Icon';
-import { radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, useTheme } from '../theme';
 
 const CANCEL_PX = 80;
 const LOCK_PX = 70;
@@ -54,6 +54,7 @@ interface Props {
   onSubmit?: () => void;
   accessory?: React.ReactNode;
   actionDecoration?: React.ReactNode;
+  compact?: boolean;
 }
 
 const clamp = (n: number, lo: number, hi: number) => {
@@ -102,7 +103,7 @@ function BinDrop({ progress, color, reduced }: { progress: { value: number }; co
  * The button is a mic when the box is empty (hold to record, lift to send, slide left to cancel, slide up to lock)
  * and a send arrow when there is text. Without text input it is a mic-only bar.
  */
-export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = false, value, onChangeText, placeholder, onSubmit, accessory, actionDecoration }: Props) {
+export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = false, value, onChangeText, placeholder, onSubmit, accessory, actionDecoration, compact = false }: Props) {
   const { colors } = useTheme();
   const lang = currentLang();
   const reduced = useReducedMotion();
@@ -478,11 +479,14 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     } else if (phaseRef.current === 'locked' || phaseRef.current === 'stopped') void send();
   };
 
+  const controlSize = compact ? 44 : BTN;
+  const pillHeight = { minHeight: controlSize };
+  const control = { width: controlSize, height: controlSize };
   const rowDir = { flexDirection: I18nManager.isRTL ? ('row-reverse' as const) : ('row' as const) };
   const iconColor = colors.onPrimary;
 
   const rail = (
-    <Animated.View testID={`${id}-rail`} style={[styles.pill, rowDir, styles.rail, railStyle]}>
+    <Animated.View testID={`${id}-rail`} style={[styles.pill, pillHeight, rowDir, styles.rail, railStyle]}>
       {phase === 'discarding' ? (
         <BinDrop progress={bin} color={colors.danger} reduced={reduced} />
       ) : (
@@ -506,19 +510,35 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   );
 
   const field = textMode ? (
-    <TextInput
-      testID={`${id}-input`}
-      style={[styles.pill, styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card, textAlign: lang === 'ar' ? 'right' : 'left', writingDirection: lang === 'ar' ? 'rtl' : 'ltr' }]}
-      value={value}
-      onChangeText={onChangeText}
-      placeholder={placeholder}
-      placeholderTextColor={colors.muted}
-      returnKeyType="search"
-      onSubmitEditing={onSubmit}
-      multiline={false}
-    />
+    <View style={styles.inputWrap}>
+      <TextInput
+        testID={`${id}-input`}
+        style={[styles.pill, pillHeight, styles.input, compact && styles.compactInput, { color: colors.text, borderColor: 'transparent', backgroundColor: 'transparent', textAlign: lang === 'ar' ? 'right' : 'left', writingDirection: lang === 'ar' ? 'rtl' : 'ltr', paddingEnd: 36 }]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.muted}
+        returnKeyType="search"
+        onSubmitEditing={onSubmit}
+        multiline={false}
+      />
+      {value && value.length > 0 ? (
+        <Pressable
+          testID={`${id}-clear`}
+          accessibilityRole="button"
+          accessibilityLabel={lang === 'ar' ? 'مسح النص' : 'Clear text'}
+          hitSlop={10}
+          onPress={() => onChangeText?.('')}
+          style={[styles.clearBtn, { [lang === 'ar' ? 'left' : 'right']: 12 }]}
+        >
+          <View style={[styles.clearCircle, { backgroundColor: colors.border }]}>
+            <Icon name="cross" size={12} color={colors.text} />
+          </View>
+        </Pressable>
+      ) : null}
+    </View>
   ) : (
-    <View style={[styles.pill, styles.input, { borderColor: colors.border, backgroundColor: colors.card, justifyContent: 'center' }]}>
+    <View style={[styles.pill, pillHeight, styles.input, { borderColor: colors.border, backgroundColor: colors.card, justifyContent: 'center' }]}>
       <Text style={{ color: colors.muted, textAlign: lang === 'ar' ? 'right' : 'left' }}>{label}</Text>
     </View>
   );
@@ -527,7 +547,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     <View style={[styles.row, rowDir]}>
       {phase === 'idle' ? accessory : null}
       {phase === 'idle' || phase === 'sending' ? field : rail}
-      <View style={styles.slot}>
+      <View style={control}>
         {tip ? (
           <View testID={`${id}-hint`} style={[styles.tip, { backgroundColor: colors.inverse }]}>
             <Text style={{ color: colors.onInverse }}>{t(lang, 'voiceQuickHint')}</Text>
@@ -547,7 +567,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
             accessibilityState={{ busy: phase === 'sending' || busy, disabled: off }}
             accessibilityActions={actions}
             onAccessibilityAction={(e) => onAction(e.nativeEvent.actionName)}
-            style={[styles.btn, { backgroundColor: colors.primary, opacity: off ? 0.6 : 1 }, btnStyle]}
+            style={[styles.btn, control, { borderRadius: controlSize / 2 }, greenGradient, { opacity: off ? 0.6 : 1 }, btnStyle]}
           >
             {actionDecoration}
             {phase === 'sending' || busy ? (
@@ -574,11 +594,14 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
 
 const styles = StyleSheet.create({
   row: { alignItems: 'center', gap: spacing.sm },
-  pill: { minHeight: BTN, borderWidth: 1, borderRadius: radius.lg * 2, flex: 1 },
+  inputWrap: { flex: 1, position: 'relative', justifyContent: 'center' },
+  clearBtn: { position: 'absolute', top: 0, bottom: 0, justifyContent: 'center', zIndex: 10 },
+  clearCircle: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  pill: { borderWidth: 1, borderRadius: radius.lg * 2, flex: 1 },
   input: { margin: 0, paddingHorizontal: spacing.lg, fontSize: 16 },
   rail: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md },
-  slot: { width: BTN, height: BTN },
-  btn: { width: BTN, height: BTN, borderRadius: BTN / 2, alignItems: 'center', justifyContent: 'center' },
+  compactInput: { height: 44, paddingVertical: 0, fontSize: 14 },
+  btn: { alignItems: 'center', justifyContent: 'center' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: BTN / 2 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   timer: { fontSize: 16, fontWeight: '600', fontVariant: ['tabular-nums'] },

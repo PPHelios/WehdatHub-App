@@ -51,7 +51,7 @@ export function SearchDeals({ initialPeriod }: { initialPeriod: Period }) {
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{ar ? 'الصفقات اللي اتقفلت' : 'Closed deals'}</Text>
-      <Chips value={period} onChange={(next) => { setPeriod(next); setWeek(undefined); }} options={[
+      <Chips animateFilter value={period} onChange={(next) => { setPeriod(next); setWeek(undefined); }} options={[
         { value: 'recent', label: ar ? 'الشهر ده' : 'This month' },
         { value: 'last', label: ar ? 'الشهر اللي فات' : 'Last month' },
       ]} />
@@ -103,7 +103,7 @@ export function SearchDeals({ initialPeriod }: { initialPeriod: Period }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.lg, paddingBottom: 150, gap: spacing.md },
+  content: { padding: spacing.lg, paddingBottom: 90, gap: spacing.md },
   title: { fontWeight: '700', fontSize: 20 },
   total: { fontWeight: '800', fontSize: 34, fontVariant: ['tabular-nums'] },
   chart: { padding: spacing.lg, borderRadius: radius.card, gap: spacing.xs },

@@ -6,19 +6,20 @@ import type { ApiUnitListItem, Lang } from '@wehdathub/shared';
 import { t } from '../i18n';
 import { ALL_TYPES, FINISHING, labelOf } from '../unitOptions';
 import { Icon } from './Icon';
-import { Pill } from './Pill';
 import { SmartImage } from './SmartImage';
-import { radius, spacing, useTheme } from '../theme';
+import { Chip } from './Chip';
+import { spacing, useTheme } from '../theme';
 
-/** The height of the photo area: the same on every card, so a list reads as even rows. */
-export const UNIT_PHOTO_HEIGHT = 180;
+/** The height and width of the photo thumbnail: square 96px, so rows in inventory lists read compactly. */
+export const UNIT_PHOTO_HEIGHT = 96;
 
 /**
- * A unit in a list: the photo with its status on it, the compound and code, the price, the facts as pills. The same card language as the
- * project cards (Pill, 16 px corners, the same spacing).
+ * A unit in a list: compact horizontal row with a 96px leading thumbnail, mini status badge,
+ * property type chip, title, place, clean horizontal specs line, and prominent EGP price.
  */
-export const UnitCard = memo(function UnitCard({ unit, lang, onPress, onEdit }: { unit: ApiUnitListItem; lang: Lang; onPress: (code: string) => void; onEdit?: (code: string) => void }) {
+export const UnitCard = memo(function UnitCardRow({ unit, lang, onPress }: { unit: ApiUnitListItem; lang: Lang; onPress: (code: string) => void }) {
   const { colors, elev } = useTheme();
+  const arabic = lang === 'ar';
   const facts = [unit.bedrooms !== null ? `${unit.bedrooms} ${t(lang, 'beds')}` : null, unit.bathrooms !== null ? `${unit.bathrooms} ${t(lang, 'baths')}` : null, unit.area !== null ? `${Math.round(unit.area)} ${t(lang, 'sqm')}` : null].filter((x): x is string => Boolean(x));
   const place = [unit.district, unit.city].filter(Boolean).join(' · ');
   // The compound and its phase on the title: "Madinaty · B10". A part equal to another (or to the code) is shown once.
@@ -26,35 +27,56 @@ export const UnitCard = memo(function UnitCard({ unit, lang, onPress, onEdit }: 
   const parts = [unit.compound, lang === 'en' ? unit.phaseEn : unit.phase].filter((x): x is string => Boolean(x)).filter((x, i, all) => all.findIndex((y) => sameText(y, x)) === i);
   const name = unit.compound ? parts.join(' · ') : unit.code;
   const showCode = Boolean(unit.compound) && !parts.some((x) => sameText(x, unit.code));
-  const deal = unit.dealType === 'sale' || unit.dealType === 'rent' ? <Pill testID={`deal-${unit.code}`} solid tone={unit.dealType === 'rent' ? 'accent' : 'primary'} label={t(lang, unit.dealType)} /> : null;
-  const mine = unit.mine ? <Pill solid tone="accent" label={t(lang, 'mine')} /> : null;
+  const chip = { style: styles.chip, textStyle: styles.chipText };
+  const badgeStyle = [styles.chip, !arabic && { backgroundColor: colors.card }];
+  const deal = unit.dealType === 'sale' || unit.dealType === 'rent' ? (
+    <Chip {...chip} style={badgeStyle} testID={`deal-${unit.code}`} label={t(lang, unit.dealType)} />
+  ) : null;
+  const mine = unit.mine ? (
+    <Chip {...chip} style={badgeStyle} testID={`owner-${unit.code}`} label={t(lang, 'mine')} />
+  ) : null;
+
   return (
-    <Pressable accessibilityRole="button" onPress={() => onPress(unit.code)} style={({ pressed }) => [styles.card, elev(pressed ? 'lg' : 'md'), { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.95 : 1 }]}>
-      {unit.photo ? (
-        <View>
-          <SmartImage key={unit.photo} uri={unit.photo} style={styles.photo} />
-          <View style={styles.over}>{deal}{mine}</View>
+    <Pressable accessibilityRole="button" onPress={() => onPress(unit.code)} style={({ pressed }) => [styles.card, elev(pressed ? 'md' : 'sm'), { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.95 : 1 }]}>
+      <View style={[styles.contentRow, arabic && styles.arabicRow]}>
+        <View testID={unit.photo ? undefined : `no-photo-${unit.code}`} style={[styles.photoWrap, !unit.photo && [styles.none, { backgroundColor: colors.bg }]]}>
+          {unit.photo
+            ? <SmartImage key={unit.photo} uri={unit.photo} style={styles.photo} />
+            : <Icon name="units" color={colors.muted} size={28} />}
+          {!arabic && deal ? <View style={styles.overTop}>{deal}</View> : null}
+          {!arabic && mine ? <View style={styles.overBottom}>{mine}</View> : null}
         </View>
-      ) : (
-        // No photo yet: the same area, so cards in a list keep one height.
-        <View testID={`no-photo-${unit.code}`} style={[styles.photo, styles.none, { backgroundColor: colors.bg }]}>
-          <Icon name="units" color={colors.muted} size={32} />
-          <View style={styles.over}>{deal}{mine}</View>
-        </View>
-      )}
-      <View style={styles.info}>
-        <View style={styles.row}>
+        <View style={styles.info}>
+          <View style={styles.metaRow}>
+            {unit.propertyType ? (
+              <Chip {...chip} testID={`type-${unit.code}`} label={labelOf(ALL_TYPES, unit.propertyType, lang) ?? ''} />
+            ) : null}
+            {unit.finishing ? (
+              <Chip {...chip} testID={`finishing-${unit.code}`} label={labelOf(FINISHING, unit.finishing, lang) ?? ''} />
+            ) : null}
+            {showCode ? (
+              <Chip {...chip} testID={`code-${unit.code}`} label={unit.code} />
+            ) : null}
+          </View>
           <Text testID={`title-${unit.code}`} style={[styles.title, { color: colors.text }]} numberOfLines={1}>{name}</Text>
-          {showCode ? <Text style={[styles.code, { color: colors.muted }]}>{unit.code}</Text> : null}
+          {place ? <Text testID={`place-${unit.code}`} style={[styles.place, { color: colors.muted }]} numberOfLines={1}>{place}</Text> : null}
+          {facts.length ? (
+            <View style={styles.specsRow}>
+              <Text style={[styles.specsText, { color: colors.muted }]}>{facts.join('  ·  ')}</Text>
+            </View>
+          ) : null}
+          {unit.price !== null ? (
+            <View style={styles.priceRow}>
+              <Text style={[styles.price, { color: colors.text }]}>{formatEgp(unit.price)}</Text>
+              <Text style={[styles.currency, { color: colors.primary }]}>{t(lang, 'egp')}</Text>
+            </View>
+          ) : null}
         </View>
-        {place ? <Text testID={`place-${unit.code}`} style={[styles.place, { color: colors.muted }]} numberOfLines={1}>{place}</Text> : null}
-        {unit.price !== null ? <Text style={[styles.price, { color: colors.primaryInk }]}>{formatEgp(unit.price)} {t(lang, 'egp')}</Text> : null}
-        {facts.length || unit.finishing || unit.propertyType ? <View style={styles.facts}>{unit.propertyType ? <Pill testID={`type-${unit.code}`} tone="primary" label={labelOf(ALL_TYPES, unit.propertyType, lang) ?? ''} /> : null}{facts.map((f) => <Pill key={f} label={f} />)}{unit.finishing ? <Pill testID={`finishing-${unit.code}`} tone="accent" label={labelOf(FINISHING, unit.finishing, lang) ?? ''} /> : null}</View> : null}
-        {onEdit ? (
-          <Pressable testID={`edit-${unit.code}`} accessibilityRole="button" accessibilityLabel={t(lang, 'editUnit')} hitSlop={8} onPress={() => onEdit(unit.code)} style={[styles.edit, { borderColor: colors.border }]}>
-            <Icon name="edit" color={colors.primaryInk} size={16} />
-            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{t(lang, 'editUnit')}</Text>
-          </Pressable>
+        {arabic && (deal || mine) ? (
+          <View testID={`badges-${unit.code}`} style={styles.badgeColumn}>
+            {deal}
+            {mine ? <View style={styles.ownerBadge}>{mine}</View> : null}
+          </View>
         ) : null}
       </View>
     </Pressable>
@@ -62,16 +84,25 @@ export const UnitCard = memo(function UnitCard({ unit, lang, onPress, onEdit }: 
 });
 
 const styles = StyleSheet.create({
-  card: { borderRadius: radius.card, borderWidth: 1, overflow: 'hidden', marginHorizontal: spacing.lg, marginBottom: spacing.md },
-  photo: { height: UNIT_PHOTO_HEIGHT, width: '100%' },
+  card: { borderRadius: 14, borderWidth: 1, overflow: 'hidden', marginHorizontal: spacing.lg, marginBottom: 10 },
+  contentRow: { flexDirection: 'row', padding: 8, gap: 10, alignItems: 'center' },
+  arabicRow: { direction: 'rtl' },
+  photoWrap: { direction: 'ltr', width: UNIT_PHOTO_HEIGHT, height: UNIT_PHOTO_HEIGHT, borderRadius: 10, overflow: 'hidden', position: 'relative', flexShrink: 0 },
+  photo: { width: '100%', height: '100%' },
   none: { alignItems: 'center', justifyContent: 'center' },
-  place: { fontSize: 14 },
-  over: { position: 'absolute', top: spacing.sm, start: spacing.sm, end: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.xs },
-  info: { padding: spacing.md, gap: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
-  title: { flex: 1, minWidth: 0, fontSize: 17, fontWeight: '800' },
-  code: { flexShrink: 0, fontSize: 13, fontWeight: '700' },
-  price: { fontSize: 22, fontWeight: '800' },
-  facts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  edit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, minHeight: 44, borderWidth: 1, borderRadius: radius.md },
+  overTop: { position: 'absolute', top: 5, start: 5 },
+  overBottom: { position: 'absolute', bottom: 5, end: 5 },
+  badgeColumn: { direction: 'ltr', alignSelf: 'stretch', alignItems: 'flex-start', gap: spacing.sm },
+  ownerBadge: { marginTop: 'auto' },
+  info: { flex: 1, minWidth: 0, minHeight: UNIT_PHOTO_HEIGHT, justifyContent: 'space-between', paddingVertical: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  chip: { paddingHorizontal: 6, paddingVertical: 1 },
+  chipText: { fontSize: 11, fontWeight: '800' },
+  title: { fontSize: 14, fontWeight: '800', lineHeight: 18 },
+  place: { fontSize: 12 },
+  specsRow: { flexDirection: 'row', alignItems: 'center' },
+  specsText: { fontSize: 11.5, fontWeight: '600' },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
+  price: { fontSize: 15, fontWeight: '900' },
+  currency: { fontSize: 11, fontWeight: '700' },
 });

@@ -30,6 +30,7 @@ test('edit mode loads the unit, saves with its version and goes back', async () 
   await waitFor(() => expect(screen.getByText(/Mivida/)).toBeTruthy());
   expect(screen.getByTestId('add-photos')).toBeTruthy();
   await fireEvent.changeText(screen.getByTestId('f-price_value'), '8500000');
+  await waitFor(() => expect(screen.getByTestId('save-unit')).toBeEnabled());
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(m.saveUnitEdit).toHaveBeenCalledWith('A-1', 4, expect.objectContaining({ price_value: '8500000' }), expect.any(String)));
   await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
@@ -51,6 +52,7 @@ test('a stale version says the unit changed elsewhere', async () => {
   m.saveUnitEdit.mockRejectedValue(new ApiClientError(409, 'conflict'));
   await render(<QueryClientProvider client={client()}><AddUnitScreen /></QueryClientProvider>);
   await waitFor(() => expect(screen.getByText(/Mivida/)).toBeTruthy());
+  await waitFor(() => expect(screen.getByTestId('save-unit')).toBeEnabled());
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(screen.getByTestId('unit-error')).toBeTruthy());
   expect(mockGoBack).not.toHaveBeenCalled();

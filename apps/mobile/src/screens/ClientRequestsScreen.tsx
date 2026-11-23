@@ -101,7 +101,7 @@ export function ClientRequestsScreen() {
       ListHeaderComponent={(
         <View style={styles.head}>
           <AddRequest onDone={refresh} />
-          <Chips<'pending' | 'fulfilled'> testID="requests-tab" value={tab} options={[{ value: 'pending', label: t(lang, 'tabPending') }, { value: 'fulfilled', label: t(lang, 'tabFulfilled') }]} onChange={setTab} />
+          <Chips<'pending' | 'fulfilled'> animateFilter testID="requests-tab" value={tab} options={[{ value: 'pending', label: t(lang, 'tabPending') }, { value: 'fulfilled', label: t(lang, 'tabFulfilled') }]} onChange={setTab} />
         </View>
       )}
       ListEmptyComponent={list.isPending ? <Loading label={t(lang, 'loading')} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} /> : <Text testID="requests-empty" style={{ color: colors.muted }}>{t(lang, 'noRequests')}</Text>}

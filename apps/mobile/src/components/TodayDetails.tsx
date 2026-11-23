@@ -1,5 +1,5 @@
 import React from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
@@ -11,6 +11,8 @@ import { bannerText, preEndStatus, unitWarnPct, usePlanState } from '../planStat
 import { planT, preEndText, unitCapText } from '../planText';
 import { Button } from './Button';
 import { TodayCards } from './TodayCards';
+import { HomeRow } from './HomeRow';
+import type { IconName } from './Icon';
 import { EmptyView, ErrorView, Loading } from './StateViews';
 import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
@@ -18,8 +20,13 @@ import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 
 const KIND_LABEL: Record<TodayTask['kind'], StringKey> = { late: 'late', viewing: 'viewing', hot: 'hot', call: 'callTask', matches: 'matches' };
+const KIND_ICON: Record<TodayTask['kind'], IconName> = { late: 'bell', viewing: 'calendar', hot: 'pulse', call: 'phone', matches: 'units' };
 
-export function TodayDetails() {
+export function TodayCall({ phone, label }: { phone: string; label: string }) {
+  return <Button label={label} variant="secondary" size="sm" onPress={() => Linking.openURL(`tel:+${phone}`)} />;
+}
+
+export function TodayDetails({ brief }: { brief?: { ops: boolean; units: boolean; viewing: TodayTask | null } } = {}) {
   const { colors } = useTheme();
   const lang = currentLang();
   const stack = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -29,16 +36,25 @@ export function TodayDetails() {
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
   if (q.isError || !q.data) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} altLabel={t(lang, 'openUnits')} onAlt={() => stack.navigate('UnitsList')} />;
   const { counts, tasks, moreTasks } = q.data;
+  const viewing = brief?.viewing;
+  const remaining = viewing ? tasks.filter((task) => !(
+    task.kind === 'viewing' && task.ref === viewing.ref && task.at === viewing.at
+    && (!task.phone || task.phone === viewing.phone) && (!task.unitCode || task.unitCode === viewing.unitCode)
+  )) : tasks;
+  const cards = q.data.cards && {
+    ...q.data.cards,
+    ops: brief?.ops ? null : q.data.cards.ops,
+    oldUnits: brief?.units ? null : q.data.cards.oldUnits,
+  };
   const leases = q.data.leases ?? [];
   const stats: [StringKey, number, string][] = [['followUps', counts.followUpsToday, colors.primary], ['viewings', counts.viewings, colors.accent], ['newLeads', counts.newLeads, colors.ok]];
-  const KIND_TONE: Record<TodayTask['kind'], string> = { late: colors.danger, hot: colors.warn, viewing: colors.accent, call: colors.primary, matches: colors.primary };
 
   const preEnd = planState.phase === 'none' ? preEndStatus(planState.allowance) : null;
   const unitPct = unitWarnPct(planState.allowance?.units);
 
   return (
     <View testID="today-details" style={styles.content}>
-      {planState.phase !== 'none' ? (
+      {!brief && planState.phase !== 'none' ? (
         <View testID="today-plan-expired" style={[styles.cardAlert, { backgroundColor: colors.card, borderColor: colors.border, borderStartColor: planState.phase === 'grace' ? colors.warn : colors.danger }]}>
           <View style={styles.taskInfo}>
             <Text style={[styles.name, { color: colors.text }]}>{planState.phase === 'grace' ? (lang === 'ar' ? '⏳ فترة سماح' : '⏳ Grace period') : planState.phase === 'readonly' ? (lang === 'ar' ? '🔒 الحساب للقراءة فقط' : '🔒 Read-only') : (lang === 'ar' ? '🛑 الحساب متوقف' : '🛑 Account stopped')}</Text>
@@ -83,59 +99,52 @@ export function TodayDetails() {
         </View>
       ) : null}
 
-      <View style={styles.stats}>
+      {!brief ? <View style={styles.stats}>
         {stats.map(([k, n, tone]) => (
           <View key={k} style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border, borderTopWidth: 3, borderTopColor: tone }]}>
             <Text style={[styles.statN, { color: tone }]}>{n}</Text>
             <Text style={{ color: colors.muted }}>{t(lang, k)}</Text>
           </View>
         ))}
-      </View>
-      {tasks.length === 0 ? (
+      </View> : null}
+      {!brief && !remaining.length ? (
         <View style={styles.empty}><EmptyView title={t(lang, 'allClear')} hint={t(lang, 'allClearHint')} actionLabel={t(lang, 'openUnits')} actionVariant="primary" onAction={() => stack.navigate('UnitsList')} /></View>
       ) : (
-        tasks.map((task) => (
-          <View key={task.ref} testID="today-task" style={[styles.task, { backgroundColor: colors.card, borderColor: colors.border, borderStartWidth: 4, borderStartColor: KIND_TONE[task.kind] }]}>
-            <View style={styles.taskInfo}>
-              <Text style={[styles.name, { color: colors.text }]}>{task.name || task.ref}</Text>
-              <Text style={{ color: colors.accentInk, fontWeight: '600' }}>{t(lang, KIND_LABEL[task.kind])}{task.matches ? ` · ${task.matches}` : ''}</Text>
-              {task.unitCode ? <Text style={{ color: colors.muted }}>{task.unitCode}</Text> : null}
-            </View>
-            {task.phone ? <Button label={t(lang, 'call')} variant="secondary" onPress={() => Linking.openURL(`tel:+${task.phone}`)} /> : null}
-          </View>
-        ))
+        remaining.length ? <View style={styles.list}>
+          {brief ? <Text accessibilityRole="header" style={[styles.name, { color: colors.text }]}>{lang === 'ar' ? 'مهام النهارده' : 'Today’s tasks'}</Text> : null}
+          {remaining.map((task) => (
+            <HomeRow key={task.ref} testID="today-task" icon={KIND_ICON[task.kind]} title={task.name || task.ref}
+              detail={[t(lang, KIND_LABEL[task.kind]), task.matches, task.unitCode].filter(Boolean).join(' · ')}
+              onPress={() => stack.navigate('Lead', { ref: task.ref })}>
+              {task.phone ? <TodayCall phone={task.phone} label={t(lang, 'call')} /> : null}
+            </HomeRow>
+          ))}
+        </View> : null
       )}
       {leases.length ? (
-        <View testID="today-leases" style={styles.leases}>
-          <Text style={[styles.name, styles.head, { color: colors.text, backgroundColor: colors.primarySoft }]}>🔑 {t(lang, 'leasesSoon')}</Text>
+        <View testID="today-leases" style={styles.list}>
+          <Text accessibilityRole="header" style={[styles.name, { color: colors.text }]}>{t(lang, 'leasesSoon')}</Text>
           {leases.map((z) => (
-            <Pressable key={z.code} testID={`today-lease-${z.code}`} accessibilityRole="button" onPress={() => stack.navigate('Unit', { code: z.code })} style={[styles.task, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.taskInfo}>
-                <Text style={[styles.name, { color: colors.text }]}>{z.code}</Text>
-                {z.tenant ? <Text style={{ color: colors.muted }}>{z.tenant}</Text> : null}
-              </View>
-              <Text style={{ color: z.daysLeft <= 60 ? colors.danger : colors.accentInk, fontWeight: '700' }}>{z.daysLeft} {t(lang, 'daysN')}</Text>
-            </Pressable>
+            <HomeRow key={z.code} testID={`today-lease-${z.code}`} icon="units" title={z.code} detail={z.tenant}
+              value={`${z.daysLeft} ${t(lang, 'daysN')}`} urgent={z.daysLeft <= 60} onPress={() => stack.navigate('Unit', { code: z.code })} />
           ))}
         </View>
       ) : null}
-      {q.data.cards ? <TodayCards cards={q.data.cards} /> : null}
+      {cards ? <TodayCards cards={cards} /> : null}
       {moreTasks > 0 ? <Text style={[styles.more, { color: colors.muted }]}>{t(lang, 'moreTasks')} {moreTasks}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  leases: { gap: 8, marginTop: 8 },
+  list: { gap: spacing.sm },
   content: { gap: spacing.md },
   stats: { flexDirection: 'row', gap: spacing.sm },
   stat: { flex: 1, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, alignItems: 'center' },
   statN: { fontSize: 24, fontWeight: '800' },
   empty: { minHeight: 120 },
-  task: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   cardAlert: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderStartWidth: 4 },
   taskInfo: { flex: 1, gap: 2 },
   name: { fontSize: 16, fontWeight: '700' },
-  head: { padding: spacing.sm, borderRadius: radius.sm },
   more: { textAlign: 'center' },
 });

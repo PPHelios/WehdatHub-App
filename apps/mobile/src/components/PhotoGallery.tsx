@@ -15,7 +15,9 @@ function PhotoPager({ photos, index, onChange, renderPhoto, testID, maxWidth }: 
   testID: string;
   maxWidth?: number;
 }) {
-  const [width, setWidth] = useState(0);
+  const dims = useWindowDimensions();
+  const initialWidth = maxWidth ? Math.min(dims.width || 390, maxWidth) : (dims.width || 390);
+  const [width, setWidth] = useState(initialWidth);
   const listRef = useRef<FlatList<Photo>>(null);
   const count = photos.length;
   const loop = count > 1;
@@ -65,7 +67,7 @@ function PhotoPager({ photos, index, onChange, renderPhoto, testID, maxWidth }: 
   );
 }
 
-export function PhotoGallery({ photos, closeLabel }: { photos: Photo[]; closeLabel: string }) {
+export function PhotoGallery({ photos, closeLabel, hero = false }: { photos: Photo[]; closeLabel: string; hero?: boolean }) {
   const [index, setIndex] = useState(0);
   const [full, setFull] = useState<number | null>(null);
   if (!photos.length) return null;
@@ -79,13 +81,13 @@ export function PhotoGallery({ photos, closeLabel }: { photos: Photo[]; closeLab
         testID="gallery"
         renderPhoto={(photo, width, photoIndex, duplicate) => (
           <Pressable accessibilityRole="imagebutton" testID={duplicate ? undefined : `photo-${photoIndex}`} onPress={() => setFull(photoIndex)}>
-            <Image source={{ uri: photo.url }} style={{ width, height: Math.round(width * 0.72) }} resizeMode="cover" resizeMethod="resize" fadeDuration={0} />
+            <Image source={{ uri: photo.url }} style={{ width, height: Math.round(width * (hero ? 0.76 : 0.72)) }} resizeMode="cover" resizeMethod="resize" fadeDuration={0} />
           </Pressable>
         )}
       />
-      <Text style={styles.count}>{index + 1} / {photos.length}</Text>
+      <Text style={[styles.count, hero && styles.heroCount]}>{index + 1} / {photos.length}</Text>
       {photos.length > 1 ? (
-        <View style={styles.dots}>
+        <View style={[styles.dots, hero && styles.heroDots]}>
           {photos.slice(0, 12).map((p, i) => <View key={p.id} style={[styles.dot, i === Math.min(index, 11) && styles.dotOn]} />)}
         </View>
       ) : null}
@@ -151,6 +153,8 @@ function ZoomPhoto({ url, width, height }: { url: string; width: number; height:
 const styles = StyleSheet.create({
   pager: { width: '100%' },
   count: { position: 'absolute', top: spacing.md, end: spacing.md, color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 999, overflow: 'hidden', fontWeight: '700', fontSize: 13 },
+  heroCount: { top: undefined, bottom: 34 },
+  heroDots: { bottom: 34 },
   dots: { position: 'absolute', bottom: spacing.sm, start: 0, end: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.55)' },
   dotOn: { backgroundColor: '#FFFFFF', width: 9, height: 9, borderRadius: 5 },

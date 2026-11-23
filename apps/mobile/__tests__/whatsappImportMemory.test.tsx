@@ -15,6 +15,7 @@ jest.mock('../src/zipImport', () => {
 jest.mock('../src/usage', () => ({ usage: jest.fn() }));
 jest.mock('../src/errorReport', () => ({ reportError: jest.fn() }));
 jest.mock('../src/photoUpload', () => ({ uploadPhoto: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../src/planState', () => ({ ...jest.requireActual('../src/planState'), usePlanState: () => ({ phase: 'none', daysLeft: 30, manager: true, allowance: undefined }) }));
 jest.mock('../src/rights', () => ({ useRights: () => ({ manager: true, agencyOwner: false, dataEntry: false, addUnits: true }) }));
 jest.mock('../src/components/SmartImage', () => ({ SmartImage: () => null }));
 const mockAddListener = jest.fn((_ev: string, _fn: unknown) => jest.fn());

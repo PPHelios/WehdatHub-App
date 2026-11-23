@@ -29,7 +29,7 @@ test.each([
   ['Primary apartments in New Cairo', { kind: 'source', source: 'primary' }],
   ['برايمري: شقة في التجمع', { kind: 'source', source: 'primary' }],
   ['Ask: when does Badya deliver?', { kind: 'search' }],
-  ['Resale and primary apartments', { kind: 'source', source: 'both' }],
+  ['Resale and primary apartments', { kind: 'source', source: 'primary' }],
   ['Villa in Rehab', { kind: 'search' }],
   ['Who knows about this?', { kind: 'clarify' }],
   ['Unassigned and overdue follow-ups', { kind: 'clarify' }],

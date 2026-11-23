@@ -62,7 +62,7 @@ export function DealsScreen() {
       {(d) => (
         <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
           <Section testID="sec-new-deal" title={t(lang, 'newDeal')}><DealForm /></Section>
-          <Chips testID="deal-status" value={status} onChange={(v) => setStatus(v === status ? '' : v)} options={d.statuses.map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} />
+          <Chips animateFilter testID="deal-status" value={status} onChange={(v) => setStatus(v === status ? '' : v)} options={d.statuses.map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} />
           <Card>
             <Text style={[styles.h, { color: colors.text }]}>{ar ? 'إجمالي الشهور' : 'Monthly totals'}</Text>
             {d.totals.map((m) => <StatRow key={str(m.month)} label={str(m.month)} value={`${num(m.deals)} ${ar ? 'صفقة' : 'deals'} · ${num(m.commission ?? m.mine)}`} pct={(Number(m.deals) / Math.max(1, ...d.totals.map((x) => Number(x.deals)))) * 100} />)}
@@ -232,8 +232,8 @@ export function LinksScreen() {
       ListHeaderComponent={(
         <View style={styles.head}>
           {picked?.leadRef ? <Text style={{ color: colors.text }}>{[picked.leadLabel, picked.leadRef].filter(Boolean).join(' · ')}</Text> : null}
-          <Chips testID="links-days" value={days} options={[{ value: '7', label: ar ? 'آخر 7 أيام' : 'Last 7 days' }, { value: '30', label: ar ? 'آخر 30 يوم' : 'Last 30 days' }, { value: 'all', label: ar ? 'الكل' : 'All' }]} onChange={setDays} />
-          <Chips testID="links-status" value={status} options={[{ value: 'all', label: ar ? 'كل الحالات' : 'Any' }, { value: 'opened', label: ar ? 'اتفتحت' : 'Opened' }, { value: 'never', label: ar ? 'ما اتفتحتش' : 'Not opened' }, { value: 'repeat', label: ar ? 'اتفتحت أكتر من مرة' : 'Opened twice or more' }]} onChange={setStatus} />
+          <Chips animateFilter testID="links-days" value={days} options={[{ value: '7', label: ar ? 'آخر 7 أيام' : 'Last 7 days' }, { value: '30', label: ar ? 'آخر 30 يوم' : 'Last 30 days' }, { value: 'all', label: ar ? 'الكل' : 'All' }]} onChange={setDays} />
+          <Chips animateFilter testID="links-status" value={status} options={[{ value: 'all', label: ar ? 'كل الحالات' : 'Any' }, { value: 'opened', label: ar ? 'اتفتحت' : 'Opened' }, { value: 'never', label: ar ? 'ما اتفتحتش' : 'Not opened' }, { value: 'repeat', label: ar ? 'اتفتحت أكتر من مرة' : 'Opened twice or more' }]} onChange={setStatus} />
           <Field testID="links-search" label={ar ? 'ابحث بكود الوحدة أو اسم العميل أو رقمه' : 'Search by unit code, client name or number'} value={text} onChangeText={setText} returnKeyType="search" onSubmitEditing={() => setSearch(text.trim())} />
           <Button testID="links-search-go" variant="secondary" label={ar ? 'بحث' : 'Search'} onPress={() => setSearch(text.trim())} />
           {!list.isPending && !list.isError ? <Text style={{ color: colors.muted }}>{total} {ar ? 'لينك' : total === 1 ? 'link' : 'links'}</Text> : null}

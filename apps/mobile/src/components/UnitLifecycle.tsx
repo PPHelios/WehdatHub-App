@@ -15,7 +15,7 @@ import { toastError } from './Toast';
 type Status = 'active' | 'sold' | 'archived';
 
 /** Mark a unit available, sold or archived, or delete it (kept 10 days). The server decides who may. */
-export function UnitLifecycle({ code, status, canDelete = true, canChangeStatus = true }: { code: string; status: Status; canDelete?: boolean; canChangeStatus?: boolean }) {
+export function UnitLifecycle({ code, status, canDelete = true, canChangeStatus = true, children }: { code: string; status: Status; canDelete?: boolean; canChangeStatus?: boolean; children?: React.ReactNode }) {
   const lang = currentLang();
   const { colors } = useTheme();
   const nav = useNavigation();
@@ -47,8 +47,9 @@ export function UnitLifecycle({ code, status, canDelete = true, canChangeStatus 
         <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'unitStatusTitle')}</Text>
         <Chips<Status> options={[{ value: 'active', label: t(lang, 'stActive') }, { value: 'sold', label: t(lang, 'stSold') }, { value: 'archived', label: t(lang, 'stArchived') }]} value={status} onChange={change} />
       </> : null}
-      {canDelete ? <Button testID="unit-delete" variant="secondary" label={`🗑 ${t(lang, 'unitDelete')}`} loading={busy} onPress={remove} /> : null}
       {msg ? <Text testID="unit-lifecycle-message" style={{ color: colors.danger }}>{msg}</Text> : null}
+      {children}
+      {canDelete ? <Button testID="unit-delete" variant="danger" label={`🗑 ${t(lang, 'unitDelete')}`} loading={busy} onPress={remove} /> : null}
     </>
   );
 }

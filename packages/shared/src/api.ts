@@ -363,6 +363,7 @@ export interface MapUnit {
   price: number | null;
   priceText: string | null;
   photo?: string | null;
+  thumb?: string | null;
 }
 export interface MapUnits {
   place: { id: string; name_en: string | null; name_ar: string | null };

@@ -89,7 +89,7 @@ export function AskResults({ q, onOpenProject, showStatus = false }: { q: string
         </View>
       ) : null}
       <Text style={[styles.label, { color: colors.muted }]}>{T.sortBy}</Text>
-      <Chips<ProjectSort> testID="ask-sort" value={sort} options={SORTS.map((s) => ({ value: s, label: T[SORT_KEY[s]] }))} onChange={(v) => { log('sort', v); setSort(v); reset(); }} />
+      <Chips<ProjectSort> animateFilter testID="ask-sort" value={sort} options={SORTS.map((s) => ({ value: s, label: T[SORT_KEY[s]] }))} onChange={(v) => { log('sort', v); setSort(v); reset(); }} />
       <View testID="ask-filters" style={styles.filters}>
         <Text style={[styles.label, { color: colors.muted }]}>{T.priceRange}</Text>
         <View style={styles.row}>{box('pmin', T.min)}{box('pmax', T.max)}</View>
@@ -101,7 +101,7 @@ export function AskResults({ q, onOpenProject, showStatus = false }: { q: string
           <BusySwitch testID="ask-units" value={unitsOnly} onValueChange={(v) => { log('filter', 'units'); setUnitsOnly(v); reset(); }} />
         </View>
         <Text style={[styles.label, { color: colors.muted }]}>{T.bedrooms}</Text>
-        <Chips<string> testID="ask-bed" value={bed ? String(bed) : ''} options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))} onChange={(v) => { log('filter', 'bed'); setBed(bed === Number(v) ? undefined : Number(v)); reset(); }} />
+        <Chips<string> animateFilter testID="ask-bed" value={bed ? String(bed) : ''} options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))} onChange={(v) => { log('filter', 'bed'); setBed(bed === Number(v) ? undefined : Number(v)); reset(); }} />
       </View>
       {d.projects.length ? d.projects.map((p, i) => (
         <ProjectCardView key={p.id ?? `${p.name}-${i}`} p={p} lang={lang} onOpen={p.id && onOpenProject ? () => { log('open', p.id); onOpenProject(p.id as string, p.name); } : undefined} onSend={() => log('send', p.id)} />

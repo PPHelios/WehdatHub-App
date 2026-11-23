@@ -90,7 +90,7 @@ export function SearchLeadAction({ command, onClose }: { command: Parsed; onClos
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.lg, paddingBottom: 150, gap: spacing.md },
+  content: { padding: spacing.lg, paddingBottom: 90, gap: spacing.md },
   title: { fontSize: 20, fontWeight: '700' },
   card: { padding: spacing.lg, gap: spacing.md, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.card },
 });

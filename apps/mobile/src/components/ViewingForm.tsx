@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { useQueryClient } from '@tanstack/react-query';
 import { ApiClientError } from '@wehdathub/shared';
@@ -26,10 +26,7 @@ export function viewingInstant(dayOffset: number, hour: number, now = new Date()
   return d.toISOString();
 }
 
-/**
- * Sets a viewing on a lead. Nothing goes to the client: the broker sees the message under the (i) button and can send it
- * on WhatsApp or leave it.
- */
+/** Schedules a viewing and shows its confirmation text on request. */
 export function ViewingForm({ lead, unitCode = '' }: { lead: ApiLead; unitCode?: string }) {
   const { colors } = useTheme();
   const lang = currentLang();
@@ -79,7 +76,6 @@ export function ViewingForm({ lead, unitCode = '' }: { lead: ApiLead; unitCode?:
             </Pressable>
           </View>
           {showMessage ? <Text testID="viewing-message" style={{ color: colors.text }}>{done.message}</Text> : null}
-          {done.wa ? <Button testID="viewing-send" variant="secondary" label={t(lang, 'sendToClient')} onPress={() => { Linking.openURL(done.wa ?? '').catch(() => undefined); }} /> : null}
         </View>
       ) : null}
     </View>

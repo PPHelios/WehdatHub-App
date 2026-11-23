@@ -69,7 +69,7 @@ export function ProjectsScreen() {
       />
       <View style={styles.filters}>
         <Text style={{ color: colors.muted, fontWeight: '600' }}>{T.bedrooms}</Text>
-        <Chips<string> testID="catalogue-bed" options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))} value={search.bed ? String(search.bed) : ''} onChange={(v) => setSearch({ ...search, bed: search.bed === Number(v) ? undefined : Number(v) })} />
+        <Chips<string> animateFilter testID="catalogue-bed" options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))} value={search.bed ? String(search.bed) : ''} onChange={(v) => setSearch({ ...search, bed: search.bed === Number(v) ? undefined : Number(v) })} />
         <Field testID="catalogue-max" label={T.priceUpTo} value={withCommas(search.max ?? '')} onChangeText={(v) => setSearch({ ...search, max: plain(v) })} keyboardType="number-pad" placeholder="5,000,000" />
         {filtered ? <Button testID="catalogue-clear" variant="secondary" label={T.clear} onPress={() => setSearch(EMPTY_SEARCH)} /> : null}
       </View>

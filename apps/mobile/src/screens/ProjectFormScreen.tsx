@@ -27,7 +27,7 @@ import type { ProjectFields } from '../projectRules';
 import { fill, pt } from '../projectText';
 import { pickPhotos, takePhoto } from '../photos';
 import { plain, withCommas } from '../readback';
-import { radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, useTheme } from '../theme';
 import { ALL_TYPES, labelOf } from '../unitOptions';
 import { toast, toastError } from '../components/Toast';
 
@@ -186,7 +186,7 @@ export function ProjectFormScreen() {
               const n = (i + 1) as 1 | 2 | 3;
               const on = n === step;
               return (
-                <Pressable key={s} testID={`step-${n}`} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => (n > 1 && blockers.length ? setFailed(true) : go(n))} style={[styles.stepChip, { borderColor: on ? colors.primary : colors.border }, on && { backgroundColor: colors.primary }]}>
+                <Pressable key={s} testID={`step-${n}`} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => (n > 1 && blockers.length ? setFailed(true) : go(n))} style={[styles.stepChip, { borderColor: on ? colors.primary : colors.border }, on && greenGradient]}>
                   <Text style={{ color: on ? colors.onPrimary : colors.text, fontWeight: '700' }}>{n}. {s}</Text>
                 </Pressable>
               );

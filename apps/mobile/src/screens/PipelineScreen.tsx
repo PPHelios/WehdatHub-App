@@ -39,7 +39,7 @@ export function PipelineScreen() {
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={counts.isRefetching} onRefresh={async () => { await counts.refetch(); }} />}>
       {team.data && team.data.items.length > 1 ? (
-        <Chips<string> options={[{ value: '', label: t(lang, 'pipelineAll') }, ...team.data.items.map((m) => ({ value: m.id, label: m.name }))]} value={broker} onChange={setBroker} />
+        <Chips<string> animateFilter options={[{ value: '', label: t(lang, 'pipelineAll') }, ...team.data.items.map((m) => ({ value: m.id, label: m.name }))]} value={broker} onChange={setBroker} />
       ) : null}
       {LEAD_STAGES.map((s) => row(s, stageLabel(lang, s)))}
       {EXTRA.map(([tab, key]) => row(tab, t(lang, key), tab !== 'no_next_step'))}
