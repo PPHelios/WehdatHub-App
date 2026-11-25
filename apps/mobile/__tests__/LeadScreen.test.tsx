@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApiClientError, ltr } from '@wehdathub/shared';
 import { LeadScreen } from '../src/screens/LeadScreen';
 import { api } from '../src/api';
+import { useAuth } from '../src/auth';
 
 jest.mock('../src/api', () => ({ api: { lead: jest.fn(), leadCalled: jest.fn(), leadStage: jest.fn(), leadFollowUp: jest.fn(), leadNote: jest.fn() } }));
 jest.mock('@react-navigation/native', () => ({ useRoute: () => ({ params: { ref: 'L-0001' } }), useNavigation: () => ({ goBack: jest.fn() }) }));
@@ -70,4 +71,24 @@ test('scheduling actions open their pickers without standalone messaging control
 
   await fireEvent.press(screen.getByTestId('sec-viewing'));
   expect(screen.getByTestId('viewing-save')).toBeTruthy();
+});
+
+test('Solo owner without team right keeps LeadActions (merge and erase)', async () => {
+  const prevStatus = useAuth.getState().status;
+  useAuth.setState({ status: 'signedIn' });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(['me'], {
+    rights: { addUnits: true, editUnits: true, leads: true, search: true, team: false, owners: true, manager: true, agencyOwner: true, dataEntry: false, teamLead: false },
+    workspace: { tier: 'solo', mode: 'solo', members: 1, solo: true, teamStyle: 'shared', analytics: false },
+  });
+  try {
+    await render(<QueryClientProvider client={client}><LeadScreen /></QueryClientProvider>);
+    await screen.findByTestId('lead-stage-panel');
+    await fireEvent.press(screen.getByTestId('sec-merge'));
+    expect(screen.getByTestId('lead-merge')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('sec-erase'));
+    expect(screen.getByTestId('lead-erase')).toBeTruthy();
+  } finally {
+    useAuth.setState({ status: prevStatus });
+  }
 });

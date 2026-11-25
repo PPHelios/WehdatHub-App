@@ -21,6 +21,7 @@ import type { RootStackParams } from '../navigation';
 import { usePrefs } from '../prefs';
 import { stopPush } from '../push';
 import { meOptions } from '../queries';
+import { hasNavApp, useRightsState } from '../rights';
 import { radius, spacing, useTheme } from '../theme';
 import { NotificationsScreen } from './NotificationsScreen';
 import { UsageScreen } from './MoreScreens';
@@ -65,6 +66,7 @@ export function SettingsHubScreen() {
 
   const signedIn = useAuth((a) => a.status === 'signedIn');
   const me = useQuery(meOptions(signedIn));
+  const { rights, nav } = useRightsState();
   const ts = me.data?.testSwitch ?? null;
 
   const switchRole = async (role: string) => {
@@ -97,18 +99,20 @@ export function SettingsHubScreen() {
     }
   };
 
+  const showPlanTab = nav ? (hasNavApp(nav, 'Plan') || hasNavApp(nav, 'Usage')) : (rights.manager || rights.agencyOwner);
   const tabs: readonly HubTabItem<SettingsHubTab>[] = [
     { id: 'app', label: ar ? 'إعدادات التطبيق' : 'App Settings', testID: 'hub-tab-app' },
     { id: 'notifications', label: ar ? 'إعدادات التنبيهات' : 'Notifications', testID: 'hub-tab-notifications' },
-    { id: 'plan', label: ar ? 'الباقة والاستهلاك' : 'Plan & Usage', testID: 'hub-tab-plan' },
+    ...(showPlanTab ? [{ id: 'plan' as const, label: ar ? 'الباقة والاستهلاك' : 'Plan & Usage', testID: 'hub-tab-plan' }] : []),
     { id: 'support', label: ar ? 'الدعم والتطبيق' : 'Support & About', testID: 'hub-tab-support' },
   ];
+  const activeTab: SettingsHubTab = tabs.some((x) => x.id === tab) ? tab : 'app';
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <HubTabs tabs={tabs} active={tab} onSelect={setTab} testID="settings-hub-tabs" />
+      <HubTabs tabs={tabs} active={activeTab} onSelect={setTab} testID="settings-hub-tabs" />
       <View style={styles.flex}>
-        {tab === 'app' ? (
+        {activeTab === 'app' ? (
           <ScrollView contentContainerStyle={styles.pad} style={{ backgroundColor: colors.bg }}>
             <View style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]} testID="app-settings">
               <Text style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'appearance')}</Text>
@@ -174,11 +178,11 @@ export function SettingsHubScreen() {
           </ScrollView>
         ) : null}
 
-        {tab === 'notifications' ? <NotificationsScreen /> : null}
+        {activeTab === 'notifications' ? <NotificationsScreen /> : null}
 
-        {tab === 'plan' ? <UsageScreen /> : null}
+        {activeTab === 'plan' ? <UsageScreen /> : null}
 
-        {tab === 'support' ? (
+        {activeTab === 'support' ? (
           <ScrollView contentContainerStyle={styles.pad} style={{ backgroundColor: colors.bg }}>
             <ReportScreen />
             {ts ? (

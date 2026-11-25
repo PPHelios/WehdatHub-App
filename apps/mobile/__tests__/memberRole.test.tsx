@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemberRole } from '../src/screens/TeamScreen';
+import { InviteScreen } from '../src/screens/InviteScreen';
 import { api } from '../src/api';
 import { currentLang, useAuth } from '../src/auth';
 import { ot } from '../src/ownerText';
@@ -58,4 +59,23 @@ test('a manager who is not the owner gets no role choice for a data entry member
   wrap(<MemberRole id="b3" role="data_entry" teamLeadId={null} run={run} />);
   await waitFor(() => expect(m.me).toHaveBeenCalled());
   expect(screen.queryByTestId('member-role')).toBeNull();
+});
+
+test('InviteScreen and MemberRole respect inviteRoles and hide team_lead / data_entry in Team tier', async () => {
+  m.me.mockResolvedValue({
+    rights: rights({ manager: true, agencyOwner: true }),
+    workspace: { tier: 'team', mode: 'team', members: 4, solo: false, teamStyle: 'shared', analytics: false },
+    inviteRoles: ['broker', 'manager'],
+    testSwitch: null,
+  });
+  wrap(<InviteScreen />);
+  await waitFor(() => expect(screen.getByText(L('broker'))).toBeTruthy());
+  expect(screen.getByText(L('manager'))).toBeTruthy();
+  expect(screen.queryByText(L('teamLead'))).toBeNull();
+  expect(screen.queryByText(L('dataEntry'))).toBeNull();
+
+  wrap(<MemberRole id="b1" role="broker" teamLeadId={null} run={run} />);
+  await waitFor(() => expect(screen.getByTestId('member-role')).toBeTruthy());
+  expect(screen.queryByText(L('teamLead'))).toBeNull();
+  expect(screen.queryByText(L('dataEntry'))).toBeNull();
 });

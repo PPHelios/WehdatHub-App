@@ -797,3 +797,32 @@ test('reassigning a lead from assistant cards invalidates leads, lead detail, to
   expect(invSpy).toHaveBeenCalledWith({ queryKey: ['today'] });
   expect(invSpy).toHaveBeenCalledWith({ queryKey: ['dashboard'] });
 });
+
+test('Solo owner ComposerPopover and SearchHome keep personal shortcuts/My stats and hide team-only prompts', async () => {
+  const previous = useAuth.getState().broker;
+  useAuth.setState({ broker: { id: 'solo-pop', role: 'owner', name: 'Hany', lang: 'en' } });
+  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+  client.setQueryData(['me'], {
+    rights: { addUnits: true, editUnits: true, leads: true, search: true, team: false, owners: true, manager: true, agencyOwner: true, dataEntry: false, teamLead: false },
+    workspace: { tier: 'solo', mode: 'solo', members: 1, solo: true, teamStyle: 'shared', analytics: false },
+    nav: { role: 'owner', tabs: [], groups: [] },
+  });
+  try {
+    const view = await wrap(client);
+    await screen.findByTestId('try-asking-card');
+    expect(screen.queryByTestId('try-tip-mgr-team')).toBeNull();
+    expect(screen.queryByTestId('try-tip-mgr-sources')).toBeNull();
+    expect(screen.queryByText(/Agency dashboard/)).toBeNull();
+
+    await fireEvent.press(screen.getByTestId('search-mode-trigger'));
+    expect(await screen.findByTestId('composer-popover')).toBeTruthy();
+    expect(screen.getByTestId('popover-mode-reports')).toBeTruthy();
+    expect(screen.getByTestId('popover-shortcut-overdue')).toBeTruthy();
+    expect(screen.queryByTestId('popover-shortcut-discipline')).toBeNull();
+    expect(screen.queryByTestId('popover-shortcut-waiting')).toBeNull();
+    expect(screen.queryByTestId('popover-shortcut-sources')).toBeNull();
+    await view.unmount();
+  } finally {
+    useAuth.setState({ broker: previous });
+  }
+});
