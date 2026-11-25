@@ -83,6 +83,21 @@ export interface TodayCards {
   approvals: { access: number; names: number } | null;
 }
 export interface LeaseRow { code: string; tenant_name: string | null; tenant_ref: string | null; broker_name: string | null; rent: number | null; end: string; daysLeft: number; done: boolean; doneKind: string | null }
+export type SearchHomePriorityUrgency = 'high' | 'medium' | 'low';
+export type SearchHomePriorityAction =
+  | { kind: 'queue'; queue: LeadQueue }
+  | { kind: 'leads_tab'; tab: LeadTab }
+  | { kind: 'screen'; screen: 'Sources' | 'Requests' | 'Owners' | 'Commissions' | 'Leases' }
+  | { kind: 'lead'; ref: string }
+  | { kind: 'units_missing_photos' }
+  | { kind: 'units_old' };
+export interface SearchHomePriority {
+  id: string;
+  urgency: SearchHomePriorityUrgency;
+  count: number;
+  action: SearchHomePriorityAction;
+  extra?: Record<string, string | number | boolean | null>;
+}
 export interface SearchHomeData {
   hour: number;
   units?: { total: number; items: TodayOldUnit[] } | null;
@@ -93,13 +108,20 @@ export interface SearchHomeData {
   newLeads?: number;
   tomorrowViewings?: number;
   nextViewing?: TodayTask | null;
+  waitingOver1h?: number;
+  missingPhotos?: number;
+  intake?: { disconnected: number; failed: number };
+  approvals?: { access: number; names: number } | null;
+  commissions?: { overdue: number; registrations: number } | null;
+  leasesSoon?: number;
+  priorities?: SearchHomePriority[];
 }
 export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number; leases?: { code: string; tenant: string | null; end: string; daysLeft: number }[]; cards?: TodayCards }
 export type LeadStage = 'new' | 'contacted' | 'interested' | 'viewing' | 'negotiation' | 'won' | 'lost';
 export const LEAD_STAGES: LeadStage[] = ['new', 'contacted', 'interested', 'viewing', 'negotiation', 'won', 'lost'];
 export type LeadMatchField = 'price_min' | 'price_max' | 'area_min' | 'area_max' | 'bedrooms_min';
 export type LeadMatchAdjustments = { requestId: string } & Partial<Record<LeadMatchField, string>>;
-export type LeadQueue = 'unassigned' | 'uncontacted' | 'delayed-first-contact' | 'late-response' | 'overdue' | 'viewings-tomorrow';
+export type LeadQueue = 'unassigned' | 'uncontacted' | 'delayed-first-contact' | 'waiting-over-1h' | 'late-response' | 'overdue' | 'viewings-tomorrow';
 export type LeadTab = 'all' | LeadStage | 'due_today' | 'overdue' | 'no_next_step';
 export interface ApiLead {
   ref: string;
@@ -227,14 +249,118 @@ export interface OwnerEvent { kind: string; data: Record<string, unknown> | null
 export interface OwnerRename { id: number; code: string; old_value: string | null; new_value: string; requested_by_name: string | null; created_at: string }
 export interface AccessRequest { id: number; status: 'pending' | 'approved' | 'declined'; created_at: string; code: string; broker_name: string; decided_by_name: string | null }
 export interface ActivityRow { id: string | number; at: string; who: string; text: string; device: string }
-export interface DashboardData { team?: { id: string; name: string }[]; teamLeads?: { id: string; name: string }[]; mode?: ApiWorkspace['mode']; reports?: { sources: boolean; winLoss: boolean }; days: number; weekly: number[]; sources: { source: string; n: number }[]; pipeline: Record<string, number>; unassigned: number; uncontacted: number; overdue: number; units: { active: number; stale: number }; deals: { n: number; commission: number; value: number }; leads: number; board: { id: string; name: string; leads: number; contacted: number; forward: number; deals: number; commission: number; responseMin?: number | null }[] }
+export type BrokerDiscipline = 'consistent' | 'lagging' | 'silent';
+export interface DashboardBoardRow {
+  id: string;
+  name: string;
+  active?: boolean;
+  role?: string;
+  telegramLinked?: boolean;
+  leads: number;
+  contacted: number;
+  calls?: number;
+  forward: number;
+  viewings?: number;
+  deals: number;
+  commission: number;
+  units?: number;
+  open?: number;
+  responseMin?: number | null;
+  updates?: number;
+  updates48h?: number;
+  activeDays?: number;
+  lastUpdateAt?: string | null;
+  noNextStep?: number;
+  staleOpen?: number;
+  missed?: number;
+  onTimePct?: number | null;
+  discipline?: BrokerDiscipline;
+}
+export interface DashboardDisciplineSummary {
+  consistent: number;
+  lagging: number;
+  silent: number;
+  totalNoNextStep: number;
+  totalMissed: number;
+}
+export interface DashboardData {
+  team?: { id: string; name: string }[];
+  teamLeads?: { id: string; name: string }[];
+  mode?: ApiWorkspace['mode'];
+  reports?: { sources: boolean; winLoss: boolean };
+  days: number;
+  weekly: number[];
+  sources: { source: string; n: number }[];
+  pipeline: Record<string, number>;
+  unassigned: number;
+  waitingOver1h?: number;
+  uncontacted: number;
+  overdue: number;
+  units: { active: number; stale: number };
+  deals: { n: number; commission: number; value: number };
+  leads: number;
+  disciplineSummary?: DashboardDisciplineSummary;
+  board: DashboardBoardRow[];
+}
+export type AssistantMode = 'auto' | 'resale' | 'primary' | 'reports';
+export interface AssistantLink { label: string; screen: string; params?: Record<string, unknown> }
+export type AssistantAction =
+  | { kind: 'open_queue'; label: string; queue: string }
+  | { kind: 'pivot_mode'; mode: AssistantMode; label: string };
+export type AssistantCard =
+  | {
+      kind: 'stuck_leads';
+      queue: string;
+      total: number;
+      recommendedBrokers: { id: string; name: string; open: number }[];
+      canAssign: boolean;
+      canNudge: boolean;
+      items: { ref: string; name: string | null; stage: string; version?: number; assignee: string | null; assigneeId: string | null; createdAt: string | null }[];
+    }
+  | { kind: 'broker_scorecard'; broker: DashboardBoardRow }
+  | { kind: 'broker_discipline'; summary: DashboardDisciplineSummary; rows: DashboardBoardRow[] }
+  | { kind: 'metric_row'; items: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' | 'critical'; unit?: string }[] }
+  | { kind: 'bar_breakdown'; title: string; rows: { key: string; label: string; count: number; valueLabel?: string; commission?: number; spend?: number | null; won?: number }[] }
+  | { kind: 'text_answer'; answer: string; dataDates: string | null; found: boolean; source: 'ai' | 'local'; logId?: string | null };
+export interface AssistantQueryResponse {
+  intent: string;
+  headline: string;
+  windowLabel?: string;
+  cards: AssistantCard[];
+  actions?: AssistantAction[];
+  links?: AssistantLink[];
+  aiUsed: boolean;
+  units?: SearchResult;
+  projects?: AskResults | null;
+  suggestPrimary?: boolean;
+  interpretation?: string;
+}
 export interface PriceRow { place: string; listing_type: 'sale' | 'rent'; units: number; median: number; low: number; high: number }
 export interface WinLossGroup { key: string; name?: string; won: number; lost: number; rate: number | null; top: string | null }
 export interface WinLossData { days: number; won: number; lost: number; rate: number | null; reasons: { key: string; n: number; pct: number }[]; brokers: WinLossGroup[]; sources: WinLossGroup[] }
 export type Row = Record<string, unknown>;
 export interface DealsData { summary?: { from: string; to: string; weeks: number[] }; items: Row[]; more: boolean; totals: Row[]; statuses: string[] }
-export interface CommissionsData { kind: string; period: string; items: Row[]; total: number; totals: Row | null; statuses: string[] }
-export interface SourcesData { month: string; rows: { source: string; leads: number; deals: number; commission: number; spend: number | null; perLead: number | null; perDeal: number | null }[]; totals: Row }
+export interface CommissionDeveloperSummary {
+  developerId: string;
+  developerName: string;
+  claimable: number;
+  claimableCount: number;
+  claimed: number;
+  paid: number;
+  outstanding: number;
+  overdueCount: number;
+  overdueAmount: number;
+}
+export interface CommissionsData {
+  kind: string;
+  period: string;
+  items: Row[];
+  total: number;
+  totals: (Row & { claimable?: number; claimableCount?: number; overdue?: number; overdueAmount?: number; paid?: number; outstanding?: number }) | null;
+  byDeveloper?: CommissionDeveloperSummary[];
+  statuses: string[];
+}
+export interface SourcesData { month: string; rows: { source: string; leads: number; deals: number; commission: number; spend: number | null; perLead: number | null; perDeal: number | null; adBurn?: boolean }[]; totals: Row }
 export interface AskAnswer { answer: string; found: boolean; lang: Lang; dataDates: string | null; /** "local": the AI was off, out of credit or failed, and the answer is the line written from the data. */ source?: 'ai' | 'local'; log_id?: string | null }
 export interface UnitImage { id: string; url: string; position: number }
 export interface ApiViewing { id: string; startsAt: string; place: string | null; status: string; proposedAt: string | null; clientNote: string | null; leadRef: string; leadName: string | null; unitCode: string | null }
@@ -321,6 +447,8 @@ export interface SearchResult {
   f?: string | null;
   /** What the server understood, in the broker's language (e.g. "شقة · بيع أو إيجار · هايد بارك"). */
   reading?: string;
+  marketLock?: 'resale' | 'primary' | null;
+  sort?: string | null;
   ask?: SearchAsk;
 }
 export interface VoiceFile { uri: string; name: string; type: string }
@@ -574,7 +702,7 @@ export function createApiClient(opts: ApiClientOptions) {
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
     map: (f: MapFilters = {}) => request<MapData>('GET', '/map', undefined, { ...f }),
     mapUnits: (placeId: string, f: MapFilters = {}) => request<MapUnits>('GET', `/map/places/${encodeURIComponent(placeId)}/units`, undefined, { ...f }),
-    search: (q: string, o: { ai?: boolean; drop?: boolean; status?: UnitStatus; offset?: number } = {}) => request<SearchResult>('GET', '/search', undefined, { q, ai: o.ai, drop: o.drop, status: o.status, offset: o.offset }),
+    search: (q: string, o: { ai?: boolean; drop?: boolean; status?: UnitStatus; offset?: number; f?: string; market?: 'resale' | 'primary'; sort?: string } = {}) => request<SearchResult>('GET', '/search', undefined, { q, ai: o.ai, drop: o.drop, status: o.status, offset: o.offset, f: o.f, market: o.market, sort: o.sort }),
     leadCounts: (q?: string, broker?: string, assigned?: 'last', queue?: LeadQueue) => request<{ counts: Record<string, number> }>('GET', '/leads/counts', undefined, { q, broker, assigned, queue }),
     /** Sends a recorded note; the server writes it down and answers the text to search. */
     voiceToText: (file: VoiceFile) => {
@@ -608,6 +736,8 @@ export function createApiClient(opts: ApiClientOptions) {
     notificationsDeleteAll: () => request<{ ok: boolean; unread: number }>('POST', '/notifications/delete-all', {}),
     leadLang: (ref: string, version: number, lang: 'ar' | 'en' | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/lang`, { lang, version }),
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
+    nudgeLead: (ref: string) => request<{ ok: true }>('POST', `/leads/${encodeURIComponent(ref)}/nudge`, {}),
+    assistantQuery: (body: { q: string; mode?: AssistantMode; lang?: Lang }) => request<AssistantQueryResponse>('POST', '/assistant/query', body),
     unitMatchingLeads: (code: string) => request<{ partial: boolean; items: { ref: string; name: string | null; reason?: string }[] }>('GET', `/units/${encodeURIComponent(code)}/matching-leads`),
     leadMatches: (ref: string, adjustments?: LeadMatchAdjustments) => request<{ requests: { id: string; summary: string; criteria: Record<LeadMatchField, number | null>; total: number; items: { code: string; title: string | null }[] }[] }>('GET', `/leads/${encodeURIComponent(ref)}/matches`, undefined, adjustments),
     leadUpdate: (ref: string, change: { version: number; stage?: LeadStage; note?: string; lostReason?: string }) =>
@@ -686,7 +816,8 @@ export function createApiClient(opts: ApiClientOptions) {
     dealReport: (report: 'recent' | 'last', week?: number, page = 0) => request<DealsData>('GET', '/deals', undefined, { report, week, page }),
     dealDetail: (ref: string) => request<{ deal: Row }>('GET', `/deals/${encodeURIComponent(ref)}`),
     dealStatus: (ref: string, status: string, version?: number) => request<{ ok: true }>('POST', `/deals/${ref}/status`, { status, version }),
-    commissions: (kind: 'resale' | 'developers', status?: string, page = 0) => request<CommissionsData>('GET', '/commissions', undefined, { kind, status, page }),
+    commissions: (kind: 'resale' | 'developers', status?: string, page = 0, o: { developer?: string; overdue?: boolean; period?: 'month' | 'week' | 'all' } = {}) =>
+      request<CommissionsData>('GET', '/commissions', undefined, { kind, status, page, developer: o.developer, overdue: o.overdue ? '1' : undefined, period: o.period }),
     commission: (id: string) => request<{ commission: Row }>('GET', `/commissions/${id}`),
     commissionMove: (id: string, body: Row) => request<{ ok: true }>('POST', `/commissions/${id}`, body),
     sources: (month?: string, signed?: boolean) => request<SourcesData>('GET', '/sources', undefined, { month, signed: signed ? '1' : undefined }),

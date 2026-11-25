@@ -676,3 +676,94 @@ test('lead update and stage change commands by name or phone route to SearchLead
     useAuth.setState({ broker: previous });
   }
 });
+
+test('assistant >20 resale matches hydrate native FlashList, SaveSearchButton, status chips, and f+market continuation', async () => {
+  const items = Array.from({ length: 20 }, (_, i) => ({
+    id: `u-${i + 1}`,
+    code: `RS-${i + 1}`,
+    status: 'active',
+    title: null,
+    propertyType: 'apartment',
+    dealType: 'sale',
+    price: 4_000_000 + i * 10_000,
+    priceText: null,
+    area: 150,
+    bedrooms: 3,
+    bathrooms: 2,
+    compound: 'Hyde Park',
+    district: 'New Cairo',
+    city: 'Cairo',
+    finishing: null,
+    photo: null,
+  }));
+  mocked.assistantQuery.mockResolvedValueOnce({
+    intent: 'unit_search',
+    headline: '23 unit(s) found',
+    windowLabel: 'apartment · resale · Hyde Park',
+    cards: [],
+    actions: [{ kind: 'pivot_mode', mode: 'primary', label: 'Search Primary projects instead?' }],
+    aiUsed: false,
+    suggestPrimary: true,
+    units: {
+      status: 'results',
+      source: 'parser',
+      total: 23,
+      counts: { active: 23, sold: 2, archived: 1 },
+      marketLock: 'resale',
+      sort: 'cheap',
+      f: 'tok-resale-1',
+      reading: 'apartment · resale · Hyde Park',
+      items,
+    },
+  });
+  mocked.search.mockResolvedValue({
+    status: 'results',
+    source: 'filter_token',
+    total: 3,
+    items: items.slice(0, 3).map((x, i) => ({ ...x, id: `u-sold-${i}`, code: `SLD-${i + 1}`, status: 'sold' })),
+    counts: { active: 23, sold: 2, archived: 1 },
+    f: 'tok-resale-1',
+  });
+
+  await wrap();
+  await fireEvent.press(screen.getByTestId('search-mode-trigger'));
+  await fireEvent.press(await screen.findByTestId('popover-mode-resale'));
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'apartment in hyde park');
+  await fireEvent.press(screen.getByTestId('search-go'));
+
+  await waitFor(() => expect(screen.getByTestId('save-search')).toBeTruthy());
+  expect(screen.getByText('Sold (2)')).toBeTruthy();
+
+  await act(async () => {
+    await fireEvent(screen.getByTestId('search-results-list'), 'endReached');
+  });
+  await waitFor(() => expect(mocked.search).toHaveBeenCalledWith(
+    'apartment in hyde park',
+    expect.objectContaining({ offset: 20, f: 'tok-resale-1', market: 'resale', sort: 'cheap', status: 'active' }),
+  ));
+
+  await fireEvent.press(screen.getByText('Sold (2)'));
+  await waitFor(() => expect(mocked.search).toHaveBeenLastCalledWith(
+    'apartment in hyde park',
+    expect.objectContaining({ status: 'sold', f: 'tok-resale-1', market: 'resale', sort: 'cheap' }),
+  ));
+});
+
+test('assistant 0 resale matches stay in assistant view and offer Primary pivot', async () => {
+  mocked.assistantQuery.mockResolvedValueOnce({
+    intent: 'unit_search',
+    headline: 'No matching Resale units found',
+    cards: [],
+    actions: [{ kind: 'pivot_mode', mode: 'primary', label: 'Search Primary projects instead?' }],
+    aiUsed: false,
+    suggestPrimary: true,
+    units: { status: 'none', source: 'parser', total: 0, counts: { active: 0, sold: 0, archived: 0 }, marketLock: 'resale', items: [] },
+  });
+  await wrap();
+  await fireEvent.press(screen.getByTestId('search-mode-trigger'));
+  await fireEvent.press(await screen.findByTestId('popover-mode-resale'));
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'penthouse');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(screen.getByTestId('assistant-pivot-primary')).toBeTruthy());
+  expect(screen.queryByTestId('save-search')).toBeNull();
+});

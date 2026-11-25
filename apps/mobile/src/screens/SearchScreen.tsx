@@ -140,10 +140,12 @@ export function SearchScreen() {
     }
   });
   const barSlide = useAnimatedStyle(() => ({ transform: [{ translateY: slide.value }] }));
-  const search = useMutation<SearchResult, Error, { q: string; drop?: boolean; status?: UnitStatus }>({ mutationFn: ({ q, drop, status }) => timed('search', () => api.search(q, { drop, status })) });
+  const search = useMutation<SearchResult, Error, { q: string; opts: Parameters<typeof api.search>[1] }>({ mutationFn: ({ q, opts }) => timed('search', () => api.search(q, opts)) });
+  const [assistantUnits, setAssistantUnits] = useState<SearchResult | null>(null);
+  const [assistantSuggestPrimary, setAssistantSuggestPrimary] = useState(false);
   // Active units first; Sold and Archived are one tap away, with their counts from the start. More results load on demand.
   const [statusCounts, setStatusCounts] = useState<SearchResult['counts']>();
-  const [last, setLast] = useState<{ q: string; drop: boolean; status: UnitStatus } | null>(null);
+  const [last, setLast] = useState<{ q: string; drop: boolean; status: UnitStatus; f?: string | null; market?: 'resale' | 'primary' | null; sort?: string | null } | null>(null);
   const [extra, setExtra] = useState<ApiUnitListItem[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [done, setDone] = useState(false);
@@ -162,6 +164,8 @@ export function SearchScreen() {
       resetSearch();
       resetAnswer();
       resetAssistant();
+      setAssistantUnits(null);
+      setAssistantSuggestPrimary(false);
       setExtra([]);
       setLast(null);
       setReport(null);
@@ -183,6 +187,8 @@ export function SearchScreen() {
     setTranscribing(false);
     setLoadingMore(false);
     setVoiceError(null);
+    setAssistantUnits(null);
+    setAssistantSuggestPrimary(false);
     resetAssistant();
     resetAnswer();
   };
@@ -195,18 +201,33 @@ export function SearchScreen() {
     });
   };
 
-  const run = async (q: string, drop = false, status: UnitStatus = 'active') => {
+  const run = async (
+    q: string,
+    drop = false,
+    status: UnitStatus = 'active',
+    carry?: { f?: string | null; market?: 'resale' | 'primary' | null; sort?: string | null } | null,
+  ) => {
     const clean = q.trim();
     if (!clean) return;
     supersedePendingSearch();
     setExtra([]);
     setDone(false);
     if (last?.q !== clean || last.drop !== drop) setStatusCounts(undefined);
-    setLast({ q: clean, drop, status });
+    const f = carry?.f ?? undefined;
+    const market = carry?.market ?? undefined;
+    const sort = carry?.sort ?? undefined;
+    setLast({ q: clean, drop, status, ...(f ? { f } : {}), ...(market ? { market } : {}), ...(sort ? { sort } : {}) });
     rememberRecent(clean);
+    const opts: Parameters<typeof api.search>[1] = {
+      drop,
+      status,
+      ...(f ? { f } : {}),
+      ...(market ? { market } : {}),
+      ...(sort ? { sort } : {}),
+    };
     const started = Date.now();
     void track('search_started');
-    const result = await search.mutateAsync({ q: clean, drop, status }).catch(() => undefined);
+    const result = await search.mutateAsync({ q: clean, opts }).catch(() => undefined);
     void track('search_run', { outcome: result?.status ?? 'error', duration_ms: Date.now() - started });
   };
 
@@ -251,7 +272,28 @@ export function SearchScreen() {
       const res = await assistant.mutateAsync({ q: clean, m: activeMode });
       if (reqGen !== generation.current) return;
       usage('assistant_query_run', true, undefined, { mode: activeMode });
-      if (res.intent === 'unit_search') rememberRecent(clean);
+      if (res.intent === 'unit_search') {
+        rememberRecent(clean);
+        if (res.units && (res.units.items.length > 0 || res.units.status === 'ask')) {
+          resetSearch();
+          resetAssistant();
+          setAssistantUnits(res.units);
+          setAssistantSuggestPrimary(Boolean(res.suggestPrimary));
+          setStatusCounts(res.units.counts);
+          const effectiveMarket = res.units.marketLock ?? (activeMode === 'resale' ? 'resale' : undefined);
+          setLast({
+            q: clean,
+            drop: false,
+            status: res.units.unitStatus ?? 'active',
+            ...(res.units.f ? { f: res.units.f } : {}),
+            ...(effectiveMarket ? { market: effectiveMarket } : {}),
+            ...(res.units.sort ? { sort: res.units.sort } : {}),
+          });
+          setExtra([]);
+          setDone(res.units.items.length >= res.units.total);
+          setReport(null);
+        }
+      }
     } catch (err) {
       if (reqGen !== generation.current) return;
       const legacyMissing = typeof api.assistantQuery !== 'function' || (err instanceof ApiClientError && (err.status === 404 || err.status === 501));
@@ -264,11 +306,19 @@ export function SearchScreen() {
     }
   };
   const loadMore = async () => {
-    if (!last || !search.data || loadingMore || done) return;
+    const activeData = search.data ?? assistantUnits;
+    if (!last || !activeData || loadingMore || done) return;
     const requestGeneration = generation.current;
     setLoadingMore(true);
     try {
-      const r = await api.search(last.q, { drop: last.drop, status: last.status, offset: search.data.items.length + extra.length });
+      const r = await api.search(last.q, {
+        drop: last.drop,
+        status: last.status,
+        offset: activeData.items.length + extra.length,
+        ...(last.f ? { f: last.f } : {}),
+        ...(last.market ? { market: last.market } : {}),
+        ...(last.sort ? { sort: last.sort } : {}),
+      });
       if (requestGeneration !== generation.current) return;
       if (!r.items.length) setDone(true);
       setExtra((e) => [...e, ...r.items]);
@@ -347,12 +397,14 @@ export function SearchScreen() {
     hidden.value = false;
     lastY.value = 0;
     slide.value = 0;
+    setAssistantUnits(null);
+    setAssistantSuggestPrimary(false);
     search.reset();
     answer.reset();
     assistant.reset();
     if (recentKey) AsyncStorage.removeItem(recentKey).catch(() => undefined);
   };
-  const data = search.data;
+  const data = search.data ?? assistantUnits;
   const counts = data?.counts ?? (search.isPending ? statusCounts : undefined);
   const statusSelection = useSelectionHighlight(last?.status, greenGradient);
   const atHome = !report && !submitted && !data && !search.isError && !busy && !assistant.data && !assistant.isError;
@@ -367,7 +419,7 @@ export function SearchScreen() {
   const body = search.isPending ? (
     <Loading label={t(lang, 'loading')} />
   ) : search.isError ? (
-    <ErrorView message={errorText(search.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => last ? run(last.q, last.drop, last.status) : run(submitted || text)} />
+    <ErrorView message={errorText(search.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => last ? run(last.q, last.drop, last.status, last) : run(submitted || text)} />
   ) : !data ? (
     <SearchHome openQueue={(queue) => openHomeReport('leads', queue)} onTryPrompt={(prompt) => { setText(prompt); submit(prompt); }}
       invitation={showInvitation ? <View style={styles.invitation}>
@@ -394,17 +446,18 @@ export function SearchScreen() {
     <View style={styles.ask}>
       <Text style={[styles.askTitle, { color: colors.text }]}>{t(lang, 'askTitle')}</Text>
       <Text style={{ color: colors.accentInk, fontWeight: '700' }}>{[...(data.ask?.terms ?? []), ...(data.ask?.numbers ?? []).map(String)].join(' · ')}</Text>
-      <Button label={t(lang, 'askSearchAnyway')} onPress={() => run(text, true)} />
-      <Button label={t(lang, 'askEdit')} variant="secondary" onPress={() => search.reset()} />
+      <Button label={t(lang, 'askSearchAnyway')} onPress={() => run(last?.q ?? text, true, last?.status ?? 'active', last ?? undefined)} />
+      <Button label={t(lang, 'askEdit')} variant="secondary" onPress={() => { search.reset(); setAssistantUnits(null); }} />
     </View>
   ) : data.status === 'small_talk' || data.status === 'other' ? (
     <EmptyView title={t(lang, 'smallTalk')} hint={t(lang, 'searchHint')} />
   ) : data.status === 'listing' ? (
     <EmptyView title={t(lang, 'listingHint')} />
   ) : data.status === 'none' ? (
-    <EmptyView title={t(lang, 'noResults')} hint={t(lang, 'noResultsHint')} actionLabel={t(lang, 'clearSearch')} onAction={() => { setText(''); search.reset(); }} />
+    <EmptyView title={t(lang, 'noResults')} hint={t(lang, 'noResultsHint')} actionLabel={t(lang, 'clearSearch')} onAction={() => { setText(''); search.reset(); setAssistantUnits(null); }} />
   ) : (
     <AnimatedFlashList
+      testID="search-results-list"
       data={[...data.items, ...extra]}
       keyExtractor={(u) => u.id}
       ListHeaderComponent={
@@ -423,7 +476,24 @@ export function SearchScreen() {
       contentContainerStyle={{ paddingBottom: 90 }}
       onEndReached={() => { if (data.items.length + extra.length < data.total) loadMore(); }}
       onEndReachedThreshold={0.6}
-      ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.count} color={colors.primaryInk} /> : null}
+      ListFooterComponent={
+        loadingMore ? <ActivityIndicator style={styles.count} color={colors.primaryInk} />
+        : assistantSuggestPrimary && last?.q ? (
+          <View style={styles.pivotFooter}>
+            <Button
+              testID="assistant-pivot-primary"
+              variant="secondary"
+              label={ar ? 'تشوف مشاريع برايمري كمان؟' : 'Check Primary projects too?'}
+              onPress={() => {
+                setAssistantUnits(null);
+                setAssistantSuggestPrimary(false);
+                setMode('primary');
+                void runAssistant(last.q, 'primary');
+              }}
+            />
+          </View>
+        ) : null
+      }
     />
   );
 
@@ -436,7 +506,7 @@ export function SearchScreen() {
         <View style={styles.chips}>
           {statusSelection.highlight}
           {(['active', 'sold', 'archived'] as const).map((st) => (
-            <Pressable key={st} onLayout={statusSelection.measure(st)} accessibilityRole="button" accessibilityState={{ selected: st === last.status }} disabled={search.isPending} onPress={() => { setStatusCounts(counts); void run(last.q, last.drop, st); }} style={[styles.chip, { borderColor: st === last.status ? colors.primary : colors.border }, st === last.status && !statusSelection.highlight && greenGradient]}>
+            <Pressable key={st} onLayout={statusSelection.measure(st)} accessibilityRole="button" accessibilityState={{ selected: st === last.status }} disabled={search.isPending} onPress={() => { setStatusCounts(counts); void run(last.q, last.drop, st, last); }} style={[styles.chip, { borderColor: st === last.status ? colors.primary : colors.border }, st === last.status && !statusSelection.highlight && greenGradient]}>
               <Text style={{ color: st === last.status ? '#FFFFFF' : colors.text, fontWeight: '700' }}>{t(lang, st)} ({counts[st] ?? 0})</Text>
             </Pressable>
           ))}
@@ -592,4 +662,5 @@ const styles = StyleSheet.create({
   clearButton: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, height: 38, justifyContent: 'center' },
+  pivotFooter: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
 });
