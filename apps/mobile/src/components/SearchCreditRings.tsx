@@ -22,19 +22,43 @@ export function creditRatioColor(ratio: number): string {
   return '#10B981';                   // Emerald green: healthy (>40%)
 }
 
-export function SearchCreditRings({ data }: { data?: SearchCredits | null }) {
-  const personalMeter = data?.personal ?? { remaining: 10, limit: 10, used: 0 };
+export function SearchCreditRings({ data, loading = false, error = false, ar = false }: { data?: SearchCredits | null; loading?: boolean; error?: boolean; ar?: boolean }) {
+  const neutral = loading || error || !data;
+  const personalMeter = data?.personal;
   const agencyMeter = data?.agency;
   const hasAgency = Boolean(agencyMeter);
-  const meters = hasAgency && agencyMeter ? [personalMeter, agencyMeter] : [personalMeter];
-  const arc = hasAgency ? CIRCUMFERENCE / 2 - 7 : CIRCUMFERENCE - 7;
+  const meters = neutral ? [{ limit: null, remaining: null, used: 0 }] : (hasAgency && agencyMeter && personalMeter ? [personalMeter, agencyMeter] : personalMeter ? [personalMeter] : []);
+  const arc = !neutral && hasAgency ? CIRCUMFERENCE / 2 - 7 : CIRCUMFERENCE - 7;
+
+  let accessibilityLabel: string;
+  if (loading) {
+    accessibilityLabel = ar ? 'جاري تحميل رصيد البحث' : 'Loading search credits';
+  } else if (error || !personalMeter) {
+    accessibilityLabel = ar ? 'تعذر تحميل رصيد البحث' : 'Search credits unavailable';
+  } else if (personalMeter.limit === null) {
+    accessibilityLabel = ar ? 'رصيد البحث غير محدود' : 'Unlimited search credits';
+  } else {
+    const pText = ar
+      ? `رصيد البحث ${personalMeter.remaining ?? 0} من ${personalMeter.limit}`
+      : `Personal search credits: ${personalMeter.remaining ?? 0} of ${personalMeter.limit} remaining`;
+    const aText = agencyMeter && agencyMeter.limit !== null
+      ? (ar ? ` · رصيد الشركة ${agencyMeter.remaining ?? 0} من ${agencyMeter.limit}` : ` · Agency credits: ${agencyMeter.remaining ?? 0} of ${agencyMeter.limit}`)
+      : '';
+    accessibilityLabel = `${pText}${aText}`;
+  }
 
   return (
-    <View pointerEvents="none" style={styles.wrap} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View testID="search-credit-rings" pointerEvents="none" style={styles.wrap} accessibilityLabel={accessibilityLabel}>
       <Svg width={48} height={48} viewBox={`0 0 ${SIZE} ${SIZE}`}>
         {meters.map((meter, index) => {
-          const rotation = (hasAgency ? 188 : -82) + index * 180;
-          const ratio = meter.limit === null ? 1 : meter.limit && meter.remaining !== null ? Math.max(0, Math.min(1, meter.remaining / meter.limit)) : (data ? 0 : 0.85);
+          const rotation = (!neutral && hasAgency ? 188 : -82) + index * 180;
+          if (neutral) {
+            return (
+              <Circle key={index} cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" stroke="#9CA3AF" strokeOpacity={0.35}
+                strokeWidth={2.5} strokeLinecap="round" strokeDasharray={[arc, CIRCUMFERENCE]} rotation={rotation} originX={SIZE / 2} originY={SIZE / 2} />
+            );
+          }
+          const ratio = meter.limit === null ? 1 : meter.limit && meter.remaining !== null ? Math.max(0, Math.min(1, meter.remaining / meter.limit)) : 0;
           const color = creditRatioColor(ratio);
           return (
             <React.Fragment key={index}>
@@ -63,4 +87,3 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
-

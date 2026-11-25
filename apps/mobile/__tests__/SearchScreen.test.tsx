@@ -867,3 +867,58 @@ test('assistant Change search restores original query for editing and View all m
   ));
   expect(mocked.search.mock.calls[0]?.[1]?.market).toBeUndefined();
 });
+
+test('assistant project results seed AskResults without duplicate page-1 askResults fetch and search refreshes credits', async () => {
+  const proj = {
+    id: 'p-seed',
+    name: 'Mivida Gardens',
+    name_en: 'Mivida Gardens',
+    developer: 'Emaar',
+    place: 'New Cairo',
+    governorate: 'Cairo',
+    status: 'selling',
+    delivery: null,
+    price_from: 5000000,
+    facts: [],
+    offers: [],
+    offers_total: 0,
+    free_text: 'Seeded note',
+    client_text: 'Seeded note',
+  };
+  mocked.assistantQuery.mockResolvedValueOnce({
+    intent: 'primary_answer',
+    headline: '1 project matched',
+    aiUsed: false,
+    cards: [{ kind: 'text_answer', answer: 'Emaar answer', dataDates: null, found: true, source: 'local' }],
+    projects: {
+      chips: [],
+      dropped: [],
+      sort: 'best',
+      total_projects: 1,
+      total_options: 1,
+      page: 1,
+      pages: 1,
+      per_page: 10,
+      projects: [proj],
+      token: 'tok-p',
+      log_id: 'log-p',
+    },
+  });
+  mocked.search.mockResolvedValueOnce({ status: 'none', source: 'parser', total: 0, items: [] });
+
+  await wrap();
+  await fireEvent.press(screen.getByTestId('search-mode-trigger'));
+  await fireEvent.press(await screen.findByTestId('popover-mode-primary'));
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'Mivida Emaar');
+  await fireEvent.press(screen.getByTestId('search-go'));
+
+  expect(await screen.findByText('Mivida Gardens')).toBeTruthy();
+  expect(mocked.askResults).not.toHaveBeenCalled();
+
+  const creditsSpy = (api as unknown as { searchCredits: jest.Mock }).searchCredits;
+  const before = creditsSpy.mock.calls.length;
+  await fireEvent.press(screen.getByTestId('mode-lock-clear'));
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'villa');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(creditsSpy.mock.calls.length).toBeGreaterThan(before));
+});

@@ -140,7 +140,10 @@ export function SearchScreen() {
     }
   });
   const barSlide = useAnimatedStyle(() => ({ transform: [{ translateY: slide.value }] }));
-  const search = useMutation<SearchResult, Error, { q: string; opts: Parameters<typeof api.search>[1] }>({ mutationFn: ({ q, opts }) => timed('search', () => api.search(q, opts)) });
+  const search = useMutation<SearchResult, Error, { q: string; opts: Parameters<typeof api.search>[1] }>({
+    mutationFn: ({ q, opts }) => timed('search', () => api.search(q, opts)),
+    onSettled: () => { void refreshCredits(); },
+  });
   const [assistantUnits, setAssistantUnits] = useState<SearchResult | null>(null);
   const [assistantSuggestPrimary, setAssistantSuggestPrimary] = useState(false);
   // Active units first; Sold and Archived are one tap away, with their counts from the start. More results load on demand.
@@ -579,7 +582,7 @@ export function SearchScreen() {
                 }}
                 onOpenQueue={(queue) => openHomeReport('leads', queue)}
                 extraFooter={assistant.data.projects && assistant.data.projects.total_projects > 0
-                  ? <AskResults showStatus key={submitted} q={submitted} onOpenProject={(id, name) => nav.navigate('Project', { id, name })} />
+                  ? <AskResults showStatus key={submitted} q={submitted} initial={assistant.data.projects} onOpenProject={(id, name) => nav.navigate('Project', { id, name })} />
                   : undefined}
               />
             ) : <Loading label={t(lang, 'loading')} />
@@ -631,7 +634,7 @@ export function SearchScreen() {
             compact
             multiline
             hideLeadingWhenTyping
-            actionDecoration={<SearchCreditRings data={credits.data} />}
+            actionDecoration={<SearchCreditRings data={credits.data} loading={credits.isPending} error={credits.isError} ar={ar} />}
             leadingAccessory={
               <Pressable
                 testID="search-mode-trigger"
