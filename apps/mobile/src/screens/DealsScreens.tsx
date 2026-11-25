@@ -1,7 +1,7 @@
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ltr } from '@wehdathub/shared';
 import type { Lang } from '@wehdathub/shared';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import { Chips } from '../components/Chips';
 import { DealForm } from '../components/DealForm';
 import { Field } from '../components/Field';
 import { Section } from '../components/Section';
+import { KpiTile, SectionCard, UrgencyBadge } from '../components/SectionCard';
 import { StatRow } from '../components/StatRow';
 import { useRights } from '../rights';
 import { ErrorView, Loading } from '../components/StateViews';
@@ -53,99 +54,259 @@ export function DealsScreen() {
   const rights = useRights();
   const [fix, setFix] = useState<Record<string, string>>({});
   const [status, setStatus] = useState('');
-  const q = useQuery({ queryKey: ['deals', status], queryFn: () => api.deals(status || undefined) });
+  const q = useInfiniteQuery({
+    queryKey: ['deals', status],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => api.deals(status || undefined, pageParam),
+    getNextPageParam: (lastPage, _pages, lastPageParam) => (lastPage.more ? lastPageParam + 1 : undefined),
+  });
   const setDeal = async (ref: string, to: string, version: unknown) => {
     try { await api.dealStatus(ref, to, Number(version)); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { toast(errorText(e, lang), true); }
   };
+  if (q.isPending) return <Loading label={t(lang, 'loading')} />;
+  const firstPage = q.data?.pages[0];
+  if (q.isError || !firstPage) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
+  const items = q.data.pages.flatMap((p) => p.items);
   return (
-    <Gate q={q}>
-      {(d) => (
-        <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
+    <FlashList
+      testID="deals-list"
+      style={{ backgroundColor: colors.bg }}
+      contentContainerStyle={styles.listPad}
+      keyboardShouldPersistTaps="handled"
+      data={items}
+      keyExtractor={(x, i) => str(x.ref ?? i)}
+      onEndReached={() => { if (q.hasNextPage && !q.isFetchingNextPage) void q.fetchNextPage(); }}
+      onEndReachedThreshold={0.6}
+      ListHeaderComponent={(
+        <View style={styles.head}>
           <Section testID="sec-new-deal" title={t(lang, 'newDeal')}><DealForm /></Section>
-          <Chips animateFilter testID="deal-status" value={status} onChange={(v) => setStatus(v === status ? '' : v)} options={d.statuses.map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} />
+          <Chips animateFilter testID="deal-status" value={status} onChange={(v) => setStatus(v === status ? '' : v)} options={firstPage.statuses.map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} />
           <Card>
             <Text style={[styles.h, { color: colors.text }]}>{ar ? 'إجمالي الشهور' : 'Monthly totals'}</Text>
-            {d.totals.map((m) => <StatRow key={str(m.month)} label={str(m.month)} value={`${num(m.deals)} ${ar ? 'صفقة' : 'deals'} · ${num(m.commission ?? m.mine)}`} pct={(Number(m.deals) / Math.max(1, ...d.totals.map((x) => Number(x.deals)))) * 100} />)}
+            {firstPage.totals.map((m) => <StatRow key={str(m.month)} label={str(m.month)} value={`${num(m.deals)} ${ar ? 'صفقة' : 'deals'} · ${num(m.commission ?? m.mine)}`} pct={(Number(m.deals) / Math.max(1, ...firstPage.totals.map((x) => Number(x.deals)))) * 100} />)}
           </Card>
-          {d.items.map((x) => (
-            <Card key={str(x.ref)} testID={`deal-${str(x.ref)}`}>
-              <Text style={[styles.h, { color: colors.text }]}>#{str(x.ref)} · {dealStatusLabel(str(x.status), ar)}</Text>
-              <Text style={{ color: colors.text }}>{[str(x.client_name), str(x.unit_code), str(x.price) ? num(x.price) : ''].filter(Boolean).join(' · ')}</Text>
-              {str(x.deal_type) === 'rent' && x.unit_code ? <Button testID={`add-lease-${str(x.ref)}`} variant="secondary" label={`🔑 ${t(lang, 'addLease')}`} onPress={() => nav.navigate('Unit', { code: str(x.unit_code), lease: { tenantName: x.lead_ref ? `L-${String(x.lead_ref).padStart(4, '0')}` : str(x.client_name), startDate: str(x.closed_at).slice(0, 10), rent: x.price === null || x.price === undefined ? '' : String(Math.round(Number(x.price))) } })} /> : null}
-              {rights.manager || rights.agencyOwner ? (
-                <Section testID={`sec-fix-${str(x.ref)}`} title={t(lang, 'correctDeal')}>
-                  <Field label={t(lang, 'dealCommission')} value={fix[str(x.ref)] ?? ''} onChangeText={(v) => setFix({ ...fix, [str(x.ref)]: v })} />
-                  <Button testID={`fix-${str(x.ref)}`} label={t(lang, 'save')} disabled={!(fix[str(x.ref)] ?? '').trim()} onPress={async () => { try { await api.correctDeal(`D-${String(x.ref).padStart(4, '0')}`, { commission: fix[str(x.ref)], version: Number(x.version) }); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { toast(errorText(e, lang), true); } }} />
-                </Section>
-              ) : null}
-              {d.statuses.length ? <Chips value={str(x.status)} onChange={(s) => { void setDeal(str(x.ref), s, x.version); }} options={(Array.isArray(x.allowed) ? (x.allowed as string[]) : d.statuses).map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} /> : null}
-            </Card>
-          ))}
-        </ScrollView>
+        </View>
       )}
-    </Gate>
+      renderItem={({ item: x }) => (
+        <View style={styles.item}>
+          <Card testID={`deal-${str(x.ref)}`}>
+            <Text style={[styles.h, { color: colors.text }]}>#{str(x.ref)} · {dealStatusLabel(str(x.status), ar)}</Text>
+            <Text style={{ color: colors.text }}>{[str(x.client_name), str(x.unit_code), str(x.price) ? num(x.price) : ''].filter(Boolean).join(' · ')}</Text>
+            {str(x.deal_type) === 'rent' && x.unit_code ? <Button testID={`add-lease-${str(x.ref)}`} variant="secondary" label={`🔑 ${t(lang, 'addLease')}`} onPress={() => nav.navigate('Unit', { code: str(x.unit_code), lease: { tenantName: x.lead_ref ? `L-${String(x.lead_ref).padStart(4, '0')}` : str(x.client_name), startDate: str(x.closed_at).slice(0, 10), rent: x.price === null || x.price === undefined ? '' : String(Math.round(Number(x.price))) } })} /> : null}
+            {rights.manager || rights.agencyOwner ? (
+              <Section testID={`sec-fix-${str(x.ref)}`} title={t(lang, 'correctDeal')}>
+                <Field label={t(lang, 'dealCommission')} value={fix[str(x.ref)] ?? ''} onChangeText={(v) => setFix({ ...fix, [str(x.ref)]: v })} />
+                <Button testID={`fix-${str(x.ref)}`} label={t(lang, 'save')} disabled={!(fix[str(x.ref)] ?? '').trim()} onPress={async () => { try { await api.correctDeal(`D-${String(x.ref).padStart(4, '0')}`, { commission: fix[str(x.ref)], version: Number(x.version) }); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { toast(errorText(e, lang), true); } }} />
+              </Section>
+            ) : null}
+            {firstPage.statuses.length ? <Chips value={str(x.status)} onChange={(s) => { void setDeal(str(x.ref), s, x.version); }} options={(Array.isArray(x.allowed) ? (x.allowed as string[]) : firstPage.statuses).map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} /> : null}
+          </Card>
+        </View>
+      )}
+      ListFooterComponent={q.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : null}
+    />
   );
 }
 
-/** Commissions: resale (from deals) or developer commissions with the tracker status. */
+function shiftMonth(ym: string, delta: number): string {
+  const [y, m] = ym.split('-').map(Number);
+  if (!y || !m) return ym;
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function currentCairoMonth(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit' }).format(new Date()).slice(0, 7);
+}
+
+/** Commissions: resale (from deals) or developer commissions with Claimable vs Overdue split and developer drill-through. */
 export function CommissionsScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
   const ar = lang === 'ar';
-  const [kind, setKind] = useState<'resale' | 'developers'>('resale');
-  const q = useQuery({ queryKey: ['commissions', kind], queryFn: () => api.commissions(kind) });
+  const params = useRoute<RouteProp<RootStackParams, 'Commissions'>>().params;
+  const [kind, setKind] = useState<'resale' | 'developers'>(params?.kind ?? 'resale');
+  const [filter, setFilter] = useState<'all' | 'claimable' | 'overdue'>(params?.overdue ? 'overdue' : 'all');
+  const [developerId, setDeveloperId] = useState<string | undefined>(params?.developerId);
+  const [developerName, setDeveloperName] = useState<string | undefined>(params?.developerName);
+
+  useEffect(() => {
+    if (!params) return;
+    if (params.kind) setKind(params.kind);
+    if (params.overdue !== undefined) setFilter(params.overdue ? 'overdue' : 'all');
+    if (params.developerId !== undefined) setDeveloperId(params.developerId);
+    if (params.developerName !== undefined) setDeveloperName(params.developerName);
+  }, [params]);
+
+  const statusArg = kind === 'developers' && filter === 'claimable' ? 'claimable' : undefined;
+  const overdueArg = kind === 'developers' && filter === 'overdue';
+  const devArg = kind === 'developers' ? developerId : undefined;
+  const q = useInfiniteQuery({
+    queryKey: ['commissions', kind, filter, devArg],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => kind === 'developers'
+      ? api.commissions(kind, statusArg, pageParam, { developer: devArg, overdue: overdueArg, period: 'all' })
+      : api.commissions(kind, statusArg, pageParam),
+    getNextPageParam: (lastPage, allPages, lastPageParam) => {
+      const loaded = allPages.reduce((sum, p) => sum + p.items.length, 0);
+      return lastPage.items.length > 0 && loaded < (lastPage.total ?? 0) ? lastPageParam + 1 : undefined;
+    },
+  });
+  if (q.isPending) return <Loading label={t(lang, 'loading')} />;
+  const d = q.data?.pages[0];
+  if (q.isError || !d) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
+  const totals = d.totals;
+  const devs = kind === 'developers' ? (d.byDeveloper ?? []) : [];
+  const items = q.data.pages.flatMap((p) => p.items);
   return (
-    <Gate q={q}>
-      {(d) => (
-        <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
-          <Chips<'resale' | 'developers'> testID="comm-kind" value={kind} onChange={setKind} options={[{ value: 'resale', label: ar ? 'ريسيل' : 'Resale' }, { value: 'developers', label: ar ? 'مطورين' : 'Developers' }]} />
+    <FlashList
+      testID="commissions-list"
+      style={{ backgroundColor: colors.bg }}
+      contentContainerStyle={styles.listPad}
+      keyboardShouldPersistTaps="handled"
+      data={items}
+      keyExtractor={(x, i) => str(x.id ?? i)}
+      onEndReached={() => { if (q.hasNextPage && !q.isFetchingNextPage) void q.fetchNextPage(); }}
+      onEndReachedThreshold={0.6}
+      ListHeaderComponent={(
+        <View style={styles.head}>
+          <Chips<'resale' | 'developers'> testID="comm-kind" value={kind} onChange={(k) => { setKind(k); if (k === 'resale') { setFilter('all'); setDeveloperId(undefined); setDeveloperName(undefined); } }} options={[{ value: 'resale', label: ar ? 'ريسيل' : 'Resale' }, { value: 'developers', label: ar ? 'مطورين' : 'Developers' }]} />
+          {kind === 'developers' ? (
+            <>
+              <Chips<'all' | 'claimable' | 'overdue'> testID="comm-filter" value={filter} onChange={setFilter} options={[
+                { value: 'all', label: ar ? 'الكل' : 'All' },
+                { value: 'claimable', label: ar ? 'جاهز للمطالبة' : 'Claimable' },
+                { value: 'overdue', label: ar ? 'متأخر' : 'Overdue' },
+              ]} />
+              {totals ? (
+                <SectionCard testID="comm-split-summary" title={ar ? 'المستحق والمتأخر' : 'Claimable vs Overdue'}>
+                  <View style={styles.kpiGrid}>
+                    <KpiTile testID="comm-claimable" label={ar ? 'جاهزة (لم تُفوتر)' : 'Claimable (not invoiced)'} value={`${num(totals.claimable ?? 0)} ${t(lang, 'egp')}`} hint={totals.claimableCount ? `${num(totals.claimableCount)} ${ar ? 'صفقة' : 'deals'}` : undefined} tone={Number(totals.claimable || 0) > 0 ? 'warn' : 'ok'} />
+                    <KpiTile testID="comm-overdue" label={ar ? 'متأخرة السداد' : 'Overdue'} value={`${num(totals.overdueAmount ?? 0)} ${t(lang, 'egp')}`} hint={totals.overdue ? `${num(totals.overdue)} ${ar ? 'متأخرة' : 'overdue'}` : undefined} tone={Number(totals.overdue || 0) > 0 ? 'critical' : 'ok'} />
+                  </View>
+                </SectionCard>
+              ) : null}
+              {developerId ? (
+                <View style={styles.rowBetween}>
+                  <UrgencyBadge testID="comm-active-dev" tone="neutral" label={`${ar ? 'المطور' : 'Developer'}: ${developerName || developerId.slice(0, 8)}`} />
+                  <Button testID="comm-clear-dev" size="sm" variant="quiet" label={ar ? 'كل المطورين' : 'All developers'} onPress={() => { setDeveloperId(undefined); setDeveloperName(undefined); }} />
+                </View>
+              ) : devs.length > 0 ? (
+                <SectionCard testID="comm-by-developer" title={ar ? 'حسب المطور (اضغط للتصفية)' : 'By developer (tap to filter)'}>
+                  {devs.map((dev) => (
+                    <Pressable
+                      key={dev.developerId}
+                      testID={`comm-dev-${dev.developerId}`}
+                      accessibilityRole="button"
+                      onPress={() => { setDeveloperId(dev.developerId); setDeveloperName(dev.developerName); }}
+                      style={({ pressed }) => [styles.devRow, { borderColor: colors.border, opacity: pressed ? 0.78 : 1 }]}
+                    >
+                      <View style={styles.devCopy}>
+                        <Text style={[styles.h, { color: colors.text }]}>{dev.developerName}</Text>
+                        <Text style={{ color: colors.muted }}>
+                          {`${ar ? 'جاهز' : 'Claimable'} ${num(dev.claimable)} · ${ar ? 'متبقي' : 'Outstanding'} ${num(dev.outstanding)}`}
+                        </Text>
+                      </View>
+                      <View style={styles.badgeCol}>
+                        {dev.overdueCount > 0 ? <UrgencyBadge tone="critical" label={`${dev.overdueCount} ${ar ? 'متأخر' : 'overdue'}`} /> : null}
+                        {dev.claimable > 0 ? <UrgencyBadge tone="warn" label={ar ? 'للمطالبة' : 'Claim'} /> : null}
+                      </View>
+                    </Pressable>
+                  ))}
+                </SectionCard>
+              ) : null}
+            </>
+          ) : null}
           <Text style={{ color: colors.muted }}>{d.total} · {d.period}</Text>
-          {d.items.map((x, i) => (
-            <Card key={str(x.id ?? i)} testID={`comm-${str(x.id ?? i)}`}>
-              <Text style={[styles.h, { color: colors.text }]}>{str(x.unit_code)} {x.status ? `· ${str(x.status)}` : ''}</Text>
-              <Text style={{ color: colors.text }}>{num(x.amount ?? x.commission_total ?? x.expected_amount ?? x.mine)}</Text>
-            </Card>
-          ))}
-        </ScrollView>
+        </View>
       )}
-    </Gate>
+      renderItem={({ item: x, index: i }) => (
+        <View style={styles.item}>
+          <Card testID={`comm-${str(x.id ?? i)}`}>
+            <Text style={[styles.h, { color: colors.text }]}>{str(x.unit_code)} {x.developer_name ? `· ${str(x.developer_name)}` : ''}{x.status ? ` · ${str(x.status)}` : ''}</Text>
+            <Text style={{ color: colors.text }}>{num(x.amount ?? x.commission_total ?? x.expected_amount ?? x.my_share ?? x.mine)}</Text>
+          </Card>
+        </View>
+      )}
+      ListFooterComponent={q.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : null}
+    />
   );
 }
 
-/** Lead sources for a month, with the ad spend managers can type. */
+/** Lead sources for a month, with month switcher, cohort note, signed-only filter, and silent ad-burn alerts. */
 export function SourcesScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
   const ar = lang === 'ar';
   const qc = useQueryClient();
-  const signedOnly = Boolean(useRoute<RouteProp<RootStackParams, 'Sources'>>().params?.signedOnly);
-  const q = useQuery({ queryKey: ['sources', signedOnly], queryFn: () => signedOnly ? api.sources(undefined, true) : api.sources() });
+  const initialSigned = Boolean(useRoute<RouteProp<RootStackParams, 'Sources'>>().params?.signedOnly);
+  const [signedOnly, setSignedOnly] = useState(initialSigned);
+  const maxMonth = currentCairoMonth();
+  const [month, setMonth] = useState<string | undefined>(undefined);
+  const q = useQuery({
+    queryKey: ['sources', month ?? 'current', signedOnly],
+    queryFn: () => month || signedOnly ? api.sources(month, signedOnly) : api.sources(),
+  });
   const [spend, setSpend] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
-  const save = async (month: string) => {
+  const changeMonth = (next: string) => {
+    setSpend({});
     setMsg(null);
-    try { await api.saveSpend(month, spend); await qc.invalidateQueries({ queryKey: ['sources'] }); setMsg(ar ? 'اتحفظ.' : 'Saved.'); } catch (e) { setMsg(toastError(errorText(e, lang))); }
+    setMonth(next);
+  };
+  const save = async (activeMonth: string) => {
+    setMsg(null);
+    try { await api.saveSpend(activeMonth, spend); await qc.invalidateQueries({ queryKey: ['sources'] }); setMsg(ar ? 'اتحفظ.' : 'Saved.'); } catch (e) { setMsg(toastError(errorText(e, lang))); }
   };
   return (
     <Gate q={q}>
-      {(d) => (
-        <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
-          <Text style={[styles.h, { color: colors.text }]}>{d.month}</Text>
-          {signedOnly ? <Text style={{ color: colors.muted }}>{ar
-            ? 'صفقات اتسجلت في الشهر ده وحالتها اتوقّعت أو اتدفعت. عدد العملاء بيتحسب حسب يوم إضافتهم.'
-            : 'Deals dated in this month and currently signed or paid. Leads are counted by their creation date.'}</Text> : null}
-          {d.rows.map((r) => (
-            <Card key={r.source} testID={`source-${r.source}`}>
-              <Text style={[styles.h, { color: colors.text }]}>{r.source}</Text>
-              <Text style={{ color: colors.text }}>{r.leads} {ar ? 'عميل' : 'leads'} · {r.deals} {ar ? 'صفقة' : 'deals'} · {num(r.commission)}</Text>
-              <Text style={{ color: colors.muted }}>{ar ? 'تكلفة العميل' : 'Per lead'} {num(r.perLead)} · {ar ? 'تكلفة الصفقة' : 'Per deal'} {num(r.perDeal)}</Text>
-              <Field label={ar ? 'المصروف (جنيه)' : 'Spend (EGP)'} value={spend[r.source] ?? str(r.spend ?? '')} onChangeText={(v) => setSpend({ ...spend, [r.source]: v })} keyboardType="numeric" />
-            </Card>
-          ))}
-          {msg ? <Text testID="sources-msg" style={{ color: colors.text }}>{msg}</Text> : null}
-          <Button testID="sources-save" label={ar ? 'احفظ المصروف' : 'Save spend'} onPress={() => save(d.month)} />
-        </ScrollView>
-      )}
+      {(d) => {
+        const activeMonth = d.month.slice(0, 7);
+        const canNext = activeMonth < maxMonth;
+        return (
+          <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
+            <View style={styles.rowBetween}>
+              <Button testID="sources-prev-month" size="sm" variant="secondary" label={ar ? 'السابق ‹' : '‹ Prev'} onPress={() => changeMonth(shiftMonth(activeMonth, -1))} />
+              <Text testID="sources-month-label" style={[styles.h, { color: colors.text }]}>{activeMonth}</Text>
+              <Button testID="sources-next-month" size="sm" variant="secondary" label={ar ? '› التالي' : 'Next ›'} disabled={!canNext} onPress={() => changeMonth(shiftMonth(activeMonth, 1))} />
+            </View>
+            <Chips<'all' | 'signed'>
+              testID="sources-signed-toggle"
+              value={signedOnly ? 'signed' : 'all'}
+              onChange={(v) => setSignedOnly(v === 'signed')}
+              options={[
+                { value: 'all', label: ar ? 'كل الصفقات النشطة' : 'All active deals' },
+                { value: 'signed', label: ar ? 'الموقّعة / المدفوعة بس' : 'Signed / paid only' },
+              ]}
+            />
+            <Text testID="sources-cohort-note" style={{ color: colors.muted }}>
+              {signedOnly
+                ? (ar
+                    ? 'الصفقات الموقّعة/المدفوعة المؤرخة في الشهر ده. العملاء بيتحسبوا حسب تاريخ إضافتهم (ممكن صفقة تيجي من عميل شهر فات).'
+                    : 'Deals signed or paid in this month. Leads are counted by their creation date (deals may close from earlier cohorts).')
+                : (ar
+                    ? 'الصفقات المؤرخة في الشهر ده مقابل العملاء الجدد المضافين في نفس الشهر.'
+                    : 'Deals dated in this month vs. leads created in this month.')}
+            </Text>
+            {d.rows.map((r) => {
+              const burn = Boolean(r.adBurn ?? (r.spend && r.spend > 0 && (r.leads === 0 || (r.leads >= 5 && r.deals === 0))));
+              return (
+                <Card key={r.source} testID={`source-${r.source}`}>
+                  <View style={styles.rowBetween}>
+                    <Text style={[styles.h, { color: colors.text }]}>{r.source}</Text>
+                    {burn ? <UrgencyBadge testID={`source-burn-${r.source}`} tone="critical" label={r.leads === 0 ? (ar ? 'صرف بدون عملاء' : 'Spend · 0 leads') : (ar ? 'صرف بدون صفقات' : 'Spend · 0 deals')} /> : null}
+                  </View>
+                  <Text style={{ color: colors.text }}>{r.leads} {ar ? 'عميل' : 'leads'} · {r.deals} {ar ? 'صفقة' : 'deals'} · {num(r.commission)}</Text>
+                  <Text style={{ color: colors.muted }}>{ar ? 'تكلفة العميل' : 'Per lead'} {num(r.perLead)} · {ar ? 'تكلفة الصفقة' : 'Per deal'} {num(r.perDeal)}</Text>
+                  <Field label={ar ? 'المصروف (جنيه)' : 'Spend (EGP)'} value={spend[r.source] ?? str(r.spend ?? '')} onChangeText={(v) => setSpend({ ...spend, [r.source]: v })} keyboardType="numeric" />
+                </Card>
+              );
+            })}
+            {msg ? <Text testID="sources-msg" style={{ color: colors.text }}>{msg}</Text> : null}
+            <Button testID="sources-save" label={ar ? 'احفظ المصروف' : 'Save spend'} onPress={() => save(activeMonth)} />
+          </ScrollView>
+        );
+      }}
     </Gate>
   );
 }
@@ -253,5 +414,9 @@ const styles = StyleSheet.create({
   footer: { padding: spacing.lg },
   card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
   h: { fontSize: 16, fontWeight: '700' },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  devRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth },
+  devCopy: { flex: 1, gap: 2 },
+  badgeCol: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
 });
