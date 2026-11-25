@@ -1001,3 +1001,79 @@ test('voice confirm bar pauses ambiguous unit-code transcripts for edit before s
   await waitFor(() => expect(mocked.search).toHaveBeenCalledWith('villa in Mivida', expect.objectContaining({ drop: false, status: 'active' })));
   expect(screen.queryByTestId('voice-confirm-bar')).toBeNull();
 });
+
+test('auto mode routes contextual follow-ups and Wave 2/3 queries to assistant, resets on View all markets and non-assistant search, and resets card error state across queries', async () => {
+  const ctx = { job: 'deals_report', market: 'resale' as const };
+  mocked.assistantQuery
+    .mockResolvedValueOnce({ intent: 'crm_deals', headline: '5 resale deals', aiUsed: false, cards: [], nextContext: ctx })
+    .mockResolvedValueOnce({ intent: 'crm_deals', headline: '2 deals by Sara', aiUsed: false, cards: [], nextContext: ctx })
+    .mockResolvedValueOnce({
+      intent: 'crm_leads',
+      headline: '1 lead',
+      aiUsed: false,
+      cards: [{
+        kind: 'stuck_leads',
+        queue: 'overdue',
+        total: 1,
+        canAssign: false,
+        canNudge: true,
+        items: [{ id: '1', ref: 'L-0042', name: 'Mona', assigneeId: 'b1', assignee: 'Sara', stage: 'new', minutesWaiting: 90, version: 1 }],
+        recommendedBrokers: [],
+      }],
+    })
+    .mockResolvedValueOnce({
+      intent: 'crm_leads',
+      headline: '1 lead retry',
+      aiUsed: false,
+      cards: [{
+        kind: 'stuck_leads',
+        queue: 'overdue',
+        total: 1,
+        canAssign: false,
+        canNudge: true,
+        items: [{ id: '1', ref: 'L-0042', name: 'Mona', assigneeId: 'b1', assignee: 'Sara', stage: 'new', minutesWaiting: 90, version: 1 }],
+        recommendedBrokers: [],
+      }],
+    })
+    .mockResolvedValueOnce({
+      intent: 'unit_search',
+      headline: '0 Resale units',
+      aiUsed: false,
+      cards: [],
+      actions: [{ kind: 'view_all_markets', label: 'View all markets' }],
+      units: { status: 'none', source: 'parser', total: 0, counts: { active: 0, sold: 0, archived: 0 }, marketLock: 'resale', items: [] },
+    });
+  mocked.nudgeLead.mockRejectedValueOnce(new Error('Nudge failed'));
+  mocked.search.mockResolvedValueOnce({ status: 'none', source: 'parser', total: 0, items: [] });
+
+  await wrap();
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'resale deals');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(mocked.assistantQuery).toHaveBeenNthCalledWith(1, expect.objectContaining({ q: 'resale deals', mode: 'auto' })));
+
+  // Follow-up in auto mode must hit assistantQuery with previousContext
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'only by Sara');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(mocked.assistantQuery).toHaveBeenNthCalledWith(2, expect.objectContaining({ q: 'only by Sara', mode: 'auto', previousContext: ctx })));
+
+  // Trigger inline error then new assistant response -> stale row error resets
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'approaching sla');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await fireEvent.press(await screen.findByTestId('assistant-nudge-L-0042'));
+  expect(await screen.findByTestId('assistant-row-error-L-0042')).toBeTruthy();
+
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'approaching sla');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(mocked.assistantQuery).toHaveBeenCalledTimes(4));
+  expect(screen.queryByTestId('assistant-row-error-L-0042')).toBeNull();
+
+  // View all markets resets mode to auto and strips explicit resale keyword
+  await fireEvent.press(screen.getByTestId('search-clear-chat'));
+  await fireEvent.press(screen.getByTestId('search-mode-trigger'));
+  await fireEvent.press(await screen.findByTestId('popover-mode-resale'));
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'resale villa in zayed');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await fireEvent.press(await screen.findByTestId('assistant-view-all-markets'));
+  await waitFor(() => expect(mocked.search).toHaveBeenCalledWith('villa in zayed', expect.objectContaining({ drop: false, status: 'active' })));
+  expect(screen.queryByTestId('mode-lock-chip')).toBeNull();
+});

@@ -58,10 +58,16 @@ function normalizeForRoute(raw: string): string {
     .replace(/\s+/g, ' ');
 }
 
-function shouldUseAssistantEndpoint(clean: string, mode: AssistantMode): boolean {
+function shouldUseAssistantEndpoint(clean: string, mode: AssistantMode, hasContext = false): boolean {
   if (mode !== 'auto') return true;
   const q = normalizeForRoute(clean);
-  return /(waiting\s*(?:over|>)\s*1|not\s+updating|silent\s+broker|who.*updat|scorecard|(?:how\s+is|performance\s+of|scorecard\s+for|status\s+of)\s+\S+|what\s+did\s+.+\s+do|how\s+did\s+.+\s+do|\S+(?:'s|’s)\s+team\b|(?:the|my|our)\s+team\b|\bteam\s+(?:workload|activity|performance|calls|viewings|updates|deals|stats|summary)\b|(?:viewings?|calls?|updates?)\s+(?:by|for|of)\s+\S+|how\s+many\s+(?:viewings?|calls?|updates?|leads?|deals?)|\bviewings?\s+(?:today|tomorrow|this\s+week)\b|(?:average|avg|median|first|reply)\s*response|response\s+time|fastest|slowest|stats\s+for\s+\S+|commission|payout|claimable|overdue|unassigned|uncontacted|ad\s*spend|marketing\s*spend|\broi\b|\bcpl\b|\bcpd\b|facebook|\bfb\b|\bmeta\b|instagram|tiktok|google|olx|dubizzle|bayut|property\s*finder|nawy|lead\s+sources?|leases?\s+ending|win\s*\/?\s*loss|win\s*rate|lost\s+reasons?|agency\s+brief|executive\s+brief|dashboard|overview|مستنين.*ساع|انتظار.*ساع|مبيحدث|مش بيحدث|مفيش\s+تحديث|بدون\s*تحديث|التزام.*تحديث|صامت|تقييم\s+\S+|عملت?\s+ايه|فريق\s+\S+|\S+\s+فريق|كام\s+(?:معاين|مكالم|تحديث|عميل|صفق)|معاينات\s+(?:النهارده|بكره|اليوم)|وقت\s+الرد|متوسط\s+الرد|اول\s+رد|فيسبوك|فيس بوك|انستجرام|تيك توك|جوجل|دوبيزل|بروبرتي|بيوت|نوي|عمولات|عموله|صرف\s*تسويق|مصادر\s*العملاء|ايجارات|خسار|معدل القفل|ملخص الشركه|اداء الشركه)/i.test(q);
+  if (
+    hasContext &&
+    /^(?:only\s+(?:by|for|closed\s+by)|just\s+(?:for|by)|بس\s+(?:بتوع|لـ|ل|قفلها)|increase\s+budget|raise\s+budget|bump\s+budget|under\s+[\d.,]+|(?:لو\s+)?(?:زودنا|ارفع|علي)\s+الميزاني|بحد\s+اقص[يى])\b/i.test(q)
+  ) {
+    return true;
+  }
+  return /(waiting\s*(?:over|>)\s*1|approaching\s+sla|near\s+sla|sla\s+soon|opened.*without\s+follow|open(?:ed)?\s+(?:offer|link).*no\s+follow|no\s+next\s+step|not\s+updating|silent\s+broker|who.*updat|scorecard|(?:how\s+is|performance\s+of|scorecard\s+for|status\s+of)\s+\S+|what\s+did\s+.+\s+do|how\s+did\s+.+\s+do|\S+(?:'s|’s)\s+team\b|(?:the|my|our)\s+team\b|\bteam\s+(?:workload|activity|performance|calls|viewings|updates|deals|stats|summary)\b|(?:viewings?|calls?|updates?)\s+(?:by|for|of)\s+\S+|how\s+many\s+(?:viewings?|calls?|updates?|leads?|deals?|apartments?|villas?|units?|duplex(?:es)?|studios?|chalets?|penthouses?|offices?|shops?|townhouses?|twin\s*houses?)|\bviewings?\s+(?:today|tomorrow|this\s+week)\b|(?:resale|primary)\s+deals?|deals?\s+(?:in|by|for|closed|involved|resale|primary)|(?:average|avg|median|first|reply)\s*response|response\s+time|fastest|slowest|stats\s+for\s+\S+|commission|payout|claimable|overdue|unassigned|uncontacted|ad\s*spend|marketing\s*spend|\broi\b|\bcpl\b|\bcpd\b|facebook|\bfb\b|\bmeta\b|instagram|tiktok|google|olx|dubizzle|bayut|property\s*finder|nawy|lead\s+sources?|leases?\s+ending|win\s*\/?\s*loss|win\s*rate|lost\s+reasons?|agency\s+brief|executive\s+brief|dashboard|overview|مستنين.*ساع|انتظار.*ساع|قربت.*ساع|قربوا\s+يعدوا|فتحوا.*(?:عرض|الرابط|اللينك).*متابع|بدون\s+خطوه?\s*(?:جاي|تالي)|مبيحدث|مش بيحدث|مفيش\s+تحديث|بدون\s*تحديث|التزام.*تحديث|صامت|تقييم\s+\S+|عملت?\s+ايه|فريق\s+\S+|\S+\s+فريق|(?:كام|كم)\s+(?:معاين|مكالم|تحديث|عميل|صفق|شقه|فيلا|وحده|دوبلكس|ستوديو|شاليه|بنتهاوس|مكتب|محل|تاون|توين)|معاينات\s+(?:النهارده|بكره|اليوم)|صفقات\s+(?:ريسيل|برايمر|في|قفلها|شارك)|وقت\s+الرد|متوسط\s+الرد|اول\s+رد|فيسبوك|فيس بوك|انستجرام|تيك توك|جوجل|دوبيزل|بروبرتي|بيوت|نوي|عمولات|عموله|صرف\s*تسويق|مصادر\s*العملاء|ايجارات|خسار|معدل القفل|ملخص الشركه|اداء الشركه)/i.test(q);
 }
 
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList<ApiUnitListItem>);
@@ -112,6 +118,7 @@ export function SearchScreen() {
   const refreshCredits = () => queries.invalidateQueries({ queryKey: ['search-credits'] });
   const answer = useMutation({ mutationFn: (q: string) => timed('ask', () => api.ask(q)), onSettled: () => { void refreshCredits(); } });
   const [assistantContext, setAssistantContext] = useState<AssistantContext | null>(null);
+  const [assistantGen, setAssistantGen] = useState(0);
   const assistant = useMutation({
     mutationFn: ({ q, m, previousContext }: { q: string; m: AssistantMode; previousContext?: AssistantContext | null }) =>
       api.assistantQuery({ q, mode: m, lang, ...(previousContext ? { previousContext } : {}) }),
@@ -244,6 +251,7 @@ export function SearchScreen() {
   };
 
   const routeParsedIntent = (clean: string, forceSearch = false) => {
+    setAssistantContext(null);
     const intent = forceSearch ? { kind: 'search' } as const :
       parseSearchIntent(clean, report === 'leads' || report === 'deals' ? report : undefined);
     const clarify = (message: string) => { setClarification(message); setReport('clarify'); };
@@ -284,6 +292,7 @@ export function SearchScreen() {
       const res = await assistant.mutateAsync({ q: clean, m: activeMode, ...(assistantContext ? { previousContext: assistantContext } : {}) });
       if (reqGen !== generation.current) return;
       usage('assistant_query_run', true, undefined, { mode: activeMode });
+      setAssistantGen((g) => g + 1);
       if (res.intent !== 'disambiguate') setAssistantContext(res.nextContext ?? null);
       if (res.intent === 'unit_search') {
         rememberRecent(clean);
@@ -384,7 +393,7 @@ export function SearchScreen() {
       setReport('lead-action');
       return;
     }
-    if (!fromClarification && shouldUseAssistantEndpoint(clean, mode)) {
+    if (!fromClarification && shouldUseAssistantEndpoint(clean, mode, Boolean(assistantContext))) {
       void runAssistant(clean, mode);
       return;
     }
@@ -431,6 +440,7 @@ export function SearchScreen() {
   const atHome = !report && !submitted && !data && !search.isError && !busy && !assistant.data && !assistant.isError;
   const showInvitation = Boolean(invitation && invitation === practiceKey);
   const openHomeReport = (value: SearchView, queue?: LeadQueue) => {
+    setAssistantContext(null);
     setReport(value);
     setSubmitted('');
     setLeadFilters(queue ? { queue } : {});
@@ -551,6 +561,7 @@ export function SearchScreen() {
             : assistant.isError ? <ErrorView message={errorText(assistant.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => void runAssistant(submitted || text, mode)} />
             : assistant.data ? (
               <AssistantCards
+                key={String(assistantGen)}
                 response={assistant.data}
                 query={submitted || text}
                 ar={ar}
@@ -580,11 +591,18 @@ export function SearchScreen() {
                 onViewAllMarkets={(qText) => {
                   usage('assistant_action_tapped', true, undefined, { action: 'view_all_markets' });
                   usage('route_override', true, undefined, { action: 'view_all_markets', mode, to_mode: 'auto' });
+                  const broadened = qText
+                    .replace(/\b(?:resale|secondary)\b|ريسيل|اعاد[هة]\s*البيع/gi, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim() || qText;
+                  setMode('auto');
+                  setText(broadened);
+                  setAssistantContext(null);
                   setReport(null);
                   setSource('inventory');
                   setAssistantUnits(null);
                   assistant.reset();
-                  void run(qText, false, 'active');
+                  void run(broadened, false, 'active');
                 }}
                 onChangeSearch={(qText) => {
                   usage('assistant_action_tapped', true, undefined, { action: 'change_search' });

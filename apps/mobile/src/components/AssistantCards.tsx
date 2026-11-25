@@ -356,7 +356,7 @@ export function AssistantCards({
         </View>
       ) : null}
 
-      {response.cards.map((card, i) => (
+      {(response.cards ?? []).map((card, i) => (
         <CardBody
           key={`${card.kind}-${i}`}
           card={card}

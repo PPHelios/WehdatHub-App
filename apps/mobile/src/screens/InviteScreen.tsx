@@ -34,9 +34,11 @@ export function InviteScreen() {
   const isTeamTier = workspace?.tier === 'team';
   const roles = Array.isArray(inviteRoles) && inviteRoles.length
     ? allRoles.filter((r) => inviteRoles.includes(r.value))
-    : isTeamTier
-      ? allRoles.filter((r) => r.value === 'broker' || r.value === 'manager')
-      : allRoles;
+    : workspace?.tier === 'solo'
+      ? []
+      : isTeamTier
+        ? allRoles.filter((r) => r.value === 'broker' || r.value === 'manager')
+        : allRoles;
   const send = async () => {
     setMsg(null);
     try {

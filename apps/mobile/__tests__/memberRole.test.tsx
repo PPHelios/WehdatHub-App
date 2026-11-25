@@ -79,3 +79,18 @@ test('InviteScreen and MemberRole respect inviteRoles and hide team_lead / data_
   expect(screen.queryByText(L('teamLead'))).toBeNull();
   expect(screen.queryByText(L('dataEntry'))).toBeNull();
 });
+
+test('InviteScreen hides roles for solo workspace even when inviteRoles is undefined', async () => {
+  m.me.mockResolvedValue({
+    rights: rights({ manager: true, agencyOwner: true }),
+    workspace: { tier: 'solo', mode: 'solo', members: 1, solo: true, teamStyle: 'shared', analytics: false },
+    inviteRoles: undefined,
+    testSwitch: null,
+  });
+  wrap(<InviteScreen />);
+  await waitFor(() => expect(m.me).toHaveBeenCalled());
+  expect(screen.queryByText(L('broker'))).toBeNull();
+  expect(screen.queryByText(L('manager'))).toBeNull();
+  expect(screen.queryByText(L('teamLead'))).toBeNull();
+  expect(screen.queryByText(L('dataEntry'))).toBeNull();
+});
