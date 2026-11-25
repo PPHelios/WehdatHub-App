@@ -767,3 +767,33 @@ test('assistant 0 resale matches stay in assistant view and offer Primary pivot'
   await waitFor(() => expect(screen.getByTestId('assistant-pivot-primary')).toBeTruthy());
   expect(screen.queryByTestId('save-search')).toBeNull();
 });
+
+test('reassigning a lead from assistant cards invalidates leads, lead detail, today, and dashboard caches', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const invSpy = jest.spyOn(client, 'invalidateQueries');
+  (api as unknown as { assignLead: jest.Mock }).assignLead.mockResolvedValueOnce({ lead: { id: 'l1', ref: 'L-0041' } });
+  mocked.assistantQuery.mockResolvedValueOnce({
+    intent: 'crm_leads',
+    headline: '1 lead waiting',
+    aiUsed: false,
+    cards: [{
+      kind: 'stuck_leads',
+      queue: 'waiting-over-1h',
+      total: 1,
+      canAssign: true,
+      canNudge: false,
+      recommendedBrokers: [{ id: 'b2', name: 'Nour', open: 1 }],
+      items: [{ ref: 'L-0041', name: 'Ali', stage: 'new', version: 4, assignee: 'Sara', assigneeId: 'b1', createdAt: null }],
+    }],
+  });
+
+  await wrap(client);
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'waiting over 1h');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await fireEvent.press(await screen.findByTestId('assistant-reassign-L-0041-b2'));
+
+  await waitFor(() => expect(invSpy).toHaveBeenCalledWith({ queryKey: ['leads'] }));
+  expect(invSpy).toHaveBeenCalledWith({ queryKey: ['lead', 'L-0041'] });
+  expect(invSpy).toHaveBeenCalledWith({ queryKey: ['today'] });
+  expect(invSpy).toHaveBeenCalledWith({ queryKey: ['dashboard'] });
+});

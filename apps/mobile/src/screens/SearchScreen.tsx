@@ -539,6 +539,9 @@ export function SearchScreen() {
                   usage('lead_assign', true);
                   usage('assistant_action_tapped', true, undefined, { action: 'reassign' });
                   void queries.invalidateQueries({ queryKey: ['leads'] });
+                  void queries.invalidateQueries({ queryKey: ['lead', ref] });
+                  void queries.invalidateQueries({ queryKey: ['today'] });
+                  void queries.invalidateQueries({ queryKey: ['dashboard'] });
                 }}
                 onNudgeLead={async (ref) => {
                   await api.nudgeLead(ref);
