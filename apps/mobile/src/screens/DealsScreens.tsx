@@ -1,7 +1,7 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ltr } from '@wehdathub/shared';
 import type { DealsFilterOpts, Lang } from '@wehdathub/shared';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -288,11 +288,12 @@ export function CommissionsScreen() {
 }
 
 /** Lead sources for a month, with month switcher, cohort note, signed-only filter, and silent ad-burn alerts. */
-export function SourcesScreen() {
+export function SourcesScreen({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void } = {}) {
   const { colors } = useTheme();
   const lang = currentLang();
   const ar = lang === 'ar';
   const qc = useQueryClient();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const initialSigned = Boolean(useRoute<RouteProp<RootStackParams, 'Sources'>>().params?.signedOnly);
   const [signedOnly, setSignedOnly] = useState(initialSigned);
   const maxMonth = currentCairoMonth();
@@ -301,28 +302,108 @@ export function SourcesScreen() {
     queryKey: ['sources', month ?? 'current', signedOnly],
     queryFn: () => month || signedOnly ? api.sources(month, signedOnly) : api.sources(),
   });
-  const [spend, setSpend] = useState<Record<string, string>>({});
-  const [msg, setMsg] = useState<string | null>(null);
-  const changeMonth = (next: string) => {
-    setSpend({});
-    setMsg(null);
-    setMonth(next);
+  const [draftsByMonth, setDraftsByMonth] = useState<Record<string, Record<string, string>>>({});
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<{ month: string | null; text: string } | null>(null);
+  const currentMonth = q.data?.month?.slice(0, 7) ?? month ?? maxMonth;
+  const spend = draftsByMonth[currentMonth] ?? {};
+  const hasDirty = Boolean(
+    q.data && q.data.rows.some((r) => spend[r.source] !== undefined && spend[r.source] !== str(r.spend ?? '')),
+  );
+  useEffect(() => {
+    onDirtyChange?.(hasDirty);
+  }, [hasDirty, onDirtyChange]);
+  useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
+  useEffect(() => {
+    if (!nav?.addListener) return undefined;
+    return nav.addListener('beforeRemove', (e) => {
+      if (!hasDirty) return;
+      e.preventDefault();
+      Alert.alert(
+        ar ? 'مصروفات غير محفوظة' : 'Unsaved ad spend',
+        ar ? 'عندك تعديلات في المصروف متسجلتش. متأكد تخرج؟' : 'You have unsaved spend edits. Discard them?',
+        [
+          { text: ar ? 'كمّل تعديل' : 'Keep editing', style: 'cancel' },
+          {
+            text: ar ? 'تجاهل' : 'Discard',
+            style: 'destructive',
+            onPress: () => {
+              setDraftsByMonth((prev) => {
+                const next = { ...prev };
+                delete next[currentMonth];
+                return next;
+              });
+              nav.dispatch?.(e.data.action);
+            },
+          },
+        ],
+      );
+    });
+  }, [nav, hasDirty, ar, currentMonth]);
+
+  const changeMonth = (nextMonth: string, activeMonth: string) => {
+    if (hasDirty) {
+      Alert.alert(
+        ar ? 'مصروفات غير محفوظة' : 'Unsaved ad spend',
+        ar ? 'احفظ التعديلات أو تجاهلها قبل تغيير الشهر.' : 'Save or discard your spend edits before switching months.',
+        [
+          { text: ar ? 'كمّل تعديل' : 'Keep editing', style: 'cancel' },
+          {
+            text: ar ? 'تجاهل' : 'Discard',
+            style: 'destructive',
+            onPress: () => {
+              setDraftsByMonth((prev) => {
+                const n = { ...prev };
+                delete n[activeMonth];
+                return n;
+              });
+              setSavedMsg(null);
+              setMonth(nextMonth);
+            },
+          },
+        ],
+      );
+      return;
+    }
+    setSavedMsg(null);
+    setMonth(nextMonth);
   };
-  const save = async (activeMonth: string) => {
-    setMsg(null);
-    try { await api.saveSpend(activeMonth, spend); await qc.invalidateQueries({ queryKey: ['sources'] }); setMsg(ar ? 'اتحفظ.' : 'Saved.'); } catch (e) { setMsg(toastError(errorText(e, lang))); }
+  const save = async (submittedMonth: string) => {
+    if (saving) return;
+    setSaving(true);
+    setSavedMsg(null);
+    const payload = draftsByMonth[submittedMonth] ?? {};
+    try {
+      await api.saveSpend(submittedMonth, payload);
+      setDraftsByMonth((prev) => {
+        const n = { ...prev };
+        delete n[submittedMonth];
+        return n;
+      });
+      await qc.invalidateQueries({ queryKey: ['sources'] });
+      setSavedMsg({
+        month: submittedMonth,
+        text: ar ? `تم حفظ مصروف ${submittedMonth}.` : `Saved spend for ${submittedMonth}.`,
+      });
+    } catch (e) {
+      setSavedMsg({ month: null, text: toastError(errorText(e, lang)) });
+    } finally {
+      setSaving(false);
+    }
   };
   return (
     <Gate q={q}>
       {(d) => {
         const activeMonth = d.month.slice(0, 7);
+        const monthSpend = draftsByMonth[activeMonth] ?? {};
         const canNext = activeMonth < maxMonth;
+        const visibleMsg = savedMsg && (savedMsg.month === null || savedMsg.month === activeMonth) ? savedMsg.text : null;
         return (
           <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
             <View style={styles.rowBetween}>
-              <Button testID="sources-prev-month" size="sm" variant="secondary" label={ar ? 'السابق ‹' : '‹ Prev'} onPress={() => changeMonth(shiftMonth(activeMonth, -1))} />
+              <Button testID="sources-prev-month" size="sm" variant="secondary" label={ar ? 'السابق ‹' : '‹ Prev'} onPress={() => changeMonth(shiftMonth(activeMonth, -1), activeMonth)} />
               <Text testID="sources-month-label" style={[styles.h, { color: colors.text }]}>{activeMonth}</Text>
-              <Button testID="sources-next-month" size="sm" variant="secondary" label={ar ? '› التالي' : 'Next ›'} disabled={!canNext} onPress={() => changeMonth(shiftMonth(activeMonth, 1))} />
+              <Button testID="sources-next-month" size="sm" variant="secondary" label={ar ? '› التالي' : 'Next ›'} disabled={!canNext} onPress={() => changeMonth(shiftMonth(activeMonth, 1), activeMonth)} />
             </View>
             <Chips<'all' | 'signed'>
               testID="sources-signed-toggle"
@@ -352,12 +433,25 @@ export function SourcesScreen() {
                   </View>
                   <Text style={{ color: colors.text }}>{r.leads} {ar ? 'عميل' : 'leads'} · {r.deals} {ar ? 'صفقة' : 'deals'} · {num(r.commission)}</Text>
                   <Text style={{ color: colors.muted }}>{ar ? 'تكلفة العميل' : 'Per lead'} {num(r.perLead)} · {ar ? 'تكلفة الصفقة' : 'Per deal'} {num(r.perDeal)}</Text>
-                  <Field label={ar ? 'المصروف (جنيه)' : 'Spend (EGP)'} value={spend[r.source] ?? str(r.spend ?? '')} onChangeText={(v) => setSpend({ ...spend, [r.source]: v })} keyboardType="numeric" />
+                  <Field
+                    label={ar ? 'المصروف (جنيه)' : 'Spend (EGP)'}
+                    value={monthSpend[r.source] ?? str(r.spend ?? '')}
+                    onChangeText={(v) => {
+                      const nextMap = { ...monthSpend, [r.source]: v };
+                      const nextDirty = d.rows.some((row) => nextMap[row.source] !== undefined && nextMap[row.source] !== str(row.spend ?? ''));
+                      onDirtyChange?.(nextDirty);
+                      setDraftsByMonth((prev) => ({
+                        ...prev,
+                        [activeMonth]: { ...(prev[activeMonth] ?? {}), [r.source]: v },
+                      }));
+                    }}
+                    keyboardType="numeric"
+                  />
                 </Card>
               );
             })}
-            {msg ? <Text testID="sources-msg" style={{ color: colors.text }}>{msg}</Text> : null}
-            <Button testID="sources-save" label={ar ? 'احفظ المصروف' : 'Save spend'} onPress={() => save(activeMonth)} />
+            {visibleMsg ? <Text testID="sources-msg" style={{ color: colors.text }}>{visibleMsg}</Text> : null}
+            <Button testID="sources-save" disabled={saving} label={ar ? 'احفظ المصروف' : 'Save spend'} onPress={() => { void save(activeMonth); }} />
           </ScrollView>
         );
       }}

@@ -1,19 +1,34 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CommissionsScreen, DealsScreen, SourcesScreen } from '../src/screens/DealsScreens';
+import { ReportsHubScreen } from '../src/screens/ReportsHubScreen';
 import { api } from '../src/api';
 
 const mockNavigate = jest.fn();
+const mockDispatch = jest.fn();
+let beforeRemoveCb: ((e: { preventDefault: () => void; data: { action: unknown } }) => void) | undefined;
 let mockRouteParams: Record<string, unknown> = {};
-jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: mockNavigate }), useRoute: () => ({ params: mockRouteParams }) }));
-jest.mock('../src/api', () => ({ api: { deals: jest.fn(), dealStatus: jest.fn(), commissions: jest.fn(), sources: jest.fn(), saveSpend: jest.fn() } }));
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({
+    navigate: mockNavigate,
+    dispatch: mockDispatch,
+    addListener: (_ev: string, cb: typeof beforeRemoveCb) => {
+      beforeRemoveCb = cb;
+      return () => { beforeRemoveCb = undefined; };
+    },
+  }),
+  useRoute: () => ({ params: mockRouteParams }),
+}));
+jest.mock('../src/api', () => ({ api: { me: jest.fn().mockResolvedValue({ rights: { manager: true, agencyOwner: true }, workspace: { tier: 'team', mode: 'team', members: 5, solo: false }, nav: null }), deals: jest.fn(), dealStatus: jest.fn(), commissions: jest.fn(), sources: jest.fn(), saveSpend: jest.fn(), dashboard: jest.fn().mockResolvedValue({ days: 30, weekly: [], sources: [], pipeline: {}, unassigned: 0, uncontacted: 0, overdue: 0, units: { active: 0, stale: 0 }, deals: { n: 0, commission: 0, value: 0 }, leads: 0, board: [] }), winLoss: jest.fn() } }));
 const m = api as unknown as Record<string, jest.Mock>;
 const wrap = async (ui: React.ReactElement) => await render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockRouteParams = {};
+  beforeRemoveCb = undefined;
 });
 
 test('deals list shows a deal', async () => {
@@ -175,4 +190,67 @@ test('deals applies drill-through route filters, renders summary banner, and let
     brokerRole: 'closer',
   })));
   expect(m.deals.mock.calls.at(-1)?.[2]?.market).toBeUndefined();
+});
+
+test('sources protects unsaved spend on month switch, navigation exit, hub-tab switch, disables pending save, keeps failed draft, and scopes saved msg by month', async () => {
+  const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  let resolveSave!: () => void;
+  let rejectSave!: (err: Error) => void;
+  m.sources.mockResolvedValue({
+    month: '2026-11',
+    rows: [{ source: 'facebook', leads: 4, deals: 1, commission: 1000, spend: null, perLead: null, perDeal: null }],
+    totals: {},
+  });
+  m.saveSpend
+    .mockImplementationOnce(() => new Promise<void>((_res, rej) => { rejectSave = rej; }))
+    .mockImplementationOnce(() => new Promise<void>((res) => { resolveSave = res; }));
+
+  const view1 = await wrap(<SourcesScreen />);
+  const input = await screen.findByDisplayValue('');
+  await fireEvent.changeText(input, '3500');
+
+  // 1. Warn before losing edits on month switch
+  await fireEvent.press(screen.getByTestId('sources-prev-month'));
+  expect(alertSpy).toHaveBeenCalledTimes(1);
+  expect(m.sources).not.toHaveBeenCalledWith('2026-10', false);
+
+  // 2. Warn on navigation beforeRemove
+  const preventDefault = jest.fn();
+  beforeRemoveCb?.({ preventDefault, data: { action: { type: 'GO_BACK' } } });
+  expect(preventDefault).toHaveBeenCalled();
+  expect(alertSpy).toHaveBeenCalledTimes(2);
+
+  // 3. Failed save keeps draft input intact
+  await fireEvent.press(screen.getByTestId('sources-save'));
+  await act(async () => {
+    rejectSave(new Error('network_fail'));
+    await Promise.resolve();
+  });
+  expect(screen.getByDisplayValue('3500')).toBeTruthy();
+
+  // 4. Pending save disables Save button to block duplicate submits, and scopes confirmation to submittedMonth
+  await fireEvent.press(screen.getByTestId('sources-save'));
+  expect(screen.getByTestId('sources-save').props.accessibilityState?.disabled).toBe(true);
+  await act(async () => {
+    resolveSave();
+    await Promise.resolve();
+  });
+  expect(await screen.findByTestId('sources-msg')).toBeTruthy();
+  expect(screen.getByTestId('sources-msg').props.children).toContain('2026-11');
+  view1.unmount();
+
+  // 5. Hub-tab switch in ReportsHubScreen warns on dirty Sources tab
+  alertSpy.mockClear();
+  mockRouteParams = { initialTab: 'sources' };
+  const client2 = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client2.setQueryData(['me'], {
+    rights: { manager: true, agencyOwner: true },
+    workspace: { tier: 'team', mode: 'team', members: 5, solo: false },
+    nav: null,
+  });
+  await render(<QueryClientProvider client={client2}><ReportsHubScreen /></QueryClientProvider>);
+  const hubInput = await screen.findByDisplayValue('');
+  await fireEvent.changeText(hubInput, '900');
+  await fireEvent.press(screen.getByTestId('hub-tab-dashboard'));
+  expect(alertSpy).toHaveBeenCalledTimes(1);
 });

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { currentLang } from '../auth';
@@ -29,14 +29,34 @@ export function ReportsHubScreen() {
     ...((nav ? hasNavApp(nav, 'ActivityLog') : !isSolo) ? [{ id: 'activity' as const, label: ar ? 'سجل النشاط' : 'Activity Log', testID: 'hub-tab-activity' }] : []),
   ];
   const activeTab: ReportsHubTab = tabs.some((x) => x.id === tab) ? tab : (tabs[0]?.id ?? 'dashboard');
+  const sourcesDirtyRef = useRef(false);
+  const handleDirtyChange = useCallback((dirty: boolean) => {
+    sourcesDirtyRef.current = dirty;
+  }, []);
+
+  const selectTab = (next: ReportsHubTab) => {
+    if (next === activeTab) return;
+    if (activeTab === 'sources' && sourcesDirtyRef.current) {
+      Alert.alert(
+        ar ? 'مصروفات غير محفوظة' : 'Unsaved ad spend',
+        ar ? 'عندك تعديلات في المصروف متسجلتش. متأكد تغيّر التبويب؟' : 'You have unsaved spend edits. Discard them?',
+        [
+          { text: ar ? 'كمّل تعديل' : 'Keep editing', style: 'cancel' },
+          { text: ar ? 'تجاهل' : 'Discard', style: 'destructive', onPress: () => { sourcesDirtyRef.current = false; setTab(next); } },
+        ],
+      );
+      return;
+    }
+    setTab(next);
+  };
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <HubTabs tabs={tabs} active={activeTab} onSelect={setTab} testID="reports-hub-tabs" />
+      <HubTabs tabs={tabs} active={activeTab} onSelect={selectTab} testID="reports-hub-tabs" />
       <View style={styles.flex}>
         {activeTab === 'dashboard' ? <DashboardScreen /> : null}
         {activeTab === 'winloss' ? <WinLossScreen /> : null}
-        {activeTab === 'sources' ? <SourcesScreen /> : null}
+        {activeTab === 'sources' ? <SourcesScreen onDirtyChange={handleDirtyChange} /> : null}
         {activeTab === 'activity' ? <ActivityLogScreen /> : null}
       </View>
     </View>
