@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ltr } from '@wehdathub/shared';
-import type { Lang } from '@wehdathub/shared';
+import type { DealsFilterOpts, Lang } from '@wehdathub/shared';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
@@ -51,13 +51,35 @@ export function DealsScreen() {
   const ar = lang === 'ar';
   const qc = useQueryClient();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const route = useRoute<RouteProp<RootStackParams, 'Deals'>>();
   const rights = useRights();
   const [fix, setFix] = useState<Record<string, string>>({});
   const [status, setStatus] = useState('');
+  const [filters, setFilters] = useState<DealsFilterOpts>(() => ({
+    ...(route.params?.from ? { from: route.params.from } : {}),
+    ...(route.params?.to ? { to: route.params.to } : {}),
+    ...(route.params?.brokerId ? { brokerId: route.params.brokerId } : {}),
+    ...(route.params?.brokerRole ? { brokerRole: route.params.brokerRole } : {}),
+    ...(route.params?.market ? { market: route.params.market } : {}),
+    ...(route.params?.area ? { area: route.params.area } : {}),
+  }));
+  useEffect(() => {
+    const p = route.params ?? {};
+    setFilters({
+      ...(p.from ? { from: p.from } : {}),
+      ...(p.to ? { to: p.to } : {}),
+      ...(p.brokerId ? { brokerId: p.brokerId } : {}),
+      ...(p.brokerRole ? { brokerRole: p.brokerRole } : {}),
+      ...(p.market ? { market: p.market } : {}),
+      ...(p.area ? { area: p.area } : {}),
+    });
+  }, [route.params?.from, route.params?.to, route.params?.brokerId, route.params?.brokerRole, route.params?.market, route.params?.area]);
+  const hasFilters = Boolean(filters.from || filters.to || filters.brokerId || filters.market || filters.area);
+  const queryKey = hasFilters ? ['deals', status, filters] : ['deals', status];
   const q = useInfiniteQuery({
-    queryKey: ['deals', status],
+    queryKey,
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api.deals(status || undefined, pageParam),
+    queryFn: ({ pageParam }) => (hasFilters ? api.deals(status || undefined, pageParam, { ...filters, summary: true }) : api.deals(status || undefined, pageParam)),
     getNextPageParam: (lastPage, _pages, lastPageParam) => (lastPage.more ? lastPageParam + 1 : undefined),
   });
   const setDeal = async (ref: string, to: string, version: unknown) => {
@@ -67,6 +89,7 @@ export function DealsScreen() {
   const firstPage = q.data?.pages[0];
   if (q.isError || !firstPage) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
   const items = q.data.pages.flatMap((p) => p.items);
+  const dealSummary = firstPage.dealSummary;
   return (
     <FlashList
       testID="deals-list"
@@ -80,6 +103,37 @@ export function DealsScreen() {
       ListHeaderComponent={(
         <View style={styles.head}>
           <Section testID="sec-new-deal" title={t(lang, 'newDeal')}><DealForm /></Section>
+          {hasFilters ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+              {(filters.from || filters.to) ? (
+                <Button testID="deals-filter-window" size="sm" variant="secondary" label={`${ar ? 'الفترة' : 'Window'}: ${(filters.from ?? '').slice(0, 10)} → ${(filters.to ?? '').slice(0, 10)} ×`} onPress={() => setFilters((f) => ({ ...f, from: undefined, to: undefined }))} />
+              ) : null}
+              {filters.market ? (
+                <Button testID="deals-filter-market" size="sm" variant="secondary" label={`${ar ? 'السوق' : 'Market'}: ${filters.market} ×`} onPress={() => setFilters((f) => ({ ...f, market: undefined }))} />
+              ) : null}
+              {filters.area ? (
+                <Button testID="deals-filter-area" size="sm" variant="secondary" label={`${ar ? 'المنطقة' : 'Area'}: ${filters.area} ×`} onPress={() => setFilters((f) => ({ ...f, area: undefined }))} />
+              ) : null}
+              {filters.brokerId ? (
+                <Button testID="deals-filter-broker" size="sm" variant="secondary" label={`${filters.brokerRole === 'participant' ? (ar ? 'بمشاركة' : 'Involved') : (ar ? 'قفلها' : 'Closer')} ×`} onPress={() => setFilters((f) => ({ ...f, brokerId: undefined, brokerRole: undefined }))} />
+              ) : null}
+            </View>
+          ) : null}
+          {dealSummary ? (
+            <Card testID="deals-summary-banner">
+              <Text style={[styles.h, { color: colors.text }]}>
+                {`${num(dealSummary.deals)} ${ar ? 'صفقة' : 'deals'} · ${num(dealSummary.commissionBasis === 'broker_share' && dealSummary.brokerShareTotal != null ? dealSummary.brokerShareTotal : dealSummary.commissionTotal)} EGP (${dealSummary.commissionBasis === 'broker_share' ? (ar ? 'نصيب البروكر' : 'Broker share') : (ar ? 'عمولة مسجلة' : 'Recorded commission')})`}
+              </Text>
+              <Text style={{ color: colors.muted, fontSize: 13 }}>
+                {dealSummary.brokerRole === 'participant' ? (ar ? 'يشمل القفل والمشاركة في القسمة' : 'Closer or split participant') : (ar ? 'الوسيط اللي قفل الصفقة' : 'Closing broker only')}
+              </Text>
+              {dealSummary.unknownMarketCount > 0 || dealSummary.unknownAreaCount > 0 ? (
+                <Text style={{ color: colors.muted, fontSize: 12 }}>
+                  {[dealSummary.unknownMarketCount > 0 ? (ar ? `${dealSummary.unknownMarketCount} بدون سوق` : `${dealSummary.unknownMarketCount} unknown market`) : '', dealSummary.unknownAreaCount > 0 ? (ar ? `${dealSummary.unknownAreaCount} بدون منطقة` : `${dealSummary.unknownAreaCount} unknown area`) : ''].filter(Boolean).join(' · ')}
+                </Text>
+              ) : null}
+            </Card>
+          ) : null}
           <Chips animateFilter testID="deal-status" value={status} onChange={(v) => setStatus(v === status ? '' : v)} options={firstPage.statuses.map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} />
           <Card>
             <Text style={[styles.h, { color: colors.text }]}>{ar ? 'إجمالي الشهور' : 'Monthly totals'}</Text>

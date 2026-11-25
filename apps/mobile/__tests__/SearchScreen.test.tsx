@@ -826,3 +826,44 @@ test('Solo owner ComposerPopover and SearchHome keep personal shortcuts/My stats
     useAuth.setState({ broker: previous });
   }
 });
+
+test('assistant Change search restores original query for editing and View all markets deliberately broadens resale search', async () => {
+  mocked.assistantQuery.mockResolvedValue({
+    intent: 'unit_search',
+    headline: '0 Resale units matched',
+    aiUsed: false,
+    suggestPrimary: true,
+    understood: {
+      job: 'find_units',
+      market: 'resale',
+      appliedFilters: ['Market: Resale', 'Area: Zayed'],
+      unsupportedFilters: [],
+    },
+    cards: [],
+    actions: [
+      { kind: 'view_all_markets', label: 'View all markets' },
+      { kind: 'pivot_mode', mode: 'primary', label: 'Search Primary projects' },
+    ],
+    units: { status: 'none', source: 'parser', total: 0, counts: { active: 0, sold: 0, archived: 0 }, marketLock: 'resale', items: [] },
+  });
+  mocked.search.mockResolvedValueOnce({ status: 'results', source: 'parser', total: 1, items: [{ id: 'u1', code: 'A-1', status: 'active', title: null, propertyType: 'apartment', dealType: 'sale', price: 3000000, priceText: null, area: 140, bedrooms: 3, bathrooms: 2, compound: 'Zayed', district: 'Sheikh Zayed', city: 'Giza', finishing: null, photo: null }], counts: { active: 1, sold: 0, archived: 0 } });
+
+  await wrap();
+  await fireEvent.press(screen.getByTestId('search-mode-trigger'));
+  await fireEvent.press(await screen.findByTestId('popover-mode-resale'));
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'apartments in zayed');
+  await fireEvent.press(screen.getByTestId('search-go'));
+
+  expect(await screen.findByTestId('assistant-understood')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('assistant-change-search'));
+  expect(screen.getByTestId('search-input').props.value).toBe('apartments in zayed');
+  expect(screen.queryByTestId('assistant-understood')).toBeNull();
+
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await fireEvent.press(await screen.findByTestId('assistant-view-all-markets'));
+  await waitFor(() => expect(mocked.search).toHaveBeenCalledWith(
+    'apartments in zayed',
+    expect.objectContaining({ drop: false, status: 'active' }),
+  ));
+  expect(mocked.search.mock.calls[0]?.[1]?.market).toBeUndefined();
+});

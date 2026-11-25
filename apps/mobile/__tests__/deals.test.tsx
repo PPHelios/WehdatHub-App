@@ -5,10 +5,16 @@ import { CommissionsScreen, DealsScreen, SourcesScreen } from '../src/screens/De
 import { api } from '../src/api';
 
 const mockNavigate = jest.fn();
-jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: mockNavigate }), useRoute: () => ({ params: {} }) }));
+let mockRouteParams: Record<string, unknown> = {};
+jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: mockNavigate }), useRoute: () => ({ params: mockRouteParams }) }));
 jest.mock('../src/api', () => ({ api: { deals: jest.fn(), dealStatus: jest.fn(), commissions: jest.fn(), sources: jest.fn(), saveSpend: jest.fn() } }));
 const m = api as unknown as Record<string, jest.Mock>;
 const wrap = async (ui: React.ReactElement) => await render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockRouteParams = {};
+});
 
 test('deals list shows a deal', async () => {
   m.deals.mockResolvedValue({ items: [{ ref: 7, status: 'signed', client_name: 'Omar', unit_code: 'A-1', price: 5000000, version: 1 }], more: false, totals: [], statuses: ['signed', 'cancelled'] });
@@ -117,10 +123,56 @@ test('commissions paginates >20 developer items while preserving developer + ove
   await fireEvent.press(await screen.findByText(/^(Overdue|متأخر)$/));
   await waitFor(() => expect(m.commissions).toHaveBeenCalledWith('developers', undefined, 0, { developer: 'dev-1', overdue: true, period: 'all' }));
 
-  await fireEvent(screen.getByTestId('commissions-list'), 'endReached');
+  await fireEvent(await screen.findByTestId('commissions-list'), 'endReached');
   await waitFor(() => expect(m.commissions).toHaveBeenCalledWith('developers', undefined, 1, { developer: 'dev-1', overdue: true, period: 'all' }));
   expect(await screen.findByTestId('comm-c-22')).toBeTruthy();
 
   await fireEvent.press(screen.getByText(/Resale|ريسيل/));
   await waitFor(() => expect(m.commissions).toHaveBeenCalledWith('resale', undefined, 0));
+});
+
+test('deals applies drill-through route filters, renders summary banner, and lets user dismiss filters', async () => {
+  mockRouteParams = {
+    from: '2026-11-01T00:00:00.000Z',
+    to: '2026-11-16T00:00:00.000Z',
+    brokerId: 'b1',
+    brokerRole: 'closer',
+    market: 'resale',
+    area: 'fifth-settlement',
+  };
+  m.deals.mockResolvedValue({
+    items: [{ ref: 9, status: 'signed', client_name: 'Karim', unit_code: 'FS-9', price: 6000000, version: 1 }],
+    more: false,
+    totals: [],
+    statuses: ['signed'],
+    dealSummary: {
+      deals: 1,
+      volume: 6000000,
+      commissionTotal: 90000,
+      brokerShareTotal: 45000,
+      commissionBasis: 'deal_commission',
+      brokerRole: 'closer',
+      unknownMarketCount: 2,
+      unknownAreaCount: 1,
+    },
+  });
+
+  await wrap(<DealsScreen />);
+  await waitFor(() => expect(m.deals).toHaveBeenCalledWith(undefined, 0, {
+    from: '2026-11-01T00:00:00.000Z',
+    to: '2026-11-16T00:00:00.000Z',
+    brokerId: 'b1',
+    brokerRole: 'closer',
+    market: 'resale',
+    area: 'fifth-settlement',
+    summary: true,
+  }));
+  expect(await screen.findByTestId('deals-summary-banner')).toBeTruthy();
+  expect(screen.getByTestId('deals-filter-market')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('deals-filter-market'));
+  await waitFor(() => expect(m.deals).toHaveBeenLastCalledWith(undefined, 0, expect.objectContaining({
+    from: '2026-11-01T00:00:00.000Z',
+    brokerRole: 'closer',
+  })));
+  expect(m.deals.mock.calls.at(-1)?.[2]?.market).toBeUndefined();
 });

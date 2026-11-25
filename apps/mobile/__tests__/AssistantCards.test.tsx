@@ -212,3 +212,51 @@ test('per-lead action lock blocks same-lead double-tap before render, allows con
   expect(await screen.findByTestId('assistant-row-error-L-0042')).toBeTruthy();
   expect(screen.queryByTestId('assistant-row-error-L-0041')).toBeNull();
 });
+
+test('renders understood appliedFilters, deliberate view_all_markets action, Change search action, and distinct clarify state without noResults', async () => {
+  const onViewAllMarkets = jest.fn();
+  const onChangeSearch = jest.fn();
+  await render(
+    <AssistantCards
+      response={{
+        intent: 'clarify',
+        headline: 'Which market did you mean?',
+        windowLabel: 'Resale vs Primary',
+        aiUsed: false,
+        understood: {
+          job: 'find_units',
+          market: null,
+          appliedFilters: ['Area: Zayed', 'Down payment: 1M'],
+          exclusions: [],
+          unsupportedFilters: ['down_payment'],
+        },
+        cards: [],
+        actions: [
+          { kind: 'view_all_markets', label: 'View all markets' },
+          { kind: 'pivot_mode', mode: 'primary', label: 'Search developer projects' },
+        ],
+      }}
+      query="apartments in zayed down payment 1m"
+      ar={false}
+      onAssignLead={noop}
+      onNudgeLead={noop}
+      onOpenLead={jest.fn()}
+      onOpenUnit={jest.fn()}
+      onPivotPrimary={jest.fn()}
+      onNavigateLink={jest.fn()}
+      onOpenQueue={jest.fn()}
+      onViewAllMarkets={onViewAllMarkets}
+      onChangeSearch={onChangeSearch}
+    />,
+  );
+
+  expect(screen.getByTestId('assistant-understood')).toBeTruthy();
+  expect(screen.getByText('Area: Zayed')).toBeTruthy();
+  expect(screen.queryByText(/No units matched/i)).toBeNull();
+
+  await fireEvent.press(screen.getByTestId('assistant-view-all-markets'));
+  expect(onViewAllMarkets).toHaveBeenCalledWith('apartments in zayed down payment 1m');
+
+  await fireEvent.press(screen.getByTestId('assistant-change-search'));
+  expect(onChangeSearch).toHaveBeenCalledWith('apartments in zayed down payment 1m');
+});

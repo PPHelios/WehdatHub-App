@@ -222,6 +222,8 @@ export function AssistantCards({
   onNavigateLink,
   onOpenQueue,
   onShareSummary,
+  onViewAllMarkets,
+  onChangeSearch,
   extraFooter,
 }: {
   response: AssistantQueryResponse;
@@ -235,6 +237,8 @@ export function AssistantCards({
   onNavigateLink: (screen: string, params?: Record<string, unknown>) => void;
   onOpenQueue: (queue: LeadQueue) => void;
   onShareSummary?: () => void;
+  onViewAllMarkets?: (q: string) => void;
+  onChangeSearch?: (q: string) => void;
   extraFooter?: React.ReactNode;
 }) {
   const { colors } = useTheme();
@@ -246,7 +250,9 @@ export function AssistantCards({
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState<string | null>(null);
   const pivotAction = response.actions?.find((a) => a.kind === 'pivot_mode');
+  const viewAllMarketsAction = response.actions?.find((a): a is Extract<typeof a, { kind: 'view_all_markets' }> => a.kind === 'view_all_markets');
   const queueActions = (response.actions ?? []).filter((a): a is Extract<typeof a, { kind: 'open_queue' }> => a.kind === 'open_queue');
+  const appliedFilters = response.understood?.appliedFilters ?? [];
   const showPivot = Boolean(response.suggestPrimary || pivotAction);
 
   const formatActionError = (e: unknown): string => {
@@ -322,6 +328,14 @@ export function AssistantCards({
 
       {actionError ? <Text testID="assistant-action-error" style={{ color: colors.danger, fontSize: 13 }}>{actionError}</Text> : null}
 
+      {appliedFilters.length ? (
+        <View testID="assistant-understood" style={styles.badgeRow}>
+          {appliedFilters.map((f, i) => (
+            <Chip key={`${f}-${i}`} label={f} />
+          ))}
+        </View>
+      ) : null}
+
       {response.cards.map((card, i) => (
         <CardBody
           key={`${card.kind}-${i}`}
@@ -345,12 +359,30 @@ export function AssistantCards({
         </View>
       ) : null}
 
+      {viewAllMarketsAction && onViewAllMarkets ? (
+        <Button
+          testID="assistant-view-all-markets"
+          variant="secondary"
+          label={viewAllMarketsAction.label}
+          onPress={() => onViewAllMarkets(query)}
+        />
+      ) : null}
+
       {showPivot ? (
         <Button
           testID="assistant-pivot-primary"
           variant="secondary"
           label={pivotAction?.label || (ar ? 'ابحث في مشاريع المطورين بدل كده' : 'Search Primary projects instead')}
           onPress={() => onPivotPrimary(query)}
+        />
+      ) : null}
+
+      {onChangeSearch && query.trim() ? (
+        <Button
+          testID="assistant-change-search"
+          variant="quiet"
+          label={ar ? 'تعديل البحث' : 'Change search'}
+          onPress={() => onChangeSearch(query)}
         />
       ) : null}
 
@@ -366,7 +398,7 @@ export function AssistantCards({
       ) : null}
 
       {extraFooter}
-      {!response.cards.length && !response.units?.items?.length && !extraFooter ? (
+      {response.intent !== 'clarify' && !response.cards.length && !response.units?.items?.length && !extraFooter && !viewAllMarketsAction && !showPivot ? (
         <Text style={{ color: colors.muted }}>{t(lang, 'noResults')}</Text>
       ) : null}
     </ScrollView>

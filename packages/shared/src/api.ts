@@ -306,7 +306,8 @@ export type AssistantMode = 'auto' | 'resale' | 'primary' | 'reports';
 export interface AssistantLink { label: string; screen: string; params?: Record<string, unknown> }
 export type AssistantAction =
   | { kind: 'open_queue'; label: string; queue: string }
-  | { kind: 'pivot_mode'; mode: AssistantMode; label: string };
+  | { kind: 'pivot_mode'; mode: AssistantMode; label: string }
+  | { kind: 'view_all_markets'; label: string };
 export type AssistantCard =
   | {
       kind: 'stuck_leads';
@@ -322,10 +323,20 @@ export type AssistantCard =
   | { kind: 'metric_row'; items: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' | 'critical'; unit?: string }[] }
   | { kind: 'bar_breakdown'; title: string; rows: { key: string; label: string; count: number; valueLabel?: string; commission?: number; spend?: number | null; won?: number }[] }
   | { kind: 'text_answer'; answer: string; dataDates: string | null; found: boolean; source: 'ai' | 'local'; logId?: string | null };
+export interface AssistantUnderstood {
+  job?: string;
+  market?: 'resale' | 'primary' | null;
+  brokerRole?: 'closer' | 'participant';
+  appliedFilters: string[];
+  exclusions?: string[];
+  unsupportedFilters?: string[];
+}
 export interface AssistantQueryResponse {
   intent: string;
   headline: string;
   windowLabel?: string;
+  modeUsed?: AssistantMode;
+  understood?: AssistantUnderstood;
   cards: AssistantCard[];
   actions?: AssistantAction[];
   links?: AssistantLink[];
@@ -339,7 +350,28 @@ export interface PriceRow { place: string; listing_type: 'sale' | 'rent'; units:
 export interface WinLossGroup { key: string; name?: string; won: number; lost: number; rate: number | null; top: string | null }
 export interface WinLossData { days: number; won: number; lost: number; rate: number | null; reasons: { key: string; n: number; pct: number }[]; brokers: WinLossGroup[]; sources: WinLossGroup[] }
 export type Row = Record<string, unknown>;
-export interface DealsData { summary?: { from: string; to: string; weeks: number[] }; items: Row[]; more: boolean; totals: Row[]; statuses: string[] }
+export interface DealsFilterOpts {
+  from?: string;
+  to?: string;
+  brokerId?: string;
+  brokerRole?: 'closer' | 'participant';
+  market?: 'resale' | 'primary' | 'unknown';
+  area?: string;
+  summary?: boolean;
+}
+export interface DealSummary {
+  deals: number;
+  volume: number;
+  commissionTotal: number;
+  brokerShareTotal: number | null;
+  commissionBasis: 'deal_commission' | 'broker_share' | 'collected';
+  brokerRole: 'closer' | 'participant';
+  unknownMarketCount: number;
+  unknownAreaCount: number;
+  byMarket?: { market: string; deals: number; commissionTotal: number; volume: number }[];
+  byArea?: { areaKey: string; areaLabel: string; deals: number; commissionTotal: number; volume: number }[];
+}
+export interface DealsData { summary?: { from: string; to: string; weeks: number[] }; dealSummary?: DealSummary; items: Row[]; more: boolean; totals: Row[]; statuses: string[] }
 export interface CommissionDeveloperSummary {
   developerId: string;
   developerName: string;
@@ -812,7 +844,22 @@ export function createApiClient(opts: ApiClientOptions) {
     winLoss: (days = 30) => request<WinLossData>('GET', '/insights/winloss', undefined, { days }),
     report: (text: string, extra?: { type?: 'bug' | 'suggestion' | 'request'; device?: Record<string, unknown> }) => request<{ ok: true; id: number }>('POST', '/report', { text, ...(extra ?? {}) }),
     setLang: (lang: Lang) => request<{ ok: true; lang: Lang }>('POST', '/me/lang', { lang }),
-    deals: (status?: string, page = 0) => request<DealsData>('GET', '/deals', undefined, { status, page }),
+    deals: (status?: string, page = 0, opts?: DealsFilterOpts) =>
+      request<DealsData>('GET', '/deals', undefined, {
+        status,
+        page,
+        ...(opts
+          ? {
+              from: opts.from,
+              to: opts.to,
+              broker: opts.brokerId,
+              brokerRole: opts.brokerRole,
+              market: opts.market,
+              area: opts.area,
+              summary: opts.summary ? '1' : undefined,
+            }
+          : {}),
+      }),
     dealReport: (report: 'recent' | 'last', week?: number, page = 0) => request<DealsData>('GET', '/deals', undefined, { report, week, page }),
     dealDetail: (ref: string) => request<{ deal: Row }>('GET', `/deals/${encodeURIComponent(ref)}`),
     dealStatus: (ref: string, status: string, version?: number) => request<{ ok: true }>('POST', `/deals/${ref}/status`, { status, version }),

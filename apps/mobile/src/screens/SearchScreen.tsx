@@ -44,7 +44,7 @@ import { VoiceBar } from '../components/VoiceBar';
 type SearchView = 'deals' | 'leads' | 'dashboard' | 'ranking' | 'lead-action' | 'clarify' | 'assistant';
 
 const RECENT_KEY = 'wehdathub.recentSearches';
-const ASSISTANT_NAV_SCREENS = new Set(['LeadsList', 'Team', 'Dashboard', 'Sources', 'Commissions', 'Requests', 'Owners', 'Leases', 'UnitsList', 'WinLoss', 'Prices', 'Plan', 'Projects', 'Calendar']);
+const ASSISTANT_NAV_SCREENS = new Set(['LeadsList', 'Team', 'Dashboard', 'Deals', 'Sources', 'Commissions', 'Requests', 'Owners', 'Leases', 'UnitsList', 'WinLoss', 'Prices', 'Plan', 'Projects', 'Calendar']);
 
 function normalizeForRoute(raw: string): string {
   return raw
@@ -554,6 +554,22 @@ export function SearchScreen() {
                   usage('assistant_action_tapped', true, undefined, { action: 'pivot_primary' });
                   setMode('primary');
                   void runAssistant(qText, 'primary');
+                }}
+                onViewAllMarkets={(qText) => {
+                  usage('assistant_action_tapped', true, undefined, { action: 'view_all_markets' });
+                  setReport(null);
+                  setSource('inventory');
+                  setAssistantUnits(null);
+                  assistant.reset();
+                  void run(qText, false, 'active');
+                }}
+                onChangeSearch={(qText) => {
+                  usage('assistant_action_tapped', true, undefined, { action: 'change_search' });
+                  setText(qText);
+                  setSubmitted('');
+                  setReport(null);
+                  setAssistantUnits(null);
+                  assistant.reset();
                 }}
                 onShareSummary={() => usage('assistant_action_tapped', true, undefined, { action: 'share_summary' })}
                 onNavigateLink={(target, params) => {
