@@ -6,7 +6,7 @@ import { ActivityIndicator, Keyboard, Pressable, ScrollView, Share, StyleSheet, 
 import { AppText as Text } from '../components/AppText';
 import Animated, { FadeIn, FadeOut, ReduceMotion, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError, type ApiUnitListItem, type AssistantMode, type LeadQueue, type SearchResult, type UnitStatus, type VoiceFile } from '@wehdathub/shared';
@@ -568,7 +568,7 @@ export function SearchScreen() {
               />
             ) : <Loading label={t(lang, 'loading')} />
           ) :
-          report === 'leads' ? <SearchLeads key={JSON.stringify([leadFilters, assignee])} assignedInitially={Boolean(leadFilters.assigned)} initialQueue={leadFilters.queue} initialTab={leadFilters.tab} lookup={leadFilters.lookup} matching={leadFilters.matching} requestedAssignee={assignee} /> :
+          report === 'leads' ? <SearchLeads key={JSON.stringify([leadFilters, assignee])} assignedInitially={Boolean(leadFilters.assigned)} initialQueue={leadFilters.queue} initialTab={leadFilters.tab} lookup={leadFilters.lookup} requestedAssignee={assignee} /> :
           report === 'deals' ? <SearchDeals initialPeriod={dealLastMonth ? 'last' : 'recent'} key={String(dealLastMonth)} /> : primaryView ? (
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.projectContent}>
             {answer.isPending ? <Loading label={t(lang, 'loading')} /> : null}
