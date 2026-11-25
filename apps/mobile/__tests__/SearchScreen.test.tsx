@@ -979,3 +979,25 @@ test('SearchScreen forwards assistant nextContext as previousContext on follow-u
   await waitFor(() => expect(mocked.assistantQuery).toHaveBeenCalledTimes(3));
   expect((mocked.assistantQuery.mock.calls[2][0] as { previousContext?: unknown }).previousContext).toBeUndefined();
 });
+
+test('voice confirm bar pauses ambiguous unit-code transcripts for edit before submitting, while clean transcripts run directly', async () => {
+  (v.ensureMic as jest.Mock).mockResolvedValue(true);
+  clock(2200);
+  v.stopRecording.mockResolvedValue({ uri: 'file://a.m4a', type: 'audio/m4a', name: 'a.m4a' });
+  mocked.voiceToText.mockResolvedValueOnce({ q: 'A 42' });
+  mocked.search.mockResolvedValueOnce({ status: 'none', source: 'parser', total: 0, items: [] });
+
+  await wrap();
+  await down();
+  await started();
+  await move(0, 0);
+  await up();
+
+  expect(await screen.findByTestId('voice-confirm-bar')).toBeTruthy();
+  expect(mocked.search).not.toHaveBeenCalled();
+
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'villa in Mivida');
+  await fireEvent.press(screen.getByTestId('voice-confirm-send'));
+  await waitFor(() => expect(mocked.search).toHaveBeenCalledWith('villa in Mivida', expect.objectContaining({ drop: false, status: 'active' })));
+  expect(screen.queryByTestId('voice-confirm-bar')).toBeNull();
+});

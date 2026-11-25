@@ -260,3 +260,37 @@ test('renders understood appliedFilters, deliberate view_all_markets action, Cha
   await fireEvent.press(screen.getByTestId('assistant-change-search'));
   expect(onChangeSearch).toHaveBeenCalledWith('apartments in zayed down payment 1m');
 });
+
+test('renders disambiguate card and invokes onSelectOption with chosen option query', async () => {
+  const onSelectOption = jest.fn();
+  await render(
+    <AssistantCards
+      response={{
+        intent: 'disambiguate',
+        headline: 'Which "Sara" did you mean?',
+        aiUsed: false,
+        cards: [{
+          kind: 'disambiguate',
+          prompt: 'Sara',
+          options: [
+            { id: 'b1', label: 'Sara Ahmed', query: 'deals closed by Sara Ahmed' },
+            { id: 'b2', label: 'Sara Hassan', query: 'deals closed by Sara Hassan' },
+          ],
+        }],
+      }}
+      query="deals closed by Sara"
+      ar={false}
+      onAssignLead={noop}
+      onNudgeLead={noop}
+      onOpenLead={jest.fn()}
+      onOpenUnit={jest.fn()}
+      onPivotPrimary={jest.fn()}
+      onNavigateLink={jest.fn()}
+      onOpenQueue={jest.fn()}
+      onSelectOption={onSelectOption}
+    />,
+  );
+  expect(screen.getByTestId('card-disambiguate')).toBeTruthy();
+  await fireEvent.press(screen.getByTestId('disambiguate-opt-b2'));
+  expect(onSelectOption).toHaveBeenCalledWith('deals closed by Sara Hassan');
+});

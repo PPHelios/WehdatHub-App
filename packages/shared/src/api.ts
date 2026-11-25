@@ -324,6 +324,7 @@ export type AssistantCard =
   | { kind: 'broker_discipline'; summary: DashboardDisciplineSummary; rows: DashboardBoardRow[] }
   | { kind: 'metric_row'; items: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' | 'critical'; unit?: string }[] }
   | { kind: 'bar_breakdown'; title: string; rows: { key: string; label: string; count: number; valueLabel?: string; commission?: number; spend?: number | null; won?: number }[] }
+  | { kind: 'disambiguate'; prompt?: string; options: { id: string; label: string; query: string }[] }
   | { kind: 'text_answer'; answer: string; dataDates: string | null; found: boolean; source: 'ai' | 'local'; logId?: string | null };
 export interface AssistantUnderstood {
   job?: string;

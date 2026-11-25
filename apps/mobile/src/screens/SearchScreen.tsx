@@ -40,6 +40,7 @@ import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { greenGradient, radius, spacing, useTheme } from '../theme';
 import { VoiceBar } from '../components/VoiceBar';
+import { needsVoiceConfirm } from '../voiceConfirm';
 
 type SearchView = 'deals' | 'leads' | 'dashboard' | 'ranking' | 'lead-action' | 'clarify' | 'assistant';
 
@@ -119,6 +120,7 @@ export function SearchScreen() {
   const [text, setText] = useState('');
   const [transcribing, setTranscribing] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceConfirmOrigin, setVoiceConfirmOrigin] = useState<string | null>(null);
   // The search box and mic float at the bottom like a chat app: they slide away on scrolling down and come back on scrolling up.
   const slide = useSharedValue(0);
   const lastY = useSharedValue(0);
@@ -181,6 +183,7 @@ export function SearchScreen() {
       setSubmitted('');
       setText('');
       setTranscribing(false);
+      setVoiceConfirmOrigin(null);
       setLoadingMore(false);
     }
     AsyncStorage.removeItem(RECENT_KEY).catch(() => undefined);
@@ -352,6 +355,12 @@ export function SearchScreen() {
       usage('voice_transcript_outcome', Boolean(cleaned), undefined, { outcome: cleaned ? 'sent_as_is' : 'empty', mode });
       void refreshCredits();
       setTranscribing(false);
+      if (cleaned && needsVoiceConfirm(cleaned).confirm) {
+        setText(cleaned);
+        setVoiceConfirmOrigin(cleaned);
+        return;
+      }
+      setVoiceConfirmOrigin(null);
       setText(q);
       submit(q);
     } catch (e) {
@@ -410,6 +419,7 @@ export function SearchScreen() {
     setAssistantUnits(null);
     setAssistantSuggestPrimary(false);
     setAssistantContext(null);
+    setVoiceConfirmOrigin(null);
     search.reset();
     answer.reset();
     assistant.reset();
@@ -563,11 +573,13 @@ export function SearchScreen() {
                 onOpenUnit={(code) => { void track('search_unit_opened'); nav.navigate('Unit', { code }); }}
                 onPivotPrimary={(qText) => {
                   usage('assistant_action_tapped', true, undefined, { action: 'pivot_primary' });
+                  usage('route_override', true, undefined, { action: 'pivot_primary', mode, to_mode: 'primary' });
                   setMode('primary');
                   void runAssistant(qText, 'primary');
                 }}
                 onViewAllMarkets={(qText) => {
                   usage('assistant_action_tapped', true, undefined, { action: 'view_all_markets' });
+                  usage('route_override', true, undefined, { action: 'view_all_markets', mode, to_mode: 'auto' });
                   setReport(null);
                   setSource('inventory');
                   setAssistantUnits(null);
@@ -576,6 +588,7 @@ export function SearchScreen() {
                 }}
                 onChangeSearch={(qText) => {
                   usage('assistant_action_tapped', true, undefined, { action: 'change_search' });
+                  usage('search_corrected', true, undefined, { action: 'change_search', mode });
                   setText(qText);
                   setSubmitted('');
                   setReport(null);
@@ -587,6 +600,10 @@ export function SearchScreen() {
                   if (ASSISTANT_NAV_SCREENS.has(target)) {
                     nav.navigate(...(params ? [target, params] : [target]) as never);
                   }
+                }}
+                onSelectOption={(optQuery) => {
+                  setText(optQuery);
+                  submit(optQuery);
                 }}
                 onOpenQueue={(queue) => openHomeReport('leads', queue)}
                 extraFooter={assistant.data.projects && assistant.data.projects.total_projects > 0
@@ -627,6 +644,32 @@ export function SearchScreen() {
           ar={ar}
           onClose={() => setPopoverOpen(false)}
         />
+        {voiceConfirmOrigin !== null ? (
+          <View testID="voice-confirm-bar" style={[styles.modeChipRow, { alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }]}>
+            <Text style={{ color: colors.muted, fontSize: 12 }}>
+              {ar ? 'راجع الصوت قبل التنفيذ:' : 'Confirm voice query:'}
+            </Text>
+            <Button
+              testID="voice-confirm-send"
+              size="sm"
+              label={ar ? 'بحث' : 'Run'}
+              onPress={() => {
+                usage('voice_edited', true, undefined, { edited: text.trim() !== voiceConfirmOrigin, mode });
+                setVoiceConfirmOrigin(null);
+                submit(text);
+              }}
+            />
+            <Button
+              testID="voice-confirm-dismiss"
+              size="sm"
+              variant="quiet"
+              label={ar ? 'إلغاء' : 'Cancel'}
+              onPress={() => {
+                setVoiceConfirmOrigin(null);
+              }}
+            />
+          </View>
+        ) : null}
         {mode !== 'auto' ? (
           <View testID="mode-lock-chip" style={styles.modeChipRow}>
             <Chip

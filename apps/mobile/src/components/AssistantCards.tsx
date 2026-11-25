@@ -53,6 +53,7 @@ function CardBody({
   onAssign,
   onNudge,
   onOpenLead,
+  onSelectOption,
 }: {
   card: AssistantCard;
   ar: boolean;
@@ -63,6 +64,7 @@ function CardBody({
   onAssign: (ref: string, brokerId: string, brokerName: string, version?: number) => void;
   onNudge: (ref: string) => void;
   onOpenLead: (ref: string) => void;
+  onSelectOption?: (query: string) => void;
 }) {
   const { colors } = useTheme();
   const locale = ar ? 'ar-EG' : 'en-GB';
@@ -200,6 +202,22 @@ function CardBody({
     );
   }
 
+  if (card.kind === 'disambiguate') {
+    const options = card.options ?? [];
+    return (
+      <SectionCard
+        testID="card-disambiguate"
+        title={card.prompt ? (ar ? `اختر المقصود بـ "${card.prompt}"` : `Select match for "${card.prompt}"`) : (ar ? 'اختر المقصود' : 'Select match')}
+      >
+        <View style={styles.actionsWrap}>
+          {options.map((opt) => (
+            <Chip key={opt.id} testID={`disambiguate-opt-${opt.id}`} label={opt.label} onPress={() => onSelectOption?.(opt.query)} />
+          ))}
+        </View>
+      </SectionCard>
+    );
+  }
+
   return (
     <SectionCard testID="card-text-answer">
       <Text selectable style={{ color: colors.text, fontSize: 16 }}>{card.answer ?? ''}</Text>
@@ -224,6 +242,7 @@ export function AssistantCards({
   onShareSummary,
   onViewAllMarkets,
   onChangeSearch,
+  onSelectOption,
   extraFooter,
 }: {
   response: AssistantQueryResponse;
@@ -239,6 +258,7 @@ export function AssistantCards({
   onShareSummary?: () => void;
   onViewAllMarkets?: (q: string) => void;
   onChangeSearch?: (q: string) => void;
+  onSelectOption?: (query: string) => void;
   extraFooter?: React.ReactNode;
 }) {
   const { colors } = useTheme();
@@ -348,6 +368,7 @@ export function AssistantCards({
           onAssign={(ref, id, name, version) => void handleAssign(ref, id, name, version)}
           onNudge={(ref) => void handleNudge(ref)}
           onOpenLead={onOpenLead}
+          onSelectOption={onSelectOption}
         />
       ))}
 
