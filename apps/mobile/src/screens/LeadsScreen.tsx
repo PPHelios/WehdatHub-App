@@ -5,7 +5,7 @@ import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { ApiLead, Lang, LeadTab, LeadsPage } from '@wehdathub/shared';
+import type { ApiLead, Lang, LeadQueue, LeadTab, LeadsPage } from '@wehdathub/shared';
 import { PlanLockedError } from '@wehdathub/shared';
 import { usePlanLock } from '../planLock';
 import { usePlanState } from '../planState';
@@ -44,10 +44,12 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const params = (useRoute().params ?? {}) as { tab?: LeadTab; broker?: string };
+  const params = (useRoute().params ?? {}) as { tab?: LeadTab; broker?: string; team?: string; queue?: LeadQueue };
   const [tab, setTab] = useState<LeadTab>(params.tab ?? 'all');
   const selection = useSelectionHighlight(tab, greenGradient);
   const brokerFilter = params.broker;
+  const teamFilter = params.team;
+  const queueFilter = params.queue;
   const [text, setText] = useState('');
   const manager = useRights().manager;
   const [unassigned, setUnassigned] = useState(false);
@@ -58,9 +60,9 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   const columns = single ? 1 : wideColumns;
   const q = useDebounced(text.trim());
   const list = useInfiniteQuery({
-    queryKey: ['leads', tab, q, unassigned, brokerFilter],
+    queryKey: ['leads', tab, q, unassigned, brokerFilter, teamFilter, queueFilter],
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api.leads({ tab, q, offset: pageParam, broker: unassigned ? 'none' : brokerFilter }),
+    queryFn: ({ pageParam }) => api.leads({ tab, q, offset: pageParam, broker: unassigned ? 'none' : brokerFilter, team: teamFilter, queue: queueFilter }),
     getNextPageParam: (last: LeadsPage) => (last.more ? last.offset + last.limit : undefined),
   });
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);

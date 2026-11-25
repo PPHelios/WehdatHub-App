@@ -290,6 +290,8 @@ export interface DashboardData {
   reports?: { sources: boolean; winLoss: boolean };
   days: number;
   weekly: number[];
+  weeklyRanges?: { from: string; to: string; label?: string }[];
+  unassignedScope?: 'agency' | 'scope';
   sources: { source: string; n: number }[];
   pipeline: Record<string, number>;
   unassigned: number;
@@ -745,7 +747,7 @@ export function createApiClient(opts: ApiClientOptions) {
     config: (signal?: AbortSignal) => request<AppConfig>('GET', '/config', undefined, undefined, signal),
     registerDevice: (token: string, platform: 'android' | 'ios') => request<{ ok: true }>('POST', '/devices', { token, platform }),
     removeDevice: (token: string) => request<{ ok: true }>('POST', '/devices/remove', { token }),
-    leads: (o: { tab?: LeadTab; q?: string; offset?: number; broker?: string; assigned?: 'last'; queue?: LeadQueue } = {}) => request<LeadsPage>('GET', '/leads', undefined, { tab: o.tab && o.tab !== 'all' ? o.tab : undefined, q: o.q, offset: o.offset || undefined, broker: o.broker, assigned: o.assigned, queue: o.queue }),
+    leads: (o: { tab?: LeadTab; q?: string; offset?: number; broker?: string; team?: string; assigned?: 'last'; queue?: LeadQueue } = {}) => request<LeadsPage>('GET', '/leads', undefined, { tab: o.tab && o.tab !== 'all' ? o.tab : undefined, q: o.q, offset: o.offset || undefined, broker: o.broker, team: o.team, assigned: o.assigned, queue: o.queue }),
     lead: (ref: string) => request<LeadDetail>('GET', `/leads/${encodeURIComponent(ref)}`),
     /** Sets a viewing. Nothing is sent: the answer carries the client's message and link for the broker to send or not. */
     setViewing: (ref: string, o: { version: number; at: string; unitCode?: string; place?: string; lang: Lang }) => request<ViewingSet>('POST', `/leads/${encodeURIComponent(ref)}/viewing`, o),

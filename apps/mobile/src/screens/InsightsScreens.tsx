@@ -4,42 +4,44 @@ import { AppText as Text } from '../components/AppText';
 import NetInfo from '@react-native-community/netinfo';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParams } from '../navigation';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
+import { KpiTile, SectionCard, UrgencyBadge } from '../components/SectionCard';
 import { StatRow } from '../components/StatRow';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { stageLabel, t } from '../i18n';
 import { APP_BUILD, APP_VERSION } from '../config';
 import { usageTrail } from '../usage';
-import { radius, spacing, useTheme } from '../theme';
+import { spacing, useTheme } from '../theme';
 import { toastError } from '../components/Toast';
 
 const num = (n: number) => Number(n).toLocaleString('en-US');
 const DAYS = ['30', '90', '365'] as const;
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  const { colors, elev } = useTheme();
-  return (
-    <View style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.h, { color: colors.text }]}>{title}</Text>
-      {children}
-    </View>
-  );
+function formatMinutes(m: number | null | undefined, ar: boolean): string {
+  if (m === null || m === undefined) return '—';
+  if (m < 60) return `${num(m)} ${ar ? 'د' : 'min'}`;
+  if (m < 48 * 60) return `${num(Math.round(m / 60))} ${ar ? 'س' : 'h'}`;
+  return `${num(Math.round(m / 1440))} ${ar ? 'يوم' : 'd'}`;
 }
 
 /** The agency dashboard for managers: pipeline, the period's totals and the leaderboard. */
 export function DashboardScreen({ embedded = false, ranking = false }: { embedded?: boolean; ranking?: boolean } = {}) {
   const { colors } = useTheme();
   const lang = currentLang();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [days, setDays] = useState<(typeof DAYS)[number]>('30');
-  const [metric, setMetric] = useState<'deals' | 'commission' | 'responseMin'>('deals');
+  const [metric, setMetric] = useState<'deals' | 'commission' | 'responseMin' | 'updates'>('deals');
   const [scope, setScope] = useState('');
   const [kind, id] = scope.split(':');
   const filter = kind === 'broker' ? { broker: id } : kind === 'team' ? { team: id } : undefined;
+  const scopeNav = kind === 'broker' ? { broker: id } : kind === 'team' ? { team: id } : {};
   const q = useQuery({
     queryKey: ['dashboard', days, scope],
     queryFn: () => filter ? api.dashboard(Number(days), filter) : api.dashboard(Number(days)),
@@ -49,53 +51,142 @@ export function DashboardScreen({ embedded = false, ranking = false }: { embedde
   const d = q.data;
   const ar = lang === 'ar';
   const personal = d.mode === 'solo';
-  const ranked = d.board.filter((row) => row[metric] != null).sort((a, b) => metric === 'responseMin'
-    ? Number(a[metric]) - Number(b[metric]) : Number(b[metric]) - Number(a[metric]));
-  const maximum = Math.max(1, ...ranked.map((row) => Number(row[metric])));
+  const metricVal = (row: (typeof d.board)[number]): number | null =>
+    metric === 'updates' ? (row.updates ?? null) : (row[metric] ?? null);
+  const ranked = d.board
+    .filter((row) => metricVal(row) != null)
+    .sort((a, b) => metric === 'responseMin'
+      ? Number(metricVal(a)) - Number(metricVal(b))
+      : metric === 'updates'
+        ? Number(metricVal(a)) - Number(metricVal(b)) || (b.noNextStep ?? 0) - (a.noNextStep ?? 0)
+        : Number(metricVal(b)) - Number(metricVal(a)));
+  const boardRows = metric === 'updates'
+    ? [...d.board].sort((a, b) => (a.updates ?? 0) - (b.updates ?? 0) || (b.noNextStep ?? 0) - (a.noNextStep ?? 0))
+    : d.board;
+  const maximum = Math.max(1, ...ranked.map((row) => Number(metricVal(row) ?? 0)));
   const title = ranking ? (ar ? 'ترتيب الوسطاء' : 'Broker rankings') : personal ? (ar ? 'ملخصي' : 'My summary') : d.mode === 'team' ? (ar ? 'لوحة الفريق' : 'Team dashboard') : (ar ? 'لوحة الشركة' : 'Agency dashboard');
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.pad, embedded && { paddingBottom: 90 }]}>
-      <Text style={[styles.h, { color: colors.text }]}>{title}</Text>
+      <Text accessibilityRole="header" style={[styles.h, { color: colors.text }]}>{title}</Text>
       <Chips<(typeof DAYS)[number]> animateFilter testID="dash-days" value={days} onChange={setDays} options={DAYS.map((x) => ({ value: x, label: ar ? `${x} يوم` : `${x} days` }))} />
-      {embedded && (d.team?.length || d.teamLeads?.length) ? <Chips animateFilter testID="dash-scope" value={scope || 'all'} onChange={(value) => setScope(value === 'all' ? '' : value)} options={[
+      {d.team?.length || d.teamLeads?.length ? <Chips animateFilter testID="dash-scope" value={scope || 'all'} onChange={(value) => setScope(value === 'all' ? '' : value)} options={[
         { value: 'all', label: ar ? 'كل الشركة' : 'All agency' },
         ...(d.teamLeads ?? []).map((team) => ({ value: 'team:' + team.id, label: ar ? 'فريق ' + team.name : team.name + ' team' })),
         ...(d.team ?? []).map((broker) => ({ value: 'broker:' + broker.id, label: broker.name })),
       ]} /> : null}
-      {ranking ? <Card title={ar ? 'رتّب حسب' : 'Rank by'}>
-        <Chips value={metric} onChange={setMetric} options={[
+      {ranking ? <SectionCard title={ar ? 'رتّب حسب' : 'Rank by'}>
+        <Chips animateFilter value={metric} onChange={setMetric} options={[
           { value: 'deals', label: ar ? 'عدد الصفقات' : 'Deals closed' },
           { value: 'commission', label: ar ? 'العمولة' : 'Commission' },
           { value: 'responseMin', label: ar ? 'وقت أول رد (الوسيط)' : 'Median first response' },
+          { value: 'updates', label: ar ? 'الأقل تحديثاً' : 'Fewest updates' },
         ]} />
         {!ranked.length ? <Text style={{ color: colors.muted }}>{ar ? 'مفيش بيانات للفترة دي.' : 'No data for this period.'}</Text> : null}
-        {ranked.map((row) => <StatRow key={row.id} animate label={row.name}
-          value={num(Number(row[metric])) + (metric === 'responseMin' ? (ar ? ' دقيقة' : ' min') : metric === 'commission' ? ' ' + t(lang, 'egp') : '')}
-          pct={metric === 'responseMin' ? undefined : Number(row[metric]) / maximum * 100} />)}
-      </Card> : <>
-      <Card title={ar ? 'دلوقتي' : 'Now'}>
-        {!personal ? <Text style={{ color: colors.text }}>{ar ? 'عملاء من غير بروكر' : 'Unassigned leads'}: {d.unassigned}</Text> : null}
-        <Text style={{ color: colors.text }}>{ar ? 'ماتكلمش' : 'Not contacted'}: {d.uncontacted}</Text>
-        <Text style={{ color: d.overdue ? colors.danger : colors.text }}>{ar ? 'متابعات متأخرة' : 'Overdue follow-ups'}: {d.overdue}</Text>
-        <Text style={{ color: colors.text }}>{ar ? 'وحدات متاحة' : 'Active units'}: {d.units.active} ({ar ? 'قديمة' : 'stale'} {d.units.stale})</Text>
-      </Card>
-      <Card title={ar ? 'الفترة' : 'This period'}>
-        <Text style={{ color: colors.text }}>{ar ? 'عملاء جدد' : 'Leads'}: {d.leads}</Text>
-        <Text style={{ color: colors.text }}>{ar ? 'صفقات' : 'Deals'}: {d.deals.n} · {num(d.deals.value)} {t(lang, 'egp')}</Text>
-        <Text style={{ color: colors.text }}>{ar ? 'العمولة' : 'Commission'}: {num(d.deals.commission)}</Text>
+        {ranked.map((row) => {
+          const val = Number(metricVal(row) ?? 0);
+          return (
+            <StatRow key={row.id} animate label={row.name}
+              value={metric === 'responseMin' ? formatMinutes(val, ar) : num(val) + (metric === 'commission' ? ' ' + t(lang, 'egp') : '')}
+              pct={metric === 'responseMin' ? undefined : val / maximum * 100} />
+          );
+        })}
+      </SectionCard> : <>
+      <SectionCard title={ar ? 'دلوقتي' : 'Now'}>
+        <View style={styles.kpiGrid}>
+          {!personal ? (
+            <KpiTile
+              testID="kpi-unassigned"
+              label={scope ? (ar ? 'غير مخصص (على مستوى الشركة)' : 'Unassigned (Agency-wide)') : (ar ? 'عملاء من غير بروكر' : 'Unassigned leads')}
+              value={num(d.unassigned)}
+              tone={d.unassigned ? 'warn' : 'neutral'}
+              onPress={() => nav.navigate('LeadsList', { queue: 'unassigned' })}
+            />
+          ) : null}
+          {!personal && typeof d.waitingOver1h === 'number' ? (
+            <KpiTile
+              testID="kpi-waiting-over-1h"
+              label={ar ? 'انتظار > ساعة' : 'Waiting > 1h'}
+              value={num(d.waitingOver1h)}
+              tone={d.waitingOver1h ? 'critical' : 'ok'}
+              onPress={() => nav.navigate('LeadsList', { queue: 'waiting-over-1h', ...scopeNav })}
+            />
+          ) : null}
+          <KpiTile
+            testID="kpi-uncontacted"
+            label={ar ? 'ماتكلمش' : 'Not contacted'}
+            value={num(d.uncontacted)}
+            tone={d.uncontacted ? 'warn' : 'neutral'}
+            onPress={() => nav.navigate('LeadsList', { queue: 'uncontacted', ...scopeNav })}
+          />
+          <KpiTile
+            testID="kpi-overdue"
+            label={ar ? 'متابعات متأخرة' : 'Overdue follow-ups'}
+            value={num(d.overdue)}
+            tone={d.overdue ? 'critical' : 'ok'}
+            onPress={() => nav.navigate('LeadsList', { tab: 'overdue', ...scopeNav })}
+          />
+          <KpiTile testID="kpi-units" label={ar ? 'وحدات متاحة' : 'Active units'} value={num(d.units.active)} hint={d.units.stale ? `${ar ? 'قديمة' : 'stale'} ${num(d.units.stale)}` : undefined} tone={d.units.stale ? 'warn' : 'neutral'} />
+        </View>
+      </SectionCard>
+      {d.disciplineSummary ? (
+        <SectionCard testID="dash-discipline-summary" title={ar ? 'التزام التحديث في التطبيق' : 'App update discipline'}>
+          <View style={styles.kpiGrid}>
+            <KpiTile testID="disc-consistent" label={ar ? 'منتظم' : 'Consistent'} value={num(d.disciplineSummary.consistent)} tone="ok" />
+            <KpiTile testID="disc-lagging" label={ar ? 'متأخر' : 'Lagging'} value={num(d.disciplineSummary.lagging)} tone={d.disciplineSummary.lagging ? 'warn' : 'neutral'} />
+            <KpiTile testID="disc-silent" label={ar ? 'صامت (٤٨ س)' : 'Silent (48h)'} value={num(d.disciplineSummary.silent)} tone={d.disciplineSummary.silent ? 'critical' : 'ok'} />
+            <KpiTile testID="disc-no-next" label={ar ? 'بدون خطوة جاية' : 'No next step'} value={num(d.disciplineSummary.totalNoNextStep)} tone={d.disciplineSummary.totalNoNextStep ? 'warn' : 'ok'} />
+          </View>
+        </SectionCard>
+      ) : null}
+      <SectionCard title={ar ? 'الفترة' : 'This period'}>
+        <View style={styles.kpiGrid}>
+          <KpiTile testID="kpi-leads" label={ar ? 'عملاء جدد' : 'New leads'} value={num(d.leads)} />
+          <KpiTile testID="kpi-deals" label={ar ? 'صفقات' : 'Deals'} value={num(d.deals.n)} hint={`${num(d.deals.value)} ${t(lang, 'egp')}`} tone={d.deals.n ? 'ok' : 'neutral'} />
+          <KpiTile testID="kpi-commission" label={ar ? 'عمولة الصفقات المسجلة' : 'Recorded deal commission'} value={`${num(d.deals.commission)} ${t(lang, 'egp')}`} />
+        </View>
         {d.reports?.sources !== false && d.sources.length ? <Text style={{ color: colors.muted }}>{d.sources.map((s) => `${s.source} ${s.n}`).join(' · ')}</Text> : null}
-      </Card>
-      <Card title={ar ? 'المراحل' : 'Pipeline'}>
-        {Object.entries(d.pipeline).map(([k, v]) => <StatRow key={k} animate={embedded} label={embedded ? stageLabel(lang, k) : k} value={String(v)} pct={(Number(v) / Math.max(1, ...Object.values(d.pipeline).map(Number))) * 100} />)}
-      </Card>
-      {embedded && d.weekly.length ? <Card title={ar ? 'العملاء الجدد · آخر ٨ أسابيع' : 'New leads · last 8 weeks'}>
-        {d.weekly.map((value, i) => <StatRow key={i} animate label={(ar ? 'أسبوع ' : 'Week ') + String(i + 1)} value={String(value)} pct={value / Math.max(1, ...d.weekly) * 100} />)}
-      </Card> : null}
-      {!personal ? <Card title={d.mode === 'team' ? (ar ? 'شغل الفريق' : 'Team workload') : (ar ? 'ترتيب البروكرز' : 'Leaderboard')}>
-        {d.board.map((b) => (
-          <Text key={b.id} testID={`board-${b.id}`} style={{ color: colors.text }}>{b.name}: {b.deals} {ar ? 'صفقة' : 'deals'} · {b.leads} {ar ? 'عميل' : 'leads'} · {b.contacted} {ar ? 'تواصل' : 'contacted'}</Text>
-        ))}
-      </Card> : null}
+      </SectionCard>
+      <SectionCard title={ar ? 'المراحل' : 'Pipeline'}>
+        {Object.entries(d.pipeline).map(([k, v]) => <StatRow key={k} animate label={stageLabel(lang, k)} value={String(v)} pct={(Number(v) / Math.max(1, ...Object.values(d.pipeline).map(Number))) * 100} />)}
+      </SectionCard>
+      {d.weekly.length ? <SectionCard testID="dash-weekly" title={ar ? 'العملاء الجدد · آخر ٨ أسابيع' : 'New leads · last 8 weeks'}>
+        {d.weekly.map((value, i) => <StatRow key={i} animate label={d.weeklyRanges?.[i]?.label ?? ((ar ? 'أسبوع ' : 'Week ') + String(i + 1))} value={String(value)} pct={value / Math.max(1, ...d.weekly) * 100} />)}
+      </SectionCard> : null}
+      {!personal ? <SectionCard title={d.mode === 'team' ? (ar ? 'شغل الفريق' : 'Team workload') : (ar ? 'ترتيب البروكرز' : 'Leaderboard')}>
+        {boardRows.length ? boardRows.map((b, i) => {
+          const badge = b.discipline === 'consistent'
+            ? { tone: 'ok' as const, label: ar ? 'منتظم' : 'Consistent' }
+            : b.discipline === 'lagging'
+              ? { tone: 'warn' as const, label: ar ? 'متأخر' : 'Lagging' }
+              : b.discipline === 'silent'
+                ? { tone: 'critical' as const, label: ar ? 'صامت ٤٨ س' : 'Silent 48h' }
+                : null;
+          const stats = [
+            `${num(b.deals)} ${ar ? 'صفقة' : 'deals'}`,
+            `${num(b.leads)} ${ar ? 'عميل' : 'leads'}`,
+            `${num(b.contacted)} ${ar ? 'تواصل' : 'contacted'}`,
+            b.open != null ? `${num(b.open)} ${ar ? 'مفتوح' : 'open'}` : null,
+            b.responseMin != null ? `${ar ? 'رد' : 'resp'} ${formatMinutes(b.responseMin, ar)}` : null,
+            b.updates != null ? `${num(b.updates)} ${ar ? 'تحديث' : 'updates'}` : null,
+            b.noNextStep ? `${num(b.noNextStep)} ${ar ? 'بدون خطوة' : 'no next step'}` : null,
+            b.missed ? `${num(b.missed)} ${ar ? 'فايتة' : 'missed'}` : null,
+          ].filter(Boolean).join(' · ');
+          const last = i === boardRows.length - 1;
+          return (
+            <View key={b.id} testID={`board-${b.id}`} style={[styles.boardRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+              <View style={styles.boardHead}>
+                <Text style={[styles.boardName, { color: colors.text }]}>{b.name}</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+                  {badge ? <UrgencyBadge testID={`discipline-badge-${b.id}`} tone={badge.tone} label={badge.label} /> : null}
+                  {b.telegramLinked === false ? <UrgencyBadge testID={`telegram-off-${b.id}`} tone="warn" label={ar ? 'تليجرام مش مربوط' : 'Telegram off'} /> : null}
+                  {b.commission > 0 ? <UrgencyBadge tone="ok" label={`${num(b.commission)} ${t(lang, 'egp')}`} /> : null}
+                </View>
+              </View>
+              <Text style={{ color: colors.muted }}>{stats}</Text>
+            </View>
+          );
+        }) : <Text style={{ color: colors.muted }}>{ar ? 'مفيش نشاط في الفترة دي.' : 'No activity in this period.'}</Text>}
+      </SectionCard> : null}
       </>}
     </ScrollView>
   );
@@ -116,11 +207,11 @@ export function PricesScreen() {
       {kinds.map((k) => {
         const rows = q.data.items.filter((r) => r.listing_type === k);
         return (
-          <Card key={k} title={k === 'sale' ? (ar ? '🏷️ بيع (ج.م للمتر)' : '🏷️ Sale (EGP per m²)') : (ar ? '🔑 إيجار (ج.م للمتر/شهر)' : '🔑 Rent (EGP per m² a month)')}>
+          <SectionCard key={k} title={k === 'sale' ? (ar ? '🏷️ بيع (ج.م للمتر)' : '🏷️ Sale (EGP per m²)') : (ar ? '🔑 إيجار (ج.م للمتر/شهر)' : '🔑 Rent (EGP per m² a month)')}>
             {rows.length ? rows.map((r) => (
               <Text key={r.place} testID={`price-${k}-${r.place}`} style={{ color: colors.text }}>{r.place} · {r.units} · <Text style={styles.b}>{num(r.median)}</Text> ({num(r.low)}–{num(r.high)})</Text>
             )) : <Text style={{ color: colors.muted }}>{ar ? 'مفيش لسه.' : 'None yet.'}</Text>}
-          </Card>
+          </SectionCard>
         );
       })}
     </ScrollView>
@@ -141,18 +232,18 @@ export function WinLossScreen() {
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
       <Chips<(typeof DAYS)[number]> animateFilter testID="wl-days" value={days} onChange={setDays} options={DAYS.map((x) => ({ value: x, label: ar ? `${x} يوم` : `${x} days` }))} />
-      <Card title={ar ? 'الملخص' : 'Summary'}>
+      <SectionCard title={ar ? 'الملخص' : 'Summary'}>
         <Text testID="wl-summary" style={{ color: colors.text }}>{ar ? 'اتقفلت' : 'Won'} {d.won} · {ar ? 'ضاعت' : 'Lost'} {d.lost} · {rate(d.rate)}</Text>
-      </Card>
-      <Card title={ar ? 'ليه العملاء ضاعوا' : 'Why leads were lost'}>
+      </SectionCard>
+      <SectionCard title={ar ? 'ليه العملاء ضاعوا' : 'Why leads were lost'}>
         {d.reasons.length ? d.reasons.map((r) => <StatRow key={r.key} label={r.key.replace(/_/g, ' ')} value={`${r.n} (${r.pct}%)`} pct={r.pct} />) : <Text style={{ color: colors.muted }}>{ar ? 'مفيش.' : 'None.'}</Text>}
-      </Card>
-      <Card title={ar ? 'لكل بروكر' : 'Per broker'}>
+      </SectionCard>
+      <SectionCard title={ar ? 'لكل بروكر' : 'Per broker'}>
         {d.brokers.map((g) => <StatRow key={g.key} label={g.name || '—'} value={`${g.won}/${g.lost} · ${rate(g.rate)}`} pct={g.rate ?? 0} />)}
-      </Card>
-      <Card title={ar ? 'لكل مصدر' : 'Per source'}>
+      </SectionCard>
+      <SectionCard title={ar ? 'لكل مصدر' : 'Per source'}>
         {d.sources.map((g) => <StatRow key={g.key} label={g.key} value={`${g.won}/${g.lost} · ${rate(g.rate)}`} pct={g.rate ?? 0} />)}
-      </Card>
+      </SectionCard>
     </ScrollView>
   );
 }
@@ -206,7 +297,10 @@ export function ReportScreen() {
 
 const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
-  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
-  h: { fontSize: 16, fontWeight: '700' },
+  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  boardRow: { paddingVertical: spacing.xs, gap: 3 },
+  boardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  boardName: { fontSize: 15, fontWeight: '700', flex: 1 },
+  h: { fontSize: 18, fontWeight: '800' },
   b: { fontWeight: '700' },
 });
