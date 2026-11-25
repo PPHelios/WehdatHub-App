@@ -952,3 +952,30 @@ test.each([
     useAuth.setState({ broker: prev });
   }
 });
+
+test('SearchScreen forwards assistant nextContext as previousContext on follow-up and resets it on clearChat', async () => {
+  const ctx = { job: 'deals_report', market: 'resale' as const };
+  mocked.assistantQuery
+    .mockResolvedValueOnce({ intent: 'crm_deals', headline: '5 deals', aiUsed: false, cards: [], nextContext: ctx })
+    .mockResolvedValueOnce({ intent: 'crm_deals', headline: '2 deals by Sara', aiUsed: false, cards: [], nextContext: ctx })
+    .mockResolvedValueOnce({ intent: 'clarify', headline: 'Write full question', aiUsed: false, cards: [], nextContext: null });
+
+  await wrap();
+  await fireEvent.press(screen.getByTestId('search-mode-trigger'));
+  await fireEvent.press(await screen.findByTestId('popover-mode-resale'));
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'resale deals');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(mocked.assistantQuery).toHaveBeenNthCalledWith(1, expect.objectContaining({ q: 'resale deals' })));
+
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'بس بتوع سارة');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(mocked.assistantQuery).toHaveBeenNthCalledWith(2, expect.objectContaining({ q: 'بس بتوع سارة', previousContext: ctx })));
+
+  await fireEvent.press(screen.getByTestId('search-clear-chat'));
+  await fireEvent.press(screen.getByTestId('search-mode-trigger'));
+  await fireEvent.press(await screen.findByTestId('popover-mode-resale'));
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'بس بتوع سارة');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(mocked.assistantQuery).toHaveBeenCalledTimes(3));
+  expect((mocked.assistantQuery.mock.calls[2][0] as { previousContext?: unknown }).previousContext).toBeUndefined();
+});

@@ -333,12 +333,23 @@ export interface AssistantUnderstood {
   exclusions?: string[];
   unsupportedFilters?: string[];
 }
+export interface AssistantContext {
+  job: string;
+  market?: 'resale' | 'primary' | null;
+  brokerRole?: 'closer' | 'participant';
+  areaQuery?: string | null;
+  maxPrice?: number | null;
+  f?: string | null;
+  originalQuery?: string;
+  window?: { key: string; from: string; to: string; labelEn: string; labelAr: string } | null;
+}
 export interface AssistantQueryResponse {
   intent: string;
   headline: string;
   windowLabel?: string;
   modeUsed?: AssistantMode;
   understood?: AssistantUnderstood;
+  nextContext?: AssistantContext | null;
   cards: AssistantCard[];
   actions?: AssistantAction[];
   links?: AssistantLink[];
@@ -771,7 +782,7 @@ export function createApiClient(opts: ApiClientOptions) {
     leadLang: (ref: string, version: number, lang: 'ar' | 'en' | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/lang`, { lang, version }),
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
     nudgeLead: (ref: string) => request<{ ok: true }>('POST', `/leads/${encodeURIComponent(ref)}/nudge`, {}),
-    assistantQuery: (body: { q: string; mode?: AssistantMode; lang?: Lang }) => request<AssistantQueryResponse>('POST', '/assistant/query', body),
+    assistantQuery: (body: { q: string; mode?: AssistantMode; lang?: Lang; previousContext?: AssistantContext | null }) => request<AssistantQueryResponse>('POST', '/assistant/query', body),
     unitMatchingLeads: (code: string) => request<{ partial: boolean; items: { ref: string; name: string | null; reason?: string }[] }>('GET', `/units/${encodeURIComponent(code)}/matching-leads`),
     leadMatches: (ref: string, adjustments?: LeadMatchAdjustments) => request<{ requests: { id: string; summary: string; criteria: Record<LeadMatchField, number | null>; total: number; items: { code: string; title: string | null }[] }[] }>('GET', `/leads/${encodeURIComponent(ref)}/matches`, undefined, adjustments),
     leadUpdate: (ref: string, change: { version: number; stage?: LeadStage; note?: string; lostReason?: string }) =>

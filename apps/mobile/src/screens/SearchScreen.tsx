@@ -9,7 +9,7 @@ import { FlashList } from '@shopify/flash-list';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ApiClientError, type ApiUnitListItem, type AssistantMode, type LeadQueue, type SearchResult, type UnitStatus, type VoiceFile } from '@wehdathub/shared';
+import { ApiClientError, type ApiUnitListItem, type AssistantContext, type AssistantMode, type LeadQueue, type SearchResult, type UnitStatus, type VoiceFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { SearchCreditRings, useSearchCredits } from '../components/SearchCreditRings';
 import { currentLang, useAuth } from '../auth';
@@ -110,7 +110,12 @@ export function SearchScreen() {
   const [clarification, setClarification] = useState('');
   const refreshCredits = () => queries.invalidateQueries({ queryKey: ['search-credits'] });
   const answer = useMutation({ mutationFn: (q: string) => timed('ask', () => api.ask(q)), onSettled: () => { void refreshCredits(); } });
-  const assistant = useMutation({ mutationFn: ({ q, m }: { q: string; m: AssistantMode }) => api.assistantQuery({ q, mode: m, lang }), onSettled: () => { void refreshCredits(); } });
+  const [assistantContext, setAssistantContext] = useState<AssistantContext | null>(null);
+  const assistant = useMutation({
+    mutationFn: ({ q, m, previousContext }: { q: string; m: AssistantMode; previousContext?: AssistantContext | null }) =>
+      api.assistantQuery({ q, mode: m, lang, ...(previousContext ? { previousContext } : {}) }),
+    onSettled: () => { void refreshCredits(); },
+  });
   const [text, setText] = useState('');
   const [transcribing, setTranscribing] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -169,6 +174,7 @@ export function SearchScreen() {
       resetAssistant();
       setAssistantUnits(null);
       setAssistantSuggestPrimary(false);
+      setAssistantContext(null);
       setExtra([]);
       setLast(null);
       setReport(null);
@@ -272,9 +278,10 @@ export function SearchScreen() {
     setReport('assistant');
     setSource(activeMode === 'primary' ? 'primary' : 'inventory');
     try {
-      const res = await assistant.mutateAsync({ q: clean, m: activeMode });
+      const res = await assistant.mutateAsync({ q: clean, m: activeMode, ...(assistantContext ? { previousContext: assistantContext } : {}) });
       if (reqGen !== generation.current) return;
       usage('assistant_query_run', true, undefined, { mode: activeMode });
+      if (res.intent !== 'disambiguate') setAssistantContext(res.nextContext ?? null);
       if (res.intent === 'unit_search') {
         rememberRecent(clean);
         if (res.units && (res.units.items.length > 0 || res.units.status === 'ask')) {
@@ -402,6 +409,7 @@ export function SearchScreen() {
     slide.value = 0;
     setAssistantUnits(null);
     setAssistantSuggestPrimary(false);
+    setAssistantContext(null);
     search.reset();
     answer.reset();
     assistant.reset();
