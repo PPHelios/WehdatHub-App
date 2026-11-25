@@ -922,3 +922,33 @@ test('assistant project results seed AskResults without duplicate page-1 askResu
   await fireEvent.press(screen.getByTestId('search-go'));
   await waitFor(() => expect(creditsSpy.mock.calls.length).toBeGreaterThan(before));
 });
+
+test.each([
+  ['en', 'overdue leads', 'Market: Resale', 'Which market did you mean?'],
+  ['ar', 'عملاء متأخرين', 'السوق: ريسيل', 'تقصد أنهي سوق؟'],
+] as const)('paired %s assistant clarify preserves Change search without showing noResults', async (lang, query, filterLabel, headline) => {
+  const prev = useAuth.getState().broker;
+  useAuth.setState({ broker: { id: 'pair-test', lang } as ApiBroker });
+  try {
+    mocked.assistantQuery.mockResolvedValueOnce({
+      intent: 'clarify',
+      headline,
+      aiUsed: false,
+      understood: { job: 'find_units', market: 'resale', appliedFilters: [filterLabel], unsupportedFilters: [] },
+      cards: [],
+      actions: [{ kind: 'pivot_mode', mode: 'primary', label: lang === 'ar' ? 'ابحث في مشاريع المطورين' : 'Search developer projects' }],
+    });
+    const view = await wrap();
+    await fireEvent.press(screen.getByTestId('search-mode-trigger'));
+    await fireEvent.press(await screen.findByTestId('popover-mode-primary'));
+    await fireEvent.changeText(screen.getByTestId('search-input'), query);
+    await fireEvent.press(screen.getByTestId('search-go'));
+    expect(await screen.findByTestId('assistant-understood')).toBeTruthy();
+    expect(screen.getByText(filterLabel)).toBeTruthy();
+    expect(screen.getByTestId('assistant-change-search')).toBeTruthy();
+    expect(screen.queryByText(/No results|مفيش نتايج/)).toBeNull();
+    view.unmount();
+  } finally {
+    useAuth.setState({ broker: prev });
+  }
+});

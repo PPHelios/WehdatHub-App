@@ -28,6 +28,8 @@ import { toast, toastError } from '../components/Toast';
 
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
+const EMPTY_ROUTE = { params: {} };
+const useSafeRoute = typeof useRoute === 'function' ? useRoute : () => EMPTY_ROUTE;
 
 function Card({ children, testID }: { children: React.ReactNode; testID?: string }) {
   const { colors, elev } = useTheme();
@@ -51,29 +53,29 @@ export function DealsScreen() {
   const ar = lang === 'ar';
   const qc = useQueryClient();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const route = useRoute<RouteProp<RootStackParams, 'Deals'>>();
+  const route = useSafeRoute() as RouteProp<RootStackParams, 'Deals'>;
   const rights = useRights();
   const [fix, setFix] = useState<Record<string, string>>({});
   const [status, setStatus] = useState('');
+  const { from, to, brokerId, brokerRole, market, area } = route.params ?? {};
   const [filters, setFilters] = useState<DealsFilterOpts>(() => ({
-    ...(route.params?.from ? { from: route.params.from } : {}),
-    ...(route.params?.to ? { to: route.params.to } : {}),
-    ...(route.params?.brokerId ? { brokerId: route.params.brokerId } : {}),
-    ...(route.params?.brokerRole ? { brokerRole: route.params.brokerRole } : {}),
-    ...(route.params?.market ? { market: route.params.market } : {}),
-    ...(route.params?.area ? { area: route.params.area } : {}),
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
+    ...(brokerId ? { brokerId } : {}),
+    ...(brokerRole ? { brokerRole } : {}),
+    ...(market ? { market } : {}),
+    ...(area ? { area } : {}),
   }));
   useEffect(() => {
-    const p = route.params ?? {};
     setFilters({
-      ...(p.from ? { from: p.from } : {}),
-      ...(p.to ? { to: p.to } : {}),
-      ...(p.brokerId ? { brokerId: p.brokerId } : {}),
-      ...(p.brokerRole ? { brokerRole: p.brokerRole } : {}),
-      ...(p.market ? { market: p.market } : {}),
-      ...(p.area ? { area: p.area } : {}),
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {}),
+      ...(brokerId ? { brokerId } : {}),
+      ...(brokerRole ? { brokerRole } : {}),
+      ...(market ? { market } : {}),
+      ...(area ? { area } : {}),
     });
-  }, [route.params?.from, route.params?.to, route.params?.brokerId, route.params?.brokerRole, route.params?.market, route.params?.area]);
+  }, [from, to, brokerId, brokerRole, market, area]);
   const hasFilters = Boolean(filters.from || filters.to || filters.brokerId || filters.market || filters.area);
   const queryKey = hasFilters ? ['deals', status, filters] : ['deals', status];
   const q = useInfiniteQuery({
