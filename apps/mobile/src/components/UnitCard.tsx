@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { formatEgp } from '@wehdathub/shared';
+import { formatUnitPrice } from '@wehdathub/shared';
 import type { ApiUnitListItem, Lang } from '@wehdathub/shared';
 import { t } from '../i18n';
 import { ALL_TYPES, FINISHING, labelOf } from '../unitOptions';
@@ -32,6 +32,13 @@ export const UnitCard = memo(function UnitCardRow({ unit, lang, onPress }: { uni
     .filter((x, i, all) => all.findIndex((y) => sameText(y, x)) === i);
   const name = unit.compound ? parts.join(' · ') : unit.code;
   const showCode = Boolean(unit.compound) && !parts.some((x) => sameText(x, unit.code));
+  const formattedPrice = formatUnitPrice(unit.price, {
+    currency: unit.currency,
+    lang,
+    dealType: unit.dealType,
+    rentPeriod: unit.rentPeriod,
+    fallbackText: unit.priceText,
+  });
 
   return (
     <Pressable
@@ -77,9 +84,9 @@ export const UnitCard = memo(function UnitCardRow({ unit, lang, onPress }: { uni
 
         {facts.length ? <Text style={[styles.specs, { color: colors.muted }]} numberOfLines={1}>{facts.join(' · ')}</Text> : null}
 
-        {unit.price !== null ? (
+        {formattedPrice ? (
           <Text testID={`price-${unit.code}`} style={[styles.price, { color: colors.primaryInk }]}>
-            {`${formatEgp(unit.price)} ${t(lang, 'egp')}`}
+            {formattedPrice}
           </Text>
         ) : null}
       </View>

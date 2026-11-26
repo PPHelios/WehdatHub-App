@@ -39,6 +39,8 @@ export interface ApiUnit {
   dealType: string | null;
   price: number | null;
   priceText: string | null;
+  currency?: string | null;
+  rentPeriod?: 'monthly' | 'yearly' | string | null;
   area: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -536,6 +538,8 @@ export interface MapUnit {
   area: number | null;
   price: number | null;
   priceText: string | null;
+  currency?: string | null;
+  rentPeriod?: 'monthly' | 'yearly' | string | null;
   photo?: string | null;
   thumb?: string | null;
 }

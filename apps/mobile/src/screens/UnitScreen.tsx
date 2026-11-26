@@ -8,7 +8,7 @@ import { AppText as Text } from '../components/AppText';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ApiClientError, formatEgp, looksLikePhone } from '@wehdathub/shared';
+import { ApiClientError, currencyLabel, formatUnitPrice, looksLikePhone } from '@wehdathub/shared';
 import type { ApiUnitDetail, UnitStatus } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
@@ -85,8 +85,9 @@ function ColleagueUnitEdit({ unit, edit }: { unit: ApiUnitDetail; edit: NonNulla
     }
   };
   if (!open) return <Button testID="edit-colleague-unit" variant="secondary" label={t(lang, 'editUnit')} onPress={start} />;
+  const priceLabel = `${lang === 'ar' ? 'السعر' : 'Price'} (${currencyLabel(unit.currency, lang)})`;
   return <>
-    <Field label={lang === 'ar' ? 'السعر' : 'Price'} value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
+    <Field label={priceLabel} value={price} onChangeText={setPrice} keyboardType="decimal-pad" />
     <Field label={lang === 'ar' ? 'الوصف' : 'Description'} value={description} onChangeText={setDescription} multiline />
     <Chips<UnitStatus> options={[
       { value: 'active', label: t(lang, 'stActive') },
@@ -225,7 +226,13 @@ export function UnitScreen({ code }: { code?: string } = {}) {
   const placeName = [...new Set([compound, phase].filter(Boolean))].join(' · ');
   const title = u.title?.trim() || placeName || propertyType || u.code;
   const place = [...new Set([title !== placeName ? placeName : null, u.district, u.city].filter(Boolean))].join(' · ');
-  const price = u.priceText || (u.price === null ? null : `${formatEgp(u.price)} ${t(lang, 'egp')}`);
+  const price = formatUnitPrice(u.price, {
+    currency: u.currency,
+    lang,
+    dealType: u.dealType,
+    rentPeriod: u.rentPeriod,
+    fallbackText: u.priceText,
+  });
   const facts: { label: string; value: string | null; icon: IconName }[] = [
     { label: t(lang, 'fBedrooms'), value: u.bedrooms == null ? null : String(u.bedrooms), icon: 'bed' },
     { label: t(lang, 'fBathrooms'), value: u.bathrooms == null ? null : String(u.bathrooms), icon: 'bath' },
@@ -291,7 +298,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
             <Icon name="pin" color={colors.primaryInk} size={16} />
             <Text style={[styles.caption, styles.flex, { color: colors.muted }]}>{place}</Text>
           </View> : null}
-          {price ? <Text style={[styles.price, { color: colors.primaryInk }]}>{price}</Text> : null}
+          {price ? <Text testID="unit-price" style={[styles.price, { color: colors.primaryInk }]}>{price}</Text> : null}
         </View>
         {availableFacts.length ? <View testID="unit-facts" style={[styles.facts, { backgroundColor: colors.cardSubtle, borderColor: colors.border }]}>
           {availableFacts.map(({ icon, label, value }, i) => (

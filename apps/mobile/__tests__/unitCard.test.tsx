@@ -65,10 +65,19 @@ test('a solid green pill uses white text in dark mode', async () => {
 
 test('a solid accent pill uses the accent text colour in both modes', async () => {
   usePrefs.setState({ appearance: 'light' });
-  const { unmount } = await render(<Pill solid tone="accent" label="Rent" />);
+  const { rerender, unmount } = await render(<Pill solid tone="accent" label="Rent" />);
   expect(StyleSheet.flatten(screen.getByText('Rent').props.style).color).toBe(COLORS.light['on-accent']);
-  unmount();
   usePrefs.setState({ appearance: 'dark' });
-  await render(<Pill solid tone="accent" label="Rent" />);
+  await rerender(<Pill solid tone="accent" label="Rent" />);
   expect(StyleSheet.flatten(screen.getByText('Rent').props.style).color).toBe(COLORS.dark['on-accent']);
+  await unmount();
+});
+
+test('a unit card renders USD and EUR currencies in Arabic and English instead of forcing EGP', async () => {
+  const { rerender } = await render(<UnitCard unit={unit({ price: 320_000, currency: 'USD' })} lang="en" onPress={() => undefined} />);
+  expect(screen.getByTestId('price-HP-301')).toHaveTextContent('320,000 USD');
+  await rerender(<UnitCard unit={unit({ price: 320_000, currency: 'USD', dealType: 'rent', rentPeriod: 'monthly' })} lang="ar" onPress={() => undefined} />);
+  expect(screen.getByTestId('price-HP-301')).toHaveTextContent('320,000 دولار شهرياً');
+  await rerender(<UnitCard unit={unit({ price: 450_000, currency: 'EUR' })} lang="ar" onPress={() => undefined} />);
+  expect(screen.getByTestId('price-HP-301')).toHaveTextContent('450,000 يورو');
 });
