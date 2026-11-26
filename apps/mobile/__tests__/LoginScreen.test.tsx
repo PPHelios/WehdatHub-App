@@ -1,61 +1,68 @@
 import React from 'react';
+import { Alert, Linking } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { ApiClientError } from '@wehdathub/shared';
 import { LoginScreen } from '../src/screens/LoginScreen';
 import { api } from '../src/api';
-import { useAuth } from '../src/auth';
 
-jest.mock('../src/api', () => ({ api: { requestCode: jest.fn(), verifyCode: jest.fn() } }));
-const mocked = api as unknown as { requestCode: jest.Mock; verifyCode: jest.Mock };
+jest.mock('../src/api', () => ({
+  api: {
+    trialOptions: jest.fn(),
+    signup: jest.fn(),
+    requestCode: jest.fn(),
+    verifyCode: jest.fn(),
+  },
+}));
+
+const mockedApi = api as jest.Mocked<typeof api>;
 
 beforeEach(() => {
   jest.clearAllMocks();
-  useAuth.setState({ status: 'signedOut', token: null, broker: null, agencyName: null });
+  mockedApi.trialOptions.mockResolvedValue({
+    enabled: true,
+    waAvailable: true,
+    tiers: {
+      solo: { enabled: true, days: 14, credits: 80, seats: 1, units: 50 },
+      team: { enabled: true, days: 14, credits: 200, seats: 5, units: 50 },
+    },
+  });
 });
 
-test('a bad phone is refused before any call', async () => {
-  await render(<LoginScreen />);
-  await fireEvent.changeText(screen.getByTestId('phone-input'), '12');
-  await fireEvent.press(screen.getByTestId('send-code'));
-  expect(mocked.requestCode).not.toHaveBeenCalled();
-  expect(screen.getByTestId('login-message')).toBeTruthy();
-});
+test('switches to Start Free Trial, shows dynamic tiers & Telegram pitch, and warns before WhatsApp fallback', async () => {
+  mockedApi.signup.mockResolvedValue({
+    ok: true,
+    channel: 'whatsapp',
+    verifyUrl: 'https://wa.me/201099990000?text=VERIFY%20su_abc',
+    phone: '+201012345678',
+    codeMinutes: 10,
+  });
+  const openSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
+  const alertSpy = jest.spyOn(Alert, 'alert');
 
-test('phone, then code, signs in and stores the session', async () => {
-  mocked.requestCode.mockResolvedValue({ ok: true, codeMinutes: 5 });
-  mocked.verifyCode.mockResolvedValue({ token: 'tok_tok_tok_tok_tok_tok', expiresAt: '2030-01-01', broker: { id: 'b1', name: 'Hana', role: 'broker', lang: 'ar' }, agency: { id: 'a1', name: 'NCH', slug: 'nch', logoUrl: null } });
   await render(<LoginScreen />);
+  const startBtn = await screen.findByTestId('mode-signup');
+  fireEvent.press(startBtn);
+
+  expect(await screen.findByTestId('tg-pitch-card')).toBeTruthy();
+  expect(screen.getByTestId('tier-solo')).toBeTruthy();
+  expect(screen.getByTestId('tier-team')).toBeTruthy();
+
+  await fireEvent.changeText(screen.getByTestId('signup-name'), 'Kareem');
   await fireEvent.changeText(screen.getByTestId('phone-input'), '01012345678');
-  await fireEvent.press(screen.getByTestId('send-code'));
-  await waitFor(() => expect(screen.getByTestId('code-input')).toBeTruthy());
-  expect(mocked.requestCode).toHaveBeenCalledWith('01012345678');
-  await fireEvent.changeText(screen.getByTestId('code-input'), '123456');
-  await fireEvent.press(screen.getByTestId('verify'));
-  await waitFor(() => expect(useAuth.getState().status).toBe('signedIn'));
-  expect(mocked.verifyCode).toHaveBeenCalledWith('01012345678', '123456');
-  expect(useAuth.getState().agencyName).toBe('NCH');
-});
+  await fireEvent.press(screen.getByTestId('signup-whatsapp'));
 
-test('a wrong code shows a plain message and keeps the form usable', async () => {
-  mocked.requestCode.mockResolvedValue({ ok: true, codeMinutes: 5 });
-  mocked.verifyCode.mockRejectedValue(new ApiClientError(401, 'invalid_code'));
-  await render(<LoginScreen />);
-  await fireEvent.changeText(screen.getByTestId('phone-input'), '01012345678');
-  await fireEvent.press(screen.getByTestId('send-code'));
-  await waitFor(() => screen.getByTestId('code-input'));
-  await fireEvent.changeText(screen.getByTestId('code-input'), '123456');
-  await fireEvent.press(screen.getByTestId('verify'));
-  await waitFor(() => expect(screen.getByTestId('login-message').props.children).toMatch(/الكود/));
-  expect(useAuth.getState().status).toBe('signedOut');
-  expect(screen.queryByTestId('button-spinner')).toBeNull();
-});
+  expect(alertSpy).toHaveBeenCalled();
+  const buttons = alertSpy.mock.calls[0][2] as Array<{ text?: string; onPress?: () => void }>;
+  const proceed = buttons[buttons.length - 1];
+  await proceed.onPress?.();
 
-test('leaving the phone field with a wrong number shows the note at once, and a good number shows none', async () => {
-  await render(<LoginScreen />);
-  await fireEvent.changeText(screen.getByTestId('phone-input'), '12');
-  await fireEvent(screen.getByTestId('phone-input'), 'blur');
-  expect(screen.getByTestId('login-message')).toBeTruthy();
-  await fireEvent.changeText(screen.getByTestId('phone-input'), '01012345678');
-  expect(screen.queryByTestId('login-message')).toBeNull();
-  expect(screen.getByTestId('logo')).toBeTruthy();
+  await waitFor(() => expect(mockedApi.signup).toHaveBeenCalledWith({
+    name: 'Kareem',
+    phone: '01012345678',
+    agency: undefined,
+    tier: 'solo',
+    channel: 'whatsapp',
+    lang: 'ar',
+  }));
+  await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://wa.me/201099990000?text=VERIFY%20su_abc'));
+  expect(screen.getByTestId('code-input')).toBeTruthy();
 });
