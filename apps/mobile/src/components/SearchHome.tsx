@@ -18,6 +18,7 @@ import { Icon, type IconName } from './Icon';
 import { HomeRow } from './HomeRow';
 import { SectionCard, UrgencyBadge } from './SectionCard';
 import { OldUnitActions } from './TodayCards';
+import { StarterCard } from './StarterCard';
 import { TodayCall, TodayDetails } from './TodayDetails';
 
 interface DiscoveryTip {
@@ -28,6 +29,7 @@ interface DiscoveryTip {
 }
 
 const TIPS_STORAGE_PREFIX = 'wehdathub.learnedTips';
+const STARTER_DISMISSED_KEY = 'wehdathub.starterDismissed';
 
 function tipsForRole(
   role: string | undefined,
@@ -59,7 +61,6 @@ function tipsForRole(
   }
   return [
     { id: 'brk-today', icon: 'chat', label: ar ? 'متابعات ومكالمات النهارده' : 'Follow-ups due today', query: ar ? 'متابعات النهارده' : 'follow-ups today' },
-    { id: 'brk-photos', icon: 'units', label: ar ? 'وحدات ناقصها صور' : 'Units missing photos', query: ar ? 'وحدات من غير صور' : 'missing photos' },
     { id: 'brk-resale', icon: 'search', label: ar ? 'شقة أقل من 5 مليون' : 'Apartments under 5M', query: ar ? 'شقة أقل من 5 مليون' : 'apartment under 5m' },
   ];
 }
@@ -156,8 +157,28 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
     <HomeRow key={key} testID={key} title={title} onPress={onPress} />
   );
 
+  const priorityPrompt = (id: string): string | null => {
+    switch (id) {
+      case 'unassigned': return ar ? 'عملاء من غير وسيط' : 'Unassigned leads';
+      case 'waiting-over-1h': return ar ? 'عملاء مستنين أكتر من ساعة' : 'Leads waiting over 1h';
+      case 'uncontacted-old': return ar ? 'تأخر أول تواصل' : 'Delayed first contact';
+      case 'overdue': return ar ? 'متابعات متأخرة' : 'Overdue follow-ups';
+      case 'calls': return ar ? 'مكالمات النهارده' : 'Calls due today';
+      case 'new-leads': return ar ? 'عملاء لسه محدش كلمهم' : 'Uncontacted leads';
+      case 'tomorrow-viewings': return ar ? 'معاينات بكرة' : 'Viewings tomorrow';
+      case 'commissions': return ar ? 'عمولات المطورين' : 'Developer commissions due';
+      case 'leases-soon': return ar ? 'عقود إيجار قربت تخلص' : 'Leases ending soon';
+      default: return null;
+    }
+  };
+
   const openPriorityAction = (p: SearchHomePriority) => {
     usage('home_priority_tapped', true, undefined, { screen: p.id });
+    const chatPrompt = priorityPrompt(p.id);
+    if (onTryPrompt && chatPrompt) {
+      onTryPrompt(chatPrompt);
+      return;
+    }
     const a = p.action;
     if (a.kind === 'queue') openQueue(a.queue);
     else if (a.kind === 'leads_tab') nav.navigate('LeadsList', { tab: a.tab });
@@ -286,10 +307,15 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
     }
   } else if (data) {
     const ops = data.ops;
-    if (ops?.unassigned) priority('home-unassigned', ar ? 'عملاء من غير وسيط' : 'Unassigned leads', undefined, () => openQueue('unassigned'), ops.unassigned, 'user-plus', true);
-    if (ops?.uncontactedOld) priority('home-uncontacted', ar ? 'تأخر أول تواصل' : 'Delayed first contact', ar ? 'أكتر من ٢٤ ساعة' : 'Over 24 hours', () => openQueue('delayed-first-contact'), ops.uncontactedOld, 'pulse', true);
+    const askOr = (id: string, fallback: () => void) => () => {
+      const prompt = priorityPrompt(id);
+      if (onTryPrompt && prompt) onTryPrompt(prompt);
+      else fallback();
+    };
+    if (ops?.unassigned) priority('home-unassigned', ar ? 'عملاء من غير وسيط' : 'Unassigned leads', undefined, askOr('unassigned', () => openQueue('unassigned')), ops.unassigned, 'user-plus', true);
+    if (ops?.uncontactedOld) priority('home-uncontacted', ar ? 'تأخر أول تواصل' : 'Delayed first contact', ar ? 'أكتر من ٢٤ ساعة' : 'Over 24 hours', askOr('uncontacted-old', () => openQueue('delayed-first-contact')), ops.uncontactedOld, 'pulse', true);
     const late = ops?.overdue ?? data.overdue;
-    if (late) priority('home-late', ar ? 'متابعات متأخرة' : 'Overdue follow-ups', undefined, () => nav.navigate('LeadsList', { tab: 'overdue' }), late, 'bell', true);
+    if (late) priority('home-late', ar ? 'متابعات متأخرة' : 'Overdue follow-ups', undefined, askOr('overdue', () => nav.navigate('LeadsList', { tab: 'overdue' })), late, 'bell', true);
     if (next?.at) {
       const at = new Date(next.at).toLocaleTimeString(locale, { timeZone: 'Africa/Cairo', hour: 'numeric', minute: '2-digit' });
       rows.push(<HomeRow key="home-viewing" testID="home-viewing" title={ar ? 'المعاينة الجاية' : 'Next viewing'}
@@ -298,9 +324,9 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
         {next.phone ? <TodayCall phone={next.phone} label={t(lang, 'call')} /> : null}
       </HomeRow>);
     }
-    if (data.tomorrowViewings) priority('home-tomorrow', ar ? 'معاينات بكرة' : 'Viewings tomorrow', undefined, () => openQueue('viewings-tomorrow'), data.tomorrowViewings, 'calendar');
-    if (data.calls) priority('home-calls', ar ? 'مكالمات النهارده' : 'Calls due today', undefined, () => nav.navigate('LeadsList', { tab: 'due_today' }), data.calls, 'chat');
-    if (data.newLeads && !ops?.uncontactedOld) priority('home-new-leads', ar ? 'عملاء عندك لسه محدش كلمهم' : 'Your leads awaiting first contact', undefined, () => openQueue('uncontacted'), data.newLeads, 'leads');
+    if (data.tomorrowViewings) priority('home-tomorrow', ar ? 'معاينات بكرة' : 'Viewings tomorrow', undefined, askOr('tomorrow-viewings', () => openQueue('viewings-tomorrow')), data.tomorrowViewings, 'calendar');
+    if (data.calls) priority('home-calls', ar ? 'مكالمات النهارده' : 'Calls due today', undefined, askOr('calls', () => nav.navigate('LeadsList', { tab: 'due_today' })), data.calls, 'chat');
+    if (data.newLeads && !ops?.uncontactedOld) priority('home-new-leads', ar ? 'عملاء عندك لسه محدش كلمهم' : 'Your leads awaiting first contact', undefined, askOr('new-leads', () => openQueue('uncontacted')), data.newLeads, 'leads');
   }
 
   const { rights, nav: serverNav, workspace } = useRightsState();
@@ -332,11 +358,45 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
   const loading = all ? overdue.isPending : home.isPending && Boolean(broker?.id);
   const failed = refresh.isError && !refresh.data;
 
+  const [starterDismissed, setStarterDismissed] = useState(true);
+  useEffect(() => {
+    AsyncStorage.getItem(STARTER_DISMISSED_KEY).then((v) => setStarterDismissed(v === '1')).catch(() => setStarterDismissed(false));
+  }, []);
+  const meQ = useQuery({ queryKey: ['me'], queryFn: ({ signal }) => api.me(signal), staleTime: 60_000 });
+  const planQ = useQuery({ queryKey: ['plan'], queryFn: () => api.plan(), enabled: rights.manager || rights.agencyOwner, staleTime: 60_000 });
+  const onboarding = meQ.data?.onboarding;
+  const trialDaysLeft = useMemo(() => {
+    const a = planQ.data?.allowance;
+    if (!a || a.source !== 'trial' || !a.until) return null;
+    return Math.max(0, Math.ceil((new Date(a.until).getTime() - Date.now()) / 86_400_000));
+  }, [planQ.data]);
+
   return (
     <ScrollView testID="search-home" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refresh.isRefetching} onRefresh={async () => { await Promise.all([refresh.refetch(), queries.refetchQueries({ queryKey: ['today'], exact: true, type: 'active' })]); }} />}>
-      <Text style={[styles.date, { color: colors.muted }]}>{date}</Text>
+      <View style={styles.topRow}>
+        <Text style={[styles.date, { color: colors.muted }]}>{date}</Text>
+        {trialDaysLeft !== null ? (
+          <Pressable testID="trial-status-pill" onPress={() => nav.navigate('Usage')} style={[styles.trialPill, { borderColor: colors.border, backgroundColor: colors.card }]}>
+            <Text style={{ color: trialDaysLeft <= 3 ? colors.warn : colors.muted, fontSize: 12, fontWeight: '600' }}>
+              {`${t(lang, 'trialPill')} · ${n(trialDaysLeft)}${ar ? 'ي' : 'd'}`}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
       <Text accessibilityRole="header" style={[styles.greeting, { color: colors.text }]}>{greeting}{name ? (ar ? ` يا ${name}` : `, ${name}`) : ''}</Text>
+      {!all && !starterDismissed && onboarding ? (
+        <StarterCard
+          onboarding={onboarding}
+          onAddUnit={() => nav.navigate('AddUnit')}
+          onShareSample={() => nav.navigate('UnitsList', {})}
+          onConnectTelegram={() => nav.navigate('Usage')}
+          onDismiss={() => {
+            setStarterDismissed(true);
+            void AsyncStorage.setItem(STARTER_DISMISSED_KEY, '1').catch(() => undefined);
+          }}
+        />
+      ) : null}
       {!all ? invitation : null}
       {summary && !all ? <Text style={{ color: colors.muted }}>{summary}</Text> : null}
       <View style={styles.brief}>
@@ -363,6 +423,7 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
       </View>
       {!all ? (
         <TodayDetails
+          suppressLoading={loading}
           brief={failed ? undefined : {
             ops: Boolean(data?.ops) || hasPriority('waiting-over-1h') || hasPriority('overdue'),
             units: entry && Boolean(data?.units),
@@ -422,6 +483,8 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 90, gap: spacing.sm },
   date: { fontSize: 13, fontWeight: '600' },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  trialPill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: 3 },
   greeting: { fontSize: 29, fontWeight: '800' },
   brief: { marginTop: spacing.md, gap: spacing.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
