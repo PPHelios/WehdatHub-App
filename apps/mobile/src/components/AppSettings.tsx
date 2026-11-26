@@ -55,15 +55,21 @@ export function AppSettings() {
       {sw ? (
         <>
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'agencySwitches')}</Text>
-          <View style={styles.row}>
-            <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'brokersMayWriteLabel')}</Text>
-            <BusySwitch testID="sw-write" value={sw.brokersMayWrite} onValueChange={(v) => setSw({ ...sw, brokersMayWrite: v })} />
-          </View>
-          <View style={styles.row}>
-            <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'dataEntryOwnersLabel')}</Text>
-            <BusySwitch testID="sw-owners" value={sw.dataEntryOwners} onValueChange={(v) => setSw({ ...sw, dataEntryOwners: v })} />
-          </View>
+          {typeof sw.brokersMayWrite === 'boolean' ? (
+            <View style={styles.row}>
+              <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'brokersMayWriteLabel')}</Text>
+              <BusySwitch testID="sw-write" value={sw.brokersMayWrite} onValueChange={(v) => setSw({ ...sw, brokersMayWrite: v })} />
+            </View>
+          ) : null}
+          {typeof sw.dataEntryOwners === 'boolean' ? (
+            <View style={styles.row}>
+              <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'dataEntryOwnersLabel')}</Text>
+              <BusySwitch testID="sw-owners" value={sw.dataEntryOwners} onValueChange={(v) => setSw({ ...sw, dataEntryOwners: v })} />
+            </View>
+          ) : null}
           {([
+            ['dataEntryMissingPhotos', 'Show “Units missing photos” to data entry', 'عرض «وحدات من غير صور» لإدخال البيانات', false],
+            ['dataEntryOverdueUnits', 'Show “Units needing review” to data entry', 'عرض «وحدات محتاجة مراجعة» لإدخال البيانات', false],
             ['brokersEditColleagueUnits', 'Can edit colleagues’ units', 'البروكرز يقدروا يعدّلوا وحدات زمايلهم', !sw.brokersMayWrite],
             ['brokersSeeAllLeads', 'Brokers see all shared leads', 'البروكرز يشوفوا كل العملاء المشتركين', false],
             ['brokersWorkSharedLeads', 'Brokers can work shared leads', 'البروكرز يقدروا يتابعوا العملاء المشتركين', !sw.brokersSeeAllLeads],

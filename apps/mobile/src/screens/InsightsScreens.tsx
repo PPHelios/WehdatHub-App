@@ -11,6 +11,7 @@ import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
+import { FilterPicker, PeriodPicker, type PeriodChoice } from '../components/FilterPicker';
 import { KpiTile, SectionCard, UrgencyBadge } from '../components/SectionCard';
 import { StatRow } from '../components/StatRow';
 import { ErrorView, Loading } from '../components/StateViews';
@@ -22,7 +23,6 @@ import { spacing, useTheme } from '../theme';
 import { toastError } from '../components/Toast';
 
 const num = (n: number) => Number(n).toLocaleString('en-US');
-const DAYS = ['30', '90', '365'] as const;
 
 function formatMinutes(m: number | null | undefined, ar: boolean): string {
   if (m === null || m === undefined) return '—';
@@ -36,15 +36,19 @@ export function DashboardScreen({ embedded = false, ranking = false }: { embedde
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const [days, setDays] = useState<(typeof DAYS)[number]>('30');
+  const [period, setPeriod] = useState<PeriodChoice>({ days: '30' });
   const [metric, setMetric] = useState<'deals' | 'commission' | 'responseMin' | 'updates'>('deals');
   const [scope, setScope] = useState('');
   const [kind, id] = scope.split(':');
-  const filter = kind === 'broker' ? { broker: id } : kind === 'team' ? { team: id } : undefined;
+  const rangeParams = period.days === 'custom' && period.from && period.to ? { from: period.from, to: period.to } : undefined;
+  const daysNum = period.days === 'custom' ? 30 : Number(period.days);
+  const filter = (kind === 'broker' || kind === 'team' || rangeParams)
+    ? { ...(kind === 'broker' ? { broker: id } : kind === 'team' ? { team: id } : {}), ...(rangeParams ?? {}) }
+    : undefined;
   const scopeNav = kind === 'broker' ? { broker: id } : kind === 'team' ? { team: id } : {};
   const q = useQuery({
-    queryKey: ['dashboard', days, scope],
-    queryFn: () => filter ? api.dashboard(Number(days), filter) : api.dashboard(Number(days)),
+    queryKey: ['dashboard', period.days, period.from ?? '', period.to ?? '', scope],
+    queryFn: () => filter ? api.dashboard(daysNum, filter) : api.dashboard(daysNum),
   });
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
   if (q.isError) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => q.refetch()} altLabel={scope ? t(lang, 'clear') : undefined} onAlt={scope ? () => setScope('') : undefined} />;
@@ -67,13 +71,25 @@ export function DashboardScreen({ embedded = false, ranking = false }: { embedde
   const title = ranking ? (ar ? 'ترتيب الوسطاء' : 'Broker rankings') : personal ? (ar ? 'ملخصي' : 'My summary') : d.mode === 'team' ? (ar ? 'لوحة الفريق' : 'Team dashboard') : (ar ? 'لوحة الشركة' : 'Agency dashboard');
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.pad, embedded && { paddingBottom: 90 }]}>
-      <Text accessibilityRole="header" style={[styles.h, { color: colors.text }]}>{title}</Text>
-      <Chips<(typeof DAYS)[number]> animateFilter testID="dash-days" value={days} onChange={setDays} options={DAYS.map((x) => ({ value: x, label: ar ? `${x} يوم` : `${x} days` }))} />
-      {d.team?.length || d.teamLeads?.length ? <Chips animateFilter testID="dash-scope" value={scope || 'all'} onChange={(value) => setScope(value === 'all' ? '' : value)} options={[
-        { value: 'all', label: ar ? 'كل الشركة' : 'All agency' },
-        ...(d.teamLeads ?? []).map((team) => ({ value: 'team:' + team.id, label: ar ? 'فريق ' + team.name : team.name + ' team' })),
-        ...(d.team ?? []).map((broker) => ({ value: 'broker:' + broker.id, label: broker.name })),
-      ]} /> : null}
+      <View style={styles.headerBlock}>
+        <Text accessibilityRole="header" style={[styles.h, { color: colors.text }]}>{title}</Text>
+      </View>
+      <View style={styles.filterBar}>
+        <PeriodPicker testID="dash-days" value={period} onChange={setPeriod} />
+        {d.team?.length || d.teamLeads?.length ? (
+          <FilterPicker
+            testID="dash-scope"
+            label={ar ? 'النطاق' : 'Scope'}
+            value={scope || 'all'}
+            onChange={(value) => setScope(value === 'all' ? '' : value)}
+            options={[
+              { value: 'all', label: ar ? 'كل الشركة' : 'All agency' },
+              ...(d.teamLeads ?? []).map((team) => ({ value: 'team:' + team.id, label: ar ? 'فريق ' + team.name : team.name + ' team', hint: ar ? 'فريق' : 'Team' })),
+              ...(d.team ?? []).map((broker) => ({ value: 'broker:' + broker.id, label: broker.name })),
+            ]}
+          />
+        ) : null}
+      </View>
       {ranking ? <SectionCard title={ar ? 'رتّب حسب' : 'Rank by'}>
         <Chips animateFilter value={metric} onChange={setMetric} options={[
           { value: 'deals', label: ar ? 'عدد الصفقات' : 'Deals closed' },
@@ -222,8 +238,13 @@ export function PricesScreen() {
 export function WinLossScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
-  const [days, setDays] = useState<(typeof DAYS)[number]>('30');
-  const q = useQuery({ queryKey: ['winloss', days], queryFn: () => api.winLoss(Number(days)) });
+  const [period, setPeriod] = useState<PeriodChoice>({ days: '30' });
+  const rangeParams = period.days === 'custom' && period.from && period.to ? { from: period.from, to: period.to } : undefined;
+  const daysNum = period.days === 'custom' ? 30 : Number(period.days);
+  const q = useQuery({
+    queryKey: ['winloss', period.days, period.from ?? '', period.to ?? ''],
+    queryFn: () => api.winLoss(daysNum, rangeParams),
+  });
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
   if (q.isError) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} />;
   const d = q.data;
@@ -231,9 +252,16 @@ export function WinLossScreen() {
   const rate = (r: number | null) => (r === null ? '—' : `${r}%`);
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
-      <Chips<(typeof DAYS)[number]> animateFilter testID="wl-days" value={days} onChange={setDays} options={DAYS.map((x) => ({ value: x, label: ar ? `${x} يوم` : `${x} days` }))} />
+      <View style={styles.filterBar}>
+        <PeriodPicker testID="wl-days" value={period} onChange={setPeriod} />
+      </View>
       <SectionCard title={ar ? 'الملخص' : 'Summary'}>
-        <Text testID="wl-summary" style={{ color: colors.text }}>{ar ? 'اتقفلت' : 'Won'} {d.won} · {ar ? 'ضاعت' : 'Lost'} {d.lost} · {rate(d.rate)}</Text>
+        <View style={styles.kpiGrid}>
+          <KpiTile testID="wl-won" label={ar ? 'اتقفلت' : 'Won'} value={num(d.won)} tone="ok" />
+          <KpiTile testID="wl-lost" label={ar ? 'ضاعت' : 'Lost'} value={num(d.lost)} tone={d.lost ? 'warn' : 'neutral'} />
+          <KpiTile testID="wl-rate" label={ar ? 'نسبة القفل' : 'Win rate'} value={rate(d.rate)} tone="neutral" />
+        </View>
+        <Text testID="wl-summary" style={{ color: colors.muted, fontSize: 13 }}>{ar ? 'اتقفلت' : 'Won'} {d.won} · {ar ? 'ضاعت' : 'Lost'} {d.lost} · {rate(d.rate)}</Text>
       </SectionCard>
       <SectionCard title={ar ? 'ليه العملاء ضاعوا' : 'Why leads were lost'}>
         {d.reasons.length ? d.reasons.map((r) => <StatRow key={r.key} label={r.key.replace(/_/g, ' ')} value={`${r.n} (${r.pct}%)`} pct={r.pct} />) : <Text style={{ color: colors.muted }}>{ar ? 'مفيش.' : 'None.'}</Text>}
@@ -297,6 +325,8 @@ export function ReportScreen() {
 
 const styles = StyleSheet.create({
   pad: { padding: spacing.lg, gap: spacing.md },
+  headerBlock: { gap: 2 },
+  filterBar: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'center' },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   boardRow: { paddingVertical: spacing.xs, gap: 3 },
   boardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react-native';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DashboardScreen, PricesScreen, ReportScreen, WinLossScreen } from '../src/screens/InsightsScreens';
 import { api } from '../src/api';
@@ -34,10 +34,12 @@ test('the dashboard shows the leaderboard with response time and open workload',
   expect(screen.getByTestId('dash-weekly')).toBeTruthy();
   expect(screen.getByText(/4 open|4 مفتوح/)).toBeTruthy();
   expect(screen.getByText(/18 min|18 د/)).toBeTruthy();
-  await fireEvent.press(within(screen.getByTestId('dash-scope')).getByText('Sara'));
+  await fireEvent.press(screen.getByTestId('dash-scope'));
+  await fireEvent.press(await screen.findByTestId('dash-scope-opt-broker:b1'));
   await waitFor(() => expect(m.dashboard).toHaveBeenCalledWith(30, { broker: 'b1' }));
   await screen.findByTestId('dash-scope');
-  await fireEvent.press(within(screen.getByTestId('dash-scope')).getByText(/Omar/));
+  await fireEvent.press(screen.getByTestId('dash-scope'));
+  await fireEvent.press(await screen.findByTestId('dash-scope-opt-team:t1'));
   await waitFor(() => expect(m.dashboard).toHaveBeenCalledWith(30, { team: 't1' }));
 });
 
@@ -166,7 +168,8 @@ test('dashboard KPIs drill into preserved broker/team queues, agency-wide unassi
   expect(screen.getByText('11/02–11/09')).toBeTruthy();
   expect(screen.queryByText('Week 1')).toBeNull();
 
-  await fireEvent.press(within(screen.getByTestId('dash-scope')).getByText('Sara'));
+  await fireEvent.press(screen.getByTestId('dash-scope'));
+  await fireEvent.press(await screen.findByTestId('dash-scope-opt-broker:b1'));
   await waitFor(() => expect(m.dashboard).toHaveBeenCalledWith(30, { broker: 'b1' }));
 
   // Scoped Unassigned labels Agency-wide and opens agency-wide queue without broker filter
@@ -183,7 +186,8 @@ test('dashboard KPIs drill into preserved broker/team queues, agency-wide unassi
   await fireEvent.press(screen.getByTestId('kpi-overdue'));
   expect(mockNavigate).toHaveBeenLastCalledWith('LeadsList', { tab: 'overdue', broker: 'b1' });
 
-  await fireEvent.press(within(screen.getByTestId('dash-scope')).getByText(/Omar/));
+  await fireEvent.press(screen.getByTestId('dash-scope'));
+  await fireEvent.press(await screen.findByTestId('dash-scope-opt-team:t1'));
   await waitFor(() => expect(m.dashboard).toHaveBeenCalledWith(30, { team: 't1' }));
   await fireEvent.press(await screen.findByTestId('kpi-waiting-over-1h'));
   expect(mockNavigate).toHaveBeenLastCalledWith('LeadsList', { queue: 'waiting-over-1h', team: 't1' });

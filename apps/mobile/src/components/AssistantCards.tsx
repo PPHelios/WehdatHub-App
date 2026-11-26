@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
-import { ApiClientError, formatEgp, type AssistantCard, type AssistantQueryResponse, type BrokerDiscipline, type LeadQueue } from '@wehdathub/shared';
+import { ApiClientError, formatEgp, ltr, type AssistantCard, type AssistantQueryResponse, type BrokerDiscipline, type LeadQueue } from '@wehdathub/shared';
+import { looksLikePhone } from './PhoneText';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import { spacing, useTheme } from '../theme';
@@ -130,7 +131,7 @@ function CardBody({
 
   if (card.kind === 'stuck_leads') {
     return (
-      <SectionCard testID="card-stuck-leads" title={ar ? 'عملاء محتاجين تحرك سريع' : 'Leads needing quick action'} subtitle={`${num(card.total)}`}>
+      <SectionCard testID="card-stuck-leads" title={card.title || (ar ? 'عملاء محتاجين تحرك سريع' : 'Leads needing quick action')} subtitle={`${num(card.total)}`}>
         {card.items.length === 0 ? (
           <Text style={{ color: colors.muted }}>{ar ? 'مفيش عملاء متأخرين دلوقتي.' : 'No leads waiting in this queue.'}</Text>
         ) : card.items.map((item, idx) => {
@@ -142,7 +143,7 @@ function CardBody({
           return (
             <View key={item.ref} style={[styles.rowItem, idx < card.items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
               <Pressable accessibilityRole="button" onPress={() => onOpenLead(item.ref)} style={styles.rowTop}>
-                <Text style={[styles.rowName, { color: colors.text }]}>{item.ref}{item.name ? ` · ${item.name}` : ''}</Text>
+                <Text style={[styles.rowName, { color: colors.text }]}>{item.ref}{item.name ? ` · ${looksLikePhone(item.name) ? ltr(item.name) : item.name}` : ''}</Text>
                 <UrgencyBadge tone="warn" label={doneTo ? `→ ${doneTo}` : (item.assignee || (ar ? 'بدون وسيط' : 'Unassigned'))} />
               </Pressable>
               <Text style={{ color: colors.muted, fontSize: 13 }}>{item.stage}</Text>

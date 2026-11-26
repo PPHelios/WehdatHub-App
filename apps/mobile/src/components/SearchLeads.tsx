@@ -23,6 +23,7 @@ import { AppText as Text } from './AppText';
 import { BottomSafe } from './BottomSafe';
 import { Button } from './Button';
 import { Chips } from './Chips';
+import { FilterPicker } from './FilterPicker';
 import { ErrorView, Loading } from './StateViews';
 import { StatRow } from './StatRow';
 import { LeadCard } from './LeadCard';
@@ -120,10 +121,18 @@ export function SearchLeads({ assignedInitially, initialQueue, lookup, matching 
         { value: 'all', label: t(lang, 'tabAll') },
         { value: 'last', label: ar ? 'آخر تسليم الشهر اللي فات' : 'Last assigned last month' },
       ]} onChange={(value) => setAssigned(value === 'last' ? value : undefined)} />
-      {team.data?.items.length ? <Chips animateFilter value={effectiveBroker || (resolvePending ? '' : 'all')} onChange={(value) => { setBroker(value === 'all' ? '' : value); setConfirmedAssignee(requestedAssignee); }} options={[
-        { value: 'all', label: ar ? 'كل الوسطاء' : 'All brokers' },
-        ...team.data.items.map((member) => ({ value: member.id, label: member.name })),
-      ]} /> : null}
+      {team.data?.items.length ? (
+        <FilterPicker
+          testID="search-leads-broker"
+          label={ar ? 'الوسيط' : 'Broker'}
+          value={effectiveBroker || (resolvePending ? '' : 'all')}
+          onChange={(value) => { setBroker(value === 'all' ? '' : value); setConfirmedAssignee(requestedAssignee); }}
+          options={[
+            { value: 'all', label: ar ? 'كل الوسطاء' : 'All brokers' },
+            ...team.data.items.map((member) => ({ value: member.id, label: member.name })),
+          ]}
+        />
+      ) : null}
       {requestedAssignee && team.isFetched && !singleAssignee ? <Text style={{ color: colors.muted }}>{ar ? 'اختار الوسيط المطلوب من القائمة.' : 'Choose the broker from the list.'}</Text> : null}
       {counts.isError ? <ErrorView message={errorText(counts.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => counts.refetch()} /> : null}
       {stages && !queryText && !initialTab ? <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>

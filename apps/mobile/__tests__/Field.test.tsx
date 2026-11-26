@@ -21,6 +21,11 @@ test('Arabic text stays right-to-left and empty text has no forced direction', a
   expect(styleOf().writingDirection).toBeUndefined();
 });
 
+test('phone-pad fields always force left-to-right direction even when empty', async () => {
+  await render(<Field label="Owner" value="" keyboardType="phone-pad" />);
+  expect(styleOf()).toMatchObject({ direction: 'ltr', writingDirection: 'ltr', textAlign: 'left' });
+});
+
 test.each(['light', 'dark'] as const)('required fields and chip groups use green in %s mode and red for errors', async (appearance) => {
   const previous = usePrefs.getState().appearance;
   usePrefs.setState({ appearance });

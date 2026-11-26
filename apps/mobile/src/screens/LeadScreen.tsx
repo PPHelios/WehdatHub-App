@@ -13,6 +13,7 @@ import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { ContactRow } from '../components/ContactRow';
+import { looksLikePhone, PhoneText } from '../components/PhoneText';
 import { InitialAvatar } from '../components/InitialAvatar';
 import { TimelineEntry } from '../components/TimelineEntry';
 import { Pill } from '../components/Pill';
@@ -119,7 +120,9 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
         <View style={styles.identity}>
           <InitialAvatar name={lead.name} />
           <View style={styles.flex}>
-            <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{lead.name || lead.ref}</Text>
+            {looksLikePhone(lead.name)
+              ? <PhoneText accessibilityRole="header" value={lead.name!} style={[styles.title, { color: colors.text }]} />
+              : <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{lead.name || lead.ref}</Text>}
             <View style={styles.chips}>
               <Pill tone="primary" label={stageLabel(lang, lead.stage)} testID="lead-profile-stage" />
               {lead.name && lead.name !== lead.ref ? <Pill label={lead.ref} /> : null}

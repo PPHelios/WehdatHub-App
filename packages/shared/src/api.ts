@@ -861,10 +861,13 @@ export function createApiClient(opts: ApiClientOptions) {
     decideRename: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/owners/requests/${id}`, { decision: approve ? 'approve' : 'reject' }),
     accessRequests: (status: string, page = 0) => request<{ items: AccessRequest[]; total: number }>('GET', '/access-requests', undefined, { status, page }),
     answerAccess: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/access-requests/${id}`, { decision: approve ? 'approve' : 'decline' }),
-    dashboard: (days = 30, scope?: { broker?: string; team?: string }) => request<DashboardData>('GET', '/dashboard', undefined, { days, ...scope, strictScope: scope ? '1' : undefined }),
+    dashboard: (days = 30, scope?: { broker?: string; team?: string; from?: string; to?: string }) => {
+      const hasScope = Boolean(scope?.broker || scope?.team);
+      return request<DashboardData>('GET', '/dashboard', undefined, { days, ...scope, strictScope: hasScope ? '1' : undefined });
+    },
     setTeamStyle: (style: ApiWorkspace['teamStyle']) => request<{ ok: true; style: ApiWorkspace['teamStyle'] }>('POST', '/team/style', { style }),
     pricePerM2: () => request<{ minUnits: number; items: PriceRow[] }>('GET', '/insights/prices'),
-    winLoss: (days = 30) => request<WinLossData>('GET', '/insights/winloss', undefined, { days }),
+    winLoss: (days = 30, range?: { from?: string; to?: string }) => request<WinLossData>('GET', '/insights/winloss', undefined, { days, ...range }),
     report: (text: string, extra?: { type?: 'bug' | 'suggestion' | 'request'; device?: Record<string, unknown> }) => request<{ ok: true; id: number }>('POST', '/report', { text, ...(extra ?? {}) }),
     setLang: (lang: Lang) => request<{ ok: true; lang: Lang }>('POST', '/me/lang', { lang }),
     deals: (status?: string, page = 0, opts?: DealsFilterOpts) =>

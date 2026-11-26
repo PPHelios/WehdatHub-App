@@ -33,7 +33,7 @@ export const chipText = (v: unknown): string => (v && typeof v === 'object' ? Ob
  * (price range, area range, max down payment, bedrooms), project cards with their offers or the notes that fit, WhatsApp, and pages.
  * The same cards as the catalogue list.
  */
-export function AskResults({ q, onOpenProject, showStatus = false, initial }: { q: string; onOpenProject?: (id: string, name: string) => void; showStatus?: boolean; initial?: AskResultsData | null }) {
+export function AskResults({ q, onOpenProject, showStatus = false, initial, hideAnswerLine = false }: { q: string; onOpenProject?: (id: string, name: string) => void; showStatus?: boolean; initial?: AskResultsData | null; hideAnswerLine?: boolean }) {
   const { colors } = useTheme();
   const lang = currentLang();
   const T = pt(lang);
@@ -80,7 +80,7 @@ export function AskResults({ q, onOpenProject, showStatus = false, initial }: { 
   return (
     <View testID="ask-results" style={styles.wrap}>
       <Text style={[styles.title, { color: colors.text }]}>{T.askResults}</Text>
-      {d.answer_line ? <Text testID="ask-line" style={{ color: colors.text }}>{d.answer_line}</Text> : null}
+      {!hideAnswerLine && d.answer_line ? <Text testID="ask-line" style={{ color: colors.text }}>{d.answer_line}</Text> : null}
       <Count projects={d.total_projects} options={d.total_options ?? d.total_offers} lang={lang} />
       {d.chips.length ? (
         <View style={styles.chips}>

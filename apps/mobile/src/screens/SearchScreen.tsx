@@ -1,13 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { timed, usage } from '../usage';
 import { track } from '../analytics';
-import { ActivityIndicator, Keyboard, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Keyboard, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import Animated, { FadeIn, FadeOut, ReduceMotion, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
 import { FlashList } from '@shopify/flash-list';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ApiClientError, type ApiUnitListItem, type AssistantContext, type AssistantMode, type LeadQueue, type SearchResult, type UnitStatus, type VoiceFile } from '@wehdathub/shared';
 import { api } from '../api';
@@ -58,7 +58,7 @@ function normalizeForRoute(raw: string): string {
     .replace(/\s+/g, ' ');
 }
 
-function shouldUseAssistantEndpoint(clean: string, mode: AssistantMode, hasContext = false): boolean {
+export function shouldUseAssistantEndpoint(clean: string, mode: AssistantMode, hasContext = false): boolean {
   if (mode !== 'auto') return true;
   const q = normalizeForRoute(clean);
   if (
@@ -67,7 +67,7 @@ function shouldUseAssistantEndpoint(clean: string, mode: AssistantMode, hasConte
   ) {
     return true;
   }
-  return /(waiting\s*(?:over|>)\s*1|approaching\s+sla|near\s+sla|sla\s+soon|opened.*without\s+follow|open(?:ed)?\s+(?:offer|link).*no\s+follow|no\s+next\s+step|not\s+updating|silent\s+broker|who.*updat|scorecard|(?:how\s+is|performance\s+of|scorecard\s+for|status\s+of)\s+\S+|what\s+did\s+.+\s+do|how\s+did\s+.+\s+do|\S+(?:'s|’s)\s+team\b|(?:the|my|our)\s+team\b|\bteam\s+(?:workload|activity|performance|calls|viewings|updates|deals|stats|summary)\b|(?:viewings?|calls?|updates?)\s+(?:by|for|of)\s+\S+|how\s+many\s+(?:viewings?|calls?|updates?|leads?|deals?|apartments?|villas?|units?|duplex(?:es)?|studios?|chalets?|penthouses?|offices?|shops?|townhouses?|twin\s*houses?)|\bviewings?\s+(?:today|tomorrow|this\s+week)\b|(?:resale|primary)\s+deals?|deals?\s+(?:in|by|for|closed|involved|resale|primary)|(?:average|avg|median|first|reply)\s*response|response\s+time|fastest|slowest|stats\s+for\s+\S+|commission|payout|claimable|overdue|unassigned|uncontacted|ad\s*spend|marketing\s*spend|\broi\b|\bcpl\b|\bcpd\b|facebook|\bfb\b|\bmeta\b|instagram|tiktok|google|olx|dubizzle|bayut|property\s*finder|nawy|lead\s+sources?|leases?\s+ending|win\s*\/?\s*loss|win\s*rate|lost\s+reasons?|agency\s+brief|executive\s+brief|dashboard|overview|مستنين.*ساع|انتظار.*ساع|قربت.*ساع|قربوا\s+يعدوا|فتحوا.*(?:عرض|الرابط|اللينك).*متابع|بدون\s+خطوه?\s*(?:جاي|تالي)|مبيحدث|مش بيحدث|مفيش\s+تحديث|بدون\s*تحديث|التزام.*تحديث|صامت|تقييم\s+\S+|عملت?\s+ايه|فريق\s+\S+|\S+\s+فريق|(?:كام|كم)\s+(?:معاين|مكالم|تحديث|عميل|صفق|شقه|فيلا|وحده|دوبلكس|ستوديو|شاليه|بنتهاوس|مكتب|محل|تاون|توين)|معاينات\s+(?:النهارده|بكره|اليوم)|صفقات\s+(?:ريسيل|برايمر|في|قفلها|شارك)|وقت\s+الرد|متوسط\s+الرد|اول\s+رد|فيسبوك|فيس بوك|انستجرام|تيك توك|جوجل|دوبيزل|بروبرتي|بيوت|نوي|عمولات|عموله|صرف\s*تسويق|مصادر\s*العملاء|ايجارات|خسار|معدل القفل|ملخص الشركه|اداء الشركه)/i.test(q);
+  return /(waiting\s*(?:over|>)\s*1|waiting\s+(?:for\s+)?(?:contact|to\s+be\s+called)|delayed\s+(?:first\s+contact|reply)|late\s+first\s+contact|no\s+first\s+contact|haven'?t\s+been\s+called|without\s+(?:a\s+)?(?:broker|agent|owner)|no\s+broker|not\s+assigned|unallocated|calls?\s+(?:due\s+)?today|approaching\s+sla|near\s+sla|sla\s+soon|about\s+to\s+breach|almost\s+overdue|opened.*(?:without|no)\s+follow|open(?:ed)?\s+(?:offer|link).*no\s+follow|no\s+next\s+step|missing\s+next\s+step|not\s+updating|silent\s+broker|quiet\s+broker|inactive\s+broker|who.*updat|scorecard|(?:how\s+is|performance\s+of|scorecard\s+for|status\s+of|summary\s+for|report\s+for)\s+\S+|what\s+(?:did|has)\s+.+\s+(?:do|done)|how\s+did\s+.+\s+do|\S+(?:'s|’s)\s+team\b|(?:the|my|our)\s+team\b|\bteam\s+(?:workload|activity|performance|calls|viewings|updates|deals|stats|summary)\b|(?:viewings?|showings?|calls?|updates?)\s+(?:by|for|of)\s+\S+|how\s+many\s+(?:viewings?|showings?|calls?|updates?|leads?|deals?|apartments?|villas?|units?|duplex(?:es)?|studios?|chalets?|penthouses?|offices?|shops?|townhouses?|twin\s*houses?)\s+(?:did|does|do)?|\b(?:viewings?|showings?)\s+(?:today|tomorrow|yesterday|this\s+week|last\s+week|next\s+week)\b|(?:upcoming|scheduled)\s+(?:viewings?|showings?)|who\s+has\s+(?:a\s+)?(?:showing|viewing)|(?:resale|primary)\s+deals?|deals?\s+(?:in|by|for|closed|involved|resale|primary)|(?:average|avg|median|first|reply)\s*response|response\s+time|how\s+fast.*(?:respond|reply)|speed\s+to\s+lead|fastest|slowest|stats\s+for\s+\S+|commission|payout|claimable|overdue|(?:missed|late|pending)\s+follow[ -]?ups?|unassigned|uncontacted|not\s+contacted|never\s+contacted|not\s+called|nobody\s+called|ad\s*spend|marketing\s*spend|\broi\b|\bcpl\b|\bcpd\b|facebook|\bfb\b|\bmeta\b|instagram|tiktok|google|olx|dubizzle|bayut|property\s*finder|nawy|lead\s+sources?|where\s+are\s+leads\s+coming\s+from|best\s+lead\s+source|leases?\s+ending|renewals?|win\s*\/?\s*loss|win\s*rate|conversion\s*rate|closing\s*rate|lost\s+reasons?|agency\s+brief|executive\s+brief|daily\s+brief|today'?s\s+summary|what\s+happened\s+today|how\s+are\s+we\s+doing|dashboard|overview|(?:من\s+غير|بدون)\s+(?:وسيط|بروكر|سيلز|حد)|مش\s+متوزع|لسه\s+متوزعوش|مش\s+متسلم|لسه\s+متسلموش|مفيش\s+حد\s+مسكهم|محدش\s+استلمهم|ملهمش\s+(?:وسيط|بروكر)|تاخر\s+اول\s+تواصل|تاخير\s+اول\s+تواصل|ات[اأ]خر(?:وا)?\s+في\s+اول\s+تواصل|محدش\s+كلم|لسه\s+متكلموش|محدش\s+اتصل|مكالمات\s+النهارده|متابعات\s+(?:متاخره|فايته|عدت)|مستنين.*(?:ساع|تواصل|رد)|انتظار.*ساع|بقالهم.*ساع|اكتر\s+من\s+ساع|عدي\s+ساعه|قربت.*ساع|قربوا\s+(?:يعدوا|يكسروا|يخلصوا|يتاخروا)|فتحوا.*(?:عرض|الرابط|اللينك).*(?:متابع|كلم)|شافوا\s+العرض|بدون\s+(?:خطوه|متابعه)\s*(?:جاي|تالي)|من\s+غير\s+خطوه|مبيحدث|مبيحدثش|مبيحدثوش|مش\s+بيحدث|مفيش\s+تحديث|بدون\s*تحديث|التزام.*(?:تحديث|فريق)|تحديثات\s+الوسطاء|(?:الوسطاء|البروكرز)?\s*اللي\s+مش\s+بيردوا|مش\s+بيردوا|مبيردوش|مش\s+بيتابعوا|مبيتابعوش|صامت|مين\s+(?:ساحب|نايم|مش\s+(?:شغال|بيرد|بيتابع))|(?:ايه\s+اخبار|اخبار|اداء|تقييم|شغل|ملخص|احصائيات|نتايج|ارقام)\s+\S+|\S+\s+(?:عمل|عملت|سجل|سجلت|كلم|كلمت|حدث|حدثت|قفل|قفلت|جاب|جابت)\s*(?:ايه|كام)?|(?:فريق|تيم)\s+\S+|\S+\s+(?:فريق|تيم)|(?:كام|كم)\s+(?:معاين|مكالم|تحديث|عميل|صفق|شقه|فيلا|وحده|دوبلكس|ستوديو|شاليه|بنتهاوس|مكتب|محل|تاون|توين)|معاينات\s+(?:النهارده|بكره|اليوم|امتي)|عندنا\s+(?:كام\s+)?معاين|جدول\s+المعاينات|صفقات\s+(?:ال)?(?:ريسيل|برايمر|في|قفلها|شارك)|وقت\s+الرد|متوسط\s+الرد|اول\s+رد|اسرع\s*(?:رد|واحد)|ابط[اأ]\s*(?:رد|واحد)|سرعه\s+الرد|بنرد\s+في\s+قد\s+ايه|فيسبوك|فيس\s*بوك|انستجرام|تيك\s*توك|جوجل|اوليكس|دوبيزل|بروبرتي|بيوت|نوي|عمولات|عموله|مستحقات\s+المطورين|صرف\s*تسويق|مصادر\s*(?:ال)?عملاء|احسن\s+مصدر|افضل\s+مصدر|العملاء\s+جايين\s+منين|عقود\s*(?:ال)?ايجار|ايجارات|تجديد\s+الايجار|خسار|ليه\s+بنخسر|الصفقات\s+اللي\s+ضاعت|معدل\s+القفل|نسبه\s+(?:القفل|النجاح)|(?:ملخص|لوحه|اداء|حاله|وضع|اخبار)\s+الشركه|تقرير\s+اليوم|الوضع\s+ايه)/i.test(q);
 }
 
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList<ApiUnitListItem>);
@@ -402,9 +402,10 @@ export function SearchScreen() {
   const primaryView = Boolean(submitted && source === 'primary');
   const busy = search.isPending || answer.isPending || assistant.isPending;
   const clearDisabled = busy || loadingMore || transcribing || !(submitted || text || report || recent.length || assistant.data);
-  const clearChat = () => {
+  const resetToHome = useCallback(() => {
     generation.current += 1;
     Keyboard.dismiss();
+    setPracticing(false);
     setText('');
     setSubmitted('');
     setReport(null);
@@ -420,8 +421,6 @@ export function SearchScreen() {
     setDealLastMonth(false);
     setClarification('');
     setVoiceError(null);
-    clearedRecents.current = true;
-    setRecent([]);
     hidden.value = false;
     lastY.value = 0;
     slide.value = 0;
@@ -429,15 +428,35 @@ export function SearchScreen() {
     setAssistantSuggestPrimary(false);
     setAssistantContext(null);
     setVoiceConfirmOrigin(null);
-    search.reset();
-    answer.reset();
-    assistant.reset();
+    resetSearch();
+    resetAnswer();
+    resetAssistant();
+  }, [hidden, lastY, resetAnswer, resetAssistant, resetSearch, slide]);
+  const clearChat = () => {
+    resetToHome();
+    clearedRecents.current = true;
+    setRecent([]);
     if (recentKey) AsyncStorage.removeItem(recentKey).catch(() => undefined);
   };
   const data = search.data ?? assistantUnits;
   const counts = data?.counts ?? (search.isPending ? statusCounts : undefined);
   const statusSelection = useSelectionHighlight(last?.status, greenGradient);
   const atHome = !report && !submitted && !data && !search.isError && !busy && !assistant.data && !assistant.isError;
+  const focused = useIsFocused();
+  useEffect(() => {
+    const addListener = (nav as unknown as { addListener?: (event: string, cb: () => void) => () => void }).addListener;
+    if (typeof addListener !== 'function') return undefined;
+    return addListener('tabPress', resetToHome);
+  }, [nav, resetToHome]);
+  useEffect(() => {
+    if (!focused || (!practicing && atHome)) return undefined;
+    const sub = BackHandler?.addEventListener?.('hardwareBackPress', () => {
+      if (practicing) { Keyboard.dismiss(); setPracticing(false); return true; }
+      if (!atHome) { resetToHome(); return true; }
+      return false;
+    });
+    return () => sub?.remove();
+  }, [atHome, focused, practicing, resetToHome]);
   const showInvitation = Boolean(invitation && invitation === practiceKey);
   const openHomeReport = (value: SearchView, queue?: LeadQueue) => {
     setAssistantContext(null);
@@ -457,7 +476,7 @@ export function SearchScreen() {
         <Button label={ar ? 'جرّب البحث' : 'Try Search'} onPress={startPractice} variant="secondary" size="sm" testID="practice-start" />
         <Button label={ar ? 'تخطّي' : 'Skip'} onPress={dismissInvitation} variant="quiet" size="sm" testID="practice-skip" />
       </View> : null}>
-      <HomeRow testID="search-tools" title={ar ? 'أدوات البحث' : 'Search tools'} icon="search" expanded={toolsOpen}
+      <HomeRow testID="search-tools" title={ar ? 'اختصارات البحث' : 'Search shortcuts'} icon="search" expanded={toolsOpen}
         onPress={() => setToolsOpen((value) => !value)} />
       {toolsOpen ? <Animated.View entering={FadeIn.duration(180).reduceMotion(ReduceMotion.System)} exiting={FadeOut.duration(100).reduceMotion(ReduceMotion.System)} style={styles.tools}>
         {!showInvitation ? <HomeRow title={ar ? 'جرّب البحث' : 'Try Search'} onPress={startPractice} icon="help" testID="practice-replay" /> : null}
@@ -625,7 +644,7 @@ export function SearchScreen() {
                 }}
                 onOpenQueue={(queue) => openHomeReport('leads', queue)}
                 extraFooter={assistant.data.projects && assistant.data.projects.total_projects > 0
-                  ? <AskResults showStatus key={submitted} q={submitted} initial={assistant.data.projects} onOpenProject={(id, name) => nav.navigate('Project', { id, name })} />
+                  ? <AskResults showStatus hideAnswerLine key={submitted} q={submitted} initial={assistant.data.projects} onOpenProject={(id, name) => nav.navigate('Project', { id, name })} />
                   : undefined}
               />
             ) : <Loading label={t(lang, 'loading')} />
@@ -641,7 +660,7 @@ export function SearchScreen() {
               {answer.data.dataDates ? <Text style={{ color: colors.muted }}>{answer.data.dataDates}</Text> : null}
               <Button variant="secondary" label={t(lang, 'copyAnswer')} onPress={() => { if (answer.data) void Share.share({ message: answer.data.answer }).catch(() => undefined); }} />
             </View> : null}
-            <AskResults showStatus key={submitted} q={submitted} onOpenProject={(id, name) => nav.navigate('Project', { id, name })} />
+            <AskResults showStatus={!answer.isPending} key={submitted} q={submitted} onOpenProject={(id, name) => nav.navigate('Project', { id, name })} />
           </ScrollView>
         ) : body}
       </Animated.View>

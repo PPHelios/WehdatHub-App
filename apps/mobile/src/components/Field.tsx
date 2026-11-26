@@ -6,7 +6,8 @@ import { useBusyDisabled } from '../busy';
 import { radius, spacing, useTheme } from '../theme';
 
 /** Text that starts with Arabic sits at the right edge and Latin text at the left, whatever the screen's direction. */
-function alignOf(v: unknown) {
+function alignOf(v: unknown, isPhoneField = false) {
+  if (isPhoneField) return { direction: 'ltr' as const, textAlign: 'left' as const, writingDirection: 'ltr' as const };
   const first = typeof v === 'string' ? v.match(/[A-Za-z؀-ۿ]/)?.[0] : undefined;
   if (!first) {
     // A bare phone number keeps its digit groups in order inside the RTL layout.
@@ -28,7 +29,7 @@ export function Field({ label, required, invalid, hint, ...props }: { label: str
     <View style={styles.wrap}>
       <Text style={[styles.label, { color: colors.muted }]}>{labelText}{required ? <Text style={{ color: colors.primaryInk }}> *</Text> : null}</Text>
       <View style={[styles.ring, focus && !invalid && !emptyRequired && { backgroundColor: colors.primarySoft }]}>
-      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} onFocus={(e) => { setFocus(true); props.onFocus?.(e); }} onBlur={(e) => { setFocus(false); props.onBlur?.(e); }} editable={props.editable !== false && !busy} style={[styles.input, { color: colors.text, borderColor, backgroundColor: emptyRequired && !invalid ? colors.requiredField : colors.field }, props.multiline && styles.multi, alignOf(props.value ?? props.defaultValue), props.style]} />
+      <TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} {...props} onFocus={(e) => { setFocus(true); props.onFocus?.(e); }} onBlur={(e) => { setFocus(false); props.onBlur?.(e); }} editable={props.editable !== false && !busy} style={[styles.input, { color: colors.text, borderColor, backgroundColor: emptyRequired && !invalid ? colors.requiredField : colors.field }, props.multiline && styles.multi, alignOf(props.value ?? props.defaultValue, props.keyboardType === 'phone-pad' || props.textContentType === 'telephoneNumber'), props.style]} />
       </View>
       {hint ? <Text testID="field-hint" style={[styles.label, { color: colors.accent }]}>{`\u202A${hint}\u202C`}</Text> : null}
     </View>

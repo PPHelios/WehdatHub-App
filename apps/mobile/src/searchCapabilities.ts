@@ -9,7 +9,7 @@ export type SearchIntent =
   | { kind: 'search' | 'clarify' };
 
 const queues: [LeadQueue, RegExp][] = [
-  ['unassigned', /unassigned|without (?:a )?(?:broker|agent)|من غير (?:وسيط|بروكر)|مش متوزع|مفيش حد مسكهم/],
+  ['unassigned', /unassigned|without (?:a )?(?:broker|agent)|(?:من غير|بدون) (?:وسيط|بروكر)|مش متوزع|مفيش حد مسكهم/],
   ['uncontacted', /uncontacted|not contacted|nobody (?:called|contacted)|محدش كلم|لسه ما اتكلموش|لسه متكلموش/],
   ['late-response', /late (?:first )?(?:reply|response)|(?:first )?response deadline|delayed response|ميعاد اول رد عدي|تاخير الرد|متاخرين في الرد/],
   ['overdue', /overdue follow[ -]?ups?|متابعات متاخره|المتابعات اللي اتاخرت/],

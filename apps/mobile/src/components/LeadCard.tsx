@@ -6,7 +6,7 @@ import { stageLabel, t } from '../i18n';
 import { greenGradient, radius, spacing, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 import { Chevron, Icon } from './Icon';
-import { PhoneText } from './PhoneText';
+import { looksLikePhone, PhoneText } from './PhoneText';
 import { Pill } from './Pill';
 import { InitialAvatar } from './InitialAvatar';
 
@@ -29,7 +29,9 @@ export const LeadCard = memo(function LeadCard({ lead, lang, phoneVisibility = '
       style={({ pressed }) => [styles.card, { backgroundColor: selected ? colors.primarySoft : colors.card, borderColor: selected ? colors.primary : colors.border, opacity: disabled ? 0.6 : pressed ? 0.84 : 1 }]}>
       <InitialAvatar name={lead.name} />
       <View style={styles.content}>
-        <Text style={[styles.name, { color: colors.text }]} numberOfLines={2}>{lead.name || lead.ref}</Text>
+        {looksLikePhone(lead.name)
+          ? <PhoneText value={lead.name!} style={[styles.name, { color: colors.text }]} numberOfLines={2} />
+          : <Text style={[styles.name, { color: colors.text }]} numberOfLines={2}>{lead.name || lead.ref}</Text>}
         <View style={styles.chips}>
           <Pill tone="primary" label={stageLabel(lang, lead.stage)} />
           {lead.name && lead.name !== lead.ref ? <Pill label={lead.ref} /> : null}

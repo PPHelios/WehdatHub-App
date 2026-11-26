@@ -38,8 +38,12 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
           const label = typeof options.title === 'string' ? options.title : route.name;
           const press = () => {
             const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!focused && !e.defaultPrevented) { tick(); navigation.navigate(route.name, route.params); }
-            else if (!focused) tick();
+            if (!e.defaultPrevented) {
+              tick();
+              if (!focused) navigation.navigate(route.name, route.params);
+            } else if (!focused) {
+              tick();
+            }
           };
           return (
             <Pressable key={route.key} onLayout={measure(route.key)} testID={`tab-${route.name}`} accessibilityRole="tab" accessibilityState={{ selected: focused }} accessibilityLabel={label} onPress={press} onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })} style={({ pressed }) => [styles.item, { opacity: pressed ? 0.6 : 1 }]}>

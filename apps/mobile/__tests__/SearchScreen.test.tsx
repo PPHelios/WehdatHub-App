@@ -455,15 +455,11 @@ test('owner Search home renders server priorities in order, deduplicates Today c
     expect(mockNavigate).toHaveBeenCalledWith('Requests');
     await fireEvent.press(screen.getByTestId('home-owner-names'));
     expect(mockNavigate).toHaveBeenCalledWith('Owners');
-    await fireEvent.press(screen.getByTestId('home-commissions'));
-    expect(mockNavigate).toHaveBeenCalledWith('Commissions', { kind: 'developers', overdue: true });
-    await fireEvent.press(screen.getByTestId('home-leases'));
-    expect(mockNavigate).toHaveBeenCalledWith('Leases');
     await fireEvent.press(screen.getByTestId('home-missing-photos'));
     expect(mockNavigate).toHaveBeenCalledWith('UnitsList', { missingPhotos: true });
 
-    await fireEvent.press(screen.getByTestId('home-waiting-1h'));
-    await waitFor(() => expect(api.leads).toHaveBeenCalledWith(expect.objectContaining({ queue: 'waiting-over-1h' })));
+    await fireEvent.press(screen.getByTestId('home-commissions'));
+    await waitFor(() => expect(api.assistantQuery).toHaveBeenCalledWith(expect.objectContaining({ q: 'Developer commissions due' })));
     await result.unmount();
   } finally {
     useAuth.setState({ broker: previous });
@@ -1076,4 +1072,29 @@ test('auto mode routes contextual follow-ups and Wave 2/3 queries to assistant, 
   await fireEvent.press(await screen.findByTestId('assistant-view-all-markets'));
   await waitFor(() => expect(mocked.search).toHaveBeenCalledWith('villa in zayed', expect.objectContaining({ drop: false, status: 'active' })));
   expect(screen.queryByTestId('mode-lock-chip')).toBeNull();
+});
+
+test('searching unassigned leads in Arabic or English routes to assistantQuery instead of SearchLeads', async () => {
+  jest.clearAllMocks();
+  const mocked = api as jest.Mocked<typeof api>;
+  mocked.assistantQuery.mockResolvedValue({
+    intent: 'crm_leads',
+    headline: 'Unassigned leads · 1',
+    cards: [{ kind: 'stuck_leads', queue: 'unassigned', total: 1, recommendedBrokers: [], canAssign: false, canNudge: false, items: [] }],
+    actions: [],
+    links: [],
+    aiUsed: false,
+  });
+
+  await wrap();
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'عملاء من غير وسيط');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(mocked.assistantQuery).toHaveBeenCalledWith(expect.objectContaining({ q: 'عملاء من غير وسيط' })));
+  expect(screen.queryByTestId('search-lead-lookup')).toBeNull();
+
+  await fireEvent.press(screen.getByTestId('search-clear-chat'));
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'without broker');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  await waitFor(() => expect(mocked.assistantQuery).toHaveBeenCalledWith(expect.objectContaining({ q: 'without broker' })));
+  expect(screen.queryByTestId('search-lead-lookup')).toBeNull();
 });

@@ -514,7 +514,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   );
 
   const field = textMode ? (
-    <View style={styles.inputWrap}>
+    <View style={[styles.inputWrap, { flexDirection: lang === 'ar' ? 'row-reverse' : 'row' }]}>
       <TextInput
         testID={`${id}-input`}
         style={[
@@ -522,7 +522,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
           multiline ? { minHeight: compact ? 44 : BTN, maxHeight: maxInputHeight, paddingVertical: 10 } : pillHeight,
           styles.input,
           compact && (multiline ? { fontSize: 14 } : styles.compactInput),
-          { color: colors.text, borderColor: 'transparent', backgroundColor: 'transparent', textAlign: lang === 'ar' ? 'right' : 'left', writingDirection: lang === 'ar' ? 'rtl' : 'ltr', paddingEnd: 36 },
+          { color: colors.text, borderColor: 'transparent', backgroundColor: 'transparent', textAlign: lang === 'ar' ? 'right' : 'left', writingDirection: lang === 'ar' ? 'rtl' : 'ltr' },
         ]}
         value={value}
         onChangeText={onChangeText}
@@ -540,7 +540,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
           accessibilityLabel={lang === 'ar' ? 'مسح النص' : 'Clear text'}
           hitSlop={10}
           onPress={() => onChangeText?.('')}
-          style={[styles.clearBtn, { [I18nManager.isRTL ? 'left' : 'right']: 12 }]}
+          style={styles.clearBtn}
         >
           <View style={[styles.clearCircle, { backgroundColor: colors.border }]}>
             <Icon name="cross" size={12} color={colors.text} />
@@ -607,8 +607,8 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
 
 const styles = StyleSheet.create({
   row: { alignItems: 'center', gap: spacing.sm },
-  inputWrap: { flex: 1, position: 'relative', justifyContent: 'center' },
-  clearBtn: { position: 'absolute', top: 0, bottom: 0, justifyContent: 'center', zIndex: 10 },
+  inputWrap: { flex: 1, alignItems: 'center' },
+  clearBtn: { justifyContent: 'center', paddingHorizontal: 10 },
   clearCircle: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   pill: { borderWidth: 1, borderRadius: radius.lg * 2, flex: 1 },
   input: { margin: 0, paddingHorizontal: spacing.lg, fontSize: 16 },
