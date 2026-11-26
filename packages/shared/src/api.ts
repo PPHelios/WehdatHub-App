@@ -315,6 +315,7 @@ export type AssistantAction =
 export type AssistantCard =
   | {
       kind: 'stuck_leads';
+      title?: string;
       queue: string;
       total: number;
       recommendedBrokers: { id: string; name: string; open: number }[];
@@ -416,11 +417,13 @@ export interface SentLink { createdAt: string; unitCode: string; compound: strin
 export interface ViewingSet { lead: ApiLead; viewing: { id: string; startsAt: string; place: string | null; status: string }; url: string; message: string; wa: string | null }
 export interface LeadDetail { lead: ApiLead; timeline: LeadEvent[]; canClaim?: boolean; canCollaborate?: boolean; canWork?: boolean; canAssign?: boolean }
 export interface AppSettingsSwitches {
-  brokersMayWrite: boolean;
-  dataEntryOwners: boolean;
+  brokersMayWrite?: boolean;
+  dataEntryOwners?: boolean;
   brokersSeeAllLeads?: boolean;
   brokersWorkSharedLeads?: boolean;
   brokersEditColleagueUnits?: boolean;
+  dataEntryMissingPhotos?: boolean;
+  dataEntryOverdueUnits?: boolean;
 }
 export interface NewLead { phone1: string; phone2?: string; name?: string; kind?: ApiLead['kind']; notes?: string; lawfulBasis?: 'client_request' | 'consent' | 'existing_client' }
 /** The fields of the add-unit form use the website form's names (strings, features as an array). */
@@ -743,10 +746,12 @@ export function createApiClient(opts: ApiClientOptions) {
     saveNotificationSettings: (body: NotificationSettingsInput) => request<NotificationSettings>('PUT', '/notification-settings', body),
     appSettings: () => request<{ draftStyle: string; quietLine: boolean; switches: AppSettingsSwitches | null }>('GET', '/settings'),
     saveAppSettings: (body: { draftStyle?: string; quietLine?: boolean; switches?: Partial<AppSettingsSwitches> }) => request<{ ok: true }>('POST', '/settings', body),
+    trialOptions: () => request<{ enabled: boolean; waAvailable: boolean; tiers: Record<'solo' | 'team', { enabled: boolean; days: number; credits: number; seats: number; units: number }> }>('GET', '/auth/trial-options'),
+    signup: (body: { name: string; phone: string; agency?: string; tier?: 'solo' | 'team'; channel?: 'telegram' | 'whatsapp'; lang?: 'ar' | 'en' }) => request<{ ok: boolean; channel: 'telegram' | 'whatsapp'; verifyUrl: string; phone: string; codeMinutes: number }>('POST', '/auth/signup', body),
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
-    me: (signal?: AbortSignal) => request<{ broker: ApiBroker; workspace?: ApiWorkspace | null; inviteRoles?: string[]; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me', undefined, undefined, signal),
+    me: (signal?: AbortSignal) => request<{ broker: ApiBroker; workspace?: ApiWorkspace | null; inviteRoles?: string[]; onboarding?: { hasUnit: boolean; hasSharedLink: boolean; telegramConnected: boolean }; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me', undefined, undefined, signal),
     testRole: (role: string) => request<{ ok: true; role: string }>('POST', '/test-role', { role }),
     testView: (view: 'home' | 'other') => request<{ ok: true; viewing: boolean }>('POST', '/test-view', { view }),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
