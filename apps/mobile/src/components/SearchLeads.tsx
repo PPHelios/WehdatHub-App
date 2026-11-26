@@ -109,6 +109,7 @@ export function SearchLeads({ assignedInitially, initialQueue, lookup, matching 
         { value: 'all', label: t(lang, 'tabAll') },
         { value: 'unassigned', label: ar ? 'من غير وسيط' : 'Unassigned' },
         { value: 'uncontacted', label: ar ? 'محدش كلمهم' : 'Uncontacted' },
+        ...(initialQueue === 'waiting-over-1h' ? [{ value: 'waiting-over-1h' as const, label: ar ? 'مستنين أكتر من ساعة' : 'Waiting > 1h' }] : []),
         ...(initialQueue === 'delayed-first-contact' ? [{ value: 'delayed-first-contact' as const, label: ar ? 'تأخر أول تواصل' : 'Delayed first contact' }] : []),
         { value: 'late-response', label: ar ? 'ميعاد أول رد عدّى' : 'First response due' },
         { value: 'overdue', label: t(lang, 'tabOverdue') },

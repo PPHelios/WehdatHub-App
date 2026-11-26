@@ -70,7 +70,7 @@ export function PortalEnquiryScreen() {
   const brokers = (team.data?.items ?? []).filter((m) => !m.away);
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {!enquiry && !error ? <><ActivityIndicator color={colors.primary} /><Text style={{ color: colors.muted }}>{t(lang, 'peReading')}</Text></> : null}
+      {!enquiry && !error ? <><ActivityIndicator color={colors.spinner} /><Text style={{ color: colors.muted }}>{t(lang, 'peReading')}</Text></> : null}
       {enquiry ? (
         <>
           <Text testID="pe-portal" style={[styles.h, { color: colors.text }]}>{t(lang, 'pePortal')}: {enquiry.portal}</Text>
@@ -79,7 +79,7 @@ export function PortalEnquiryScreen() {
           <Text testID="pe-listing" style={{ color: colors.muted }}>{t(lang, 'peListing')}: {enquiry.listingNo || '—'}</Text>
           <Field label={t(lang, 'pePhone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="pe-phone" hint={phoneHelp(lang)} />
           <Text style={{ color: colors.text, fontWeight: '600' }}>{t(lang, 'peBroker')}</Text>
-          {team.isPending ? <ActivityIndicator color={colors.primary} /> : null}
+          {team.isPending ? <ActivityIndicator color={colors.spinner} /> : null}
           <Chips<string> testID="pe-broker" options={brokers.map((m) => ({ value: m.id, label: m.me ? `${m.name} (${t(lang, 'me')})` : m.name }))} value={brokerId} onChange={(v) => setBrokerId(v === brokerId ? '' : v)} />
         </>
       ) : null}

@@ -14,6 +14,7 @@ import { radius, spacing, useTheme } from '../theme';
 import { toast } from './Toast';
 import type { IconName } from './Icon';
 import { HomeRow } from './HomeRow';
+import { UrgencyBadge, type BadgeTone } from './SectionCard';
 
 /** The cards under Today's task list, from the same result the website shows (server: services/today.js). */
 export function OldUnitActions({ code }: { code: string }) {
@@ -46,29 +47,32 @@ export function TodayCards({ cards, only, onShowAll }: { cards: Cards; only?: 'o
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const [open, setOpen] = useState(false);
-  /** An overview row: a tinted icon badge, a bold title, the figures under it, and an arrow. */
-  const tile = (key: string, icon: IconName, title: string, detail: string, onPress: () => void, side?: string) => (
-    <HomeRow key={key} icon={icon} title={title} detail={detail} value={side} onPress={onPress} />
+  /** An overview row ordered by urgency (ops -> commissions -> approvals -> target) matching Dashboard & SearchHome. */
+  const tile = (key: string, icon: IconName, title: string, detail: string, onPress: () => void, side?: string, urgencyTone?: BadgeTone) => (
+    <HomeRow key={key} testID={`today-card-${key}`} icon={icon} title={title} detail={detail} value={side} urgent={urgencyTone === 'critical'} onPress={onPress}>
+      {urgencyTone ? <UrgencyBadge testID={`today-badge-${key}`} tone={urgencyTone} label={urgencyTone === 'critical' ? (lang === 'ar' ? 'عاجل' : 'Urgent') : (lang === 'ar' ? 'مراجعة' : 'Review')} /> : undefined}
+    </HomeRow>
   );
   const info: React.ReactNode[] = [];
   if (!only) {
+    if (cards.ops) {
+      const o = cards.ops;
+      const bits = [o.unassigned ? `${o.unassigned} ${t(lang, 'tcNoBroker')}` : '', o.uncontactedOld ? `${o.uncontactedOld} ${t(lang, 'tcNotContacted')}` : '', o.overdue ? `${o.overdue} ${t(lang, 'tcOverdue')}` : ''].filter(Boolean);
+      const tone: BadgeTone | undefined = o.unassigned || o.overdue ? 'critical' : o.uncontactedOld ? 'warn' : undefined;
+      info.push(tile('ops', 'team', t(lang, o.team ? 'tcTeam' : 'tcAgency'), bits.join(' · '), () => nav.navigate('LeadsList', { tab: 'overdue' }), undefined, tone));
+    }
+    if (cards.commissions) {
+      const m = cards.commissions;
+      const bits = [m.overdue ? `${m.overdue} ${t(lang, 'tcOverdue')}` : '', m.registrations ? `${m.registrations} ${t(lang, 'tcRegistrations')}` : ''].filter(Boolean);
+      info.push(tile('commissions', 'money', t(lang, 'tcCommissions'), bits.join(' · '), () => nav.navigate('Commissions', { kind: 'developers', overdue: m.overdue > 0 }), undefined, m.overdue > 0 ? 'critical' : 'warn'));
+    }
+    if (cards.approvals?.access) info.push(tile('access', 'lock', `${cards.approvals.access} ${t(lang, 'tcAccess')}`, '', () => nav.navigate('Requests'), undefined, 'warn'));
+    if (cards.approvals?.names) info.push(tile('names', 'edit', `${cards.approvals.names} ${t(lang, 'tcNames')}`, '', () => nav.navigate('Owners'), undefined, 'warn'));
     if (cards.target) {
       const g = cards.target;
       const parts = [g.targetDeals ? `${g.deals}/${g.targetDeals} ${t(lang, 'tcDeals')}` : '', g.targetCommission ? `${g.commission.toLocaleString('en-US')}/${g.targetCommission.toLocaleString('en-US')} ${t(lang, 'tcEgp')}` : ''].filter(Boolean);
       info.push(tile('target', 'gauge', t(lang, 'tcTarget'), parts.join(' · '), () => nav.navigate('Deals'), `${g.daysLeft} ${t(lang, 'tcDaysLeft')}`.replace(/^(\d+) (.*)$/, lang === 'ar' ? '$2 $1' : '$1 $2')));
     }
-    if (cards.ops) {
-      const o = cards.ops;
-      const bits = [o.unassigned ? `${o.unassigned} ${t(lang, 'tcNoBroker')}` : '', o.uncontactedOld ? `${o.uncontactedOld} ${t(lang, 'tcNotContacted')}` : '', o.overdue ? `${o.overdue} ${t(lang, 'tcOverdue')}` : ''].filter(Boolean);
-      info.push(tile('ops', 'team', t(lang, o.team ? 'tcTeam' : 'tcAgency'), bits.join(' · '), () => nav.navigate('LeadsList', { tab: 'overdue' })));
-    }
-    if (cards.commissions) {
-      const m = cards.commissions;
-      const bits = [m.overdue ? `${m.overdue} ${t(lang, 'tcOverdue')}` : '', m.registrations ? `${m.registrations} ${t(lang, 'tcRegistrations')}` : ''].filter(Boolean);
-      info.push(tile('commissions', 'money', t(lang, 'tcCommissions'), bits.join(' · '), () => nav.navigate('Commissions')));
-    }
-    if (cards.approvals?.access) info.push(tile('access', 'lock', `${cards.approvals.access} ${t(lang, 'tcAccess')}`, '', () => nav.navigate('Requests')));
-    if (cards.approvals?.names) info.push(tile('names', 'edit', `${cards.approvals.names} ${t(lang, 'tcNames')}`, '', () => nav.navigate('Owners')));
   }
   const showAll = onShowAll ?? (() => nav.navigate('UnitsList', { old: true }));
   const days = (n: number) => `${n} ${t(lang, 'tcDays')}`;

@@ -30,7 +30,7 @@ function leadTarget(value: string) {
 
 export function readLeadCommand(text: string): Parsed {
   const move = /^(?:move|change|انقل|غيّر|غير)\s+(.+?)\s+(?:to|إلى|الى|الي|إلي|لـ)\s+([^;؛]+)(.*)$/i.exec(text);
-  const noteOnly = /^(?:note|add (?:a )?note to|ملاحظ[ةه]|ضيف ملاحظ[ةه] (?:لـ|ل))\s+(.+?)(?:\s*:\s*|\s+(?:that|إن|ان)\s+)(.+)$/is.exec(text);
+  const noteOnly = /^(?:note|add (?:a )?note to|ملاحظ[ةه](?:\s+(?:لـ|ل|على))?|ضيف ملاحظ[ةه](?:\s+(?:لـ|ل|على))?)\s+(.+?)(?:\s*:\s*|\s+(?:that|إن|ان)\s+)(.+)$/is.exec(text);
   if (noteOnly) {
     const target = leadTarget(noteOnly[1]);
     return target && noteOnly[2].trim() ? { ...target, note: noteOnly[2].trim() } : 'incomplete';

@@ -53,6 +53,10 @@ interface Props {
   placeholder?: string;
   onSubmit?: () => void;
   accessory?: React.ReactNode;
+  leadingAccessory?: React.ReactNode;
+  hideLeadingWhenTyping?: boolean;
+  multiline?: boolean;
+  maxInputHeight?: number;
   actionDecoration?: React.ReactNode;
   compact?: boolean;
 }
@@ -103,7 +107,7 @@ function BinDrop({ progress, color, reduced }: { progress: { value: number }; co
  * The button is a mic when the box is empty (hold to record, lift to send, slide left to cancel, slide up to lock)
  * and a send arrow when there is text. Without text input it is a mic-only bar.
  */
-export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = false, value, onChangeText, placeholder, onSubmit, accessory, actionDecoration, compact = false }: Props) {
+export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = false, value, onChangeText, placeholder, onSubmit, accessory, leadingAccessory, hideLeadingWhenTyping = false, multiline = false, maxInputHeight = 88, actionDecoration, compact = false }: Props) {
   const { colors } = useTheme();
   const lang = currentLang();
   const reduced = useReducedMotion();
@@ -513,14 +517,21 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     <View style={styles.inputWrap}>
       <TextInput
         testID={`${id}-input`}
-        style={[styles.pill, pillHeight, styles.input, compact && styles.compactInput, { color: colors.text, borderColor: 'transparent', backgroundColor: 'transparent', textAlign: lang === 'ar' ? 'right' : 'left', writingDirection: lang === 'ar' ? 'rtl' : 'ltr', paddingEnd: 36 }]}
+        style={[
+          styles.pill,
+          multiline ? { minHeight: compact ? 44 : BTN, maxHeight: maxInputHeight, paddingVertical: 10 } : pillHeight,
+          styles.input,
+          compact && (multiline ? { fontSize: 14 } : styles.compactInput),
+          { color: colors.text, borderColor: 'transparent', backgroundColor: 'transparent', textAlign: lang === 'ar' ? 'right' : 'left', writingDirection: lang === 'ar' ? 'rtl' : 'ltr', paddingEnd: 36 },
+        ]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={colors.muted}
         returnKeyType="search"
+        submitBehavior={multiline ? 'submit' : undefined}
         onSubmitEditing={onSubmit}
-        multiline={false}
+        multiline={multiline}
       />
       {value && value.length > 0 ? (
         <Pressable
@@ -529,7 +540,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
           accessibilityLabel={lang === 'ar' ? 'مسح النص' : 'Clear text'}
           hitSlop={10}
           onPress={() => onChangeText?.('')}
-          style={[styles.clearBtn, { [lang === 'ar' ? 'left' : 'right']: 12 }]}
+          style={[styles.clearBtn, { [I18nManager.isRTL ? 'left' : 'right']: 12 }]}
         >
           <View style={[styles.clearCircle, { backgroundColor: colors.border }]}>
             <Icon name="cross" size={12} color={colors.text} />
@@ -543,8 +554,10 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     </View>
   );
 
+  const showLeading = phase === 'idle' && (!hideLeadingWhenTyping || (!hasText && !busy));
   return (
     <View style={[styles.row, rowDir]}>
+      {showLeading ? leadingAccessory : null}
       {phase === 'idle' ? accessory : null}
       {phase === 'idle' || phase === 'sending' ? field : rail}
       <View style={control}>

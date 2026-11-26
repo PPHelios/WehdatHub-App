@@ -8,7 +8,7 @@ export function Loading({ label }: { label?: string }) {
   const { colors } = useTheme();
   return (
     <View style={styles.center} accessibilityLiveRegion="polite">
-      <ActivityIndicator color={colors.primary} size="large" />
+      <ActivityIndicator color={colors.spinner} size="large" />
       {label ? <Text style={[styles.text, { color: colors.muted }]}>{label}</Text> : null}
     </View>
   );

@@ -14,7 +14,7 @@ import { listsStore } from '../lists';
 import { clearDraft } from '../draft';
 import { t } from '../i18n';
 import { lockAvailable, useLock } from '../lock';
-import { useRights } from '../rights';
+import { hasNavApp, useRightsState } from '../rights';
 import { meOptions } from '../queries';
 import type { MoreScreenName } from '../roleNav';
 import { stopPush } from '../push';
@@ -91,7 +91,8 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
   const lang = broker?.lang ?? 'ar';
   const ar = lang === 'ar';
   const rtl = ar;
-  const rights = useRights();
+  const { rights, nav, workspace } = useRightsState();
+  const isSolo = Boolean(workspace?.solo || workspace?.mode === 'solo');
   const { enabled, enable, disable } = useLock();
   const [lockMsg, setLockMsg] = useState<string | null>(null);
   const [canLock, setCanLock] = useState(true);
@@ -205,24 +206,61 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
             onPress={() => onOpen?.('DealsHub')}
           />
 
-          {isManagerOrOwner ? (
+          {isManagerOrOwner && isSolo ? (
             <>
               <HubCard
-                testID="hub-admin"
-                title={ar ? 'إدارة الشركة' : 'Agency Admin'}
-                subtitle={ar ? 'فريق العمل · قواعد التوزيع · طلبات البيانات الخاصة · استفسارات البوابات' : 'Team Members · Lead Rules · Access Requests · Portal Inquiries'}
-                icon="team"
-                rtl={rtl}
-                onPress={() => onOpen?.('AdminHub')}
-              />
-              <HubCard
-                testID="hub-reports"
-                title={ar ? 'تقارير الشركة' : 'Agency Reports'}
-                subtitle={ar ? 'لوحة الشركة · المكسب والخسارة · مصادر العملاء · سجل النشاط' : 'Agency Dashboard · Win & Loss · Lead Sources · Activity Log'}
+                testID="hub-mystats"
+                title={ar ? 'إحصائياتي' : 'My Stats'}
+                subtitle={ar ? 'ملخص العملاء والصفقات والمتابعات' : 'Your leads, deals and follow-ups summary'}
                 icon="chart"
                 rtl={rtl}
-                onPress={() => onOpen?.('ReportsHub')}
+                onPress={() => onOpen?.('Dashboard')}
               />
+              {(!nav || hasNavApp(nav, 'Portal')) ? (
+                <HubCard
+                  testID="hub-portal"
+                  title={t(lang, 'portal')}
+                  subtitle={ar ? 'استفسارات البوابات العقارية' : 'Portal enquiries directory'}
+                  icon="building"
+                  rtl={rtl}
+                  onPress={() => onOpen?.('Portal')}
+                />
+              ) : null}
+              {(!nav || hasNavApp(nav, 'Plan')) ? (
+                <HubCard
+                  testID="hub-plan-teammate"
+                  title={ar ? 'أضف عضو فريق / الباقة' : 'Add teammate / Plan'}
+                  subtitle={ar ? 'ترقية الباقة وإضافة أعضاء للفريق' : 'Upgrade plan and invite teammates'}
+                  icon="plan"
+                  rtl={rtl}
+                  onPress={() => onOpen?.('Plan')}
+                />
+              ) : null}
+            </>
+          ) : null}
+
+          {isManagerOrOwner && !isSolo ? (
+            <>
+              {(rights.team || !nav || hasNavApp(nav, 'Team') || hasNavApp(nav, 'LeadRules') || hasNavApp(nav, 'Requests') || hasNavApp(nav, 'Portal')) ? (
+                <HubCard
+                  testID="hub-admin"
+                  title={ar ? 'إدارة الشركة' : 'Agency Admin'}
+                  subtitle={ar ? 'فريق العمل · قواعد التوزيع · طلبات البيانات الخاصة · استفسارات البوابات' : 'Team Members · Lead Rules · Access Requests · Portal Inquiries'}
+                  icon="team"
+                  rtl={rtl}
+                  onPress={() => onOpen?.('AdminHub')}
+                />
+              ) : null}
+              {(!nav || hasNavApp(nav, 'Dashboard') || hasNavApp(nav, 'WinLoss') || hasNavApp(nav, 'Sources') || hasNavApp(nav, 'ActivityLog')) ? (
+                <HubCard
+                  testID="hub-reports"
+                  title={ar ? 'تقارير الشركة' : 'Agency Reports'}
+                  subtitle={ar ? 'لوحة الشركة · المكسب والخسارة · مصادر العملاء · سجل النشاط' : 'Agency Dashboard · Win & Loss · Lead Sources · Activity Log'}
+                  icon="chart"
+                  rtl={rtl}
+                  onPress={() => onOpen?.('ReportsHub')}
+                />
+              ) : null}
             </>
           ) : null}
 

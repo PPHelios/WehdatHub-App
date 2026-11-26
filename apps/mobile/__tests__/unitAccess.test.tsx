@@ -30,3 +30,11 @@ test('a hidden contact offers a request, then shows it is pending', async () => 
   await waitFor(() => expect(screen.getByTestId('access-pending')).toBeTruthy(), { timeout: 5000 });
   expect(screen.queryByTestId('request-access')).toBeNull();
 });
+
+test('unit details renders non-EGP price currency cleanly', async () => {
+  m.unit.mockResolvedValue({ ...unit, price: 275000, priceText: null, currency: 'USD', dealType: 'sale' });
+  m.unitContact.mockResolvedValue({ name: 'Owner', phone: null });
+  await render(<QueryClientProvider client={client()}><UnitScreen code="A-1" /></QueryClientProvider>);
+  await waitFor(() => expect(screen.getByTestId('unit-price')).toBeTruthy(), { timeout: 5000 });
+  expect(screen.getByTestId('unit-price')).toHaveTextContent(/275,000 (USD|دولار)/);
+});

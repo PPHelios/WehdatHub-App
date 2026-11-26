@@ -19,7 +19,7 @@ import { LeadCard } from '../components/LeadCard';
 import { Pill } from '../components/Pill';
 import { rowDate } from '../dates';
 import { ot } from '../ownerText';
-import { useRights } from '../rights';
+import { useRights, useRightsState } from '../rights';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
@@ -188,16 +188,19 @@ type MemberRoleName = 'broker' | 'team_lead' | 'manager' | 'data_entry';
 export function MemberRole({ id, role, teamLeadId, run }: { id: string; role: string; teamLeadId: string | null; run: (fn: () => Promise<unknown>) => Promise<void> }) {
   const lang = currentLang();
   const { colors } = useTheme();
-  const rights = useRights();
+  const { rights, workspace, inviteRoles } = useRightsState();
   const team = useQuery(teamOptions());
   const owner = rights.agencyOwner;
   const manager = rights.manager || owner;
   const cur = role as MemberRoleName;
   if (!['broker', 'team_lead', 'manager', 'data_entry'].includes(cur)) return null;
+  const teamTierOnly = workspace?.tier === 'team';
+  const allowTeamLead = Array.isArray(inviteRoles) ? inviteRoles.includes('team_lead') : !teamTierOnly;
+  const allowDataEntry = Array.isArray(inviteRoles) ? inviteRoles.includes('data_entry') : !teamTierOnly;
   const choices: { value: MemberRoleName; label: string }[] = [
     { value: 'broker', label: ot(lang, 'broker') },
-    { value: 'team_lead', label: ot(lang, 'teamLead') },
-    ...(owner ? [{ value: 'manager' as MemberRoleName, label: ot(lang, 'manager') }, { value: 'data_entry' as MemberRoleName, label: ot(lang, 'dataEntry') }] : []),
+    ...(allowTeamLead ? [{ value: 'team_lead' as MemberRoleName, label: ot(lang, 'teamLead') }] : []),
+    ...(owner ? [{ value: 'manager' as MemberRoleName, label: ot(lang, 'manager') }, ...(allowDataEntry ? [{ value: 'data_entry' as MemberRoleName, label: ot(lang, 'dataEntry') }] : [])] : []),
   ];
   // A manager who is not the owner may only move between broker and team lead.
   if (!owner && !['broker', 'team_lead'].includes(cur)) return null;

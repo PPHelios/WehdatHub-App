@@ -43,7 +43,7 @@ export function BulkAssign({ leads, onDone, onCancel }: { leads: ApiLead[]; onDo
       <View style={styles.back}>
         <View style={[styles.box, { backgroundColor: colors.card }]}>
           <Text style={[styles.title, { color: colors.text }]}>{t(lang, 'assignTo')} ({leads.length})</Text>
-          {team.isPending ? <ActivityIndicator color={colors.primary} /> : null}
+          {team.isPending ? <ActivityIndicator color={colors.spinner} /> : null}
           <ScrollView style={styles.list}>
             {(team.data?.items ?? []).map((m) => (
               <Pressable key={m.id} testID={`assign-${m.id}`} accessibilityRole="button" disabled={busy || m.away} onPress={() => run(m.id)} style={[styles.row, { borderColor: colors.border, opacity: m.away ? 0.5 : 1 }]}>

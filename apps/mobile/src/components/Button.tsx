@@ -66,7 +66,7 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
       ]}
     >
       {progress !== undefined ? <View testID="button-progress" pointerEvents="none" style={[styles.fill, { width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`, backgroundColor: filled ? ink : colors.primary }]} /> : null}
-      {spin && progress === undefined ? <ActivityIndicator testID="button-spinner" color={filled ? ink : colors.primary} /> : null}
+      {spin && progress === undefined ? <ActivityIndicator testID="button-spinner" color={filled ? ink : colors.spinner} /> : null}
       <Text style={[styles.label, { color: ink, fontSize: size === 'sm' ? 14 : 16 }]}>{label}</Text>
     </Pressable>
   );

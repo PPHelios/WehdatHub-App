@@ -625,10 +625,10 @@ export function WhatsAppImportScreen() {
     const label = stage === 'list' ? W.stageList : stage === 'chat' ? W.stageChat : stage === 'photos' ? W.stagePhotos : stage === 'match' ? W.stageMatch : W.stageCodes;
     return (
       <View style={[styles.screen, { backgroundColor: colors.bg }, styles.center]}>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.spinner} />
         <Text testID="wa-stage" accessibilityLiveRegion="polite" style={[styles.h, { color: colors.text }]}>{label} · {pct}%</Text>
         <Text style={{ color: colors.muted }}>{fill(W.stepOf, { i: ['list', 'chat', 'photos', 'match'].indexOf(stage) + 1 || 5, n: 5 })}</Text>
-        <View accessibilityRole="progressbar" accessibilityLabel={W.progressLabel} accessibilityValue={{ min: 0, max: 100, now: pct }} style={[styles.bar, { backgroundColor: colors.border }]}><View testID="wa-bar" style={[styles.barFill, { backgroundColor: colors.primary, width: `${pct}%` }]} /></View>
+        <View accessibilityRole="progressbar" accessibilityLabel={W.progressLabel} accessibilityValue={{ min: 0, max: 100, now: pct }} style={[styles.bar, { backgroundColor: colors.border }]}><View testID="wa-bar" style={[styles.barFill, { backgroundColor: colors.chartBar, width: `${pct}%` }]} /></View>
         <Text style={{ color: colors.muted, textAlign: 'center' }}>{W.keepOpen}</Text>
         <Button label={W.cancel} variant="secondary" onPress={() => { signal.current.cancelled = true; cancelUnpack(); }} />
       </View>
@@ -898,7 +898,7 @@ const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, 
           {p.blocker === 'other_unit' && changes?.length ? <Text testID={`wa-diff-${p.id}`} style={{ color: colors.primaryInk, fontWeight: '600' }}>{fill(W.otherDiff, { list: changes.map((c) => changeLine(c)).join(J) })}</Text> : null}
           <Text style={[styles.small, { color: colors.muted }]} numberOfLines={1}>{[p.post.sender && looksLikePhone(p.post.sender) ? ltr(displayPhone(p.post.sender)) : p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
         </View>
-        {p.state === 'working' ? <ActivityIndicator color={colors.primary} /> : null}
+        {p.state === 'working' ? <ActivityIndicator color={colors.spinner} /> : null}
       </View>
       <SummaryGrid W={W} lang={lang} J={J} post={p} colors={colors} changed={new Set((changes ?? []).map((c) => c.field.replace(/^details./, '')))} />
       <Pressable testID={`wa-desc-${p.id}`} accessibilityRole="button" accessibilityLabel={`${W.originalTitle}: ${open ? W.showLess : W.showMore}`} accessibilityState={{ expanded: open }} onPress={() => onToggleText(p.id)}>

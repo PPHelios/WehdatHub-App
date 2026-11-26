@@ -5,7 +5,7 @@ import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { formatEgp, parseMoney, type MapFilters, type MapUnit } from '@wehdathub/shared';
+import { formatUnitPrice, parseMoney, type MapFilters, type MapUnit } from '@wehdathub/shared';
 import { api } from '../api';
 import { API_BASE_URL } from '../config';
 import { currentLang } from '../auth';
@@ -111,7 +111,13 @@ export function MapScreen() {
   const count = selectedPin?.n ?? units.data?.items.length;
   const preview = units.data?.items[0];
   const previewPhoto = preview?.thumb || preview?.photo;
-  const priceOf = (item: MapUnit) => item.priceText || (item.price !== null ? `${formatEgp(item.price)} ${t(lang, 'egp')}` : null);
+  const priceOf = (item: MapUnit) => formatUnitPrice(item.price, {
+    currency: item.currency,
+    lang,
+    dealType: item.listingType,
+    rentPeriod: item.rentPeriod,
+    fallbackText: item.priceText,
+  });
   const previewPrice = !expanded && preview ? priceOf(preview) : null;
   const submitPlace = () => { if (suggestions[0]) goTo(suggestions[0]); };
   const closePreview = () => { setPicked(null); setExpanded(false); };

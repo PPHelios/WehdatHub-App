@@ -4,7 +4,7 @@ import { AppText as Text } from './AppText';
 import { BusySwitch } from './BusySwitch';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ApiClientError } from '@wehdathub/shared';
-import type { AskAction, ProjectFilters, ProjectSort } from '@wehdathub/shared';
+import type { AskAction, AskResults as AskResultsData, ProjectFilters, ProjectSort } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { numberOf } from '../projectRules';
@@ -33,7 +33,7 @@ export const chipText = (v: unknown): string => (v && typeof v === 'object' ? Ob
  * (price range, area range, max down payment, bedrooms), project cards with their offers or the notes that fit, WhatsApp, and pages.
  * The same cards as the catalogue list.
  */
-export function AskResults({ q, onOpenProject, showStatus = false }: { q: string; onOpenProject?: (id: string, name: string) => void; showStatus?: boolean }) {
+export function AskResults({ q, onOpenProject, showStatus = false, initial }: { q: string; onOpenProject?: (id: string, name: string) => void; showStatus?: boolean; initial?: AskResultsData | null }) {
   const { colors } = useTheme();
   const lang = currentLang();
   const T = pt(lang);
@@ -46,17 +46,20 @@ export function AskResults({ q, onOpenProject, showStatus = false }: { q: string
   const [report, setReport] = useState<'closed' | 'open' | 'done' | 'again'>('closed');
   const [note, setNote] = useState('');
   // The first answer's token and log id ride along on every later page, sort and filter, so the question is read and logged once.
-  const link = useRef<{ token?: string; logId?: string }>({});
+  const link = useRef<{ token?: string; logId?: string }>({ token: initial?.token ?? undefined, logId: initial?.log_id ?? undefined });
   const typed = useDebounced(range, 500);
   const filters: ProjectFilters = { ...Object.fromEntries(RANGES.map((k) => [k, numberOf(typed[k])]).filter(([, v]) => v !== undefined)), ...(bed ? { bed } : {}) };
   const active = Object.keys(filters).length > 0;
+  const seeded = Boolean(initial && page === 1 && sort === 'best' && !drop.length && !active && !unitsOnly);
   const r = useQuery({
     queryKey: ['askResults', q, page, sort, drop.join(','), JSON.stringify(filters), unitsOnly],
     queryFn: async () => {
-      const r = await api.askResults({ q, page, sort, drop, ...filters, ...(unitsOnly ? { units: true } : {}), ...link.current });
-      if (!link.current.token && r.token) link.current = { token: r.token, logId: r.log_id ?? undefined };
-      return r;
+      const res = await api.askResults({ q, page, sort, drop, ...filters, ...(unitsOnly ? { units: true } : {}), ...link.current });
+      if (!link.current.token && res.token) link.current = { token: res.token, logId: res.log_id ?? undefined };
+      return res;
     },
+    initialData: seeded ? (initial ?? undefined) : undefined,
+    enabled: !seeded,
     placeholderData: keepPreviousData,
   });
   if (showStatus && r.isError) return <ErrorView message={errorText(r.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => r.refetch()} />;

@@ -9,7 +9,7 @@ import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
 import { errorText } from '../errors';
 import { ot } from '../ownerText';
-import { useRights } from '../rights';
+import { useRightsState } from '../rights';
 import { spacing, useTheme } from '../theme';
 import { toastError } from '../components/Toast';
 
@@ -19,18 +19,26 @@ type Role = 'broker' | 'manager' | 'team_lead' | 'data_entry';
 export function InviteScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
-  const rights = useRights();
+  const { rights, inviteRoles, workspace } = useRightsState();
   const qc = useQueryClient();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<Role>('broker');
   const [msg, setMsg] = useState<string | null>(null);
-  const roles: { value: Role; label: string }[] = [
+  const allRoles: { value: Role; label: string }[] = [
     { value: 'broker', label: ot(lang, 'broker') },
     ...(rights.agencyOwner ? [{ value: 'manager' as Role, label: ot(lang, 'manager') }] : []),
     { value: 'team_lead', label: ot(lang, 'teamLead') },
     { value: 'data_entry', label: ot(lang, 'dataEntry') },
   ];
+  const isTeamTier = workspace?.tier === 'team';
+  const roles = Array.isArray(inviteRoles) && inviteRoles.length
+    ? allRoles.filter((r) => inviteRoles.includes(r.value))
+    : workspace?.tier === 'solo'
+      ? []
+      : isTeamTier
+        ? allRoles.filter((r) => r.value === 'broker' || r.value === 'manager')
+        : allRoles;
   const send = async () => {
     setMsg(null);
     try {

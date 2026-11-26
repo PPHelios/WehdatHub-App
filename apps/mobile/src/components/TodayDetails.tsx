@@ -26,7 +26,7 @@ export function TodayCall({ phone, label }: { phone: string; label: string }) {
   return <Button label={label} variant="secondary" size="sm" onPress={() => Linking.openURL(`tel:+${phone}`)} />;
 }
 
-export function TodayDetails({ brief }: { brief?: { ops: boolean; units: boolean; viewing: TodayTask | null } } = {}) {
+export function TodayDetails({ brief }: { brief?: { ops: boolean; units: boolean; viewing: TodayTask | null; approvals?: boolean; approvalsAccess?: boolean; approvalsNames?: boolean; commissions?: boolean; leases?: boolean } } = {}) {
   const { colors } = useTheme();
   const lang = currentLang();
   const stack = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -41,12 +41,20 @@ export function TodayDetails({ brief }: { brief?: { ops: boolean; units: boolean
     task.kind === 'viewing' && task.ref === viewing.ref && task.at === viewing.at
     && (!task.phone || task.phone === viewing.phone) && (!task.unitCode || task.unitCode === viewing.unitCode)
   )) : tasks;
+  const rawApprovals = q.data.cards?.approvals;
+  const approvals = !rawApprovals || brief?.approvals ? null : (() => {
+    const access = brief?.approvalsAccess ? 0 : rawApprovals.access;
+    const names = brief?.approvalsNames ? 0 : rawApprovals.names;
+    return access || names ? { access, names } : null;
+  })();
   const cards = q.data.cards && {
     ...q.data.cards,
     ops: brief?.ops ? null : q.data.cards.ops,
     oldUnits: brief?.units ? null : q.data.cards.oldUnits,
+    approvals,
+    commissions: brief?.commissions ? null : q.data.cards.commissions,
   };
-  const leases = q.data.leases ?? [];
+  const leases = brief?.leases ? [] : (q.data.leases ?? []);
   const stats: [StringKey, number, string][] = [['followUps', counts.followUpsToday, colors.primary], ['viewings', counts.viewings, colors.accent], ['newLeads', counts.newLeads, colors.ok]];
 
   const preEnd = planState.phase === 'none' ? preEndStatus(planState.allowance) : null;
@@ -54,7 +62,7 @@ export function TodayDetails({ brief }: { brief?: { ops: boolean; units: boolean
 
   return (
     <View testID="today-details" style={styles.content}>
-      {!brief && planState.phase !== 'none' ? (
+      {planState.phase !== 'none' ? (
         <View testID="today-plan-expired" style={[styles.cardAlert, { backgroundColor: colors.card, borderColor: colors.border, borderStartColor: planState.phase === 'grace' ? colors.warn : colors.danger }]}>
           <View style={styles.taskInfo}>
             <Text style={[styles.name, { color: colors.text }]}>{planState.phase === 'grace' ? (lang === 'ar' ? '⏳ فترة سماح' : '⏳ Grace period') : planState.phase === 'readonly' ? (lang === 'ar' ? '🔒 الحساب للقراءة فقط' : '🔒 Read-only') : (lang === 'ar' ? '🛑 الحساب متوقف' : '🛑 Account stopped')}</Text>

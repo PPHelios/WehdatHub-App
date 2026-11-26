@@ -161,7 +161,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
           />
         </Section>
       ) : null}
-      {canWork && rights.team ? <LeadActions lead={lead} /> : null}
+      {canWork && (rights.team || rights.agencyOwner) ? <LeadActions lead={lead} /> : null}
 
       <Section testID="sec-history" title={t(lang, 'history')}>
         {timeline.length ? timeline.map((event, index) => (
