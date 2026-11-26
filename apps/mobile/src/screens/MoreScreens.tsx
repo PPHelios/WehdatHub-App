@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { BusySwitch } from '../components/BusySwitch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -275,7 +275,12 @@ export function UsageScreen() {
                 </View>
               </Card>
             ) : null}
-            {plan?.payTo && (rights.agencyOwner || plan.canPay || plan.canBuyCredits) ? (
+            {Platform.OS === 'ios' ? (
+              <Card testID="ios-billing-note">
+                <Text style={{ color: colors.muted }}>{t(lang, 'iosBillingNote')}</Text>
+              </Card>
+            ) : null}
+            {Platform.OS !== 'ios' && plan?.payTo && (rights.agencyOwner || plan.canPay || plan.canBuyCredits) ? (
               <Card testID="pay-to-card">
                 <Text style={[styles.h, { color: colors.text }]}>{ar ? 'طرق الدفع' : 'Payment methods'}</Text>
                 {plan.payTo.instapay ? <StatRow label={ar ? 'عنوان إنستاباي' : 'InstaPay address'} value={plan.payTo.instapay} /> : null}
@@ -286,7 +291,7 @@ export function UsageScreen() {
               <StatRow label={ar ? 'مرجع الدفع' : 'Payment reference'} value={announced.reference} />
               <StatRow label={ar ? 'المبلغ' : 'Amount'} value={`${num(announced.amount)} ${t(lang, 'egp')}`} />
             </Card> : null}
-            {plan?.paymentChoices?.length ? <Card>
+            {Platform.OS !== 'ios' && plan?.paymentChoices?.length ? <Card testID="payment-choices-card">
               <Text style={[styles.h, { color: colors.text }]}>{ar ? 'اعمل طلب دفع' : 'Request a payment reference'}</Text>
               {plan.paymentChoices.map((choice) => (
                 <Button key={`${choice.kind}:${choice.plan ?? choice.bundle}:${choice.months ?? ''}`} variant="secondary"
