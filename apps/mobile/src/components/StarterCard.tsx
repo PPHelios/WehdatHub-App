@@ -21,7 +21,7 @@ type Props = {
 
 export function StarterCard({ onboarding, onAddUnit, onShareSample, onConnectTelegram, onDismiss }: Props) {
   const { colors } = useTheme();
-  const lang = useAuth((s) => s.lang) ?? 'ar';
+  const lang = useAuth((s) => s.broker?.lang) ?? 'ar';
   const allDone = onboarding.hasUnit && onboarding.hasSharedLink && onboarding.telegramConnected;
   if (allDone) return null;
 
