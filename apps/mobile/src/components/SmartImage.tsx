@@ -23,7 +23,7 @@ export function SmartImage({ uri, style, testID }: { uri: string; style: StylePr
   return (
     <View testID={testID} style={[style, styles.box, { backgroundColor: colors.card }]}>
       {state !== 'failed' ? <Image testID="smart-image" key={attempt} source={{ uri: src }} style={StyleSheet.absoluteFill} resizeMode="cover" resizeMethod="resize" onLoad={() => setState('ok')} onError={failed} /> : null}
-      {state === 'loading' ? <ActivityIndicator testID="image-spinner" color={colors.primary} /> : null}
+      {state === 'loading' ? <ActivityIndicator testID="image-spinner" color={colors.spinner} /> : null}
       {state === 'failed' ? (
         <Pressable testID="image-retry" accessibilityRole="button" onPress={() => { setAttempt(0); setState('loading'); }} style={styles.retry}>
           <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'center' }}>{t(lang, 'tapRetry')}</Text>

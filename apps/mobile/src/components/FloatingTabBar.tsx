@@ -27,7 +27,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
   if (keyboardVisible) return null;
 
   return (
-    <View style={[styles.wrap, { backgroundColor: colors.bg }]}>
+    <View pointerEvents="box-none" style={[styles.wrap, { backgroundColor: 'transparent' }]}>
       <View testID="tab-bar" style={[styles.bar, { backgroundColor: colors.card, borderColor: colors.border }, elev('lg')]}>
         {highlight}
         {state.routes.map((route, i) => {

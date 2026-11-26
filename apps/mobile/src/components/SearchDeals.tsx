@@ -68,7 +68,7 @@ export function SearchDeals({ initialPeriod }: { initialPeriod: Period }) {
               return <Pressable key={i} accessibilityRole="button" accessibilityState={{ selected: week === i, disabled: query.isPlaceholderData }} disabled={query.isPlaceholderData} accessibilityLabel={range + '، ' + count.format(n)} onPress={() => setWeek(i === week ? undefined : i)} style={styles.column}>
                 <Text style={[styles.number, { color: colors.text }]}>{count.format(n)}</Text>
                 <View style={[styles.track, { backgroundColor: colors.bg }]}>
-                  <Bar ratio={n / maximum} color={week === undefined || week === i ? colors.primary : colors.border} />
+                  <Bar ratio={n / maximum} color={week === undefined || week === i ? colors.chartBar : colors.border} />
                 </View>
                 <Text style={[styles.label, { color: colors.muted }]}>{'‎' + range + '‎'}</Text>
               </Pressable>;
