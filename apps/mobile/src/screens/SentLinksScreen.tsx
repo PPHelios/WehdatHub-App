@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 /** The client links this broker shared, newest first, with how many times each was opened. */
 export function SentLinksScreen() {
@@ -40,7 +41,7 @@ export function SentLinksScreen() {
       renderItem={({ item }) => (
         <View style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.row}>
-            <Text style={[styles.flex, { color: colors.primaryInk, fontWeight: '800' }]}>{item.unitCode}{item.compound ? ` · ${item.compound}` : ''}</Text>
+            <Text style={[styles.flex, [{ color: colors.primaryInk }, sx.fontWeight800]]}>{item.unitCode}{item.compound ? ` · ${item.compound}` : ''}</Text>
             <Text style={{ color: item.opens ? colors.accentInk : colors.muted, fontWeight: '700' }}>{item.opens} {t(lang, 'opens')}</Text>
           </View>
           <Text style={{ color: colors.muted }}>

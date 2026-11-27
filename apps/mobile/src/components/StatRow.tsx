@@ -3,15 +3,16 @@ import { I18nManager, StyleSheet, View } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { AppText as Text } from './AppText';
 import { radius, spacing, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 /** One line of a stats card: the label on one side, the value on the other, and an optional thin bar (0 to 100) under them. */
 export function StatRow({ label, value, pct, testID, animate = false, color }: { label: string; value: string; pct?: number; testID?: string; animate?: boolean; color?: string }) {
   const { colors } = useTheme();
   const barColor = color ?? colors.chartBar;
   return (
-    <View testID={testID} style={{ gap: 4, paddingVertical: spacing.xs }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md }}>
-        <Text numberOfLines={1} style={{ color: colors.text, flexShrink: 1 }}>{label}</Text>
+    <View testID={testID} style={[{ paddingVertical: spacing.xs }, sx.gap4]}>
+      <View style={[{ gap: spacing.md }, sx.flexDirectionRow_justifyContentSpaceBetween]}>
+        <Text numberOfLines={1} style={[{ color: colors.text }, sx.flexShrink1]}>{label}</Text>
         <Text style={{ color: colors.text, fontWeight: '700', fontVariant: ['tabular-nums'] }}>{value}</Text>
       </View>
       {pct != null ? (

@@ -65,7 +65,6 @@ function lazy(load: () => React.ComponentType<any>, wrap = false): () => React.C
   let c: React.ComponentType<any> | undefined;
   return () => (c ??= wrap ? narrow(load()) : load());
 }
-/* eslint-disable @typescript-eslint/no-require-imports */
 const lazyScreens = {
   Unit: lazy(() => require('./screens/UnitScreen').UnitScreen, true),
   Lead: lazy(() => require('./screens/LeadScreen').LeadScreen, true),
@@ -112,9 +111,9 @@ const lazyScreens = {
   ReportsHub: lazy(() => require('./screens/ReportsHubScreen').ReportsHubScreen),
   SettingsHub: lazy(() => require('./screens/SettingsHubScreen').SettingsHubScreen),
 };
-/* eslint-enable @typescript-eslint/no-require-imports */
 import { t } from './i18n';
 import { useTheme } from './theme';
+import { sx } from './sharedStyles';
 
 export type AddUnitParams = {
   text?: string; photos?: UploadFile[]; voice?: UploadFile;
@@ -156,14 +155,14 @@ function TabsScreen() {
   const plan = useMemo(() => (ready ? tabPlan(nav, rights) : null), [ready, nav, rights]);
   const hasMoreTab = Boolean(plan?.tabs.some((x) => x.key === 'More'));
   const headerRight = useCallback(() => (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+    <View style={sx.flexDirectionRow_alignItemsCenter}>
       <NotificationBell onPress={openInbox} />
       {hasMoreTab ? null : <MenuButton onPress={openMoreMenu} />}
     </View>
   ), [hasMoreTab]);
   const screenOptions = useMemo<BottomTabNavigationOptions>(() => ({
     headerTitleAlign: 'center',
-    headerLeft: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View>,
+    headerLeft: () => <View style={sx.paddingHorizontal8}><Logo bar /></View>,
     headerStyle: { backgroundColor: bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border },
     headerTitleStyle: { color: text, fontFamily: FONT_BOLD },
     headerShadowVisible: false,
@@ -173,7 +172,7 @@ function TabsScreen() {
   const tabOptions = useMemo(() => (plan?.tabs ?? []).map((spec) => ({ title: spec.label ? spec.label[lang] : t(lang, TAB_TITLE[spec.key]), tabBarIcon: tabIcon(spec.icon), tabBarButtonTestID: spec.fab ? FAB_TEST_ID : undefined })), [plan, lang]);
   if (!plan) {
     return (
-      <View style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={[{ backgroundColor: bg }, sx.flex1_alignItemsCenter_justifyContentCenter]}>
         <ActivityIndicator color={colors.primaryInk} />
       </View>
     );
@@ -187,7 +186,7 @@ function TabsScreen() {
             key={k}
             name={k === 'AddUnit' ? 'AddUnitTab' : k}
             component={TAB_SCREENS[k]}
-            options={k === 'Search' ? { ...tabOptions[i], headerTitle: '', headerLeft: () => <View style={{ paddingHorizontal: 12 }}><Logo compact size={0.45} /></View> } : tabOptions[i]}
+            options={k === 'Search' ? { ...tabOptions[i], headerTitle: '', headerLeft: () => <View style={sx.paddingHorizontal12}><Logo compact size={0.45} /></View> } : tabOptions[i]}
             listeners={k === 'AddUnit' ? addUnitListeners : undefined}
           />
         );
@@ -207,7 +206,7 @@ export function RootNavigation() {
   }, [scheme, primary, bg, card, text, border, danger]);
   if (status === 'loading' || (status === 'signedIn' && welcome === 'checking')) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: 32 }}>
+      <View style={[{ backgroundColor: colors.bg }, sx.flex1_alignItemsCenter_justifyContentCenter_gap32]}>
         <Logo bilingual />
         <ActivityIndicator color={colors.spinner} />
       </View>
@@ -223,13 +222,13 @@ export function RootNavigation() {
         <Stack.Navigator initialRouteName={welcome === 'show' ? 'Welcome' : 'Tabs'} screenLayout={({ children, options, route }) => (
           <BottomSafe>
             {route.name === 'Unit' ? (
-              <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.bg }}>
+              <SafeAreaView edges={['top']} style={[{ backgroundColor: colors.bg }, sx.flex1]}>
                 <PlanBanner onOpenPlan={() => navigationRef.navigate('Plan')} />
                 {children}
               </SafeAreaView>
             ) : <><PlanBanner topInset={options.headerShown === false} onOpenPlan={() => navigationRef.navigate('Plan')} />{children}</>}
           </BottomSafe>
-        )} screenOptions={{ animation: 'slide_from_right', headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerStyle: { backgroundColor: colors.bg }, headerShadowVisible: false, headerRight: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View> }}>
+        )} screenOptions={{ animation: 'slide_from_right', headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerStyle: { backgroundColor: colors.bg }, headerShadowVisible: false, headerRight: () => <View style={sx.paddingHorizontal8}><Logo bar /></View> }}>
           <Stack.Screen name="Tabs" component={TabsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="Unit" getComponent={lazyScreens.Unit} options={{ headerShown: false }} />

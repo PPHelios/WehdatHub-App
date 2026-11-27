@@ -30,8 +30,9 @@ import { CoachMark } from '../components/CoachMark';
 import { FullResults } from '../assistant/FullResults';
 import { ReportView, type LeadFilters, type ReportKind } from '../assistant/ReportView';
 import { ThreadView } from '../assistant/ThreadView';
-import type { TurnSource } from '../assistant/thread';
+import type { Turn, TurnSource } from '../assistant/thread';
 import { useAssistantThread } from '../assistant/useAssistantThread';
+import { sx } from '../sharedStyles';
 
 export { shouldUseAssistantEndpoint } from '../assistant/routing';
 
@@ -120,24 +121,19 @@ export function SearchScreen({ initialMode, modeStamp }: { initialMode?: Assista
   };
 
   /** Requests that are a report screen, not a chat answer. */
-  const showIntent = (intent: SearchIntent) => {
+  const showIntent = (intent: SearchIntent, clean = '') => {
     const clarify = (message: string) => { setClarification(message); setReport('clarify'); };
     const denied = () => clarify(t(lang, 'roleDenied'));
     if (intent.kind === 'leads') {
       if (!rights.leads) return denied();
-      setLeadFilters(intent.filters);
-      setAssignee(undefined);
-      return setReport('leads');
+      return thread.addReport(clean, { kind: 'leads', leadFilters: intent.filters });
     }
     if (intent.kind === 'assignee') {
       if (!(rights.manager || rights.agencyOwner || rights.teamLead)) return denied();
-      if (report !== 'leads') setLeadFilters({});
-      setAssignee(intent.name);
-      return setReport('leads');
+      return thread.addReport(clean, { kind: 'leads', assignee: intent.name });
     }
     if (intent.kind === 'deals') {
-      setDealLastMonth(intent.lastMonth);
-      return setReport('deals');
+      return thread.addReport(clean, { kind: 'deals', dealLastMonth: intent.lastMonth });
     }
     return clarify(t(lang, 'clarifySearch'));
   };
@@ -231,18 +227,28 @@ export function SearchScreen({ initialMode, modeStamp }: { initialMode?: Assista
     const sub = BackHandler?.addEventListener?.('hardwareBackPress', () => {
       if (practicing) { Keyboard.dismiss(); setPracticing(false); return true; }
       if (full) { thread.closeFull(); return true; }
+      if (report && turns.length) { setReport(null); return true; }
       if (!atHome) { resetToHome(); return true; }
       return false;
     });
     return () => sub?.remove();
-  }, [atHome, focused, full, practicing, resetToHome, thread]);
+  }, [atHome, focused, full, practicing, report, resetToHome, thread, turns.length]);
   const showInvitation = Boolean(invitation && invitation === practiceKey);
-  const openHomeReport = (value: ReportKind, queue?: LeadQueue) => {
-    setReport(value);
-    setSubmitted('');
-    setLeadFilters(queue ? { queue } : {});
-    setAssignee(undefined);
-    setDealLastMonth(false);
+  const HOME_REPORT_LABEL = { leads: 'leadsTab', deals: 'closedDeals', dashboard: 'dashboard', ranking: 'brokerRanking' } as const;
+  /** A home shortcut answers in the chat like a question would. */
+  const openHomeReport = (value: 'leads' | 'deals' | 'dashboard' | 'ranking', queue?: LeadQueue) => {
+    setReport(null);
+    thread.addReport(t(lang, HOME_REPORT_LABEL[value]), { kind: value, ...(queue ? { leadFilters: { queue } } : {}) });
+  };
+  /** The full screen for a report shown in the chat. */
+  const openFullReport = (turn: Turn) => {
+    const r = turn.report;
+    if (!r) return;
+    setSubmitted(turn.question);
+    setLeadFilters(r.leadFilters ?? {});
+    setAssignee(r.assignee);
+    setDealLastMonth(Boolean(r.dealLastMonth));
+    setReport(r.kind);
   };
 
   if (practicing) return <SearchPractice onClose={() => { Keyboard.dismiss(); setPracticing(false); }} />;
@@ -263,7 +269,7 @@ export function SearchScreen({ initialMode, modeStamp }: { initialMode?: Assista
         {([{ value: 'deals', label: t(lang, 'closedDeals') },
           ...(rights.leads ? [{ value: 'leads', label: t(lang, 'leadsTab') }] : []),
           ...(rights.manager ? [{ value: 'dashboard', label: t(lang, 'dashboard') }, { value: 'ranking', label: t(lang, 'brokerRanking') }] : []),
-        ] as { value: ReportKind; label: string }[]).map(({ value, label }) => (
+        ] as { value: 'leads' | 'deals' | 'dashboard' | 'ranking'; label: string }[]).map(({ value, label }) => (
           <HomeRow key={value} title={label} onPress={() => openHomeReport(value)} />
         ))}
       </Animated.View> : null}
@@ -273,7 +279,7 @@ export function SearchScreen({ initialMode, modeStamp }: { initialMode?: Assista
   const voiceErr = thread.voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{thread.voiceError}</Text> : null;
   const threadEl = (
     <ThreadView turns={turns} lang={lang} mode={mode} onScroll={onScroll} onSend={sendFrom} onRetry={(id) => thread.retry(id)} onSearchAnyway={(id) => thread.retry(id, { drop: true })}
-      onSeeAll={thread.openFull} onNewConversation={resetToHome} onChangeMode={setMode} onOpenQueue={(queue) => openHomeReport('leads', queue)}
+      onSeeAll={thread.openFull} onNewConversation={resetToHome} onChangeMode={setMode} onOpenQueue={(queue) => openHomeReport('leads', queue)} onRate={thread.rate} onOpenReport={openFullReport}
       onChangeSearch={(q) => setText(q)} />
   );
   const mainEl = (
@@ -309,7 +315,7 @@ export function SearchScreen({ initialMode, modeStamp }: { initialMode?: Assista
           onClose={() => setPopoverOpen(false)}
         />
         {voiceConfirmOrigin !== null ? (
-          <View testID="voice-confirm-bar" style={[styles.modeChipRow, { alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }]}>
+          <View testID="voice-confirm-bar" style={[styles.modeChipRow, [{ gap: spacing.xs }, sx.alignItemsCenter_flexWrapWrap]]}>
             <Text variant="caption" style={{ color: colors.muted }}>
               {t(lang, 'sr_voiceConfirm')}
             </Text>

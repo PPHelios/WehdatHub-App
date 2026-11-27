@@ -22,8 +22,8 @@ export async function compressPhoto(f: UploadFile, side = SIDE): Promise<UploadF
 }
 
 export const compressPhotos = (files: UploadFile[], onEach?: (done: number, total: number) => void) => {
-  let done = 0;
-  return Promise.all(files.map(async (f) => { const r = await compressPhoto(f); onEach?.(++done, files.length); return r; }));
+  let finished = 0;
+  return Promise.all(files.map(async (f) => { const r = await compressPhoto(f); onEach?.(++finished, files.length); return r; }));
 };
 
 /**
@@ -39,6 +39,6 @@ export function compressAhead(files: UploadFile[], cap = 2): Promise<UploadFile>
       slots[i].settle(await compressPhoto(files[i]));
     }
   };
-  for (let w = 0; w < Math.min(cap, files.length); w++) void worker();
+  for (let w = 0; w < Math.min(cap, files.length); w++) worker();
   return slots.map((s) => s.promise);
 }

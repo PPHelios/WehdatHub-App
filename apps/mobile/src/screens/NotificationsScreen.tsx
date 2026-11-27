@@ -12,6 +12,7 @@ import { ErrorView, Loading } from '../components/StateViews';
 import { AppSettings } from '../components/AppSettings';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 const REMINDERS = [30, 60, 120] as const;
 /** WhatsApp is not an alert channel any more: an old saved choice shows as the default (both when Telegram is linked, else web). */
@@ -137,7 +138,7 @@ export function NotificationsScreen() {
         <View key={key} style={styles.row}>
           <Text style={[styles.flex, { color: draft.quiet.enabled ? colors.text : colors.muted }]}>{t(lang, key === 'start' ? 'quietFrom' : 'quietUntil')}</Text>
           <Pressable testID={`${key}-minus`} accessibilityLabel="-" disabled={!draft.quiet.enabled} onPress={() => step(key, -1)} style={[styles.step, { borderColor: colors.border, opacity: draft.quiet.enabled ? 1 : 0.4 }]}><Text variant="heading" weight="regular" style={{ color: colors.text }}>−</Text></Pressable>
-          <Text testID={`${key}-value`} variant="heading" weight="regular" style={{ color: colors.text, minWidth: 64, textAlign: 'center' }}>{hh(draft.quiet[key])}</Text>
+          <Text testID={`${key}-value`} variant="heading" weight="regular" style={[{ color: colors.text }, sx.minWidth64_textAlignCenter]}>{hh(draft.quiet[key])}</Text>
           <Pressable testID={`${key}-plus`} accessibilityLabel="+" disabled={!draft.quiet.enabled} onPress={() => step(key, 1)} style={[styles.step, { borderColor: colors.border, opacity: draft.quiet.enabled ? 1 : 0.4 }]}><Text variant="heading" weight="regular" style={{ color: colors.text }}>+</Text></Pressable>
         </View>
       ))}

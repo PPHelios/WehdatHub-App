@@ -66,3 +66,13 @@ test('persistableTurns keeps inventory answers, drops lead/CRM turns and strips 
   expect(kept.map((t: Turn) => t.id)).toEqual(['a']);
   expect(kept[0].response.cards).toEqual([]);
 });
+
+test('a report turn is finished at once, adds no follow-up context, and rate marks one turn', () => {
+  let s = threadReducer([], { type: 'report', id: 'r', question: 'my leads', report: { kind: 'leads' } });
+  expect(s[0]).toMatchObject({ id: 'r', status: 'done', report: { kind: 'leads' } });
+  expect(contextOf(s)).toBeNull();
+  s = ask(s, 'a');
+  s = threadReducer(s, { type: 'resolve', id: 'a', response: res() });
+  s = threadReducer(s, { type: 'rate', id: 'a' });
+  expect(s.map((t) => t.rated)).toEqual([undefined, true]);
+});

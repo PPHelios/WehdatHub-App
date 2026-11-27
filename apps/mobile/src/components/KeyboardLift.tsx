@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, LayoutChangeEvent, Platform, StyleProp, View, ViewStyle } from 'react-native';
+import { sx } from '../sharedStyles';
 
 /**
  * Android (edge-to-edge) does not always shrink the window when the keyboard opens, so fields near the bottom end up
@@ -28,7 +29,7 @@ export function useKeyboardLift() {
 /** Wraps a screen (or a modal's backdrop) so the keyboard never covers its fields. */
 export function KeyboardLift({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const { lift, onLayout } = useKeyboardLift();
-  return <View onLayout={onLayout} style={[{ flex: 1 }, style, { paddingBottom: lift }]}>{children}</View>;
+  return <View onLayout={onLayout} style={[sx.flex1, style, { paddingBottom: lift }]}>{children}</View>;
 }
 
 

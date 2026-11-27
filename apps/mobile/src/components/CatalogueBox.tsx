@@ -11,6 +11,7 @@ import { fill, pt } from '../projectText';
 import { useBoxItems } from '../useBoxItems';
 import { useDebounced } from '../useDebounced';
 import { radius, spacing, typeScale, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 /**
  * The catalogue's one search box, like the unit box: type a place (an area or a sub-area), a feature, a developer or a project; the pick becomes a
@@ -77,7 +78,7 @@ export function CatalogueBox({ search, onChange, lang, onOpenProject }: {
           {g.projects.length ? title(T.searchProjects) : null}
           {g.projects.map((p) => row(`project-${p.id}`, p.label, undefined, () => { setInput(''); onOpenProject(p.id, p.label); }))}
           <Pressable testID="cbox-text" accessibilityRole="button" onPress={() => pick({ q: typed })} style={styles.opt}>
-            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(T.searchText, { s: typed })}</Text>
+            <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{fill(T.searchText, { s: typed })}</Text>
           </Pressable>
         </View>
       ) : null}

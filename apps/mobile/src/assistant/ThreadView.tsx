@@ -19,7 +19,7 @@ import type { Turn, TurnSource } from './thread';
 const ASSISTANT_NAV_SCREENS = new Set(['LeadsList', 'Team', 'Dashboard', 'Deals', 'Sources', 'Commissions', 'Requests', 'Owners', 'Leases', 'UnitsList', 'WinLoss', 'Prices', 'Plan', 'Projects', 'Calendar']);
 
 /** The conversation: a "New conversation" header, then every turn, newest at the bottom. */
-export function ThreadView({ turns, lang, mode, onSend, onRetry, onSearchAnyway, onSeeAll, onNewConversation, onChangeMode, onChangeSearch, onOpenQueue, onScroll }: {
+export function ThreadView({ turns, lang, mode, onSend, onRetry, onSearchAnyway, onSeeAll, onNewConversation, onChangeMode, onChangeSearch, onOpenQueue, onRate, onOpenReport, onScroll }: {
   turns: Turn[];
   lang: Lang;
   mode: AssistantMode;
@@ -31,6 +31,8 @@ export function ThreadView({ turns, lang, mode, onSend, onRetry, onSearchAnyway,
   onChangeMode: (mode: AssistantMode) => void;
   onChangeSearch: (q: string) => void;
   onOpenQueue: (queue: LeadQueue) => void;
+  onRate: TurnHandlers['onRate'];
+  onOpenReport: TurnHandlers['onOpenReport'];
   onScroll: React.ComponentProps<typeof Animated.ScrollView>['onScroll'];
 }) {
   const { colors } = useTheme();
@@ -41,6 +43,8 @@ export function ThreadView({ turns, lang, mode, onSend, onRetry, onSearchAnyway,
   const handlers: TurnHandlers = {
     onSend: (q, source) => onSend(q, source),
     onRetry,
+    onRate,
+    onOpenReport,
     onSearchAnyway,
     onSeeAll,
     onOpenUnit: openUnit,

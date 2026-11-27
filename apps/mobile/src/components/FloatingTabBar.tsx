@@ -8,6 +8,7 @@ import { GlassSurface } from './GlassSurface';
 import { useKeyboardVisible } from './KeyboardLift';
 import { useSelectionHighlight } from './SelectionHighlight';
 import { greenGradient, typeScale, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 /** The tab option that marks the centre shortcut. */
 export const FAB_TEST_ID = 'tab-fab';
@@ -28,7 +29,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
   if (keyboardVisible) return null;
 
   return (
-    <View pointerEvents="box-none" style={[styles.wrap, { backgroundColor: 'transparent' }]}>
+    <View pointerEvents="box-none" style={[styles.wrap, sx.backgroundColorTransparent]}>
       <GlassSurface testID="tab-bar" elevation="lg" interactive style={styles.bar}>
         {highlight}
         {state.routes.map((route, i) => {

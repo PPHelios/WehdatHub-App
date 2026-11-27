@@ -70,7 +70,7 @@ export function SearchLeadAction({ command, onClose }: { command: Parsed; onClos
   return <ScrollView contentContainerStyle={styles.content}>
     <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{t(lang, 'slaTitle')}</Text>
     {!change ? <Text style={{ color: colors.text }}>{t(lang, 'slaHelp')}</Text> : null}
-    {change?.target && !ref ? <LeadPicker initial={change.target} onPick={(lead) => setPickedRef(lead.ref)} /> : null}
+    {change?.target && !ref ? <LeadPicker initial={change.target} onPick={(picked) => setPickedRef(picked.ref)} /> : null}
     {ref && detail.isPending ? <Loading label={t(lang, 'loading')} /> : null}
     {detail.isError ? <ErrorView message={errorText(detail.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => detail.refetch()} /> : null}
     {lead && change ? <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>

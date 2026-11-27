@@ -18,7 +18,7 @@ export function ConnectTelegramScreen() {
   const [busy, setBusy] = useState(false);
   const { refetch } = me;
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') void refetch(); });
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') refetch(); });
     return () => sub.remove();
   }, [refetch]);
   const connected = me.data?.onboarding?.telegramConnected === true;

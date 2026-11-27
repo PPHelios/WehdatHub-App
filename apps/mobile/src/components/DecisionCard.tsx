@@ -7,6 +7,7 @@ import { AppText as Text } from './AppText';
 import { Card } from './Card';
 import { Icon, type IconName } from './Icon';
 import { PressableScale } from './PressableScale';
+import { sx } from '../sharedStyles';
 
 export type DecisionUrgency = 'high' | 'medium' | 'low';
 interface Action { label: string; onPress: () => void; testID?: string }
@@ -20,7 +21,7 @@ export function DecisionCard({ testID, urgency, label, value, title, why, icon, 
   const dot = urgency === 'high' ? colors.danger : urgency === 'medium' ? colors.warn : colors.muted;
   const button = (a: Action, main: boolean) => (
     <PressableScale testID={a.testID} onPress={a.onPress} accessibilityLabel={`${a.label}: ${title}`}
-      style={[styles.btn, main ? { backgroundColor: colors.primary } : { borderColor: colors.border, borderWidth: 1 }]}>
+      style={[styles.btn, main ? { backgroundColor: colors.primary } : [{ borderColor: colors.border }, sx.borderWidth1]]}>
       <Text variant="bodySm" weight="bold" style={{ color: main ? colors.onPrimary : colors.primaryInk }}>{a.label}</Text>
     </PressableScale>
   );

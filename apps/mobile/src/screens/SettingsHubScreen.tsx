@@ -60,7 +60,7 @@ export function SettingsHubScreen() {
   const [canLock, setCanLock] = useState(true);
 
   useEffect(() => {
-    void lockAvailable().then(setCanLock);
+    lockAvailable().then(setCanLock);
   }, []);
 
   const signedIn = useAuth((a) => a.status === 'signedIn');
@@ -133,7 +133,7 @@ export function SettingsHubScreen() {
                   { value: 'ar' as const, label: 'العربية' },
                   { value: 'en' as const, label: 'English' },
                 ]}
-                onChange={(l) => { void changeLang(l); }}
+                onChange={(l) => { changeLang(l); }}
               />
               <Text style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'clientLangTitle')}</Text>
               <Chips
@@ -191,7 +191,7 @@ export function SettingsHubScreen() {
                   testID="test-role"
                   value={ts.role}
                   options={ts.roles.map((r) => ({ value: r, label: ROLE_LABELS[r]?.[lang] ?? r }))}
-                  onChange={(r) => { void switchRole(r); }}
+                  onChange={(r) => { switchRole(r); }}
                 />
                 {ts.canView ? (
                   <Chips
@@ -201,7 +201,7 @@ export function SettingsHubScreen() {
                       { value: 'home' as const, label: t(lang, 'hb_testAgency') },
                       { value: 'other' as const, label: t(lang, 'hb_nchRead') },
                     ]}
-                    onChange={(v) => { void switchView(v); }}
+                    onChange={(v) => { switchView(v); }}
                   />
                 ) : null}
               </View>

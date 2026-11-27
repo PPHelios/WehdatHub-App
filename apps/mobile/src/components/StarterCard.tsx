@@ -48,7 +48,7 @@ export function useStarterDismissed(brokerId?: string): [boolean, () => void] {
   useEffect(() => {
     AsyncStorage.getItem(starterDismissKey(brokerId)).then((v) => setDismissed(v === '1')).catch(() => setDismissed(false));
   }, [brokerId]);
-  return [dismissed, () => { setDismissed(true); void AsyncStorage.setItem(starterDismissKey(brokerId), '1').catch(() => undefined); }];
+  return [dismissed, () => { setDismissed(true); AsyncStorage.setItem(starterDismissKey(brokerId), '1').catch(() => undefined); }];
 }
 
 export function StarterCard({ onboarding, onAddUnit, onShareSample, onConnectTelegram, onAsk, onAddPhotos, onDismiss }: Props) {
@@ -76,7 +76,7 @@ export function StarterCard({ onboarding, onAddUnit, onShareSample, onConnectTel
   useEffect(() => {
     const now = new Set(ids.filter(doneOf));
     // The first render only records what was already done; later ticks are steps finished now.
-    if (before.current) now.forEach((id) => { if (!before.current!.has(id)) void track('starter_step_done', { step: id }); });
+    if (before.current) now.forEach((id) => { if (!before.current!.has(id)) track('starter_step_done', { step: id }); });
     before.current = now;
   });
 

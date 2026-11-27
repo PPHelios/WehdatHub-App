@@ -109,7 +109,7 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
   const [canLock, setCanLock] = useState(true);
 
   useEffect(() => {
-    void lockAvailable().then(setCanLock);
+    lockAvailable().then(setCanLock);
   }, []);
 
   const signedIn = useAuth((a) => a.status === 'signedIn');
@@ -225,7 +225,7 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
             <Text variant="bodySm" weight="bold" style={{ color: colors.text }}>{t(lang, 'appearance')}</Text>
             <Chips testID="appearance" value={appearance} options={[{ value: 'system' as const, label: t(lang, 'appSystem') }, { value: 'light' as const, label: t(lang, 'appLight') }, { value: 'dark' as const, label: t(lang, 'appDark') }]} onChange={setAppearance} />
             <Text variant="bodySm" weight="bold" style={{ color: colors.text }}>{t(lang, 'languageTitle')}</Text>
-            <Chips testID="app-lang" value={lang} options={[{ value: 'ar' as const, label: 'العربية' }, { value: 'en' as const, label: 'English' }]} onChange={(l) => { void changeLang(l); }} />
+            <Chips testID="app-lang" value={lang} options={[{ value: 'ar' as const, label: 'العربية' }, { value: 'en' as const, label: 'English' }]} onChange={(l) => { changeLang(l); }} />
             <Text variant="bodySm" weight="bold" style={{ color: colors.text }}>{t(lang, 'clientLangTitle')}</Text>
             <Chips testID="client-lang" value={clientLang} options={[{ value: 'ar' as const, label: 'العربية' }, { value: 'en' as const, label: 'English' }]} onChange={setClientLang} />
             <Text variant="caption" style={{ color: colors.muted }}>{t(lang, 'clientLangHint')}</Text>
@@ -266,9 +266,9 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
       {ts && mode === 'settings' ? (
         <Card variant="elevated" testID="test-switch" style={styles.groupPad}>
           <Text variant="bodySm" weight="bold" style={{ color: colors.text }}>{t(lang, 'mrTestSwitch')}</Text>
-          <Chips testID="test-role" value={ts.role} options={ts.roles.map((r) => ({ value: r, label: ROLE_LABELS[r]?.[lang] ?? r }))} onChange={(r) => { void switchRole(r); }} />
+          <Chips testID="test-role" value={ts.role} options={ts.roles.map((r) => ({ value: r, label: ROLE_LABELS[r]?.[lang] ?? r }))} onChange={(r) => { switchRole(r); }} />
           {ts.canView ? (
-            <Chips testID="test-view" value={ts.viewing ? 'other' : 'home'} options={[{ value: 'home' as const, label: t(lang, 'mrTestAgency') }, { value: 'other' as const, label: t(lang, 'mrNchRead') }]} onChange={(v) => { void switchView(v); }} />
+            <Chips testID="test-view" value={ts.viewing ? 'other' : 'home'} options={[{ value: 'home' as const, label: t(lang, 'mrTestAgency') }, { value: 'other' as const, label: t(lang, 'mrNchRead') }]} onChange={(v) => { switchView(v); }} />
           ) : null}
         </Card>
       ) : null}

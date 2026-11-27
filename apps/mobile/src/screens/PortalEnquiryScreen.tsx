@@ -19,6 +19,7 @@ import { teamOptions } from '../queries';
 import { phoneHelp } from '../readback';
 import type { RootStackParams } from '../navigation';
 import { spacing, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 /**
  * A portal enquiry (Bayut, Dubizzle, Nawy) pasted or shared in, for managers and the owner: shows what the message states,
@@ -78,7 +79,7 @@ export function PortalEnquiryScreen() {
           <Text testID="pe-link" style={{ color: colors.muted }} numberOfLines={2}>{t(lang, 'peLink')}: {enquiry.link}</Text>
           <Text testID="pe-listing" style={{ color: colors.muted }}>{t(lang, 'peListing')}: {enquiry.listingNo || '—'}</Text>
           <Field label={t(lang, 'pePhone')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" testID="pe-phone" hint={phoneHelp(lang)} />
-          <Text style={{ color: colors.text, fontWeight: '600' }}>{t(lang, 'peBroker')}</Text>
+          <Text style={[{ color: colors.text }, sx.fontWeight600]}>{t(lang, 'peBroker')}</Text>
           {team.isPending ? <ActivityIndicator color={colors.spinner} /> : null}
           <Chips<string> testID="pe-broker" options={brokers.map((m) => ({ value: m.id, label: m.me ? `${m.name} (${t(lang, 'me')})` : m.name }))} value={brokerId} onChange={(v) => setBrokerId(v === brokerId ? '' : v)} />
         </>

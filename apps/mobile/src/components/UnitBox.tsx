@@ -11,6 +11,7 @@ import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { Chip } from './Chip';
 import { Field } from './Field';
 import { NO_PLACE, chipLabel, featureKeys, nameOf, otherFeatures, phasesOf, placePatch, resolvePatch, str } from '../unitBoxRules';
+import { sx } from '../sharedStyles';
 
 
 // The one box for where the unit is (one place chip) and what it has (feature chips). It writes the same fields the web form
@@ -154,10 +155,10 @@ export function UnitBox({ fields, patch, lang, testID = 'unit-box', invalid = fa
             </Pressable>
           ))}
           <Pressable testID="ubox-request" onPress={() => { setInput(''); setRequesting(true); patch({ compound: typed, compound_new: '1', area_id: '', subzone_id: '', place_label: typed, place_path: '', place_zones: '', phase_label: '', place_phases: '' }); }} accessibilityRole="button" style={styles.opt}>
-            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(L.boxRequest, { s: typed })}</Text>
+            <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{fill(L.boxRequest, { s: typed })}</Text>
           </Pressable>
           <Pressable testID="ubox-other" onPress={() => addOther(typed)} accessibilityRole="button" style={styles.opt}>
-            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(L.boxOther, { s: typed })}</Text>
+            <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{fill(L.boxOther, { s: typed })}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -226,10 +227,10 @@ function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: 
       ) : null}
       <View style={styles.row}>
         <Pressable testID="ubox-new-save" onPress={save} disabled={!ok} accessibilityRole="button" accessibilityState={{ disabled: !ok }} style={[styles.btn, greenGradient, { opacity: ok ? 1 : 0.4 }]}>
-          <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{L.newSave}</Text>
+          <Text style={[{ color: colors.onPrimary }, sx.fontWeight700]}>{L.newSave}</Text>
         </Pressable>
-        <Pressable testID="ubox-new-cancel" onPress={onCancel} accessibilityRole="button" style={[styles.btn, { borderWidth: 1, borderColor: colors.border }]}>
-          <Text style={{ color: colors.text, fontWeight: '600' }}>{L.newCancel}</Text>
+        <Pressable testID="ubox-new-cancel" onPress={onCancel} accessibilityRole="button" style={[styles.btn, [{ borderColor: colors.border }, sx.borderWidth1]]}>
+          <Text style={[{ color: colors.text }, sx.fontWeight600]}>{L.newCancel}</Text>
         </Pressable>
       </View>
     </View>

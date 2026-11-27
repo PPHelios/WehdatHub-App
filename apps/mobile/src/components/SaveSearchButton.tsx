@@ -11,6 +11,7 @@ import { spacing, useTheme } from '../theme';
 import { Button } from './Button';
 import { Field } from './Field';
 import { toastError } from './Toast';
+import { sx } from '../sharedStyles';
 
 /** Saves the search just made (the server gave its filters token) under a name. */
 export function SaveSearchButton({ f }: { f: string }) {
@@ -34,7 +35,7 @@ export function SaveSearchButton({ f }: { f: string }) {
       {open ? (
         <>
           <Field testID="save-search-name" label={t(lang, 'savedSearchName')} value={name} onChangeText={setName} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'alertsOn')}</Text><BusySwitch testID="save-search-alerts" value={alerts} onValueChange={setAlerts} /></View>
+          <View style={sx.flexDirectionRow_alignItemsCenter_justifyContentSpaceBetween}><Text style={[{ color: colors.text }, sx.flex1]}>{t(lang, 'alertsOn')}</Text><BusySwitch testID="save-search-alerts" value={alerts} onValueChange={setAlerts} /></View>
           <Button testID="save-search-go" label={t(lang, 'save')} onPress={save} disabled={!name.trim()} />
         </>
       ) : (

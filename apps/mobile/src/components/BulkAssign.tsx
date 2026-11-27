@@ -11,6 +11,7 @@ import { Button } from './Button';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import { radius, spacing, typeScale, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 /** Pick a team member and hand every selected lead to them, one by one (each carries its own version). */
 export function BulkAssign({ leads, onDone, onCancel }: { leads: ApiLead[]; onDone: () => void; onCancel: () => void }) {
@@ -47,7 +48,7 @@ export function BulkAssign({ leads, onDone, onCancel }: { leads: ApiLead[]; onDo
           <ScrollView style={styles.list}>
             {(team.data?.items ?? []).map((m) => (
               <Pressable key={m.id} testID={`assign-${m.id}`} accessibilityRole="button" disabled={busy || m.away} onPress={() => run(m.id)} style={[styles.row, { borderColor: colors.border, opacity: m.away ? 0.5 : 1 }]}>
-                <Text style={{ color: colors.text, fontWeight: '600' }}>{m.name}{m.me ? ` (${t(lang, 'me')})` : ''}</Text>
+                <Text style={[{ color: colors.text }, sx.fontWeight600]}>{m.name}{m.me ? ` (${t(lang, 'me')})` : ''}</Text>
                 <Text style={{ color: colors.muted }}>{m.away ? t(lang, 'awayShort') : `${m.open}`}</Text>
               </Pressable>
             ))}

@@ -16,7 +16,6 @@ test('shared photos, a WhatsApp voice note and text are sorted for Add unit', ()
 });
 
 test('the app version matches package.json', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   expect(APP_VERSION).toBe(require('../package.json').version);
 });
 

@@ -96,8 +96,8 @@ export function DealsScreen() {
     queryFn: ({ pageParam }) => (hasFilters ? api.deals(status || undefined, pageParam, { ...filters, summary: true }) : api.deals(status || undefined, pageParam)),
     getNextPageParam: (lastPage, _pages, lastPageParam) => (lastPage.more ? lastPageParam + 1 : undefined),
   });
-  const setDeal = async (ref: string, to: string, version: unknown) => {
-    try { await api.dealStatus(ref, to, Number(version)); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { toast(errorText(e, lang), true); }
+  const setDeal = async (ref: string, next: string, version: unknown) => {
+    try { await api.dealStatus(ref, next, Number(version)); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { toast(errorText(e, lang), true); }
   };
   if (q.isPending) return <Loading kind="rows" label={t(lang, 'loading')} />;
   const firstPage = q.data?.pages[0];
@@ -112,7 +112,7 @@ export function DealsScreen() {
       keyboardShouldPersistTaps="handled"
       data={items}
       keyExtractor={(x, i) => str(x.ref ?? i)}
-      onEndReached={() => { if (q.hasNextPage && !q.isFetchingNextPage) void q.fetchNextPage(); }}
+      onEndReached={() => { if (q.hasNextPage && !q.isFetchingNextPage) q.fetchNextPage(); }}
       onEndReachedThreshold={0.6}
       ListHeaderComponent={(
         <View style={styles.head}>
@@ -167,7 +167,7 @@ export function DealsScreen() {
                 <Button testID={`fix-${str(x.ref)}`} label={t(lang, 'save')} disabled={!(fix[str(x.ref)] ?? '').trim()} onPress={async () => { try { await api.correctDeal(`D-${String(x.ref).padStart(4, '0')}`, { commission: fix[str(x.ref)], version: Number(x.version) }); await qc.invalidateQueries({ queryKey: ['deals'] }); } catch (e) { toast(errorText(e, lang), true); } }} />
               </Section>
             ) : null}
-            {firstPage.statuses.length ? <Chips value={str(x.status)} onChange={(s) => { void setDeal(str(x.ref), s, x.version); }} options={(Array.isArray(x.allowed) ? (x.allowed as string[]) : firstPage.statuses).map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} /> : null}
+            {firstPage.statuses.length ? <Chips value={str(x.status)} onChange={(s) => { setDeal(str(x.ref), s, x.version); }} options={(Array.isArray(x.allowed) ? (x.allowed as string[]) : firstPage.statuses).map((s) => ({ value: s, label: dealStatusLabel(s, ar) }))} /> : null}
           </Card>
         </Animated.View>
       )}
@@ -233,7 +233,7 @@ export function CommissionsScreen() {
       keyboardShouldPersistTaps="handled"
       data={items}
       keyExtractor={(x, i) => str(x.id ?? i)}
-      onEndReached={() => { if (q.hasNextPage && !q.isFetchingNextPage) void q.fetchNextPage(); }}
+      onEndReached={() => { if (q.hasNextPage && !q.isFetchingNextPage) q.fetchNextPage(); }}
       onEndReachedThreshold={0.6}
       ListHeaderComponent={(
         <View style={styles.head}>
@@ -443,7 +443,7 @@ export function SourcesScreen({ onDirtyChange }: { onDirtyChange?: (dirty: boole
               );
             })}
             {visibleMsg ? <Text testID="sources-msg" style={{ color: colors.text }}>{visibleMsg}</Text> : null}
-            <Button testID="sources-save" disabled={saving} label={t(lang, 'dlSaveSpend')} onPress={() => { void save(activeMonth); }} />
+            <Button testID="sources-save" disabled={saving} label={t(lang, 'dlSaveSpend')} onPress={() => { save(activeMonth); }} />
           </ScrollView>
         );
       }}

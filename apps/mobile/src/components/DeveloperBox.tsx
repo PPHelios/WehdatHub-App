@@ -9,6 +9,7 @@ import type { ProjectFields } from '../projectRules';
 import { fill, pt } from '../projectText';
 import { radius, spacing, typeScale, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
+import { sx } from '../sharedStyles';
 
 const str = (v: ProjectFields[string]): string => (typeof v === 'string' ? v : '');
 
@@ -81,7 +82,7 @@ export function DeveloperBox({ fields, patch, lang }: { fields: ProjectFields; p
           ))}
           {typed && !exact ? (
             <Pressable testID="dev-add" accessibilityRole="button" onPress={() => pick({ name: typed })} style={styles.opt}>
-              <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(T.devAdd, { s: typed })}</Text>
+              <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{fill(T.devAdd, { s: typed })}</Text>
             </Pressable>
           ) : null}
         </View>

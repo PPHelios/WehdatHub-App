@@ -15,6 +15,7 @@ import { toast } from './Toast';
 import type { IconName } from './Icon';
 import { HomeRow } from './HomeRow';
 import { UrgencyBadge, type BadgeTone } from './SectionCard';
+import { sx } from '../sharedStyles';
 
 /** The cards under Today's task list, from the same result the website shows (server: services/today.js). */
 export function OldUnitActions({ code }: { code: string }) {
@@ -36,7 +37,7 @@ export function OldUnitActions({ code }: { code: string }) {
   return <View style={styles.actions}>
     {([['active', 'stActive', colors.primaryInk], ['sold', 'stSold', colors.primaryInk], ['archived', 'stArchived', colors.muted]] as const).map(([status, key, tone]) => (
       <Pressable key={status} testID={`old-${status}-${code}`} accessibilityRole="button" disabled={busy} onPress={() => quick(status)} style={[styles.action, { borderColor: colors.border, backgroundColor: colors.cardSubtle }]}>
-        <Text style={{ color: tone, fontSize: typeScale.caption.fontSize, fontWeight: '700' }}>{t(lang, key)}</Text>
+        <Text style={[{ color: tone, fontSize: typeScale.caption.fontSize }, sx.fontWeight700]}>{t(lang, key)}</Text>
       </Pressable>
     ))}
   </View>;

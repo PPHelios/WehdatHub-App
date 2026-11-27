@@ -27,6 +27,7 @@ import { UnitScreen } from './UnitScreen';
 import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 import { useRights } from '../rights';
+import { sx } from '../sharedStyles';
 
 const PAGE = 20;
 const STATUSES = ['active', 'sold', 'archived'] as const;
@@ -105,7 +106,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
       {!list.isPending && (text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching)) ? <ActivityIndicator style={styles.searching} color={colors.primaryInk} /> : null}
       <View style={styles.chips}>
         <Pressable testID="units-filters" accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((v) => !v)} style={[styles.chip, { borderColor: filtered ? colors.primary : colors.border }]}>
-          <Text style={{ color: colors.text, fontWeight: '600' }}>{t(lang, 'filters')}{filtered ? ' •' : ''}</Text>
+          <Text style={[{ color: colors.text }, sx.fontWeight600]}>{t(lang, 'filters')}{filtered ? ' •' : ''}</Text>
         </Pressable>
         {statusSelection.highlight}
         {STATUSES.map((s) => (
@@ -136,7 +137,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
           <Chips animateFilter testID="f-mine" options={[{ value: 'mine', label: t(lang, 'mineOnly') }]} value={mine ? 'mine' : ''} onChange={() => setMine((v) => !v)} />
           {compound ? (
             <Pressable testID="compound-clear" accessibilityRole="button" onPress={() => { setCompound(''); setCompoundText(''); }} style={[styles.chip, { borderColor: colors.primary }]}>
-              <Text style={{ color: colors.text, fontWeight: '600' }}>{compound} ✕</Text>
+              <Text style={[{ color: colors.text }, sx.fontWeight600]}>{compound} ✕</Text>
             </Pressable>
           ) : (
             <>

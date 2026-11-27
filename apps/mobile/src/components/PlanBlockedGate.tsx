@@ -8,6 +8,7 @@ import { PlanScreen } from '../screens/MoreScreens';
 import { spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
 import { usePlanLock } from '../planLock';
+import { sx } from '../sharedStyles';
 
 /**
  * A stopped account (blocked) can only reach the Plan page. This covers the app: a manager gets the Plan page (payment details),
@@ -28,7 +29,7 @@ export function PlanBlockedGate() {
         <View style={styles.plan}><PlanScreen /></View>
       ) : (
         <View style={styles.ask}>
-          <Text testID="plan-blocked-ask" style={{ color: colors.text, fontWeight: '700', textAlign: 'center' }}>{planT(lang, 'askManager')}</Text>
+          <Text testID="plan-blocked-ask" style={[{ color: colors.text }, sx.fontWeight700_textAlignCenter]}>{planT(lang, 'askManager')}</Text>
           <Button variant="secondary" label={lang === 'ar' ? 'خروج' : 'Sign out'} onPress={() => useAuth.getState().signOut()} />
         </View>
       )}

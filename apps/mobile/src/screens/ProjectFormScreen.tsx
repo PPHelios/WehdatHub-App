@@ -31,6 +31,7 @@ import { plain, withCommas } from '../readback';
 import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { ALL_TYPES, labelOf } from '../unitOptions';
 import { toast, toastError } from '../components/Toast';
+import { sx } from '../sharedStyles';
 
 /** A message pasted this long all at once is read at once (the website reads it too); the broker still checks every field. */
 const PASTE_MIN = 40;
@@ -119,7 +120,7 @@ export function ProjectFormScreen() {
   const onPaste = (v: string) => {
     const pasted = v.length - paste.length >= PASTE_MIN;
     setPaste(v);
-    if (pasted) void read(v);
+    if (pasted) read(v);
   };
 
   const blockers = projectBlockers(fields, lang, editing);
@@ -197,7 +198,7 @@ export function ProjectFormScreen() {
         ) : null}
         {failed && blockers.length ? (
           <View testID="blockers" style={[styles.box, { borderColor: colors.danger }]}>
-            <Text style={{ color: colors.danger, fontWeight: '700' }}>{T.stillNeeded}</Text>
+            <Text style={[{ color: colors.danger }, sx.fontWeight700]}>{T.stillNeeded}</Text>
             {blockers.map((b) => <Text key={b.field} style={{ color: colors.text }}>• {b.label}</Text>)}
           </View>
         ) : null}
@@ -211,7 +212,7 @@ export function ProjectFormScreen() {
             {readNote ? <Text testID="pf-read-note" style={{ color: colors.accentInk }}>{readNote}</Text> : null}
             {existing ? (
               <Pressable testID="pf-known" accessibilityRole="button" onPress={() => nav.navigate('Project', { id: existing.id, name: existing.name })} style={[styles.box, { borderColor: colors.accent }]}>
-                <Text style={{ color: colors.text }}>{T.known}: {existing.name} · <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{T.open}</Text></Text>
+                <Text style={{ color: colors.text }}>{T.known}: {existing.name} · <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{T.open}</Text></Text>
               </Pressable>
             ) : null}
             <Field testID="pf-name" label={`${T.name}`} value={str(fields.name)} onChangeText={(v) => set('name', v)} required invalid={missing('name')} maxLength={120} />
@@ -280,7 +281,7 @@ export function ProjectFormScreen() {
       <Sheet visible={Boolean(leaveAsk)} onClose={() => setLeaveAsk(null)} title={T.leaveTitle} testID="leave-sheet">
         <Text style={{ color: colors.muted }}>{T.leaveBody}</Text>
         <Button testID="leave-stay" variant="secondary" label={t(lang, 'stay')} onPress={() => setLeaveAsk(null)} />
-        <Button testID="leave-go" variant="danger" label={t(lang, 'leave')} onPress={() => { const go = leaveAsk; setLeaveAsk(null); go?.(); }} />
+        <Button testID="leave-go" variant="danger" label={t(lang, 'leave')} onPress={() => { const leave = leaveAsk; setLeaveAsk(null); leave?.(); }} />
       </Sheet>
     </View>
   );

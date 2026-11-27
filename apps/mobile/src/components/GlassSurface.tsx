@@ -2,6 +2,7 @@ import React from 'react';
 import { Platform, View, type StyleProp, type ViewStyle } from 'react-native';
 import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
 import { useTheme, type ElevationLevel } from '../theme';
+import { sx } from '../sharedStyles';
 
 interface Props {
   style?: StyleProp<ViewStyle>;
@@ -27,7 +28,7 @@ export function GlassSurface({ style, children, interactive, elevation = 'md', t
     );
   }
   return (
-    <View testID={testID} style={[{ backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }, style, elevation ? elev(elevation) : null]}>
+    <View testID={testID} style={[[{ backgroundColor: colors.card, borderColor: colors.border }, sx.borderWidth1], style, elevation ? elev(elevation) : null]}>
       {children}
     </View>
   );

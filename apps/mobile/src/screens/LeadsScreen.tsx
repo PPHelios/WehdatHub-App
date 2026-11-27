@@ -181,7 +181,7 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
 }
 
 /** One row: swipe to call or mark called, tap to open, press and hold for the quick menu. */
-const LeadItem = memo(function LeadItem({ coach, lead, lang, picked, onPress, onQuick, onCall, onMark }: { coach?: boolean; lead: ApiLead; lang: Lang; picked?: boolean; onPress: (l: ApiLead) => void; onQuick: (l: ApiLead) => void; onCall: (l: ApiLead) => void; onMark: (l: ApiLead) => void }) {
+const LeadItem = memo(function LeadItemView({ coach, lead, lang, picked, onPress, onQuick, onCall, onMark }: { coach?: boolean; lead: ApiLead; lang: Lang; picked?: boolean; onPress: (l: ApiLead) => void; onQuick: (l: ApiLead) => void; onCall: (l: ApiLead) => void; onMark: (l: ApiLead) => void }) {
   const slot = useRef<React.ComponentRef<typeof View>>(null);
   return (
     <View ref={slot} collapsable={false} style={styles.cardSlot}>

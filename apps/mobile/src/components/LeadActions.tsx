@@ -46,7 +46,7 @@ export function LeadActions({ lead }: { lead: ApiLead }) {
       actions: [{
         label: t(lang, 'eraseLead'),
         variant: 'danger',
-        onPress: () => void guard(async () => { await api.leadErase(lead.ref, digits.trim()); toast(t(lang, 'erased')); await qc.invalidateQueries({ queryKey: ['leads'] }); nav.goBack(); }, t(lang, 'eraseFail')),
+        onPress: () => { guard(async () => { await api.leadErase(lead.ref, digits.trim()); toast(t(lang, 'erased')); await qc.invalidateQueries({ queryKey: ['leads'] }); nav.goBack(); }, t(lang, 'eraseFail')); },
       }],
     });
 

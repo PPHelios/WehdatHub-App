@@ -30,6 +30,7 @@ import { watchShares } from './src/share';
 import { syncDirection } from './src/direction';
 import { usePrefs } from './src/prefs';
 import { t } from './src/i18n';
+import { sx } from './src/sharedStyles';
 
 I18nManager.allowRTL(true);
 
@@ -55,7 +56,7 @@ export default function App() {
   useEffect(() => {
     restore();
     useLock.getState().load();
-    void usePrefs.getState().load();
+    usePrefs.getState().load();
     // The server says the lowest app version it supports. A failure to ask never blocks the app.
     queries.fetchQuery(configOptions).then((c) => isOutdated(APP_VERSION, c.minAppVersion) && setTooOld(c)).catch(() => undefined);
   }, [restore]);
@@ -86,7 +87,7 @@ export default function App() {
       // A WhatsApp chat export (a zip) opens the import screen; everything else opens Add unit.
       if (s.zip) usage('wa_import_share', true);
       const go = () => (s.zip ? navigationRef.navigate('WhatsAppImport', { zip: s.zip }) : navigationRef.navigate('AddUnit', s));
-      const open = (fn: () => void) => (navigationRef.isReady() ? fn() : void setTimeout(fn, 800));
+      const open = (fn: () => void) => (navigationRef.isReady() ? fn() : setTimeout(fn, 800));
       // Text only, shared by a manager or the owner: a portal enquiry (Bayut, Dubizzle, Nawy) opens its own screen.
       const rights = queries.getQueryData(meOptions().queryKey)?.rights;
       const text = s.text;
@@ -106,7 +107,7 @@ export default function App() {
       clearPlaces().catch(() => undefined);
       // The session ended (e.g. a 401): drop the last person's cached data, as the manual logout does.
       queries.clear();
-      void listsStore.removeClient();
+      listsStore.removeClient();
       return;
     }
   }, [status]);
@@ -121,8 +122,8 @@ export default function App() {
       .fetchQuery(configOptions)
       .then(async (c) => {
         if (gone || !(await startFirebase(c.firebase)) || gone) return;
-        void startCrashReports();
-        void startAnalytics();
+        startCrashReports();
+        startAnalytics();
         if (status !== 'signedIn') return;
         const off = await startPush((s) => {
           const go = () => navigationRef.navigate(s.name, s.params as never);
@@ -147,7 +148,7 @@ export default function App() {
   }, [status]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={sx.flex1}>
     <SafeAreaProvider>
       <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       {tooOld ? (

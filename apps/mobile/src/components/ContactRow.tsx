@@ -30,7 +30,7 @@ export function ContactRow({ phone, lang, kind, index = 0 }: { phone: string; la
         style={[styles.action, { backgroundColor: colors.primarySoft }]}
         onPress={() => {
           usage('call_tap', true, undefined, { kind });
-          void Linking.openURL(`tel:+${waNumber(phone)}`).catch(() => undefined);
+          Linking.openURL(`tel:+${waNumber(phone)}`).catch(() => undefined);
         }}>
         <Icon name="phone" color={colors.primaryInk} size={20} />
       </Pressable>
@@ -38,7 +38,7 @@ export function ContactRow({ phone, lang, kind, index = 0 }: { phone: string; la
         style={[styles.action, greenGradient]}
         onPress={() => {
           usage('whatsapp_tap', true, undefined, { kind });
-          void Linking.openURL(`https://wa.me/${waNumber(phone)}`).catch(() => undefined);
+          Linking.openURL(`https://wa.me/${waNumber(phone)}`).catch(() => undefined);
         }}>
         <Icon name="chat" color={colors.onPrimary} size={20} />
       </Pressable>

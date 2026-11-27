@@ -15,6 +15,7 @@ import { openAssistant } from '../searchLink';
 import { VIEWING_STATUS, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 /** Viewings grouped by day, soonest first. */
 export function groupByDay(items: ApiViewing[], lang: 'ar' | 'en'): { title: string; data: ApiViewing[] }[] {
@@ -55,7 +56,7 @@ export function CalendarScreen() {
         <Pressable testID={`viewing-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('Lead', { ref: item.leadRef })} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.row}>
             <Text variant="body" weight="bold" style={{ color: colors.primaryInk }}>{time(item.startsAt)}</Text>
-            <Text style={[styles.flex, { color: colors.text, fontWeight: '700' }]}>{item.leadName || item.leadRef}</Text>
+            <Text style={[styles.flex, [{ color: colors.text }, sx.fontWeight700]]}>{item.leadName || item.leadRef}</Text>
             <Text style={{ color: colors.muted }}>{labelOf(VIEWING_STATUS, item.status, lang)}</Text>
           </View>
           {item.unitCode || item.place ? <Text style={{ color: colors.muted }}>{[item.unitCode, item.place].filter(Boolean).join(' · ')}</Text> : null}

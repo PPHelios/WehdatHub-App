@@ -42,6 +42,7 @@ import { uf } from '../unitFormText';
 import { sendable, stepOf, stepsFor, withFurnishingSync, withImpliedFeatures } from '../unitRules';
 import type { Step } from '../unitRules';
 import { toastError } from '../components/Toast';
+import { sx } from '../sharedStyles';
 
 const str = (v: UnitFields[string]): string => (typeof v === 'string' ? v : '');
 const phoneDigits = (v: string) => { const d = v.replace(/\D/g, '').replace(/^00/, ''); return d.startsWith('20') ? d.slice(2).replace(/^0+/, '') : d.replace(/^0+/, ''); };
@@ -246,7 +247,6 @@ export function AddUnitScreen() {
       });
     }, 700);
     return () => { live = false; clearTimeout(h); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, kept.length, ready, editCode]);
 
   // Leaving with unsaved edits asks first (a new unit keeps its draft, so only edits ask).
@@ -299,7 +299,7 @@ export function AddUnitScreen() {
     if (!editCode && !accepted && review?.duplicate) return setDuplicate(review.duplicate);
     if (accepted) setDupAck(true);
     dirty.current = false;
-    void track('unit_save_started', { edit: Number(Boolean(editCode)) });
+    track('unit_save_started', { edit: Number(Boolean(editCode)) });
     setSaving(true);
     setProgress(0);
     setSlow(null);
@@ -337,8 +337,8 @@ export function AddUnitScreen() {
         // retries the photos, so it never meets "changed elsewhere" from its own first save.
         const key = JSON.stringify(body);
         if (savedDetails.current !== key) {
-          const saved = await api.saveUnitEdit(editCode, version, body, saveKey.current);
-          setVersion(saved.version);
+          const edited = await api.saveUnitEdit(editCode, version, body, saveKey.current);
+          setVersion(edited.version);
           savedDetails.current = key;
         }
         const sent = await sendPhotos();
@@ -369,7 +369,7 @@ export function AddUnitScreen() {
       saveKey.current = newSaveKey();
       saved.current = true;
       tick();
-      void track('unit_saved', { photos: files.length, edit: Number(Boolean(editCode)) });
+      track('unit_saved', { photos: files.length, edit: Number(Boolean(editCode)) });
       // A compound the list does not know is saved as pending on the server; show it on this phone straight away.
       if (fields.compound_new === '1' && str(fields.compound)) addPendingPlace(str(fields.compound)).catch(() => undefined);
       if (!fresh) await clearDraft();
@@ -377,7 +377,7 @@ export function AddUnitScreen() {
       if (importId) return nav.popTo('WhatsAppImport', { saved: { id: importId, code: r.code } });
       nav.replace('Unit', { code: r.code });
     } catch (e) {
-      void track('unit_save_refused', { status: e instanceof ApiClientError ? e.status : 0 });
+      track('unit_save_refused', { status: e instanceof ApiClientError ? e.status : 0 });
       if (e instanceof SaveNotConfirmed) return setError(t(lang, 'saveNotConfirmed'));
       if (!(e instanceof ApiClientError)) return setError(toastError(errorText(e, lang)));
       if (editCode && e.code === 'conflict') return setError(t(lang, 'changedElsewhere'));
@@ -439,13 +439,13 @@ export function AddUnitScreen() {
 
         {ready && allBlockers.length > 0 ? (
           <View testID="blockers" style={[styles.box, { borderColor: colors.danger, backgroundColor: colors.card }]}>
-            <Text style={{ color: colors.danger, fontWeight: '700' }}>{t(lang, 'stillNeeded')}</Text>
+            <Text style={[{ color: colors.danger }, sx.fontWeight700]}>{t(lang, 'stillNeeded')}</Text>
             {allBlockers.map((b) => <Text key={b.field} style={{ color: colors.text }}>• {b.label}</Text>)}
           </View>
         ) : null}
         {(duplicate ?? (editCode ? null : review?.duplicate ?? null)) !== null ? (
           <View testID="duplicate" style={[styles.box, { borderColor: colors.accent, backgroundColor: colors.card }]}>
-            <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'duplicateAsk')} {duplicate ?? review?.duplicate}</Text>
+            <Text style={[{ color: colors.text }, sx.fontWeight700]}>{t(lang, 'duplicateAsk')} {duplicate ?? review?.duplicate}</Text>
             <SwitchRow label={t(lang, 'dupOk')} value={dupAck} onChange={setDupAck} testID="dup-ack" />
             <Button label={t(lang, 'saveAnyway')} onPress={() => save(true)} disabled={saveDisabled} />
             {duplicate !== null ? <Button label={t(lang, 'cancel')} variant="secondary" onPress={() => setDuplicate(null)} /> : null}
@@ -463,7 +463,7 @@ export function AddUnitScreen() {
           )}
           {notice ? (
             notice === t(lang, 'draftRestored')
-              ? <View testID="unit-notice" style={[styles.box, { backgroundColor: colors.cardSubtle, borderColor: colors.border }]}><Text style={{ color: colors.text, fontWeight: '700' }}>↩ {notice}</Text></View>
+              ? <View testID="unit-notice" style={[styles.box, { backgroundColor: colors.cardSubtle, borderColor: colors.border }]}><Text style={[{ color: colors.text }, sx.fontWeight700]}>↩ {notice}</Text></View>
               : <Text testID="unit-notice" style={{ color: colors.accentInk }}>{notice}</Text>
           ) : null}
           <UnitBox fields={fields} patch={patch} lang={lang} invalid={failedCheck && missing('location')} />
@@ -519,7 +519,7 @@ export function AddUnitScreen() {
         <View style={styles.stack}>
           {editCode && review?.changes?.length ? (
             <View testID="changes" style={[styles.box, { borderColor: colors.border, backgroundColor: colors.card }]}>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'willChange')}</Text>
+              <Text style={[{ color: colors.text }, sx.fontWeight700]}>{t(lang, 'willChange')}</Text>
               {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {(lang === 'ar' ? c.from_ar : c.from_en) ?? c.from ?? '—'} {lang === 'ar' ? '←' : '→'} {(lang === 'ar' ? c.to_ar : c.to_en) ?? c.to ?? '—'}</Text>)}
             </View>
           ) : null}
@@ -532,7 +532,7 @@ export function AddUnitScreen() {
           ) : null}
         </View>
         {error ? <Text testID="unit-error" style={{ color: colors.danger }}>{error}</Text> : null}
-        {slow ? <Text testID="slow-net" style={{ color: colors.accentInk, fontWeight: '700' }}>🐢 {slow}</Text> : null}
+        {slow ? <Text testID="slow-net" style={[{ color: colors.accentInk }, sx.fontWeight700]}>🐢 {slow}</Text> : null}
         {editCode ? null : <Button label={t(lang, 'discardDraft')} variant="secondary" onPress={discard} />}
       </ScrollView>
 

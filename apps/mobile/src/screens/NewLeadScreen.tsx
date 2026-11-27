@@ -70,9 +70,9 @@ export function NewLeadScreen() {
     setMessage(null);
     if (!contactPhoneSchema.safeParse(phone.trim()).success) return setMessage(t(lang, 'badNumber'));
     try {
-      void track('lead_save_started');
+      track('lead_save_started');
       const r = await api.createLead({ phone1: phone.trim(), name: name.trim() || undefined, kind, notes: notes.trim() || undefined });
-      if (r.outcome === 'created') void track('lead_created');
+      if (r.outcome === 'created') track('lead_created');
       await qc.invalidateQueries({ queryKey: ['leads'] });
       nav.replace('Lead', { ref: r.lead.ref });
     } catch (e) {

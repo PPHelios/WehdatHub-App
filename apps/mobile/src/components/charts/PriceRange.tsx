@@ -7,6 +7,7 @@ import { spacing, typeScale, useTheme } from '../../theme';
 import { AppText as Text } from '../AppText';
 import { ChartFrame } from './ChartFrame';
 import { useGrow } from './motion';
+import { sx } from '../../sharedStyles';
 
 type Card = Extract<AssistantCard, { kind: 'price_range' }>;
 const H = 90;
@@ -28,7 +29,7 @@ export function PriceRange({ card, onNavigate }: { card: Card; onNavigate?: (s: 
       <View onLayout={(e) => setW(Math.max(120, Math.round(e.nativeEvent.layout.width)))}>
         {card.budget ? (
           <View testID="price-range-budget" style={[styles.pill, { backgroundColor: colors.warnSoft, marginStart: Math.min(Math.max(0, (bx ?? 0) - 60), Math.max(0, w - 150)) }]}>
-            <Text style={{ color: colors.warnInk, fontSize: typeScale.caption.fontSize, fontWeight: '700' }}>{card.budget.label}</Text>
+            <Text style={[{ color: colors.warnInk, fontSize: typeScale.caption.fontSize }, sx.fontWeight700]}>{card.budget.label}</Text>
           </View>
         ) : null}
         <Animated.View style={style}>

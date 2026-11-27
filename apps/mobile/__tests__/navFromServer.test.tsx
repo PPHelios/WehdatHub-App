@@ -10,23 +10,23 @@ declare const require: (id: string) => any;
 declare const __dirname: string;
 const base: Rights = { addUnits: true, editUnits: true, leads: true, search: true, team: false, owners: false, manager: false, agencyOwner: false, dataEntry: false, teamLead: false };
 
-const tab = (key: string, app: string, icon: string, en = key, extra = {}) => ({ key, label: { ar: en, en }, icon, web: `/app/${key}`, app, ...extra });
-const item = (key: string, app: string | null, icon: string, onBar = false) => ({ key, label: { ar: key, en: key }, icon, web: `/app/${key}`, app, onBar });
+const mkTab = (key: string, app: string, icon: string, en = key, extra = {}) => ({ key, label: { ar: en, en }, icon, web: `/app/${key}`, app, ...extra });
+const mkItem = (key: string, app: string | null, icon: string, onBar = false) => ({ key, label: { ar: key, en: key }, icon, web: `/app/${key}`, app, onBar });
 
 /** What the server sends a broker (a trimmed copy of lib/navSpec.js output). */
 const broker: Nav = {
   role: 'broker',
-  tabs: [tab('home', 'Today', 'home'), tab('search', 'Search', 'search'), tab('add', 'AddUnit', 'plus', 'Add', { fab: true }), tab('leads', 'Leads', 'leads'), tab('units', 'Units', 'units')],
+  tabs: [mkTab('home', 'Today', 'home'), mkTab('search', 'Search', 'search'), mkTab('add', 'AddUnit', 'plus', 'Add', { fab: true }), mkTab('leads', 'Leads', 'leads'), mkTab('units', 'Units', 'units')],
   groups: [
-    { key: 'clients', label: { ar: 'العملاء', en: 'Clients' }, items: [item('leads', 'LeadsList', 'leads', true), item('requests', 'ClientRequests', 'clipboard'), item('leases', 'Leases', 'key'), item('inbox', 'Inbox', 'inbox')] },
-    { key: 'listings', label: { ar: 'الوحدات', en: 'Listings' }, items: [item('units', 'UnitsList', 'units', true), item('map', 'MapList', 'pin'), item('waimport', 'WhatsAppImport', 'import'), item('import', null, 'import')] },
-    { key: 'account', label: { ar: 'حسابي', en: 'Account' }, items: [item('settings', 'Settings', 'settings'), item('notifications', 'Notifications', 'bell'), item('guide', null, 'book')] },
+    { key: 'clients', label: { ar: 'العملاء', en: 'Clients' }, items: [mkItem('leads', 'LeadsList', 'leads', true), mkItem('requests', 'ClientRequests', 'clipboard'), mkItem('leases', 'Leases', 'key'), mkItem('inbox', 'Inbox', 'inbox')] },
+    { key: 'listings', label: { ar: 'الوحدات', en: 'Listings' }, items: [mkItem('units', 'UnitsList', 'units', true), mkItem('map', 'MapList', 'pin'), mkItem('waimport', 'WhatsAppImport', 'import'), mkItem('import', null, 'import')] },
+    { key: 'account', label: { ar: 'حسابي', en: 'Account' }, items: [mkItem('settings', 'Settings', 'settings'), mkItem('notifications', 'Notifications', 'bell'), mkItem('guide', null, 'book')] },
   ],
 };
 const dataEntry: Nav = {
   role: 'data_entry',
-  tabs: [tab('search', 'Search', 'search'), tab('units', 'Units', 'units'), tab('add', 'AddUnit', 'plus', 'Add', { fab: true }), tab('owners', 'Owners', 'key-people'), tab('settings', 'Settings', 'settings')],
-  groups: [{ key: 'account', label: { ar: 'حسابي', en: 'Account' }, items: [item('notifications', 'Notifications', 'bell')] }],
+  tabs: [mkTab('search', 'Search', 'search'), mkTab('units', 'Units', 'units'), mkTab('add', 'AddUnit', 'plus', 'Add', { fab: true }), mkTab('owners', 'Owners', 'key-people'), mkTab('settings', 'Settings', 'settings')],
+  groups: [{ key: 'account', label: { ar: 'حسابي', en: 'Account' }, items: [mkItem('notifications', 'Notifications', 'bell')] }],
 };
 
 test('Search is centred while the other tabs retain server labels', () => {
@@ -109,7 +109,7 @@ live('matches the server menu', () => {
         expect(p.tabs.length % 2).toBe(1);
         expect(p.tabs[Math.floor(p.tabs.length / 2)]).toMatchObject({ key: 'Search', icon: 'search', fab: true });
         expect(p.tabs.filter((t) => t.fab)).toHaveLength(1);
-        for (const tab of nav.tabs.filter((tab) => tab.app && tab.app !== 'Today')) {
+        for (const tab of nav.tabs.filter((entry) => entry.app && entry.app !== 'Today')) {
           expect(p.tabs.some((item) => item.key === tab.app)).toBe(true);
         }
       }

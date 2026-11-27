@@ -17,9 +17,9 @@ jest.mock('@react-native-async-storage/async-storage', () => {
     __esModule: true,
     default: {
       getItem: jest.fn(async (k) => (store.has(k) ? store.get(k) : null)),
-      setItem: jest.fn(async (k, v) => void store.set(k, v)),
-      removeItem: jest.fn(async (k) => void store.delete(k)),
-      clear: jest.fn(async () => void store.clear()),
+      setItem: jest.fn(async (k, v) => { store.set(k, v); }),
+      removeItem: jest.fn(async (k) => { store.delete(k); }),
+      clear: jest.fn(async () => { store.clear(); }),
     },
   };
 });

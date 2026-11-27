@@ -5,6 +5,7 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import { currentLang } from '../auth';
 import { t } from '../i18n';
 import { typeScale, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 const RETRIES = 2;
 
@@ -26,7 +27,7 @@ export function SmartImage({ uri, style, testID }: { uri: string; style: StylePr
       {state === 'loading' ? <View testID="image-placeholder" pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: colors.cardSubtle }]} /> : null}
       {state === 'failed' ? (
         <Pressable testID="image-retry" accessibilityRole="button" onPress={() => { setAttempt(0); setState('loading'); }} style={styles.retry}>
-          <Text style={{ color: colors.muted, fontSize: typeScale.caption.fontSize, textAlign: 'center' }}>{t(lang, 'tapRetry')}</Text>
+          <Text style={[{ color: colors.muted, fontSize: typeScale.caption.fontSize }, sx.textAlignCenter]}>{t(lang, 'tapRetry')}</Text>
         </Pressable>
       ) : null}
     </View>

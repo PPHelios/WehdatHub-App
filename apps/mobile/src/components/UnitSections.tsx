@@ -12,6 +12,7 @@ import { sizeShows } from '../unitRules';
 import { api } from '../api';
 import { greenGradient, spacing, typeScale, useTheme } from '../theme';
 import { Chips } from './Chips';
+import { sx } from '../sharedStyles';
 
 // The four sections of the add/edit unit form (docs/plans/unified-unit-box.md, section 5). The place box is in the first one.
 
@@ -36,7 +37,7 @@ export function SectionHead({ n, title, hint }: { n?: number; title: string; hin
   return (
     <View style={styles.head}>
       <View style={styles.headRow}>
-        {n !== undefined ? <View style={[styles.num, greenGradient]}><Text style={{ color: colors.onPrimary, fontWeight: '800' }}>{n}</Text></View> : null}
+        {n !== undefined ? <View style={[styles.num, greenGradient]}><Text style={[{ color: colors.onPrimary }, sx.fontWeight800]}>{n}</Text></View> : null}
         <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{title}</Text>
       </View>
       {hint ? <Text style={{ color: colors.muted }}>{hint}</Text> : null}
@@ -132,7 +133,7 @@ export function DeliverySection({ fields, set, field, lang }: SectionProps) {
           </View>
           {PLAN_ROWS.map((i) => (
             <View key={i} style={styles.plan}>
-              <Text style={{ color: colors.muted, fontWeight: '700' }}>{lang === 'en' ? `Plan ${i}` : `نظام ${i}`}</Text>
+              <Text style={[{ color: colors.muted }, sx.fontWeight700]}>{lang === 'en' ? `Plan ${i}` : `نظام ${i}`}</Text>
               <View style={styles.row}>
                 <View style={styles.flex}>{field(`plan_down_${i}`, lang === 'en' ? 'Down %' : 'مقدم %', { keyboardType: 'decimal-pad' })}</View>
                 <View style={styles.flex}>{field(`plan_years_${i}`, lang === 'en' ? 'Years' : 'سنين', { keyboardType: 'decimal-pad' })}</View>
@@ -195,7 +196,7 @@ export function OwnerSection({ fields, set, field, lang, expanded, onDescribeAga
       {field('owner_lead', x.ownerLead, { autoCapitalize: 'characters', autoCorrect: false, placeholder: 'L-0042' })}
       <Pressable accessibilityRole="button" testID="more-details" accessibilityState={{ expanded: more }} onPress={() => setMore((m) => !m)} style={[styles.more, styles.moreDisclosure]}>
         <Chevron rtl={lang === 'ar'} color={colors.primaryInk} expanded={more} />
-        <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{L.moreDetails}</Text>
+        <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{L.moreDetails}</Text>
       </Pressable>
       {more ? (
         <View style={styles.stack}>
@@ -210,7 +211,7 @@ export function OwnerSection({ fields, set, field, lang, expanded, onDescribeAga
       {/* Written from the unit's fields until the broker types in it; "write it again" takes the draft back. */}
       {field('clean_summary', L.description, { multiline: true, testID: 'clean-summary' })}
       <Pressable accessibilityRole="button" testID="describe-again" onPress={onDescribeAgain} style={styles.more}>
-        <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{L.describeAgain}</Text>
+        <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{L.describeAgain}</Text>
       </Pressable>
     </View>
   );

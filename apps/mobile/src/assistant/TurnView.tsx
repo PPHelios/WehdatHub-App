@@ -1,22 +1,25 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
-import type { AssistantSuggestion, Lang, UnitStatus } from '@wehdathub/shared';
+import type { AssistantFeedbackReason, AssistantSuggestion, Lang, UnitStatus } from '@wehdathub/shared';
 import { AskResults } from '../components/AskResults';
 import { AssistantActions, AssistantCards } from '../components/AssistantCards';
 import { AppText as Text } from '../components/AppText';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
+import { ChoiceSheet } from '../components/Sheet';
+import { toast } from '../components/Toast';
 import { Icon } from '../components/Icon';
 import { SaveSearchButton } from '../components/SaveSearchButton';
 import { SkeletonCard } from '../components/Skeleton';
 import { UnitHeroCard, HERO_CARD_WIDTH } from '../components/UnitHeroCard';
-import { matchReasons, type MatchFilters } from '../matchReasons';
+import { filtersFromUnderstood, matchReasons, type MatchFilters } from '../matchReasons';
 import { track } from '../analytics';
 import { enter } from '../motion';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
 import { UnitNotes } from './FullResults';
+import { ReportInline } from './ReportInline';
 import { leadLine, SHOWN_UNITS } from './phrasing';
 import { useUnitShare } from './useUnitShare';
 import type { Turn, TurnSource } from './thread';
@@ -33,6 +36,8 @@ export interface TurnHandlers {
   onOpenUnit: (code: string) => void;
   onOpenProject: (id: string, name: string) => void;
   onUseFilters: () => void;
+  onRate: (id: string, reason: AssistantFeedbackReason) => void;
+  onOpenReport: (turn: Turn) => void;
 }
 
 const TOO_MANY = 30;
@@ -62,7 +67,7 @@ export function ThinkingBubble({ lang }: { lang: Lang }) {
 
 /** Renders nothing; counts one clarify prompt shown. */
 function ClarifyShown({ kind }: { kind: string }) {
-  useEffect(() => { void track('clarify_shown', { kind }); }, [kind]);
+  useEffect(() => { track('clarify_shown', { kind }); }, [kind]);
   return null;
 }
 
@@ -74,8 +79,7 @@ function UnitResults({ turn, lang, h }: { turn: Turn; lang: Lang; h: TurnHandler
   const hasSuggestions = Boolean(r.suggestions?.length);
   const counts = r.statusCounts ?? units.counts;
   const extra = counts ? (counts.sold ?? 0) + (counts.archived ?? 0) : 0;
-  // shortcut: only area and budget come back structured (nextContext); bedrooms, type and finishing need the server to return the parsed filters.
-  const filters: MatchFilters = { areaQuery: r.nextContext?.areaQuery, maxPrice: r.nextContext?.maxPrice };
+  const filters: MatchFilters = { ...filtersFromUnderstood(r.understood), areaQuery: r.nextContext?.areaQuery, maxPrice: r.nextContext?.maxPrice ?? filtersFromUnderstood(r.understood).maxPrice };
   const top = units.items.slice(0, SHOWN_UNITS);
   if (units.status === 'ask') {
     return (
@@ -121,8 +125,31 @@ function UnitResults({ turn, lang, h }: { turn: Turn; lang: Lang; h: TurnHandler
 function Suggestions({ items, onSend, intent }: { items: AssistantSuggestion[]; onSend: TurnHandlers['onSend']; intent: string }) {
   return (
     <View testID="suggestions" style={styles.chips}>
-      {items.map((s, i) => <Chip key={`${s.q}-${i}`} label={s.label} onPress={() => { void track('suggestion_tapped', { intent }); onSend(s.q, 'chip'); }} />)}
+      {items.map((s, i) => <Chip key={`${s.q}-${i}`} label={s.label} onPress={() => { track('suggestion_tapped', { intent }); onSend(s.q, 'chip'); }} />)}
     </View>
+  );
+}
+
+/** A small thumbs-down at the end of an answer: pick why, and the answer is marked as rated. */
+function FeedbackButton({ turn, lang, onRate }: { turn: Turn; lang: Lang; onRate: TurnHandlers['onRate'] }) {
+  const { colors } = useTheme();
+  const [open, setOpen] = useState(false);
+  // Mounted on the first tap, so a thread of answers does not carry a modal each.
+  const [used, setUsed] = useState(false);
+  const pick = (reason: AssistantFeedbackReason) => () => { onRate(turn.id, reason); toast(t(lang, 'fbThanks')); };
+  return (
+    <>
+      <Pressable testID="answer-thumb-down" accessibilityRole="button" accessibilityLabel={t(lang, turn.rated ? 'fbDone' : 'fbLabel')} accessibilityState={{ disabled: Boolean(turn.rated), selected: Boolean(turn.rated) }}
+        disabled={turn.rated} hitSlop={spacing.sm} onPress={() => { setUsed(true); setOpen(true); }} style={styles.thumb}>
+        <Icon name="thumb-down" size={18} color={turn.rated ? colors.primaryInk : colors.muted} fill={turn.rated ? colors.primaryInk : undefined} />
+      </Pressable>
+      {used ? <ChoiceSheet testID="feedback-sheet" cancelLabel={t(lang, 'cancel')} onClose={() => setOpen(false)}
+        ask={open ? { title: t(lang, 'fbTitle'), actions: [
+          { label: t(lang, 'fbWrong'), onPress: pick('wrong'), testID: 'feedback-wrong' },
+          { label: t(lang, 'fbNotAsked'), onPress: pick('not_asked'), testID: 'feedback-not-asked' },
+          { label: t(lang, 'fbOther'), onPress: pick('other'), testID: 'feedback-other' },
+        ] } : null} /> : null}
+    </>
   );
 }
 
@@ -159,6 +186,7 @@ function Answer({ turn, lang, h }: { turn: Turn; lang: Lang; h: TurnHandlers }) 
         />
       )}
       {r.suggestions?.length ? <Suggestions items={r.suggestions} onSend={h.onSend} intent={r.intent} /> : null}
+      <FeedbackButton turn={turn} lang={lang} onRate={h.onRate} />
     </View>
   );
 }
@@ -180,6 +208,8 @@ export function TurnView({ turn, lang, index, handlers }: { turn: Turn; lang: La
           {turn.error ? <Text variant="bodySm" style={{ color: colors.muted }}>{turn.error}</Text> : null}
           <Button testID="turn-retry" size="sm" label={t(lang, 'retry')} onPress={() => handlers.onRetry(turn.id)} />
         </View>
+      ) : turn.report ? (
+        <ReportInline report={turn.report} lang={lang} onOpenFull={() => handlers.onOpenReport(turn)} />
       ) : turn.response ? <Answer turn={turn} lang={lang} h={handlers} /> : null}
     </Animated.View>
   );
@@ -190,6 +220,7 @@ const styles = StyleSheet.create({
   bubble: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, maxWidth: '85%', borderRadius: radius.lg, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   bubbleText: { flexShrink: 1 },
   answer: { gap: spacing.md },
+  thumb: { alignSelf: 'flex-end', padding: spacing.xs },
   block: { gap: spacing.md },
   carousel: { gap: spacing.md, paddingEnd: spacing.lg },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

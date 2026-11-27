@@ -6,6 +6,7 @@ import { currentLang } from '../auth';
 import { t } from '../i18n';
 import { spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
+import { sx } from '../sharedStyles';
 
 /** Shown instead of the app when the server no longer supports this version. */
 export function UpdateScreen({ config }: { config: AppConfig }) {
@@ -15,7 +16,7 @@ export function UpdateScreen({ config }: { config: AppConfig }) {
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]} testID="update-screen">
       <Text style={[styles.title, { color: colors.text }]}>{t(lang, 'updateTitle')}</Text>
-      <Text style={{ color: colors.muted, textAlign: 'center' }}>{t(lang, 'updateHint')}</Text>
+      <Text style={[{ color: colors.muted }, sx.textAlignCenter]}>{t(lang, 'updateHint')}</Text>
       {url ? <View style={styles.btn}><Button label={t(lang, 'updateBtn')} onPress={() => Linking.openURL(url)} /></View> : null}
     </View>
   );

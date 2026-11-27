@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { LayoutChangeEvent, LayoutRectangle, ViewStyle } from 'react-native';
 import Animated, { Easing, ReduceMotion, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { sx } from '../sharedStyles';
 
 const motion = { duration: 210, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System };
 
@@ -16,8 +17,8 @@ function Highlight({ frame, fill, radius, inset, testID }: {
   }));
   return (
     // onLayout coordinates are physical, including when the surrounding controls are RTL.
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { direction: 'ltr' }]}>
-      <Animated.View testID={testID} style={[{ position: 'absolute', start: 0, top: 0, borderRadius: radius }, fill, position]} />
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, sx.directionLtr]}>
+      <Animated.View testID={testID} style={[[{ borderRadius: radius }, sx.positionAbsolute_start0_top0], fill, position]} />
     </View>
   );
 }

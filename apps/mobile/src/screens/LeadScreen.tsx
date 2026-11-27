@@ -28,6 +28,7 @@ import { eventText } from '../leadEvents';
 import type { RootStackParams } from '../navigation';
 import { useRights } from '../rights';
 import { radius, spacing, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 type FollowUp = { at: Date; kind: 'call' | 'viewing' };
 const FU_HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
@@ -144,7 +145,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
         </View>
 
         <FollowUpPicker onSave={followUp}>
-          {lead.nextFollowUpAt ? <Text style={{ color: colors.accentInk, fontWeight: '600' }}>{lead.followUpKind === 'viewing' ? t(lang, 'fuViewing') : t(lang, 'fuCall')} · {new Date(lead.nextFollowUpAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</Text> : null}
+          {lead.nextFollowUpAt ? <Text style={[{ color: colors.accentInk }, sx.fontWeight600]}>{lead.followUpKind === 'viewing' ? t(lang, 'fuViewing') : t(lang, 'fuCall')} · {new Date(lead.nextFollowUpAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</Text> : null}
           {lead.followUpKind ? <Button variant="secondary" testID="lead-follow-up-done" label={lang === 'ar' ? 'تمت المتابعة' : 'Complete follow-up'} loading={act.isPending} onPress={() => run((l) => api.completeLeadFollowUp(l.ref, l.version))} /> : null}
         </FollowUpPicker>
 

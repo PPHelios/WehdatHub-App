@@ -17,7 +17,7 @@ const queues: [LeadQueue, RegExp][] = [
 
 export function normalizeSearchWords(raw: string) {
   return raw.trim().toLowerCase().normalize('NFKC')
-    .replace(/[٠-٩۰-۹]/g, (digit) => String(digit.charCodeAt(0) & 15))
+    .replace(/[٠-٩۰-۹]/g, (digit) => String(digit.charCodeAt(0) % 16))
     .replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه')
     .replace(/[\u0640\u064b-\u065f'’]/g, '').replace(/\s+/g, ' ');
 }

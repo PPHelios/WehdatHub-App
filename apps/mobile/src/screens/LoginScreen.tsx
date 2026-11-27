@@ -12,6 +12,7 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import { ChoiceSheet, type ChoiceAsk } from '../components/Sheet';
 import { radius, spacing, typeScale, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 /** Before sign-in there is no saved language: follow the phone (English phones get English, everything else Arabic). */
 export function deviceLang(): Lang {
@@ -81,7 +82,7 @@ export function LoginScreen() {
         channel,
         lang: LANG,
       });
-      void track('signup_submitted', { channel });
+      track('signup_submitted', { channel });
       await Linking.openURL(res.verifyUrl).catch(() => undefined);
       setStep('code');
       setMessage({ text: t(LANG, channel === 'whatsapp' ? 'waVerifyHint' : 'tgVerifyHint'), bad: false });
@@ -96,7 +97,7 @@ export function LoginScreen() {
     setAsk({
       title: t(LANG, 'waWarnTitle'),
       body: t(LANG, 'waWarnBody'),
-      actions: [{ label: t(LANG, 'waWarnContinue'), variant: 'primary', onPress: () => { void startSignup('whatsapp'); } }],
+      actions: [{ label: t(LANG, 'waWarnContinue'), variant: 'primary', onPress: () => { startSignup('whatsapp'); } }],
     });
   };
 
@@ -110,7 +111,7 @@ export function LoginScreen() {
       setStep('code');
       setMessage({ text: t(LANG, 'codeSent'), bad: false });
     } catch (e) {
-      void track('sign_in_failed', { stage: 'request', status: e instanceof ApiClientError ? e.status : 0 });
+      track('sign_in_failed', { stage: 'request', status: e instanceof ApiClientError ? e.status : 0 });
       setMessage({ text: errorText(e, LANG), bad: true });
     } finally {
       setBusy(false);
@@ -125,10 +126,10 @@ export function LoginScreen() {
     setMessage(null);
     try {
       const session = await api.verifyCode(p.data, c.data);
-      if (mode === 'signup') void track('signup_verified');
+      if (mode === 'signup') track('signup_verified');
       await signIn(session);
     } catch (e) {
-      void track('sign_in_failed', { stage: 'verify', status: e instanceof ApiClientError ? e.status : 0 });
+      track('sign_in_failed', { stage: 'verify', status: e instanceof ApiClientError ? e.status : 0 });
       setMessage({ text: errorText(e, LANG), bad: true });
       setBusy(false);
     }
@@ -156,10 +157,10 @@ export function LoginScreen() {
         {step === 'phone' && mode === 'signin' ? (
           <View style={styles.form}>
             <Text style={[styles.label, { color: colors.muted }]}>{t(LANG, 'phoneLabel')}</Text>
-            <TextInput testID="phone-input" style={[input, { textAlign: 'left', writingDirection: 'ltr' }]} value={phone} onChangeText={(v) => { setPhone(v); if (message?.bad) setMessage(null); }} onBlur={() => { if (phone.trim() && !phoneSchema.safeParse(phone).success) setMessage({ text: t(LANG, 'badPhone'), bad: true }); }} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" placeholder="01012345678" placeholderTextColor={colors.muted} editable={!busy} />
+            <TextInput testID="phone-input" style={[input, sx.textAlignLeft_writingDirectionLtr]} value={phone} onChangeText={(v) => { setPhone(v); if (message?.bad) setMessage(null); }} onBlur={() => { if (phone.trim() && !phoneSchema.safeParse(phone).success) setMessage({ text: t(LANG, 'badPhone'), bad: true }); }} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" placeholder="01012345678" placeholderTextColor={colors.muted} editable={!busy} />
             <Text style={[styles.hint, { color: colors.muted }]}>{t(LANG, 'phoneHint')}</Text>
             <Button testID="send-code" label={t(LANG, 'sendCode')} onPress={requestCode} loading={busy} />
-            {canSignup ? <Button testID="mode-signup" label={t(LANG, 'startTrial')} onPress={() => { setMode('signup'); setMessage(null); void track('signup_started'); }} variant="secondary" disabled={busy} /> : null}
+            {canSignup ? <Button testID="mode-signup" label={t(LANG, 'startTrial')} onPress={() => { setMode('signup'); setMessage(null); track('signup_started'); }} variant="secondary" disabled={busy} /> : null}
           </View>
         ) : step === 'phone' && mode === 'signup' ? (
           <View style={styles.form}>
@@ -170,8 +171,8 @@ export function LoginScreen() {
                   const active = tier === k;
                   return (
                     <Pressable key={k} testID={`tier-${k}`} onPress={() => setTier(k)} style={[styles.tierCard, { borderColor: active ? colors.primary : colors.border, backgroundColor: colors.card }]}>
-                      <Text style={{ color: colors.text, fontWeight: '700', textAlign: 'right' }}>{t(LANG, k === 'solo' ? 'tierSolo' : 'tierTeam')}</Text>
-                      <Text variant="caption" style={{ color: colors.muted, textAlign: 'right' }}>{t(LANG, 'tierLine').replace('{d}', String(opt.days)).replace('{u}', String(opt.units)).replace('{c}', String(opt.credits))}</Text>
+                      <Text style={[{ color: colors.text }, sx.fontWeight700_textAlignRight]}>{t(LANG, k === 'solo' ? 'tierSolo' : 'tierTeam')}</Text>
+                      <Text variant="caption" style={[{ color: colors.muted }, sx.textAlignRight]}>{t(LANG, 'tierLine').replace('{d}', String(opt.days)).replace('{u}', String(opt.units)).replace('{c}', String(opt.credits))}</Text>
                     </Pressable>
                   );
                 })}
@@ -186,9 +187,9 @@ export function LoginScreen() {
               </>
             ) : null}
             <Text style={[styles.label, { color: colors.muted }]}>{t(LANG, 'phoneLabel')}</Text>
-            <TextInput testID="phone-input" style={[input, { textAlign: 'left', writingDirection: 'ltr' }]} value={phone} onChangeText={(v) => { setPhone(v); if (message?.bad) setMessage(null); }} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" placeholder="01012345678" placeholderTextColor={colors.muted} editable={!busy} />
+            <TextInput testID="phone-input" style={[input, sx.textAlignLeft_writingDirectionLtr]} value={phone} onChangeText={(v) => { setPhone(v); if (message?.bad) setMessage(null); }} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" placeholder="01012345678" placeholderTextColor={colors.muted} editable={!busy} />
             <View testID="tg-pitch-card" style={[styles.pitchCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
-              <Text style={{ color: colors.text, fontWeight: '700', textAlign: 'right' }}>{t(LANG, 'tgPitchTitle')}</Text>
+              <Text style={[{ color: colors.text }, sx.fontWeight700_textAlignRight]}>{t(LANG, 'tgPitchTitle')}</Text>
               <Text style={[styles.hint, { color: colors.muted }]}>• {t(LANG, 'tgPitch1')}</Text>
               <Text style={[styles.hint, { color: colors.muted }]}>• {t(LANG, 'tgPitch2')}</Text>
               <Text style={[styles.hint, { color: colors.muted }]}>• {t(LANG, 'tgPitch3')}</Text>
@@ -196,7 +197,7 @@ export function LoginScreen() {
             {tgMissing ? (
               <View testID="tg-install-hint" style={[styles.pitchCard, { borderColor: colors.border, backgroundColor: colors.card }]}>
                 <Text style={[styles.hint, { color: colors.text }]}>{t(LANG, 'tgInstallHint')}</Text>
-                <Button testID="tg-install" label={t(LANG, 'tgInstallBtn')} onPress={() => { void Linking.openURL(TELEGRAM_STORE).catch(() => undefined); }} variant="secondary" />
+                <Button testID="tg-install" label={t(LANG, 'tgInstallBtn')} onPress={() => { Linking.openURL(TELEGRAM_STORE).catch(() => undefined); }} variant="secondary" />
               </View>
             ) : null}
             <Button testID="signup-telegram" label={t(LANG, 'continueTelegram')} onPress={() => startSignup('telegram')} loading={busy} />

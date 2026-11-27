@@ -51,8 +51,8 @@ export function UnitPrivateForms({ code, prefill }: { code: string; prefill?: { 
           <Button testID="lease-save" label={t(lang, 'save')} onPress={() => run(() => api.saveUnitLease(code, f), t(lang, 'leaseBad'))} />
           {lease.data.lease ? (
             <>
-              {contacts.data?.tenant ? <Button testID="lease-wa-tenant" variant="whatsapp" label={`${t(lang, 'leaseWaTenant')}${contacts.data.tenant.name ? ` · ${contacts.data.tenant.name}` : ''}`} onPress={() => { void Linking.openURL(`https://wa.me/${contacts.data!.tenant!.phone}`); }} /> : null}
-              {contacts.data?.owner ? <Button testID="lease-wa-owner" variant="whatsapp" label={`${t(lang, 'leaseWaOwner')}${contacts.data.owner.name ? ` · ${contacts.data.owner.name}` : ''}`} onPress={() => { void Linking.openURL(`https://wa.me/${contacts.data!.owner!.phone}`); }} /> : null}
+              {contacts.data?.tenant ? <Button testID="lease-wa-tenant" variant="whatsapp" label={`${t(lang, 'leaseWaTenant')}${contacts.data.tenant.name ? ` · ${contacts.data.tenant.name}` : ''}`} onPress={() => { Linking.openURL(`https://wa.me/${contacts.data!.tenant!.phone}`); }} /> : null}
+              {contacts.data?.owner ? <Button testID="lease-wa-owner" variant="whatsapp" label={`${t(lang, 'leaseWaOwner')}${contacts.data.owner.name ? ` · ${contacts.data.owner.name}` : ''}`} onPress={() => { Linking.openURL(`https://wa.me/${contacts.data!.owner!.phone}`); }} /> : null}
               {lease.data.lease.done ? (
                 <Text style={{ color: colors.accent }}>✅ {t(lang, 'leaseHandled')}</Text>
               ) : (

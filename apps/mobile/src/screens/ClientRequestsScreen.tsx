@@ -19,6 +19,7 @@ import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 import { toastError } from '../components/Toast';
+import { sx } from '../sharedStyles';
 
 function AddRequest({ onDone }: { onDone: () => void }) {
   const { colors } = useTheme();
@@ -43,18 +44,18 @@ function AddRequest({ onDone }: { onDone: () => void }) {
     <View style={{ gap: spacing.sm }}>
       <Field testID="request-q" label={t(lang, 'requestSearch')} value={q} onChangeText={setQ} />
       <Field testID="request-lead" label={t(lang, 'requestLead')} value={lead} onChangeText={setLead} />
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'alertsOn')}</Text><BusySwitch testID="request-alerts" value={alerts} onValueChange={setAlerts} /></View>
+      <View style={sx.flexDirectionRow_alignItemsCenter_justifyContentSpaceBetween}><Text style={[{ color: colors.text }, sx.flex1]}>{t(lang, 'alertsOn')}</Text><BusySwitch testID="request-alerts" value={alerts} onValueChange={setAlerts} /></View>
       <Button testID="request-save" label={t(lang, 'save')} onPress={save} disabled={!q.trim()} />
       {msg ? <Text style={{ color: colors.danger }}>{msg}</Text> : null}
     </View>
   );
 }
 
-const RequestCard = memo(function RequestCard({ r, tab, lang, onOpenLead, onFulfil, onDelete }: { r: ClientRequest; tab: 'pending' | 'fulfilled'; lang: Lang; onOpenLead: (ref: string) => void; onFulfil: (id: string) => Promise<void>; onDelete: (id: string) => Promise<void> }) {
+const RequestCard = memo(function RequestCardView({ r, tab, lang, onOpenLead, onFulfil, onDelete }: { r: ClientRequest; tab: 'pending' | 'fulfilled'; lang: Lang; onOpenLead: (ref: string) => void; onFulfil: (id: string) => Promise<void>; onDelete: (id: string) => Promise<void> }) {
   const { colors, elev } = useTheme();
   return (
     <View testID={`request-${r.id}`} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={{ color: colors.text, fontWeight: '700' }}>{r.alerts ? '🔔 ' : ''}{lang === 'en' && r.summary_en ? r.summary_en : r.summary}</Text>
+      <Text style={[{ color: colors.text }, sx.fontWeight700]}>{r.alerts ? '🔔 ' : ''}{lang === 'en' && r.summary_en ? r.summary_en : r.summary}</Text>
       {r.lead ? (
         <Pressable testID={`request-lead-${r.id}`} accessibilityRole="button" onPress={() => onOpenLead(r.lead!.ref)}>
           <Text style={{ color: colors.primaryInk }}>👤 {r.lead.name || r.lead.ref}</Text>

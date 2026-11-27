@@ -18,6 +18,7 @@ import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, typeScale, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 const KIND_LABEL: Record<TodayTask['kind'], StringKey> = { late: 'late', viewing: 'viewing', hot: 'hot', call: 'callTask', matches: 'matches' };
 const KIND_ICON: Record<TodayTask['kind'], IconName> = { late: 'bell', viewing: 'calendar', hot: 'pulse', call: 'phone', matches: 'units' };
@@ -109,7 +110,7 @@ export function TodayDetails({ brief, suppressLoading = false }: { brief?: { ops
 
       {!brief ? <View style={styles.stats}>
         {stats.map(([k, n, tone]) => (
-          <View key={k} style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border, borderTopWidth: 3, borderTopColor: tone }]}>
+          <View key={k} style={[styles.stat, [{ backgroundColor: colors.card, borderColor: colors.border, borderTopColor: tone }, sx.borderTopWidth3]]}>
             <Text style={[styles.statN, { color: tone }]}>{n}</Text>
             <Text style={{ color: colors.muted }}>{t(lang, k)}</Text>
           </View>

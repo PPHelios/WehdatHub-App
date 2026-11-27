@@ -30,9 +30,9 @@ export function usage(event: UsageEvent, ok = true, ms?: number, meta?: Item['me
   if (trail.length > 10) trail.shift();
   const token = useAuth.getState().token;
   if (!token) return;
-  if (IMPORT_STEPS.has(event)) void track('feature_used', { feature: event, ok: Number(ok) });
+  if (IMPORT_STEPS.has(event)) track('feature_used', { feature: event, ok: Number(ok) });
   if (ANALYTICS_ONLY.has(event)) {
-    void track('feature_used', { feature: event, ok: Number(ok), ...(ms === undefined ? {} : { duration_ms: Math.round(ms) }) })
+    track('feature_used', { feature: event, ok: Number(ok), ...(ms === undefined ? {} : { duration_ms: Math.round(ms) }) })
       .then((sent) => { if (!sent) enqueue(token, event, ok, ms, meta); });
     return;
   }
@@ -44,9 +44,9 @@ function enqueue(token: string, event: UsageEvent, ok: boolean, ms?: number, met
   if (queueToken !== token) queue = [];
   queueToken = token;
   queue.push({ event, ok, ms: ms === undefined ? undefined : Math.round(ms), meta: { platform: Platform.OS, app_version: APP_VERSION, ...(meta ?? {}) } });
-  if (queue.length >= 20) void flushUsage();
+  if (queue.length >= 20) flushUsage();
   else if (!timer) {
-    timer = setTimeout(() => void flushUsage(), 30000);
+    timer = setTimeout(() => { flushUsage(); }, 30000);
     (timer as unknown as { unref?: () => void })?.unref?.();
   }
 }
@@ -85,7 +85,7 @@ export async function flushUsage() {
 /** Sends what is waiting when the app goes to the background. Call once at start. */
 export function startUsage() {
   const sub = AppState.addEventListener('change', (s) => {
-    if (s !== 'active') void flushUsage();
+    if (s !== 'active') flushUsage();
   });
   return () => sub.remove();
 }

@@ -1,6 +1,9 @@
 import type { AssistantContext, AssistantQueryResponse } from '@wehdathub/shared';
+import type { LeadFilters, ReportKind } from './ReportView';
 
 export type TurnSource = 'text' | 'voice' | 'chip';
+/** A report answered inline in the thread; the full screen opens from it. */
+export interface ReportSpec { kind: Extract<ReportKind, 'leads' | 'deals' | 'dashboard' | 'ranking'>; leadFilters?: LeadFilters; assignee?: string; dealLastMonth?: boolean }
 export interface Turn {
   id: string;
   question: string;
@@ -8,12 +11,17 @@ export interface Turn {
   status: 'pending' | 'done' | 'error';
   response?: AssistantQueryResponse;
   error?: string;
+  report?: ReportSpec;
+  /** The broker gave this answer a thumbs-down: no second send. */
+  rated?: boolean;
 }
 
 export type ThreadAction =
   | { type: 'ask'; id: string; question: string; source: TurnSource }
   | { type: 'resolve'; id: string; response: AssistantQueryResponse }
   | { type: 'fail'; id: string; error: string }
+  | { type: 'report'; id: string; question: string; report: ReportSpec }
+  | { type: 'rate'; id: string }
   | { type: 'retry'; id: string }
   | { type: 'discard'; id: string }
   | { type: 'restore'; turns: Turn[] }
@@ -28,6 +36,10 @@ export function threadReducer(turns: Turn[], action: ThreadAction): Turn[] {
   switch (action.type) {
     case 'ask':
       return [...turns, { id: action.id, question: action.question, source: action.source, status: 'pending' as const }].slice(-MAX_TURNS);
+    case 'report':
+      return [...turns, { id: action.id, question: action.question, source: 'text' as const, status: 'done' as const, report: action.report }].slice(-MAX_TURNS);
+    case 'rate':
+      return patch(turns, action.id, { rated: true });
     case 'resolve':
       return patch(turns, action.id, { status: 'done', response: action.response, error: undefined });
     case 'fail':

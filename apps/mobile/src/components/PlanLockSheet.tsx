@@ -8,6 +8,7 @@ import { planT } from '../planText';
 import { useRights } from '../rights';
 import { radius, spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
+import { sx } from '../sharedStyles';
 
 /**
  * Shown when the plan guard refuses a call (402 plan_readonly / plan_blocked), instead of a raw error. A manager is pointed
@@ -24,7 +25,7 @@ export function PlanLockSheet({ onOpenPlan }: { onOpenPlan: () => void }) {
   const lang = currentLang();
   // The ladder moved: refresh where the banner reads it.
   useEffect(() => {
-    if (err) void qc.invalidateQueries({ queryKey: ['usage'] });
+    if (err) qc.invalidateQueries({ queryKey: ['usage'] });
   }, [err, qc]);
   if (!err || !signedIn || err.phase === 'blocked') return null;
   return (
@@ -36,7 +37,7 @@ export function PlanLockSheet({ onOpenPlan }: { onOpenPlan: () => void }) {
           {manager ? (
             <Button testID="plan-lock-open" label={planT(lang, 'openPlan')} onPress={() => { clear(); onOpenPlan(); }} />
           ) : (
-            <Text testID="plan-lock-ask" style={{ color: colors.text, fontWeight: '700' }}>{planT(lang, 'askManager')}</Text>
+            <Text testID="plan-lock-ask" style={[{ color: colors.text }, sx.fontWeight700]}>{planT(lang, 'askManager')}</Text>
           )}
           <Button testID="plan-lock-close" variant="quiet" label={planT(lang, 'ok')} onPress={clear} />
         </View>

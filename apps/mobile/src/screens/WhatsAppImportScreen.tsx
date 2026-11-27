@@ -141,7 +141,7 @@ export function WhatsAppImportScreen() {
     const o = opened.current;
     opened.current = null;
     const d = dir.current;
-    void (loop.current ?? Promise.resolve()).catch(() => undefined).then(async () => {
+    (loop.current ?? Promise.resolve()).catch(() => undefined).then(async () => {
       cancelUnpack();
       if (o) await o.close().catch(() => undefined);
       await cleanUp(d);
@@ -294,14 +294,14 @@ export function WhatsAppImportScreen() {
     try {
       for (const p of targets) {
         const fields = change(p.fields ?? {});
-        let missing: string[] | undefined = p.missing;
+        let absent: string[] | undefined = p.missing;
         try {
           // A post whose code is an existing unit is an update: it is reviewed as that unit's edit, so its own code is not "taken".
           const existing = p.post.code && codes?.[p.post.code]?.state === 'update' ? p.post.code : undefined;
           const rv = await api.reviewUnit(sendable(withImpliedFeatures(nonEmpty(fields))), keptOf(p).length, existing);
-          missing = missingOf(rv.blockers);
+          absent = missingOf(rv.blockers);
         } catch { /* the card keeps its old list; Edit checks it again */ }
-        patchPost(p.id, { fields, missing, note: undefined, ...(p.blocker === 'invalid' ? { blocker: undefined } : {}) });
+        patchPost(p.id, { fields, missing: absent, note: undefined, ...(p.blocker === 'invalid' ? { blocker: undefined } : {}) });
       }
       setBulkNote(fill(W.bulkDone, { n: targets.length }));
       usage('wa_import_bulk', true, undefined, { posts: targets.length });
@@ -314,7 +314,7 @@ export function WhatsAppImportScreen() {
   useEffect(() => {
     if (started.current || !allowed || !route.params?.zip) return;
     started.current = true;
-    void openZip(route.params.zip);
+    openZip(route.params.zip);
   }, [allowed, openZip, route.params?.zip]);
 
   // An edited post that was saved in the add-unit screen comes back here marked as added.
@@ -328,7 +328,7 @@ export function WhatsAppImportScreen() {
       const [f] = await pick({ type: [types.zip, types.allFiles] });
       if (!f) return;
       if (!looksLikeZip({ name: f.name, type: f.type })) return setError(W.errNotZip);
-      void openZip({ uri: f.uri, name: f.name || 'chat.zip', type: 'application/zip' });
+      openZip({ uri: f.uri, name: f.name || 'chat.zip', type: 'application/zip' });
     } catch (e) {
       if (!(isErrorWithCode(e) && e.code === errorCodes.OPERATION_CANCELED)) setError(W.errFailed);
     }
@@ -371,12 +371,11 @@ export function WhatsAppImportScreen() {
       if (!r.set.length && !r.cleared.length) return;
       memory.current = r.mem;
       setMemCount(Object.keys(r.mem).length);
-      void (async () => { if (r.cleared.length) await restoreMemory(fp, r.cleared); if (r.set.length) await recordMemory(fp, r.set); })();
+      (async () => { if (r.cleared.length) await restoreMemory(fp, r.cleared); if (r.set.length) await recordMemory(fp, r.set); })();
     };
     flushMem.current = run;
     const t = setTimeout(run, 700);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list, badges, phase, info]);
   useEffect(() => () => { flushMem.current?.(); }, []);
 
@@ -389,7 +388,7 @@ export function WhatsAppImportScreen() {
     setForgotNote(true);
     await forgetAll(info.fingerprint);
   };
-  const confirmForget = () => setAsk({ title: W.forget, cancel: W.cancel, go: W.forgetGo, destructive: true, onGo: () => { void forget(); } });
+  const confirmForget = () => setAsk({ title: W.forget, cancel: W.cancel, go: W.forgetGo, destructive: true, onGo: () => { forget(); } });
   // A post that was imported before comes back to the list (not ticked).
   const bringBack = (id: string) => {
     const p = priorSaved.find((x) => x.id === id);
@@ -603,7 +602,7 @@ export function WhatsAppImportScreen() {
   const counts = importCounts(list, badges);
   const canSave = counts.willSave > 0;
   const buttonLabel = `${counts.unticked > 0 ? W.saveTicked : W.addSelected} (${counts.willSave})`;
-  const confirmSave = () => setAsk({ title: W.confirmTitle, body: fill(W.confirmBody, { n: counts.willSave, a: counts.newCount, b: counts.updated }), cancel: W.cancel, go: W.confirmGo, onGo: () => { void addSelected(); } });
+  const confirmSave = () => setAsk({ title: W.confirmTitle, body: fill(W.confirmBody, { n: counts.willSave, a: counts.newCount, b: counts.updated }), cancel: W.cancel, go: W.confirmGo, onGo: () => { addSelected(); } });
 
   // Leaving while a save runs, or with units still ticked, asks first (a save in progress stops at the next post).
   const dirty = useRef(false);

@@ -30,6 +30,7 @@ import type { RootStackParams } from '../navigation';
 import { ChoiceSheet, type ChoiceAsk } from '../components/Sheet';
 import { radius, spacing, useTheme } from '../theme';
 import { toast } from '../components/Toast';
+import { sx } from '../sharedStyles';
 
 function memberRoleLabel(lang: Lang, role: string) {
   switch (role) {
@@ -228,12 +229,12 @@ export function MemberRole({ id, role, teamLeadId, run }: { id: string; role: st
   const leads = (team.data?.items ?? []).filter((m) => m.role === 'team_lead' && m.id !== id);
   return (
     <View style={{ gap: spacing.sm }}>
-      <Text style={{ color: colors.text, fontWeight: '700' }}>{ot(lang, 'role')}</Text>
+      <Text style={[{ color: colors.text }, sx.fontWeight700]}>{ot(lang, 'role')}</Text>
       <Chips<MemberRoleName> testID="member-role" options={choices} value={cur} onChange={(v) => setAsk({ title: ot(lang, 'roleAsk'), actions: [{ label: ot(lang, 'save'), variant: 'primary', onPress: () => change(v) }] })} />
       <ChoiceSheet ask={ask} onClose={() => setAsk(null)} cancelLabel={t(lang, 'cancel')} testID="member-role-sheet" />
       {manager && cur === 'broker' && leads.length ? (
         <>
-          <Text style={{ color: colors.text, fontWeight: '700' }}>{ot(lang, 'team')}</Text>
+          <Text style={[{ color: colors.text }, sx.fontWeight700]}>{ot(lang, 'team')}</Text>
           <Chips<string> testID="member-team" options={[{ value: '', label: ot(lang, 'noTeam') }, ...leads.map((m) => ({ value: m.id, label: m.name }))]} value={teamLeadId ?? ''} onChange={(v) => { run(() => api.setTeam(id, v || null)).catch(() => {}); }} />
         </>
       ) : null}

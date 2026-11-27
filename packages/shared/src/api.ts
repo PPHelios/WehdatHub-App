@@ -320,6 +320,8 @@ export type AssistantAction =
   | { kind: 'pivot_mode'; mode: AssistantMode; label: string }
   | { kind: 'view_all_markets'; label: string }
   | { kind: 'change_search'; label: string; query?: string };
+export type AssistantFeedbackReason = 'wrong' | 'not_asked' | 'other';
+export interface AssistantFeedback { q: string; lang: Lang; intent: string; route?: string; verdict: 'down'; reason: AssistantFeedbackReason }
 export interface AssistantSuggestion { label: string; q: string }
 export interface AssistantCardLink { screen: string; params?: Record<string, unknown> }
 export type AssistantCard =
@@ -350,6 +352,15 @@ export interface AssistantUnderstood {
   appliedFilters: string[];
   exclusions?: string[];
   unsupportedFilters?: string[];
+  /** What the unit search understood, as data (null = not asked); the app chips compare these with each unit. */
+  filters?: {
+    bedrooms: { min: number | null; max: number | null };
+    propertyTypes: string[];
+    finishing: string[];
+    places: string[];
+    price: { min: number | null; max: number | null };
+    delivery: { ready: boolean | null; byYear: number | null };
+  };
 }
 export interface AssistantContext {
   job: string;
@@ -813,6 +824,7 @@ export function createApiClient(opts: ApiClientOptions) {
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
     nudgeLead: (ref: string) => request<{ ok: true }>('POST', `/leads/${encodeURIComponent(ref)}/nudge`, {}),
     assistantQuery: (body: { q: string; mode?: AssistantMode; lang?: Lang; previousContext?: AssistantContext | null }) => request<AssistantQueryResponse>('POST', '/assistant/query', body),
+    assistantFeedback: (body: AssistantFeedback) => request<void>('POST', '/assistant/feedback', body),
     unitMatchingLeads: (code: string) => request<{ partial: boolean; items: { ref: string; name: string | null; reason?: string }[] }>('GET', `/units/${encodeURIComponent(code)}/matching-leads`),
     leadMatches: (ref: string, adjustments?: LeadMatchAdjustments) => request<{ requests: { id: string; summary: string; criteria: Record<LeadMatchField, number | null>; total: number; items: { code: string; title: string | null }[] }[] }>('GET', `/leads/${encodeURIComponent(ref)}/matches`, undefined, adjustments),
     leadUpdate: (ref: string, change: { version: number; stage?: LeadStage; note?: string; lostReason?: string }) =>

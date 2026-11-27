@@ -35,9 +35,9 @@ export function SearchPractice({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('');
   const [picked, setPicked] = useState<string>();
   const [hint, setHint] = useState(false);
-  useEffect(() => { void track('practice_started'); }, []);
-  useEffect(() => { if (step === 2) void track('practice_completed'); }, [step]);
-  const leave = useCallback(() => { if (step !== 2) void track('practice_skipped'); onClose(); }, [step, onClose]);
+  useEffect(() => { track('practice_started'); }, []);
+  useEffect(() => { if (step === 2) track('practice_completed'); }, [step]);
+  const leave = useCallback(() => { if (step !== 2) track('practice_skipped'); onClose(); }, [step, onClose]);
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       leave();

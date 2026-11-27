@@ -189,7 +189,7 @@ export function UnitScreen({ code }: { code?: string } = {}) {
       const { url } = await timed('client_link', () => api.unitShareLink(unitCode, clientLang(), to || undefined), { kind: to ? 'to_client' : 'open' });
       setPickClient(false);
       const shared = await Share.share({ message: url });
-      if (shared.action === Share.sharedAction) void track('link_shared');
+      if (shared.action === Share.sharedAction) track('link_shared');
     } catch (e) {
       if (e instanceof ApiClientError && e.status === 422) setClientErr(t(lang, 'badRecipient'));
       else {

@@ -24,7 +24,7 @@ export function useUnitShare() {
       const { url } = await timed('client_link', () => api.unitShareLink(code, clientLang(), to || undefined), { kind: to ? 'to_client' : 'open' });
       setCode(null);
       const shared = await Share.share({ message: url });
-      if (shared.action === Share.sharedAction) void track('link_shared');
+      if (shared.action === Share.sharedAction) track('link_shared');
     } catch (e) {
       if (e instanceof ApiClientError && e.status === 422) setError(t(lang, 'badRecipient'));
       else {

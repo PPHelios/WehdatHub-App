@@ -46,7 +46,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
     });
     set({ status: 'signedIn', token: r.token, broker: r.broker, agencyName });
-    void track('sign_in');
+    track('sign_in');
   },
   async setLang(lang) {
     const { token, broker, agencyName } = get();

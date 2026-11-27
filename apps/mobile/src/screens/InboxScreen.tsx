@@ -15,7 +15,7 @@ import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
 import { clearTray } from '../tray';
 
-const InboxCard = memo(function InboxCard({ n, lang, onRead, onDelete }: { n: InboxItem; lang: Lang; onRead: (id: string) => void; onDelete: (id: string) => void }) {
+const InboxCard = memo(function InboxCardView({ n, lang, onRead, onDelete }: { n: InboxItem; lang: Lang; onRead: (id: string) => void; onDelete: (id: string) => void }) {
   const { colors, elev } = useTheme();
   return (
     <View testID={`inbox-${n.id}`} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: n.read ? colors.border : colors.primary }]}>
@@ -45,14 +45,14 @@ export function InboxScreen() {
   const refresh = useCallback(() => qc.invalidateQueries({ queryKey: ['inbox'] }), [qc]);
   const unread = list.data?.pages[0]?.unread;
   // Nothing unread: close what the phone still shows and clear the icon number.
-  useEffect(() => { if (unread === 0) void clearTray(); }, [unread]);
+  useEffect(() => { if (unread === 0) clearTray(); }, [unread]);
   const read = useCallback(async (id: string) => { await api.notificationRead(id); await refresh(); }, [refresh]);
   const remove = useCallback(async (id: string) => { await api.notificationDelete(id); await refresh(); }, [refresh]);
   const [ask, setAsk] = useState<ChoiceAsk | null>(null);
   const askDeleteAll = () =>
     setAsk({
       title: t(lang, 'deleteAll'),
-      actions: [{ label: t(lang, 'deleteAll'), variant: 'danger', onPress: () => { void api.notificationsDeleteAll().then(refresh).catch(() => undefined); } }],
+      actions: [{ label: t(lang, 'deleteAll'), variant: 'danger', onPress: () => { api.notificationsDeleteAll().then(refresh).catch(() => undefined); } }],
     });
   const renderItem = useCallback(({ item }: { item: InboxItem }) => <InboxCard n={item} lang={lang} onRead={read} onDelete={remove} />, [lang, read, remove]);
   if (list.isPending) return <View style={[styles.pad, { backgroundColor: colors.bg }]}><Loading label={t(lang, 'loading')} /></View>;

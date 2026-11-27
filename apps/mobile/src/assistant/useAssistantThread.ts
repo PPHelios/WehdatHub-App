@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
-import { ApiClientError, type ApiUnitListItem, type AssistantContext, type AssistantMode, type AssistantQueryResponse, type Lang, type SearchResult, type UnitStatus, type VoiceFile } from '@wehdathub/shared';
+import { ApiClientError, type ApiUnitListItem, type AssistantFeedbackReason, type AssistantContext, type AssistantMode, type AssistantQueryResponse, type Lang, type SearchResult, type UnitStatus, type VoiceFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { errorText } from '../errors';
 import { parseSearchIntent, type SearchIntent } from '../searchCapabilities';
@@ -10,7 +10,7 @@ import { track, trackFirstQuestion } from '../analytics';
 import { useAuth } from '../auth';
 import { needsVoiceConfirm } from '../voiceConfirm';
 import { shouldUseAssistantEndpoint } from './routing';
-import { contextOf, persistableTurns, PERSISTED_TURNS, threadReducer, type Turn, type TurnSource } from './thread';
+import { contextOf, persistableTurns, PERSISTED_TURNS, threadReducer, type ReportSpec, type Turn, type TurnSource } from './thread';
 
 const THREAD_KEY = 'wehdathub.thread.v1';
 const MAX_PERSISTED_CHARS = 400000;
@@ -97,7 +97,7 @@ export function useAssistantThread({ brokerId, lang, onIntent, onRemember }: {
     const req = reqs.current.get(id);
     if (!req) return;
     const alive = () => reqs.current.get(id) === req;
-    void trackFirstQuestion(useAuth.getState().broker?.id);
+    trackFirstQuestion(useAuth.getState().broker?.id);
     const fail = (e: unknown) => { if (alive()) dispatch({ type: 'fail', id, error: errorText(e, lang) }); };
     try {
       if (req.kind === 'primary') {
@@ -179,6 +179,24 @@ export function useAssistantThread({ brokerId, lang, onIntent, onRemember }: {
     execute(id);
   };
 
+  /** A report answer: a finished turn with no server call; the thread shows it inline. */
+  const addReport = (question: string, report: ReportSpec) => {
+    generation.current += 1;
+    dirty.current = true;
+    setFull(null);
+    dispatch({ type: 'report', id: `${Date.now().toString(36)}-${(seq.current += 1)}`, question, report });
+  };
+
+  /** Thumbs-down on an answer. The turn is marked rated at once; a failed send is dropped silently. */
+  const rate = (id: string, reason: AssistantFeedbackReason) => {
+    const turn = turnsRef.current.find((x) => x.id === id);
+    const r = turn?.response;
+    if (!turn || !r || turn.rated) return;
+    dispatch({ type: 'rate', id });
+    track('answer_feedback', { intent: r.intent, reason });
+    Promise.resolve().then(() => api.assistantFeedback({ q: turn.question, lang, intent: r.intent, ...(r.modeUsed ? { route: r.modeUsed } : {}), verdict: 'down', reason })).catch(() => undefined);
+  };
+
   const fetchFull = (f: FullList, offset?: number) => {
     const { drop, status, f: token, market, sort } = f.params;
     return api.search(f.q, { drop, status, ...(offset ? { offset } : {}), ...(token ? { f: token } : {}), ...(market ? { market } : {}), ...(sort ? { sort } : {}) });
@@ -255,5 +273,5 @@ export function useAssistantThread({ brokerId, lang, onIntent, onRemember }: {
   };
 
   const busy = turns.some((x) => x.status === 'pending') || Boolean(full?.pending || full?.loadingMore);
-  return { turns, full, busy, transcribing, voiceError, setVoiceError, send, retry, reset, openFull, closeFull: () => setFull(null), setFullStatus, rerunFull, loadMore, transcribe };
+  return { turns, full, busy, transcribing, voiceError, setVoiceError, send, retry, reset, addReport, rate, openFull, closeFull: () => setFull(null), setFullStatus, rerunFull, loadMore, transcribe };
 }

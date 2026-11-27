@@ -670,6 +670,9 @@ test('legacy 404 fallback in auto mode routes known lead queue commands instead 
     const view = await wrap(client);
     await fireEvent.changeText(screen.getByTestId('search-input'), 'overdue follow-ups');
     await fireEvent.press(screen.getByTestId('search-go'));
+    // The answer shows in the chat first; the full report opens from it.
+    await waitFor(() => expect(screen.getByTestId('report-inline')).toBeTruthy());
+    await fireEvent.press(screen.getByTestId('report-open-full'));
     await waitFor(() => expect(api.leads).toHaveBeenCalledWith(expect.objectContaining({ queue: 'overdue' })));
     expect(mocked.search).not.toHaveBeenCalled();
     await view.unmount();
@@ -1124,8 +1127,8 @@ test('auto mode routes contextual follow-ups and Wave 2/3 queries to assistant, 
 
 test('searching unassigned leads in Arabic or English routes to assistantQuery instead of SearchLeads', async () => {
   jest.clearAllMocks();
-  const mocked = api as jest.Mocked<typeof api>;
-  mocked.assistantQuery.mockResolvedValue({
+  const apiMock = api as jest.Mocked<typeof api>;
+  apiMock.assistantQuery.mockResolvedValue({
     intent: 'crm_leads',
     headline: 'Unassigned leads · 1',
     cards: [{ kind: 'stuck_leads', queue: 'unassigned', total: 1, recommendedBrokers: [], canAssign: false, canNudge: false, items: [] }],
@@ -1137,13 +1140,13 @@ test('searching unassigned leads in Arabic or English routes to assistantQuery i
   await wrap();
   await fireEvent.changeText(screen.getByTestId('search-input'), 'عملاء من غير وسيط');
   await fireEvent.press(screen.getByTestId('search-go'));
-  await waitFor(() => expect(mocked.assistantQuery).toHaveBeenCalledWith(expect.objectContaining({ q: 'عملاء من غير وسيط' })));
+  await waitFor(() => expect(apiMock.assistantQuery).toHaveBeenCalledWith(expect.objectContaining({ q: 'عملاء من غير وسيط' })));
   expect(screen.queryByTestId('search-lead-lookup')).toBeNull();
 
   await fireEvent.press(screen.getByTestId('search-clear-chat'));
   await fireEvent.changeText(screen.getByTestId('search-input'), 'without broker');
   await fireEvent.press(screen.getByTestId('search-go'));
-  await waitFor(() => expect(mocked.assistantQuery).toHaveBeenCalledWith(expect.objectContaining({ q: 'without broker' })));
+  await waitFor(() => expect(apiMock.assistantQuery).toHaveBeenCalledWith(expect.objectContaining({ q: 'without broker' })));
   expect(screen.queryByTestId('search-lead-lookup')).toBeNull();
 });
 

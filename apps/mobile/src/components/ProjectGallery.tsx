@@ -44,7 +44,7 @@ export function ProjectGallery({ projectId, images, lang, onChanged }: { project
   // Spends pages of the month's allowance: ask first, with the cost.
   const [asking, setAsking] = useState(false);
   const sort = () => setAsking(true);
-  const doSort = () => { setAsking(false); void run(async () => { const f = await pick(); if (f.length) await api.projectGallery(projectId, f, { sort: true }); }); };
+  const doSort = () => { setAsking(false); run(async () => { const f = await pick(); if (f.length) await api.projectGallery(projectId, f, { sort: true }); }); };
   const roleText = (r: ProjectImageRole) => (r === 'shared' ? T.roleShared : r === 'layout' ? T.roleLayout : T.roleHidden);
   return (
     <View testID="project-gallery" style={[styles.box, { backgroundColor: colors.card, borderColor: colors.border }]}>

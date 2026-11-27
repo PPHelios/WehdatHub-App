@@ -11,7 +11,7 @@ import { Pill } from './Pill';
 import { Avatar } from './Avatar';
 import { InitialAvatar } from './InitialAvatar';
 
-export const LeadCard = memo(function LeadCard({ lead, lang, phoneVisibility = 'masked', selected, disabled = false, onPress, onLongPress }: {
+export const LeadCard = memo(function LeadCardView({ lead, lang, phoneVisibility = 'masked', selected, disabled = false, onPress, onLongPress }: {
   lead: ApiLead;
   lang: Lang;
   phoneVisibility?: 'masked' | 'full' | 'hidden';

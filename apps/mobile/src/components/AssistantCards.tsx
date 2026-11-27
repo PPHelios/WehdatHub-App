@@ -383,7 +383,7 @@ export function AssistantCards({
           label={t(lang, 'shareSummary')}
           onPress={() => {
             onShareSummary?.();
-            void Share.share({ message: buildShareSummary(response, lang) }).catch(() => undefined);
+            Share.share({ message: buildShareSummary(response, lang) }).catch(() => undefined);
           }}
         />
       </View>
@@ -407,8 +407,8 @@ export function AssistantCards({
           nudged={nudged}
           busyRefs={busyRefs}
           rowErrors={rowErrors}
-          onAssign={(ref, id, name, version) => void handleAssign(ref, id, name, version)}
-          onNudge={(ref) => void handleNudge(ref)}
+          onAssign={(ref, id, name, version) => { handleAssign(ref, id, name, version); }}
+          onNudge={(ref) => { handleNudge(ref); }}
           onOpenLead={onOpenLead}
           onSelectOption={onSelectOption}
           onNavigate={onNavigateLink}

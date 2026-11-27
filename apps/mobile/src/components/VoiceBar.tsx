@@ -28,6 +28,7 @@ import { GlassSurface } from './GlassSurface';
 import { Icon } from './Icon';
 import { binClack, CLOSE_AT, DISCARD_MS, DiscardBin, FLY_FROM, FLY_TO, seg } from './DiscardBin';
 import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 const CANCEL_PX = 80;
 const LOCK_PX = 70;
@@ -160,7 +161,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   const discard = (animated: boolean) => {
     live.current = 'idle';
     if (kept.current) kept.current = null;
-    else void cancelRecording();
+    else cancelRecording();
     lockSv.value = 0;
     if (!animated) {
       go('idle');
@@ -193,7 +194,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     lockSv.value = 0;
     resetUi();
     if (short) {
-      void cancelRecording();
+      cancelRecording();
       go('idle');
       haptics.failed();
       showTip();
@@ -234,12 +235,12 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     terminated.current = false;
     live.current = 'pending';
     if (lockWanted.current) {
-      void begin(); // screen readers cannot hold
+      begin(); // screen readers cannot hold
       return;
     }
     holdTimer.current = setTimeout(() => {
       holdTimer.current = null;
-      void begin();
+      begin();
     }, HOLD_MS);
   };
 
@@ -297,9 +298,9 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   };
 
   const finishRelease = () => {
-    if (terminated.current) void keep();
+    if (terminated.current) keep();
     else if (away.current) discard(true);
-    else void send();
+    else send();
   };
 
   const release = (ok: boolean) => {
@@ -336,7 +337,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
       terminated.current = true;
       released.current = true;
     } else if (live.current === 'recording') {
-      void keep();
+      keep();
     }
   };
 
@@ -408,10 +409,9 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     return () => {
       sub.remove();
       if (holdTimer.current) clearTimeout(holdTimer.current);
-      if (live.current === 'recording' || live.current === 'starting') void cancelRecording();
+      if (live.current === 'recording' || live.current === 'starting') cancelRecording();
       if (tipTimer.current) clearTimeout(tipTimer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const controlSize = compact ? 44 : BTN;
@@ -468,9 +468,9 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
       if (hasText) onSubmit?.();
       else {
         lockWanted.current = true; // screen readers cannot hold: start hands-free
-        void press();
+        press();
       }
-    } else if (phaseRef.current === 'locked' || phaseRef.current === 'stopped') void send();
+    } else if (phaseRef.current === 'locked' || phaseRef.current === 'stopped') send();
   };
 
   const pillHeight = { minHeight: controlSize };
@@ -538,7 +538,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
       ) : null}
     </View>
   ) : (
-    <GlassSurface elevation={false} style={[styles.pill, pillHeight, styles.input, { justifyContent: 'center' }]}>
+    <GlassSurface elevation={false} style={[styles.pill, pillHeight, styles.input, sx.justifyContentCenter]}>
       <Text style={{ color: colors.muted, textAlign: lang === 'ar' ? 'right' : 'left' }}>{label}</Text>
     </GlassSurface>
   );
@@ -587,7 +587,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
             accessibilityRole="button"
             accessibilityLabel={t(lang, heldNote ? 'voiceSend' : 'sendBtn')}
             disabled={off}
-            onPress={() => (heldNote ? void send() : onSubmit?.())}
+            onPress={() => (heldNote ? send() : onSubmit?.())}
             style={styles.overlay}
           />
         ) : null}

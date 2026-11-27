@@ -72,6 +72,7 @@ const ICONS = {
   bed: [{ d: 'M3 19v-7m18 7v-7M3 16h18M5 12V7h14v5M3 12h18m-9-5v5' }],
   bath: [{ d: 'M3 12h18v2a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5v-2zm3 0V6a2 2 0 0 1 4 0v1M7 19l-1 2m11-2 1 2' }],
   area: [{ d: 'M3 4v16h17L3 4zm4 9v3h3' }],
+  'thumb-down': [{ d: 'M17 14V3H7.5a2 2 0 0 0-2 1.7l-1.2 7A2 2 0 0 0 6.3 14H10l-1 5a2 2 0 0 0 3.6 1.4L17 14zM17 3h3v11h-3' }],
   send: [{ d: 'M22 2 11 13M22 2l-7 20-4-9-9-4z' }],
 } satisfies Record<string, Part[]>;
 

@@ -15,6 +15,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 import { toastError } from '../components/Toast';
+import { sx } from '../sharedStyles';
 
 const day = (plus: number) => new Date(Date.now() + plus * 86400000).toISOString().slice(0, 10);
 
@@ -67,9 +68,9 @@ export function LeadRulesScreen() {
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text variant="heading" weight="bold" style={[styles.h, { color: colors.text }]}>{t(lang, 'rrTitle')}</Text>
-      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'rrOn')}</Text><BusySwitch testID="rr-switch" value={rr} onValueChange={setRr} /></View>
+      <View style={styles.row}><Text style={[{ color: colors.text }, sx.flex1]}>{t(lang, 'rrOn')}</Text><BusySwitch testID="rr-switch" value={rr} onValueChange={setRr} /></View>
       <Text variant="heading" weight="bold" style={[styles.h, { color: colors.text }]}>{t(lang, 'ruleTitle')}</Text>
-      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'ruleOn')}</Text><BusySwitch testID="rule-switch" value={on} onValueChange={setOn} /></View>
+      <View style={styles.row}><Text style={[{ color: colors.text }, sx.flex1]}>{t(lang, 'ruleOn')}</Text><BusySwitch testID="rule-switch" value={on} onValueChange={setOn} /></View>
       <Field label={t(lang, 'ruleWait')} value={wait} onChangeText={setWait} keyboardType="number-pad" testID="rule-wait" />
       <View style={styles.row}>
         <View style={styles.flex}><Field label={t(lang, 'ruleFrom')} value={start} onChangeText={setStart} keyboardType="number-pad" /></View>
@@ -81,11 +82,11 @@ export function LeadRulesScreen() {
       {d.brokers.length ? null : <EmptyView title={t(lang, 'noTeam')} icon="team" actionLabel={t(lang, 'invite')} onAction={() => nav.navigate('Invite')} />}
       {d.brokers.map((b) => (
         <View key={b.id} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={{ color: colors.text, fontWeight: '700', flex: 1 }}>{b.name} · {b.open}</Text>
+          <Text style={[{ color: colors.text }, sx.fontWeight700_flex1]}>{b.name} · {b.open}</Text>
           {b.away ? (
-            <Pressable testID={`back-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, null)}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{t(lang, 'awayBack')}</Text></Pressable>
+            <Pressable testID={`back-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, null)}><Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{t(lang, 'awayBack')}</Text></Pressable>
           ) : (
-            <Pressable testID={`away-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, day(8))}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{t(lang, 'awayWeek')}</Text></Pressable>
+            <Pressable testID={`away-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, day(8))}><Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{t(lang, 'awayWeek')}</Text></Pressable>
           )}
         </View>
       ))}
