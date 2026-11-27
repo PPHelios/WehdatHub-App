@@ -22,6 +22,7 @@ import { radius, spacing, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 import { BottomSafe } from './BottomSafe';
 import { Button } from './Button';
+import { Card } from './Card';
 import { Chips } from './Chips';
 import { FilterPicker } from './FilterPicker';
 import { ErrorView, Loading } from './StateViews';
@@ -63,7 +64,7 @@ export function SearchLeads({ assignedInitially, initialQueue, lookup, matching 
   });
   const rights = useRights();
   const reduceMotion = useReducedMotion();
-  const number = new Intl.NumberFormat(ar ? 'ar-EG' : 'en-EG');
+  const number = new Intl.NumberFormat(lang === 'ar' ? 'ar-EG' : 'en-EG');
   const [assigned, setAssigned] = useState<'last' | undefined>(assignedInitially ? 'last' : undefined);
   const [queue, setQueue] = useState<LeadQueue | undefined>(initialQueue);
   const activeQueue = queue;
@@ -101,60 +102,60 @@ export function SearchLeads({ assignedInitially, initialQueue, lookup, matching 
   const max = Math.max(1, ...STAGES.map((item) => stages?.[item] ?? 0));
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{ar ? 'مراحل العملاء' : 'Lead pipeline'}</Text>
+      <Text accessibilityRole="header" variant="heading" style={{ color: colors.text }}>{t(lang, 'sl_title')}</Text>
       <View style={styles.tools}>
         <Field label={t(lang, 'searchLeads')} testID="search-lead-lookup" value={nameOrPhone} onChangeText={setNameOrPhone} />
         <Button variant="secondary" label={t(lang, 'newLead')} onPress={() => nav.navigate('NewLead')} />
       </View>
       {!queryText ? <Chips<LeadQueue | 'all'> animateFilter value={activeQueue ?? 'all'} options={[
         { value: 'all', label: t(lang, 'tabAll') },
-        { value: 'unassigned', label: ar ? 'من غير وسيط' : 'Unassigned' },
-        { value: 'uncontacted', label: ar ? 'محدش كلمهم' : 'Uncontacted' },
-        ...(initialQueue === 'waiting-over-1h' ? [{ value: 'waiting-over-1h' as const, label: ar ? 'مستنين أكتر من ساعة' : 'Waiting > 1h' }] : []),
-        ...(initialQueue === 'delayed-first-contact' ? [{ value: 'delayed-first-contact' as const, label: ar ? 'تأخر أول تواصل' : 'Delayed first contact' }] : []),
-        { value: 'late-response', label: ar ? 'ميعاد أول رد عدّى' : 'First response due' },
+        { value: 'unassigned', label: t(lang, 'sl_qUnassigned') },
+        { value: 'uncontacted', label: t(lang, 'sl_qUncontacted') },
+        ...(initialQueue === 'waiting-over-1h' ? [{ value: 'waiting-over-1h' as const, label: t(lang, 'sl_qWaiting') }] : []),
+        ...(initialQueue === 'delayed-first-contact' ? [{ value: 'delayed-first-contact' as const, label: t(lang, 'pq_uncontactedOld') }] : []),
+        { value: 'late-response', label: t(lang, 'sl_qLate') },
         { value: 'overdue', label: t(lang, 'tabOverdue') },
-        { value: 'viewings-tomorrow', label: t(lang, 'fuViewing') + ' · ' + (ar ? 'بكرة' : 'Tomorrow') },
+        { value: 'viewings-tomorrow', label: t(lang, 'fuViewing') + ' · ' + t(lang, 'sl_tomorrow') },
       ]} onChange={(value) => { setQueue(value === 'all' ? undefined : value); setStage(undefined); }} /> : null}
-      {activeQueue === 'viewings-tomorrow' ? <Button variant="secondary" label={ar ? 'معاينات التقويم بكرة' : 'Tomorrow’s calendar viewings'} onPress={() => nav.navigate('Calendar', { tomorrow: true })} /> : null}
+      {activeQueue === 'viewings-tomorrow' ? <Button variant="secondary" label={t(lang, 'sl_calTomorrow')} onPress={() => nav.navigate('Calendar', { tomorrow: true })} /> : null}
       <Chips animateFilter value={assigned ?? 'all'} options={[
         { value: 'all', label: t(lang, 'tabAll') },
-        { value: 'last', label: ar ? 'آخر تسليم الشهر اللي فات' : 'Last assigned last month' },
+        { value: 'last', label: t(lang, 'sl_lastAssigned') },
       ]} onChange={(value) => setAssigned(value === 'last' ? value : undefined)} />
       {team.data?.items.length ? (
         <FilterPicker
           testID="search-leads-broker"
-          label={ar ? 'الوسيط' : 'Broker'}
+          label={t(lang, 'sl_broker')}
           value={effectiveBroker || (resolvePending ? '' : 'all')}
           onChange={(value) => { setBroker(value === 'all' ? '' : value); setConfirmedAssignee(requestedAssignee); }}
           options={[
-            { value: 'all', label: ar ? 'كل الوسطاء' : 'All brokers' },
+            { value: 'all', label: t(lang, 'sl_allBrokers') },
             ...team.data.items.map((member) => ({ value: member.id, label: member.name })),
           ]}
         />
       ) : null}
-      {requestedAssignee && team.isFetched && !singleAssignee ? <Text style={{ color: colors.muted }}>{ar ? 'اختار الوسيط المطلوب من القائمة.' : 'Choose the broker from the list.'}</Text> : null}
+      {requestedAssignee && team.isFetched && !singleAssignee ? <Text style={{ color: colors.muted }}>{t(lang, 'sl_pickBroker')}</Text> : null}
       {counts.isError ? <ErrorView message={errorText(counts.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => counts.refetch()} /> : null}
-      {stages && !queryText && !initialTab ? <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {stages && !queryText && !initialTab ? <Card style={styles.card}>
         {selection.highlight}
         {STAGES.map((item) => <Pressable key={item} onLayout={selection.measure(item)} accessibilityRole="button" accessibilityState={{ selected: item === stage }} onPress={() => setStage(item === stage ? undefined : item)} style={[styles.stage, item === stage && !selection.highlight && { backgroundColor: colors.primarySoft }]}>
           <StatRow animate label={t(lang, `st_${item}`)} value={number.format(stages[item] ?? 0)} pct={(stages[item] ?? 0) / max * 100} />
         </Pressable>)}
-      </View> : null}
-      <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{stage ? t(lang, `st_${stage}`) : initialTab === 'due_today' ? t(lang, 'tabDue') : initialTab === 'no_next_step' ? t(lang, 'tabNoStep') : t(lang, 'leadsTab')}{list.data ? ' · ' + number.format(list.data.pages[0].total) : ''}</Text>
+      </Card> : null}
+      <Text accessibilityRole="header" variant="heading" style={{ color: colors.text }}>{stage ? t(lang, `st_${stage}`) : initialTab === 'due_today' ? t(lang, 'tabDue') : initialTab === 'no_next_step' ? t(lang, 'tabNoStep') : t(lang, 'leadsTab')}{list.data ? ' · ' + number.format(list.data.pages[0].total) : ''}</Text>
       {list.isPending && !resolvePending ? <Loading label={t(lang, 'loading')} /> : null}
       {list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => list.refetch()} /> : null}
       {list.isSuccess && !rows.length ? <Text style={{ color: colors.muted }}>{t(lang, 'noLeads')}</Text> : null}
       {rows.map((lead) => <LeadCard key={lead.ref} lead={lead} lang={lang} onPress={() => matching ? selectMatch(lead.ref) : setRef(lead.ref)} />)}
-      {list.hasNextPage ? <Button variant="secondary" label={ar ? 'عملاء أكتر' : 'More leads'} loading={list.isFetchingNextPage} onPress={() => { void list.fetchNextPage(); }} /> : null}
+      {list.hasNextPage ? <Button variant="secondary" label={t(lang, 'sl_moreLeads')} loading={list.isFetchingNextPage} onPress={() => { list.fetchNextPage(); }} /> : null}
       <Modal visible={Boolean(ref || matchRef)} onRequestClose={matchRef ? closeMatches : () => setRef(undefined)} animationType={reduceMotion ? 'none' : 'slide'}>
         <BottomSafe>
           {matchRef ? <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.title, { color: colors.text }]}>{t(lang, 'matches')} · {matchRef}</Text>
+      <Card style={styles.card}>
+        <Text variant="heading" style={{ color: colors.text }}>{t(lang, 'matches')} · {matchRef}</Text>
         {matches.isPending ? <Loading label={t(lang, 'loading')} /> : null}
         {matches.isError ? <ErrorView message={errorText(matches.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => matches.refetch()} /> : null}
-        {matches.data?.requests.length === 0 ? <Text style={{ color: colors.muted }}>{ar ? 'العميل ده ملوش طلبات محفوظة.' : 'This lead has no saved requirements.'}</Text> : null}
+        {matches.data?.requests.length === 0 ? <Text style={{ color: colors.muted }}>{t(lang, 'sl_noReq')}</Text> : null}
         {matches.data?.requests.map((request) => <View key={request.id} style={styles.tools}>
           <Text style={{ color: colors.text }}>{request.summary}</Text>
           {editing?.requestId !== request.id ? MATCH_FIELDS.map(([key, en, arabic]) => {
@@ -163,30 +164,30 @@ export function SearchLeads({ assignedInitially, initialQueue, lookup, matching 
           }) : null}
           {editing?.requestId === request.id ? <View style={styles.tools}>
             {MATCH_FIELDS.map(([key, en, arabic]) => <Field key={key} label={ar ? arabic : en} value={editing[key] ?? ''} keyboardType="decimal-pad" onChangeText={(value) => setEditing({ ...editing, [key]: value })} />)}
-            <Button label={ar ? 'طبّق على البحث ده بس' : 'Apply to this search only'} onPress={() => {
+            <Button label={t(lang, 'sl_applyOnce')} onPress={() => {
               const next: LeadMatchAdjustments = { requestId: request.id };
               for (const [key] of MATCH_FIELDS) next[key] = normalizeSearchWords(editing[key] ?? '').replace(/٫/g, '.') || 'clear';
               setAdjustments(next);
               setEditing(undefined);
             }} />
             <Button variant="secondary" label={t(lang, 'cancel')} onPress={() => setEditing(undefined)} />
-          </View> : <Button variant="secondary" label={ar ? 'عدّل شروط البحث ده' : 'Adjust this search'} onPress={() => {
+          </View> : <Button variant="secondary" label={t(lang, 'sl_adjust')} onPress={() => {
             const next: LeadMatchAdjustments = { requestId: request.id };
             for (const [key] of MATCH_FIELDS) next[key] = String(request.criteria?.[key] ?? '');
             setEditing(next);
           }} />}
-          <Text style={{ color: colors.muted }}>{ar ? 'وحدات الشركة' : 'Inventory'} · {number.format(request.total)}</Text>
+          <Text style={{ color: colors.muted }}>{t(lang, 'sl_inventory')} · {number.format(request.total)}</Text>
           {request.items.map((unit) => <View key={unit.code} style={styles.tools}>
             <Button variant="secondary" label={unit.code + (unit.title ? ' · ' + unit.title : '')} onPress={() => { closeMatches(); setRef(undefined); nav.navigate('Unit', { code: unit.code }); }} />
-            <Button variant="secondary" label={ar ? 'افتح مشاركة ' + unit.code : 'Share ' + unit.code} disabled={shareMatch.isPending} onPress={() => shareMatch.mutate({ ref: matchRef, code: unit.code })} />
+            <Button variant="secondary" label={t(lang, 'sl_share').replace('{c}', unit.code)} disabled={shareMatch.isPending} onPress={() => shareMatch.mutate({ ref: matchRef, code: unit.code })} />
           </View>)}
-          <Button variant="secondary" label={ar ? 'خيارات المطورين' : 'Search developer projects'} onPress={() => setPrimaryRequest(primaryRequest === request.id ? undefined : request.id)} />
+          <Button variant="secondary" label={t(lang, 'sl_devSearch')} onPress={() => setPrimaryRequest(primaryRequest === request.id ? undefined : request.id)} />
           {primaryRequest === request.id ? <AskResults showStatus q={request.summary} onOpenProject={(id, name) => { closeMatches(); setRef(undefined); nav.navigate('Project', { id, name }); }} /> : null}
         </View>)}
-        {adjustments ? <Button variant="secondary" label={ar ? 'ارجع للشروط المحفوظة' : 'Reset to saved requirements'} onPress={() => { setAdjustments(undefined); setEditing(undefined); }} /> : null}
+        {adjustments ? <Button variant="secondary" label={t(lang, 'sl_resetReq')} onPress={() => { setAdjustments(undefined); setEditing(undefined); }} /> : null}
         {shareMatch.isError ? <Text style={{ color: colors.danger }}>{errorText(shareMatch.error, lang)}</Text> : null}
         <Button variant="secondary" label={t(lang, 'closePanel')} onPress={closeMatches} />
-      </View>
+      </Card>
 
           </ScrollView> : <>
             <View style={styles.detailsActions}>
@@ -205,7 +206,6 @@ const styles = StyleSheet.create({
   tools: { gap: spacing.sm },
   detailsActions: { flexDirection: 'row', flexWrap: 'wrap', padding: spacing.sm, gap: spacing.sm },
   content: { padding: spacing.lg, paddingBottom: 90, gap: spacing.md },
-  title: { fontSize: 20, fontWeight: '700' },
-  card: { padding: spacing.sm, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.card },
+  card: { padding: spacing.sm },
   stage: { minHeight: 44, paddingHorizontal: spacing.sm, borderRadius: radius.sm, justifyContent: 'center' },
 });

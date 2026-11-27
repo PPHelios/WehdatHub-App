@@ -5,7 +5,7 @@ import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ApiClientError, type LeadQueue, type SearchHomeData, type SearchHomePriority } from '@wehdathub/shared';
+import { ApiClientError, type Lang, type LeadQueue, type SearchHomeData, type SearchHomePriority } from '@wehdathub/shared';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { t } from '../i18n';
@@ -37,36 +37,35 @@ const TIPS_STORAGE_PREFIX = 'wehdathub.learnedTips';
 
 function tipsForRole(
   role: string | undefined,
-  ar: boolean,
+  lang: Lang,
   gates: { canTeam: boolean; canSources: boolean; canWinLoss: boolean; isSolo: boolean },
 ): DiscoveryTip[] {
   const r = (role ?? '').toLowerCase();
-  const lang = ar ? 'ar' : 'en';
   if (r === 'data_entry') {
     return [
-      { id: 'de-confirm', icon: 'units', label: ar ? 'وحدات محتاجة تأكيد' : 'Units needing confirmation', query: ar ? 'وحدات محتاجة مراجعة' : 'units to check' },
-      { id: 'de-photos', icon: 'units', label: ar ? 'وحدات من غير صور' : 'Units missing photos', query: ar ? 'وحدات من غير صور' : 'missing photos' },
+      { id: 'de-confirm', icon: 'units', label: t(lang, 'sh_tipConfirm'), query: t(lang, 'sh_qConfirm') },
+      { id: 'de-photos', icon: 'units', label: t(lang, 'pc_photos'), query: t(lang, 'sh_qPhotos') },
     ];
   }
   if (r === 'owner' || r === 'manager' || r === 'admin') {
     return [
       { id: 'mgr-overdue', icon: 'bell', label: priorityTitle('overdue', lang), query: priorityPrompt('overdue', lang) ?? '' },
-      ...(gates.canTeam && !gates.isSolo ? [{ id: 'mgr-team', icon: 'team' as const, label: ar ? 'أداء وشغل الفريق' : 'Team workload', query: ar ? 'شغل الفريق' : 'team workload' }] : []),
-      { id: 'mgr-dashboard', icon: 'dashboard', label: gates.isSolo ? (ar ? 'إحصائياتي' : 'My stats') : (ar ? 'لوحة أداء الشركة' : 'Agency dashboard'), query: gates.isSolo ? (ar ? 'ملخصي' : 'my stats') : (ar ? 'لوحة الشركة' : 'agency dashboard') },
-      ...(gates.canSources && !gates.isSolo ? [{ id: 'mgr-sources', icon: 'link' as const, label: ar ? 'أداء مصادر العملاء' : 'Lead sources performance', query: ar ? 'مصادر العملاء' : 'lead sources' }] : []),
-      ...(gates.canWinLoss && !gates.isSolo ? [{ id: 'mgr-losses', icon: 'chart' as const, label: ar ? 'أسباب خسارة الصفقات' : 'Deal win/loss reasons', query: ar ? 'أسباب الخسارة' : 'win/loss' }] : []),
+      ...(gates.canTeam && !gates.isSolo ? [{ id: 'mgr-team', icon: 'team' as const, label: t(lang, 'sh_tipTeam'), query: t(lang, 'sh_qTeam') }] : []),
+      { id: 'mgr-dashboard', icon: 'dashboard', label: t(lang, gates.isSolo ? 'sh_tipStats' : 'sh_tipAgency'), query: t(lang, gates.isSolo ? 'sh_qStats' : 'sh_qAgency') },
+      ...(gates.canSources && !gates.isSolo ? [{ id: 'mgr-sources', icon: 'link' as const, label: t(lang, 'sh_tipSources'), query: t(lang, 'sh_qSources') }] : []),
+      ...(gates.canWinLoss && !gates.isSolo ? [{ id: 'mgr-losses', icon: 'chart' as const, label: t(lang, 'sh_tipLosses'), query: t(lang, 'sh_qLosses') }] : []),
     ];
   }
   if (r === 'team_lead') {
     return [
       { id: 'tl-overdue', icon: 'bell', label: priorityTitle('overdue', lang), query: priorityPrompt('overdue', lang) ?? '' },
       { id: 'tl-uncontacted', icon: 'leads', label: t(lang, 'pq_newLeads'), query: priorityPrompt('new-leads', lang) ?? '' },
-      { id: 'tl-resale', icon: 'search', label: ar ? 'فيلا للبيع في زايد' : 'Villa for sale in Zayed', query: ar ? 'فيلا للبيع في زايد' : 'villa for sale in Zayed' },
+      { id: 'tl-resale', icon: 'search', label: t(lang, 'sh_tipVilla'), query: t(lang, 'sh_qVilla') },
     ];
   }
   return [
-    { id: 'brk-today', icon: 'chat', label: ar ? 'متابعات ومكالمات النهارده' : 'Follow-ups due today', query: ar ? 'متابعات النهارده' : 'follow-ups today' },
-    { id: 'brk-resale', icon: 'search', label: ar ? 'شقة أقل من 5 مليون' : 'Apartments under 5M', query: ar ? 'شقة أقل من 5 مليون' : 'apartment under 5m' },
+    { id: 'brk-today', icon: 'chat', label: t(lang, 'sh_tipFollow'), query: t(lang, 'sh_qFollow') },
+    { id: 'brk-resale', icon: 'search', label: t(lang, 'sh_tipApt'), query: t(lang, 'sh_qApt') },
   ];
 }
 
@@ -80,9 +79,8 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
   const broker = useAuth((s) => s.broker);
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const focused = useIsFocused();
-  const ar = broker?.lang !== 'en';
-  const lang = ar ? 'ar' : 'en';
-  const locale = ar ? 'ar-EG' : 'en-GB';
+  const lang: Lang = broker?.lang === 'en' ? 'en' : 'ar';
+  const locale = lang === 'ar' ? 'ar-EG' : 'en-GB';
   const n = (value: number) => value.toLocaleString(locale);
   const [all, setAll] = useState(false);
   const queries = useQueryClient();
@@ -153,7 +151,7 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
   const hour = data?.hour ?? Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Cairo', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
   const evening = hour >= 17;
   const morning = hour < 12;
-  const greeting = ar ? (evening ? 'مساء الخير' : morning ? 'صباح الخير' : 'أهلاً') : evening ? 'Good evening' : morning ? 'Good morning' : 'Good afternoon';
+  const greeting = t(lang, evening ? 'sh_greetEve' : morning ? 'sh_greetMorn' : 'sh_greetDay');
   const name = broker?.name?.trim().split(/\s+/)[0];
   const date = new Intl.DateTimeFormat(locale, { timeZone: 'Africa/Cairo', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
   const entry = broker?.role === 'data_entry';
@@ -276,15 +274,13 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
   const untriedTips = useMemo(() => {
     if (!onTryPrompt || learnedTips === null) return [];
     const learned = new Set(learnedTips);
-    return tipsForRole(broker?.role, ar, { canTeam, canSources, canWinLoss, isSolo }).filter((tip) => !learned.has(tip.id)).slice(0, 2);
-  }, [onTryPrompt, learnedTips, broker?.role, ar, canTeam, canSources, canWinLoss, isSolo]);
+    return tipsForRole(broker?.role, lang, { canTeam, canSources, canWinLoss, isSolo }).filter((tip) => !learned.has(tip.id)).slice(0, 2);
+  }, [onTryPrompt, learnedTips, broker?.role, lang,canTeam, canSources, canWinLoss, isSolo]);
 
-  const heading = entry ? (ar ? 'وحدات محتاجة تحديث' : 'Units overdue for an update') : ar ? 'الأولويات' : 'Priorities';
+  const heading = t(lang, entry ? 'sh_headEntry' : 'sh_headPrio');
   const completed = data?.completed;
-  const summary = completed === undefined ? null : entry
-    ? (ar ? `وحدات حدّثتها النهارده · ${n(completed)}` : `Units you updated today · ${n(completed)}`)
-    : manager ? (ar ? `صفقات اتقفلت النهارده · ${n(completed)}` : `Deals closed today · ${n(completed)}`)
-      : (ar ? `متابعات خلصت النهارده · ${n(completed)}` : `Follow-ups completed today · ${n(completed)}`);
+  const summary = completed === undefined ? null
+    : t(lang, entry ? 'sh_doneEntry' : manager ? 'sh_doneMgr' : 'sh_doneBroker').replace('{n}', n(completed));
   const refresh = all ? overdue : home;
   const loading = all ? overdue.isPending : home.isPending && Boolean(broker?.id);
   const failed = refresh.isError && !refresh.data;
@@ -303,16 +299,16 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
     <ScrollView testID="search-home" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refresh.isRefetching} onRefresh={async () => { await Promise.all([refresh.refetch(), queries.refetchQueries({ queryKey: ['today'], exact: true, type: 'active' })]); }} />}>
       <View style={styles.topRow}>
-        <Text style={[styles.date, { color: colors.muted }]}>{date}</Text>
+        <Text variant="bodySm" weight="bold" style={{ color: colors.muted }}>{date}</Text>
         {trialDaysLeft !== null ? (
           <Pressable testID="trial-status-pill" onPress={() => nav.navigate('Usage')} style={[styles.trialPill, { borderColor: colors.border, backgroundColor: colors.card }]}>
-            <Text style={{ color: trialDaysLeft <= 3 ? colors.warn : colors.muted, fontSize: 12, fontWeight: '600' }}>
-              {`${t(lang, 'trialPill')} · ${n(trialDaysLeft)}${ar ? 'ي' : 'd'}`}
+            <Text variant="caption" weight="bold" style={{ color: trialDaysLeft <= 3 ? colors.warn : colors.muted }}>
+              {`${t(lang, 'trialPill')} · ${n(trialDaysLeft)}${t(lang, 'sh_daysShort')}`}
             </Text>
           </Pressable>
         ) : null}
       </View>
-      <Text accessibilityRole="header" style={[styles.greeting, { color: colors.text }]}>{greeting}{name ? (ar ? ` يا ${name}` : `, ${name}`) : ''}</Text>
+      <Text accessibilityRole="header" variant="display" style={{ color: colors.text }}>{greeting}{name ? t(lang, 'sh_withName').replace('{n}', name) : ''}</Text>
       {!all && !starterDismissed && onboarding ? (
         <StarterCard
           onboarding={onboarding}
@@ -342,30 +338,30 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
       <View style={styles.brief}>
         {!loading && !failed && entry ? <>
           <HomeRow testID="home-overdue-total" title={heading} value={n(total)} icon="units" featured />
-          {!all && total > 0 ? <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>{ar ? 'الأقدم أولاً' : 'Longest overdue'}</Text> : null}
+          {!all && total > 0 ? <Text accessibilityRole="header" variant="body" weight="bold" style={[styles.sectionTitle, { color: colors.text }]}>{t(lang, 'sh_longest')}</Text> : null}
         </> : null}
         {!entry || loading || failed ? (
           <View style={styles.sectionHead}>
-            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>{heading}</Text>
-            {urgentCount > 0 ? <UrgencyBadge testID="home-urgent-badge" tone="critical" label={ar ? `${n(urgentCount)} عاجل` : `${n(urgentCount)} urgent`} /> : null}
+            <Text accessibilityRole="header" variant="body" weight="bold" style={[styles.sectionTitle, { color: colors.text }]}>{heading}</Text>
+            {urgentCount > 0 ? <UrgencyBadge testID="home-urgent-badge" tone="critical" label={t(lang, 'sh_urgentN').replace('{n}', n(urgentCount))} /> : null}
           </View>
         ) : null}
-        {loading ? <View style={[styles.loading, { backgroundColor: colors.card, borderColor: colors.border }]}><ActivityIndicator accessibilityLabel={t(lang, 'loading')} color={colors.spinner} /></View> :
-          failed ? row('home-retry', ar ? 'حاول تاني' : 'Retry brief', () => void refresh.refetch()) :
+        {loading ? <Card style={styles.loading}><ActivityIndicator accessibilityLabel={t(lang, 'loading')} color={colors.spinner} /></Card> :
+          failed ? row('home-retry', t(lang, 'sh_retry'), () => { refresh.refetch(); }) :
           rows.length ? (grid && !entry ? <View style={styles.grid}>{rows.map((r, i) => <View key={(r as React.ReactElement).key ?? i} style={styles.cell}>{r}</View>)}</View> : rows) :
             <Card testID="home-all-clear" style={styles.clear}>
               <Icon name="check" size={20} color={colors.primaryInk} />
-              <Text variant="body" weight="bold" style={{ color: colors.text }}>{entry ? (ar ? 'كل الوحدات محدّثة' : 'All units are up to date') : allClearLine(lang)}</Text>
+              <Text variant="body" weight="bold" style={{ color: colors.text }}>{entry ? t(lang, 'sh_allUnitsOk') : allClearLine(lang)}</Text>
               <PressableScale testID="home-next-step" onPress={runNextStep} style={[styles.nextBtn, { backgroundColor: colors.primary }]}>
                 <Text variant="bodySm" weight="bold" style={{ color: colors.onPrimary }}>{nextStep.label}</Text>
               </PressableScale>
             </Card>}
         {entry && !all && total > 0 ? row('home-all-units',
-          data?.legacy ? t(lang, 'openUnits') : ar ? 'عرض كل الوحدات المتأخرة' : 'View all overdue units',
+          t(lang, data?.legacy ? 'openUnits' : 'sh_viewAllOverdue'),
           () => { if (data?.legacy) nav.navigate('UnitsList', { old: true }); else setAll(true); }) : null}
-        {all && overdue.hasNextPage ? row('home-more-units', overdue.isFetchingNextPage ? t(lang, 'loading') : ar ? 'عرض وحدات أكتر' : 'Show more units',
-          () => { if (!overdue.isFetchingNextPage) void overdue.fetchNextPage(); }) : null}
-        {all ? row('home-back', ar ? 'رجوع للملخص' : 'Back to brief', () => setAll(false)) : null}
+        {all && overdue.hasNextPage ? row('home-more-units', overdue.isFetchingNextPage ? t(lang, 'loading') : t(lang, 'sh_moreUnits'),
+          () => { if (!overdue.isFetchingNextPage) overdue.fetchNextPage(); }) : null}
+        {all ? row('home-back', t(lang, 'sh_back'), () => setAll(false)) : null}
       </View>
       {!all ? (
         <TodayDetails
@@ -385,8 +381,8 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
         <Animated.View entering={FadeIn.duration(180).reduceMotion(ReduceMotion.System)}>
           <SectionCard
             testID="try-asking-card"
-            title={ar ? 'جرّب تسأل' : 'Try asking'}
-            subtitle={ar ? 'اختصارات سريعة لدورك — هتختفي لما تجربها' : 'Quick role shortcuts — retire once tried'}
+            title={t(lang, 'sh_tryAsking')}
+            subtitle={t(lang, 'sh_tryAskingHint')}
           >
             {untriedTips.map((tip) => (
               <View key={tip.id} style={styles.tipRow}>
@@ -401,12 +397,12 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
                   style={({ pressed }) => [styles.tipBtn, { backgroundColor: colors.cardSubtle, borderColor: colors.border, opacity: pressed ? 0.78 : 1 }]}
                 >
                   <Icon name={tip.icon} size={16} color={colors.primaryInk} />
-                  <Text style={[styles.tipText, { color: colors.text }]}>{tip.label}</Text>
+                  <Text variant="bodySm" weight="bold" style={[styles.tipText, { color: colors.text }]}>{tip.label}</Text>
                 </Pressable>
                 <Pressable
                   testID={`try-tip-dismiss-${tip.id}`}
                   accessibilityRole="button"
-                  accessibilityLabel={ar ? 'إخفاء الاقتراح' : 'Dismiss suggestion'}
+                  accessibilityLabel={t(lang, 'sh_dismissTip')}
                   hitSlop={6}
                   onPress={() => {
                     usage('home_tip_dismissed', true);
@@ -428,22 +424,20 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, paddingBottom: 90, gap: spacing.sm },
-  date: { fontSize: 13, fontWeight: '600' },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  trialPill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: 3 },
-  greeting: { fontSize: 29, fontWeight: '800' },
+  trialPill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
   brief: { marginTop: spacing.md, gap: spacing.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  sectionTitle: { fontSize: 16, fontWeight: '800', paddingVertical: spacing.xs },
-  loading: { minHeight: 52, justifyContent: 'center', borderWidth: 1, borderRadius: radius.card },
+  sectionTitle: { paddingVertical: spacing.xs },
+  loading: { minHeight: 52, justifyContent: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   cell: { flexBasis: '48%', flexGrow: 1 },
   metrics: { flexDirection: 'row', gap: spacing.sm },
-  metric: { flex: 1, padding: spacing.md, gap: 2 },
+  metric: { flex: 1, padding: spacing.md, gap: spacing.xs },
   clear: { gap: spacing.sm, alignItems: 'flex-start' },
   nextBtn: { minHeight: 44, paddingHorizontal: spacing.lg, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   tipRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   tipBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, minHeight: 44 },
-  tipText: { flex: 1, fontSize: 14, fontWeight: '600' },
+  tipText: { flex: 1 },
   tipDismiss: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
 });

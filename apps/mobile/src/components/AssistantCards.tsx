@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
-import { ApiClientError, ltr, type AssistantCard, type AssistantQueryResponse, type BrokerDiscipline, type LeadQueue } from '@wehdathub/shared';
+import { ApiClientError, ltr, type Lang, type AssistantCard, type AssistantQueryResponse, type BrokerDiscipline, type LeadQueue } from '@wehdathub/shared';
 import { looksLikePhone } from './PhoneText';
 import { errorText } from '../errors';
 import { t } from '../i18n';
@@ -18,15 +18,19 @@ import { Share as ShareChart } from './charts/Share';
 import { Trend } from './charts/Trend';
 import { UnitCard } from './UnitCard';
 
-function disciplineMeta(d: BrokerDiscipline | undefined, ar: boolean): { tone: BadgeTone; label: string } | null {
-  if (d === 'consistent') return { tone: 'ok', label: ar ? 'منتظم' : 'Consistent' };
-  if (d === 'lagging') return { tone: 'warn', label: ar ? 'متأخر' : 'Lagging' };
-  if (d === 'silent') return { tone: 'critical', label: ar ? 'صامت ٤٨ س' : 'Silent 48h' };
+const langOf = (isAr: boolean): Lang => (isAr ? 'ar' : 'en');
+/** Fills `{key}` placeholders in a translated string. */
+const fill = (s: string, vars: Record<string, string | number>): string => s.replace(/\{(\w+)\}/g, (_m, k: string) => String(vars[k] ?? ''));
+
+function disciplineMeta(d: BrokerDiscipline | undefined, lang: Lang): { tone: BadgeTone; label: string } | null {
+  if (d === 'consistent') return { tone: 'ok', label: t(lang, 'ac_consistent') };
+  if (d === 'lagging') return { tone: 'warn', label: t(lang, 'ac_lagging') };
+  if (d === 'silent') return { tone: 'critical', label: t(lang, 'ac_silent48') };
   return null;
 }
 
 /** Builds a clean summary safe to share externally — never includes client names or phones. */
-function buildShareSummary(response: AssistantQueryResponse, ar: boolean): string {
+function buildShareSummary(response: AssistantQueryResponse, lang: Lang): string {
   const lines: string[] = [response.headline];
   if (response.windowLabel) lines.push(response.windowLabel);
   for (const card of response.cards ?? []) {
@@ -39,12 +43,12 @@ function buildShareSummary(response: AssistantQueryResponse, ar: boolean): strin
       lines.push(card.summary);
     } else if (card.kind === 'broker_scorecard') {
       const b = card.broker;
-      lines.push(`${b.name}: ${b.deals} ${ar ? 'صفقة' : 'deals'} · ${b.updates ?? 0} ${ar ? 'تحديث' : 'updates'} · ${b.noNextStep ?? 0} ${ar ? 'بدون خطوة' : 'no next step'}`);
+      lines.push(`${b.name}: ${b.deals} ${t(lang, 'ac_deals')} · ${b.updates ?? 0} ${t(lang, 'ac_updatesW')} · ${b.noNextStep ?? 0} ${t(lang, 'ac_noStep')}`);
     } else if (card.kind === 'broker_discipline') {
       const s = card.summary;
-      lines.push(ar ? `منتظم ${s.consistent} · متأخر ${s.lagging} · صامت ${s.silent}` : `Consistent ${s.consistent} · Lagging ${s.lagging} · Silent ${s.silent}`);
+      lines.push(fill(t(lang, 'ac_shDisc'), { c: s.consistent, l: s.lagging, s: s.silent }));
     } else if (card.kind === 'stuck_leads') {
-      lines.push(ar ? `${card.total} عملاء مستنين تحرك: ${card.items.map((i) => i.ref).join('، ')}` : `${card.total} leads needing action: ${card.items.map((i) => i.ref).join(', ')}`);
+      lines.push(fill(t(lang, 'ac_shStuck'), { n: card.total, list: card.items.map((i) => i.ref).join(`${t(lang, 'ac_sep')} `) }));
     } else if (card.kind === 'text_answer') {
       lines.push(card.answer ?? '');
     }
@@ -78,12 +82,13 @@ function CardBody({
   onNavigate?: (screen: string, params?: Record<string, unknown>) => void;
 }) {
   const { colors } = useTheme();
-  const locale = ar ? 'ar-EG' : 'en-GB';
+  const lang = langOf(ar);
+  const locale = lang === 'ar' ? 'ar-EG' : 'en-GB';
   const num = (v: number) => v.toLocaleString(locale);
 
   if (card.kind === 'broker_scorecard') {
     const b = card.broker;
-    const badge = disciplineMeta(b.discipline, ar);
+    const badge = disciplineMeta(b.discipline, lang);
     return (
       <SectionCard
         testID="card-broker-scorecard"
@@ -92,15 +97,15 @@ function CardBody({
           <View style={styles.badgeRow}>
             <Avatar name={b.name} uri={b.avatarUrl} size={40} />
             {badge ? <UrgencyBadge tone={badge.tone} label={badge.label} /> : null}
-            {b.telegramLinked === false ? <UrgencyBadge tone="warn" label={ar ? 'تليجرام مش مربوط' : 'Telegram off'} /> : null}
+            {b.telegramLinked === false ? <UrgencyBadge tone="warn" label={t(lang, 'ac_tgOff')} /> : null}
           </View>
         }
       >
         <View style={styles.kpiGrid}>
-          <KpiTile label={ar ? 'تحديثات التطبيق' : 'App updates'} value={num(b.updates ?? 0)} hint={ar ? `${num(b.updates48h ?? 0)} آخر ٤٨ س` : `${num(b.updates48h ?? 0)} in 48h`} tone={b.discipline === 'silent' ? 'critical' : b.discipline === 'lagging' ? 'warn' : 'ok'} />
-          <KpiTile label={ar ? 'عملاء مفتوحين' : 'Open leads'} value={num(b.open ?? 0)} hint={b.noNextStep ? `${num(b.noNextStep)} ${ar ? 'بدون خطوة' : 'no next step'}` : undefined} tone={b.noNextStep ? 'warn' : 'neutral'} />
-          <KpiTile label={ar ? 'أول رد (وسيط)' : 'Median reply'} value={b.responseMin != null ? `${num(b.responseMin)} ${ar ? 'د' : 'min'}` : '—'} />
-          <KpiTile label={ar ? 'صفقات / فايتة' : 'Deals / Missed'} value={`${num(b.deals)} / ${num(b.missed ?? 0)}`} tone={b.missed ? 'warn' : 'ok'} />
+          <KpiTile label={t(lang, 'ac_appUpdates')} value={num(b.updates ?? 0)} hint={fill(t(lang, 'ac_updates48'), { n: num(b.updates48h ?? 0) })} tone={b.discipline === 'silent' ? 'critical' : b.discipline === 'lagging' ? 'warn' : 'ok'} />
+          <KpiTile label={t(lang, 'ac_openLeads')} value={num(b.open ?? 0)} hint={b.noNextStep ? `${num(b.noNextStep)} ${t(lang, 'ac_noStep')}` : undefined} tone={b.noNextStep ? 'warn' : 'neutral'} />
+          <KpiTile label={t(lang, 'ac_medianReply')} value={b.responseMin != null ? `${num(b.responseMin)} ${t(lang, 'ac_min')}` : '—'} />
+          <KpiTile label={t(lang, 'ac_dealsMissed')} value={`${num(b.deals)} / ${num(b.missed ?? 0)}`} tone={b.missed ? 'warn' : 'ok'} />
         </View>
       </SectionCard>
     );
@@ -109,28 +114,28 @@ function CardBody({
   if (card.kind === 'broker_discipline') {
     const s = card.summary;
     return (
-      <SectionCard testID="card-broker-discipline" title={ar ? 'التزام التحديث في التطبيق' : 'App update discipline'}>
+      <SectionCard testID="card-broker-discipline" title={t(lang, 'ac_discTitle')}>
         <View style={styles.kpiGrid}>
-          <KpiTile label={ar ? 'منتظم' : 'Consistent'} value={num(s.consistent)} tone="ok" />
-          <KpiTile label={ar ? 'متأخر' : 'Lagging'} value={num(s.lagging)} tone={s.lagging ? 'warn' : 'neutral'} />
-          <KpiTile label={ar ? 'صامت ٤٨ س' : 'Silent 48h'} value={num(s.silent)} tone={s.silent ? 'critical' : 'ok'} />
+          <KpiTile label={t(lang, 'ac_consistent')} value={num(s.consistent)} tone="ok" />
+          <KpiTile label={t(lang, 'ac_lagging')} value={num(s.lagging)} tone={s.lagging ? 'warn' : 'neutral'} />
+          <KpiTile label={t(lang, 'ac_silent48')} value={num(s.silent)} tone={s.silent ? 'critical' : 'ok'} />
         </View>
         {card.rows.map((b, idx) => {
-          const badge = disciplineMeta(b.discipline, ar);
+          const badge = disciplineMeta(b.discipline, lang);
           return (
             <View key={b.id} style={[styles.rowItem, idx < card.rows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
               <View style={styles.rowTop}>
-                <Text style={[styles.rowName, { color: colors.text }]}>{b.name}</Text>
+                <Text variant="bodySm" weight="bold" style={[styles.rowName, { color: colors.text }]}>{b.name}</Text>
                 <View style={styles.badgeRow}>
                   {badge ? <UrgencyBadge tone={badge.tone} label={badge.label} /> : null}
-                  {b.telegramLinked === false ? <UrgencyBadge tone="warn" label={ar ? 'تليجرام مش مربوط' : 'Telegram off'} /> : null}
+                  {b.telegramLinked === false ? <UrgencyBadge tone="warn" label={t(lang, 'ac_tgOff')} /> : null}
                 </View>
               </View>
-              <Text style={{ color: colors.muted, fontSize: 13 }}>
+              <Text variant="bodySm" style={{ color: colors.muted }}>
                 {[
-                  `${num(b.updates48h ?? 0)} ${ar ? 'تحديث ٤٨س' : 'updates 48h'}`,
-                  `${num(b.noNextStep ?? 0)} ${ar ? 'بدون خطوة' : 'no next step'}`,
-                  b.missed ? `${num(b.missed)} ${ar ? 'فايتة' : 'missed'}` : null,
+                  `${num(b.updates48h ?? 0)} ${t(lang, 'ac_upd48')}`,
+                  `${num(b.noNextStep ?? 0)} ${t(lang, 'ac_noStep')}`,
+                  b.missed ? `${num(b.missed)} ${t(lang, 'ac_missed')}` : null,
                 ].filter(Boolean).join(' · ')}
               </Text>
             </View>
@@ -142,9 +147,9 @@ function CardBody({
 
   if (card.kind === 'stuck_leads') {
     return (
-      <SectionCard testID="card-stuck-leads" title={card.title || (ar ? 'عملاء محتاجين تحرك سريع' : 'Leads needing quick action')} subtitle={`${num(card.total)}`}>
+      <SectionCard testID="card-stuck-leads" title={card.title || t(lang, 'ac_stuckTitle')} subtitle={`${num(card.total)}`}>
         {card.items.length === 0 ? (
-          <Text style={{ color: colors.muted }}>{ar ? 'مفيش عملاء متأخرين دلوقتي.' : 'No leads waiting in this queue.'}</Text>
+          <Text style={{ color: colors.muted }}>{t(lang, 'ac_noneStuck')}</Text>
         ) : card.items.map((item, idx) => {
           const recs = card.recommendedBrokers.filter((b) => b.id !== item.assigneeId).slice(0, 2);
           const doneTo = reassigned[item.ref];
@@ -154,14 +159,14 @@ function CardBody({
           return (
             <View key={item.ref} style={[styles.rowItem, idx < card.items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
               <Pressable accessibilityRole="button" onPress={() => onOpenLead(item.ref)} style={styles.rowTop}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 }}>
+                <View style={styles.rowWho}>
                   {item.assigneeId ? <Avatar name={item.assignee} uri={item.avatarUrl} size={28} /> : null}
-                  <Text style={[styles.rowName, { color: colors.text }]}>{item.ref}{item.name ? ` · ${looksLikePhone(item.name) ? ltr(item.name) : item.name}` : ''}</Text>
+                  <Text variant="bodySm" weight="bold" style={[styles.rowName, { color: colors.text }]}>{item.ref}{item.name ? ` · ${looksLikePhone(item.name) ? ltr(item.name) : item.name}` : ''}</Text>
                 </View>
-                <UrgencyBadge tone="warn" label={doneTo ? `→ ${doneTo}` : (item.assignee || (ar ? 'بدون وسيط' : 'Unassigned'))} />
+                <UrgencyBadge tone="warn" label={doneTo ? `→ ${doneTo}` : (item.assignee || t(lang, 'ac_noBroker'))} />
               </Pressable>
-              <Text style={{ color: colors.muted, fontSize: 13 }}>{item.stage}</Text>
-              {rowError ? <Text testID={`assistant-row-error-${item.ref}`} style={{ color: colors.danger, fontSize: 13 }}>{rowError}</Text> : null}
+              <Text variant="bodySm" style={{ color: colors.muted }}>{item.stage}</Text>
+              {rowError ? <Text variant="bodySm" testID={`assistant-row-error-${item.ref}`} style={{ color: colors.danger }}>{rowError}</Text> : null}
               <View style={styles.actionsWrap}>
                 {card.canAssign && !doneTo && recs.map((b) => (
                   <Chip
@@ -177,7 +182,7 @@ function CardBody({
                     testID={`assistant-nudge-${item.ref}`}
                     disabled={busy || Boolean(wasNudged)}
                     selected={Boolean(wasNudged)}
-                    label={wasNudged ? (ar ? '✓ اتبعت تنبيه' : '✓ Nudged') : (ar ? '🔔 اطلب تحديث' : '🔔 Ask for update')}
+                    label={t(lang, wasNudged ? 'ac_nudged' : 'ac_askUpdate')}
                     onPress={() => { if (!busy && !wasNudged) onNudge(item.ref); }}
                   />
                 ) : null}
@@ -201,7 +206,7 @@ function CardBody({
     return (
       <SectionCard
         testID="card-disambiguate"
-        title={card.prompt ? (ar ? `اختر المقصود بـ "${card.prompt}"` : `Select match for "${card.prompt}"`) : (ar ? 'اختر المقصود' : 'Select match')}
+        title={card.prompt ? fill(t(lang, 'ac_pickFor'), { q: card.prompt }) : t(lang, 'ac_pick')}
       >
         <View style={styles.actionsWrap}>
           {options.map((opt) => (
@@ -214,9 +219,9 @@ function CardBody({
 
   return (
     <SectionCard testID="card-text-answer">
-      <Text selectable style={{ color: colors.text, fontSize: 16 }}>{card.answer ?? (card as { summary?: string }).summary ?? ''}</Text>
-      {card.source === 'local' ? <Text style={{ color: colors.muted, fontSize: 13 }}>{ar ? 'إجابة مباشرة من البيانات المحفوظة.' : 'Direct answer from catalogue data.'}</Text> : null}
-      {card.dataDates ? <Text style={{ color: colors.muted, fontSize: 12 }}>{card.dataDates}</Text> : null}
+      <Text selectable variant="body" style={{ color: colors.text }}>{card.answer ?? (card as { summary?: string }).summary ?? ''}</Text>
+      {card.source === 'local' ? <Text variant="bodySm" style={{ color: colors.muted }}>{t(lang, 'ac_localAnswer')}</Text> : null}
+      {card.dataDates ? <Text variant="caption" style={{ color: colors.muted }}>{card.dataDates}</Text> : null}
     </SectionCard>
   );
 }
@@ -231,7 +236,7 @@ export function AssistantActions({ response, query, ar, onViewAllMarkets, onPivo
   onChangeSearch?: (q: string) => void;
   serverOnly?: boolean;
 }) {
-  const lang = ar ? 'ar' : 'en';
+  const lang = langOf(ar);
   const pivotAction = response.actions?.find((a) => a.kind === 'pivot_mode');
   const viewAllMarketsAction = response.actions?.find((a): a is Extract<typeof a, { kind: 'view_all_markets' }> => a.kind === 'view_all_markets');
   const changeSearchAction = response.actions?.find((a): a is Extract<typeof a, { kind: 'change_search' }> => a.kind === 'change_search');
@@ -245,7 +250,7 @@ export function AssistantActions({ response, query, ar, onViewAllMarkets, onPivo
         <Button
           testID="assistant-pivot-primary"
           variant="secondary"
-          label={pivotAction?.label || (ar ? 'ابحث في مشاريع المطورين بدل كده' : 'Search Primary projects instead')}
+          label={pivotAction?.label || t(lang, 'ac_pivotPrimary')}
           onPress={() => onPivotPrimary(query)}
         />
       ) : null}
@@ -296,7 +301,7 @@ export function AssistantCards({
   leadLine?: string;
 }) {
   const { colors } = useTheme();
-  const lang = ar ? 'ar' : 'en';
+  const lang = langOf(ar);
   const [reassigned, setReassigned] = useState<Record<string, string>>({});
   const [nudged, setNudged] = useState<Record<string, boolean>>({});
   const busyLockRef = useRef<Record<string, boolean>>({});
@@ -311,7 +316,7 @@ export function AssistantCards({
 
   const formatActionError = (e: unknown): string => {
     if (e instanceof ApiClientError && e.status === 409) {
-      return ar ? 'حد تاني عدّل العميل ده بالفعل — حدّث النتيجة.' : 'Another manager already updated this lead — refresh results.';
+      return t(lang, 'ac_conflict');
     }
     return errorText(e, lang);
   };
@@ -370,20 +375,20 @@ export function AssistantCards({
     <Root {...rootProps}>
       <View style={styles.headerRow}>
         <View style={styles.headerCopy}>
-          <Text testID="assistant-headline" accessibilityRole="header" style={[styles.headline, { color: colors.text }]}>{leadLine ?? response.headline}</Text>
-          {response.windowLabel ? <Text style={{ color: colors.muted, fontSize: 13 }}>{response.windowLabel}</Text> : null}
+          <Text variant="heading" testID="assistant-headline" accessibilityRole="header" style={{ color: colors.text }}>{leadLine ?? response.headline}</Text>
+          {response.windowLabel ? <Text variant="bodySm" style={{ color: colors.muted }}>{response.windowLabel}</Text> : null}
         </View>
         <Chip
           testID="assistant-share-summary"
           label={t(lang, 'shareSummary')}
           onPress={() => {
             onShareSummary?.();
-            void Share.share({ message: buildShareSummary(response, ar) }).catch(() => undefined);
+            void Share.share({ message: buildShareSummary(response, lang) }).catch(() => undefined);
           }}
         />
       </View>
 
-      {actionError ? <Text testID="assistant-action-error" style={{ color: colors.danger, fontSize: 13 }}>{actionError}</Text> : null}
+      {actionError ? <Text testID="assistant-action-error" variant="bodySm" style={{ color: colors.danger }}>{actionError}</Text> : null}
 
       {appliedFilters.length ? (
         <View testID="assistant-understood" style={styles.badgeRow}>
@@ -443,14 +448,14 @@ const styles = StyleSheet.create({
   embedded: { gap: spacing.md },
   container: { padding: spacing.lg, paddingBottom: 110, gap: spacing.md },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.sm },
-  headerCopy: { flex: 1, gap: 2 },
-  headline: { fontSize: 18, fontWeight: '700' },
+  headerCopy: { flex: 1, gap: spacing.xs },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   rowItem: { paddingVertical: spacing.sm, gap: spacing.xs },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
-  rowName: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
-  actionsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingTop: 4 },
+  rowWho: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 },
+  rowName: { flexShrink: 1 },
+  actionsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, paddingTop: spacing.xs },
   unitList: { gap: spacing.sm },
   footerLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
 });

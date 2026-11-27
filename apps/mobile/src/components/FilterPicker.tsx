@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useReducedMotion } from 'react-native-reanimated';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { Button } from './Button';
 import { Field } from './Field';
-import { Icon } from './Icon';
+import { Chevron, Icon } from './Icon';
+import { Sheet } from './Sheet';
 import { currentLang } from '../auth';
+import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
 
 export interface PickerOption<T extends string = string> {
@@ -37,8 +38,6 @@ export function FilterPicker<T extends string>({
 }) {
   const { colors, elev } = useTheme();
   const lang = currentLang();
-  const ar = lang === 'ar';
-  const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -66,33 +65,17 @@ export function FilterPicker<T extends string>({
           },
         ]}
       >
-        <Text style={[styles.pillLabel, { color: colors.muted }]} numberOfLines={1}>{label}:</Text>
-        <Text style={[styles.pillValue, { color: value !== options[0]?.value ? colors.primaryInk : colors.text }]} numberOfLines={1}>
+        <Text variant="caption" weight="bold" style={{ color: colors.muted }} numberOfLines={1}>{label}:</Text>
+        <Text variant="caption" weight="bold" style={[styles.pillValue, { color: value !== options[0]?.value ? colors.primaryInk : colors.text }]} numberOfLines={1}>
           {selected?.label ?? '—'}
         </Text>
-        <Text style={{ color: colors.muted, fontSize: 11 }}>▾</Text>
+        <Chevron color={colors.muted} rtl={false} expanded />
       </Pressable>
 
-      <Modal
-        visible={open}
-        transparent
-        animationType={reduceMotion ? 'none' : 'fade'}
-        onRequestClose={() => setOpen(false)}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable
-            onPress={() => undefined}
-            style={[styles.sheet, elev('lg'), { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
-            <View style={styles.sheetHead}>
-              <Text accessibilityRole="header" style={[styles.sheetTitle, { color: colors.text }]}>{label}</Text>
-              <Pressable accessibilityRole="button" hitSlop={8} onPress={() => setOpen(false)}>
-                <Icon name="cross" size={18} color={colors.muted} />
-              </Pressable>
-            </View>
+      <Sheet visible={open} onClose={() => setOpen(false)} title={label}>
             {searchable && options.length > 5 ? (
               <Field
-                label={searchPlaceholder ?? (ar ? 'ابحث بالاسم' : 'Search by name')}
+                label={searchPlaceholder ?? t(lang, 'fpSearchName')}
                 value={query}
                 onChangeText={setQuery}
                 autoFocus={false}
@@ -100,9 +83,7 @@ export function FilterPicker<T extends string>({
             ) : null}
             <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
               {filtered.length === 0 ? (
-                <Text style={{ color: colors.muted, paddingVertical: spacing.md }}>
-                  {ar ? 'مفيش نتايج مطابقة.' : 'No matching options.'}
-                </Text>
+                <Text style={[styles.empty, { color: colors.muted }]}>{t(lang, 'fpNoMatch')}</Text>
               ) : filtered.map((opt) => {
                 const active = opt.value === value;
                 return (
@@ -121,17 +102,15 @@ export function FilterPicker<T extends string>({
                     ]}
                   >
                     <View style={styles.optionCopy}>
-                      <Text style={[styles.optionLabel, { color: active ? colors.primaryInk : colors.text }]}>{opt.label}</Text>
-                      {opt.hint ? <Text style={[styles.optionHint, { color: colors.muted }]}>{opt.hint}</Text> : null}
+                      <Text variant="bodySm" weight="bold" style={{ color: active ? colors.primaryInk : colors.text }}>{opt.label}</Text>
+                      {opt.hint ? <Text variant="caption" style={{ color: colors.muted }}>{opt.hint}</Text> : null}
                     </View>
                     {active ? <Icon name="check" size={16} color={colors.primaryInk} /> : null}
                   </Pressable>
                 );
               })}
             </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </Sheet>
     </>
   );
 }
@@ -158,8 +137,6 @@ export function PeriodPicker({
 }) {
   const { colors, elev } = useTheme();
   const lang = currentLang();
-  const ar = lang === 'ar';
-  const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [fromDraft, setFromDraft] = useState(value.from ?? '');
   const [toDraft, setToDraft] = useState(value.to ?? '');
@@ -167,23 +144,23 @@ export function PeriodPicker({
 
   const labelFor = (p: PeriodChoice) => {
     if (p.days === 'custom' && p.from && p.to) return `${p.from} → ${p.to}`;
-    if (p.days === '1') return ar ? 'النهارده' : 'Today';
-    if (p.days === '7') return ar ? 'آخر ٧ أيام' : '7 days';
-    if (p.days === '30') return ar ? '٣٠ يوم' : '30 days';
-    if (p.days === '90') return ar ? '٩٠ يوم' : '90 days';
-    if (p.days === '365') return ar ? '٣٦٥ يوم' : '365 days';
-    return ar ? 'فترة مخصصة' : 'Custom';
+    if (p.days === '1') return t(lang, 'pdToday');
+    if (p.days === '7') return t(lang, 'pd7');
+    if (p.days === '30') return t(lang, 'pd30');
+    if (p.days === '90') return t(lang, 'pd90');
+    if (p.days === '365') return t(lang, 'pd365');
+    return t(lang, 'pdCustom');
   };
 
   const applyCustom = () => {
     const f = fromDraft.trim();
-    const t = toDraft.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(f) || !/^\d{4}-\d{2}-\d{2}$/.test(t) || f > t) {
-      setErr(ar ? 'اكتب التاريخ بصيغة YYYY-MM-DD (من قبل إلى).' : 'Use YYYY-MM-DD with start on or before end.');
+    const end = toDraft.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(f) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || f > end) {
+      setErr(t(lang, 'pdBadRange'));
       return;
     }
     setErr(null);
-    onChange({ days: 'custom', from: f, to: t });
+    onChange({ days: 'custom', from: f, to: end });
     setOpen(false);
   };
 
@@ -192,7 +169,7 @@ export function PeriodPicker({
       <Pressable
         testID={testID}
         accessibilityRole="button"
-        accessibilityLabel={`${ar ? 'الفترة' : 'Period'}: ${labelFor(value)}`}
+        accessibilityLabel={`${t(lang, 'pdPeriod')}: ${labelFor(value)}`}
         onPress={() => { setErr(null); setOpen(true); }}
         style={({ pressed }) => [
           styles.pill,
@@ -201,29 +178,11 @@ export function PeriodPicker({
         ]}
       >
         <Icon name="calendar" size={14} color={colors.primaryInk} />
-        <Text style={[styles.pillValue, { color: colors.primaryInk }]} numberOfLines={1}>{labelFor(value)}</Text>
-        <Text style={{ color: colors.muted, fontSize: 11 }}>▾</Text>
+        <Text variant="caption" weight="bold" style={[styles.pillValue, { color: colors.primaryInk }]} numberOfLines={1}>{labelFor(value)}</Text>
+        <Chevron color={colors.muted} rtl={false} expanded />
       </Pressable>
 
-      <Modal
-        visible={open}
-        transparent
-        animationType={reduceMotion ? 'none' : 'fade'}
-        onRequestClose={() => setOpen(false)}
-      >
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable
-            onPress={() => undefined}
-            style={[styles.sheet, elev('lg'), { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
-            <View style={styles.sheetHead}>
-              <Text accessibilityRole="header" style={[styles.sheetTitle, { color: colors.text }]}>
-                {ar ? 'اختر الفترة' : 'Select period'}
-              </Text>
-              <Pressable accessibilityRole="button" hitSlop={8} onPress={() => setOpen(false)}>
-                <Icon name="cross" size={18} color={colors.muted} />
-              </Pressable>
-            </View>
+      <Sheet visible={open} onClose={() => setOpen(false)} title={t(lang, 'pdSelect')}>
             <View style={styles.presets}>
               {PRESET_DAYS.map((d) => {
                 const active = value.days === d;
@@ -235,38 +194,28 @@ export function PeriodPicker({
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
                     onPress={() => { onChange({ days: d }); setOpen(false); }}
-                    style={[
-                      styles.option,
-                      {
-                        borderColor: colors.border,
-                        backgroundColor: active ? colors.primarySoft : 'transparent',
-                      },
-                    ]}
+                    style={[styles.option, { borderColor: colors.border }, active ? { backgroundColor: colors.primarySoft } : null]}
                   >
-                    <Text style={[styles.optionLabel, { color: active ? colors.primaryInk : colors.text }]}>{label}</Text>
+                    <Text variant="bodySm" weight="bold" style={{ color: active ? colors.primaryInk : colors.text }}>{label}</Text>
                     {active ? <Icon name="check" size={16} color={colors.primaryInk} /> : null}
                   </Pressable>
                 );
               })}
             </View>
             <View style={[styles.customBox, { borderTopColor: colors.border }]}>
-              <Text style={[styles.customTitle, { color: colors.muted }]}>
-                {ar ? 'أو فترة مخصصة' : 'Or custom date range'}
-              </Text>
+              <Text variant="caption" weight="bold" style={{ color: colors.muted }}>{t(lang, 'pdOrCustom')}</Text>
               <View style={styles.dateRow}>
                 <View style={styles.dateCol}>
-                  <Field label={ar ? 'من' : 'From'} placeholder="2026-11-01" value={fromDraft} onChangeText={setFromDraft} />
+                  <Field label={t(lang, 'pdFrom')} placeholder="2026-11-01" value={fromDraft} onChangeText={setFromDraft} />
                 </View>
                 <View style={styles.dateCol}>
-                  <Field label={ar ? 'إلى' : 'To'} placeholder="2026-11-26" value={toDraft} onChangeText={setToDraft} />
+                  <Field label={t(lang, 'pdTo')} placeholder="2026-11-26" value={toDraft} onChangeText={setToDraft} />
                 </View>
               </View>
-              {err ? <Text style={{ color: colors.danger, fontSize: 12 }}>{err}</Text> : null}
-              <Button label={ar ? 'تطبيق الفترة' : 'Apply range'} onPress={applyCustom} />
+              {err ? <Text variant="caption" style={{ color: colors.danger }}>{err}</Text> : null}
+              <Button label={t(lang, 'pdApply')} onPress={applyCustom} />
             </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      </Sheet>
     </>
   );
 }
@@ -283,23 +232,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     maxWidth: '100%',
   },
-  pillLabel: { fontSize: 12, fontWeight: '600' },
-  pillValue: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  sheet: {
-    borderRadius: radius.card,
-    borderWidth: 1,
-    padding: spacing.lg,
-    gap: spacing.md,
-    maxHeight: '80%',
-  },
-  sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sheetTitle: { fontSize: 17, fontWeight: '800' },
+  pillValue: { flexShrink: 1 },
+  empty: { paddingVertical: spacing.md },
   list: { maxHeight: 340 },
   presets: { gap: spacing.xs },
   option: {
@@ -314,10 +248,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   optionCopy: { flex: 1, gap: 2 },
-  optionLabel: { fontSize: 15, fontWeight: '600' },
-  optionHint: { fontSize: 12 },
   customBox: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.md, gap: spacing.sm },
-  customTitle: { fontSize: 13, fontWeight: '700' },
   dateRow: { flexDirection: 'row', gap: spacing.sm },
   dateCol: { flex: 1 },
 });

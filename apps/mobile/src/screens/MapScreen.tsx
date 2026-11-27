@@ -21,7 +21,8 @@ import { mapHtml } from '../mapHtml';
 import { FINISHING, FURNISHING, ALL_TYPES, PROPERTY_TYPES, labelOf, options } from '../unitOptions';
 import { usePlaceSuggestions } from '../usePlaceSuggestions';
 import type { RootStackParams } from '../navigation';
-import { greenGradient, radius, spacing, useTheme } from '../theme';
+import { wantsRtl } from '../direction';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 
 type Deal = 'sale' | 'rent';
 
@@ -125,19 +126,19 @@ export function MapScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <View style={styles.intro}>
-        <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{ar ? 'خريطة العقارات' : 'Map Explorer'}</Text>
-        <Text style={[styles.caption, { color: colors.muted }]}>{ar ? 'اختار مشروع على الخريطة عشان تشوف الوحدات المتاحة' : 'Tap a compound pin to see available units'}</Text>
+        <Text variant="heading" accessibilityRole="header" style={{ color: colors.text }}>{t(lang, 'mapTitle')}</Text>
+        <Text variant="caption" style={{ color: colors.muted }}>{t(lang, 'mapCaption')}</Text>
       </View>
       <View style={styles.filters}>
-        <Chips<Deal | ''> animateFilter soft testID="map-deal" value={deal} options={[{ value: '', label: ar ? 'كل الوحدات' : 'All deals' }, { value: 'sale', label: t(lang, 'sale') }, { value: 'rent', label: t(lang, 'rent') }]} onChange={(v) => setDeal(v === deal ? '' : v)} />
+        <Chips<Deal | ''> animateFilter soft testID="map-deal" value={deal} options={[{ value: '', label: t(lang, 'mapAllDeals') }, { value: 'sale', label: t(lang, 'sale') }, { value: 'rent', label: t(lang, 'rent') }]} onChange={(v) => setDeal(v === deal ? '' : v)} />
         <Pressable testID="map-rooms-toggle" accessibilityRole="button" accessibilityState={{ expanded: panel }} onPress={showFilters}
           style={[styles.filterButton, { borderColor: rooms ? colors.primaryLine : colors.border, backgroundColor: rooms ? colors.primarySoft : colors.cardSubtle }]}>
-          <Text style={[styles.caption, { color: colors.primaryInk }]}>{rooms ? roomOptions.find((o) => o.value === rooms)?.label ?? rooms : t(lang, 'fBedrooms')}</Text>
+          <Text variant="caption" style={{ color: colors.primaryInk }}>{rooms ? roomOptions.find((o) => o.value === rooms)?.label ?? rooms : t(lang, 'fBedrooms')}</Text>
         </Pressable>
         <Pressable testID="map-filters-toggle" accessibilityRole="button" accessibilityState={{ expanded: panel }} onPress={panel ? () => setPanel(false) : showFilters}
           style={[styles.filterButton, { borderColor: active ? colors.primaryLine : colors.border, backgroundColor: active ? colors.primarySoft : colors.cardSubtle }]}>
           <Icon name="funnel" color={colors.primaryInk} size={15} />
-          <Text style={[styles.caption, { color: colors.primaryInk }]}>{t(lang, 'mapFilters')}{active ? ` (${active})` : ''}</Text>
+          <Text variant="caption" style={{ color: colors.primaryInk }}>{t(lang, 'mapFilters')}{active ? ` (${active})` : ''}</Text>
         </Pressable>
       </View>
       <View style={[styles.frame, { backgroundColor: colors.cardSubtle, borderColor: colors.border }]}>
@@ -147,9 +148,9 @@ export function MapScreen() {
             <Icon name="pin" color={colors.primaryInk} size={18} />
             <TextInput testID="map-search" style={[styles.searchInput, { color: colors.text }]} value={query} onChangeText={(v) => { setQuery(v); setSearching(true); }} onFocus={() => setSearching(true)} onBlur={() => setSearching(false)} onSubmitEditing={submitPlace} placeholder={t(lang, 'mapSearchPh')} placeholderTextColor={colors.muted} autoCorrect={false} returnKeyType="go" />
             {map.isFetching && !(expanded && units.isPending) ? <ActivityIndicator color={colors.primaryInk} /> : null}
-            <Pressable testID="map-go" accessibilityRole="button" accessibilityLabel={ar ? 'روح للمكان' : 'Go to place'} disabled={!suggestions.length} onPress={submitPlace}
+            <Pressable testID="map-go" accessibilityRole="button" accessibilityLabel={t(lang, 'mapGoToPlace')} disabled={!suggestions.length} onPress={submitPlace}
               style={[styles.go, { backgroundColor: colors.cardSubtle, borderColor: colors.border, opacity: suggestions.length ? 1 : 0.6 }]}>
-              <Text style={[styles.caption, { color: colors.primaryInk }]}>{ar ? 'روح' : 'Go'}</Text>
+              <Text variant="caption" style={{ color: colors.primaryInk }}>{t(lang, 'mapGo')}</Text>
             </Pressable>
           </View>
           {!panel && suggestions.length ? (
@@ -157,7 +158,7 @@ export function MapScreen() {
               {suggestions.map((p) => (
                 <Pressable key={`${p.kind}-${p.id}`} testID={`map-place-${p.id}`} accessibilityRole="button" onPress={() => goTo(p)} style={styles.item}>
                   <Text style={{ color: colors.text }}>{(ar ? p.name_ar || p.name_en : p.name_en || p.name_ar) || ''}</Text>
-                  {p.path ? <Text style={[styles.caption, { color: colors.muted }]}>{p.path}</Text> : null}
+                  {p.path ? <Text variant="caption" style={{ color: colors.muted }}>{p.path}</Text> : null}
                 </Pressable>
               ))}
             </ScrollView>
@@ -166,7 +167,7 @@ export function MapScreen() {
         {panel ? (
           <ScrollView testID="map-filters" style={[styles.overlay, styles.panel, { backgroundColor: colors.card, borderColor: colors.border }, elev('md')]} contentContainerStyle={styles.panelContent} keyboardShouldPersistTaps="handled">
             <View style={styles.sheetHead}>
-              <Text accessibilityRole="header" style={[styles.sheetTitle, { color: colors.text }]}>{t(lang, 'mapFilters')}</Text>
+              <Text variant="body" weight="bold" accessibilityRole="header" style={{ color: colors.text }}>{t(lang, 'mapFilters')}</Text>
               <Pressable testID="map-filters-close" accessibilityRole="button" accessibilityLabel={t(lang, 'closePanel')} onPress={() => setPanel(false)} style={styles.close}><Icon name="cross" color={colors.primaryInk} size={18} /></Pressable>
             </View>
             <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'fBedrooms')}</Text>
@@ -187,17 +188,17 @@ export function MapScreen() {
         ) : null}
         {picked && !panel && !searching ? (
           <View style={[styles.overlay, styles.sheet, { backgroundColor: colors.card, borderColor: colors.border }, elev('lg')]} testID="map-sheet">
-            <View style={[styles.sheetHead, { direction: ar ? 'rtl' : 'ltr' }]}>
+            <View style={[styles.sheetHead, { direction: wantsRtl(lang) ? 'rtl' : 'ltr' }]}>
               {!expanded && previewPhoto ? <SmartImage key={previewPhoto} uri={previewPhoto} style={styles.thumb} /> : null}
               <View style={[styles.previewText, !expanded && Boolean(previewPhoto) && styles.previewTextWithPhoto]}>
-                <Text accessibilityRole="header" style={[styles.previewTitle, { color: colors.text }]} numberOfLines={2}>{picked.name}</Text>
-                {count != null ? <Text style={[styles.previewMeta, { color: colors.muted }]}>{ar ? `${count} وحدة متاحة` : `${count} available`}{selectedPin?.district ? ` · ${selectedPin.district}` : ''}</Text> : null}
-                {previewPrice ? <Text style={[styles.previewPrice, { color: colors.primaryInk }]}>{ar ? 'مثال' : 'Example'} · {previewPrice}</Text> : null}
+                <Text variant="bodySm" weight="bold" accessibilityRole="header" style={{ color: colors.text }} numberOfLines={2}>{picked.name}</Text>
+                {count != null ? <Text variant="micro" style={{ color: colors.muted }}>{`${count} ${t(lang, 'mapAvailable')}`}{selectedPin?.district ? ` · ${selectedPin.district}` : ''}</Text> : null}
+                {previewPrice ? <Text variant="caption" weight="bold" style={{ color: colors.primaryInk }}>{t(lang, 'mapExample')} · {previewPrice}</Text> : null}
               </View>
               {!expanded ? (
-                <Pressable testID="map-view-units" accessibilityRole="button" accessibilityLabel={ar ? 'اعرض الوحدات' : 'View units'} onPress={() => setExpanded(true)} style={styles.viewButton}>
+                <Pressable testID="map-view-units" accessibilityRole="button" accessibilityLabel={t(lang, 'mapViewUnits')} onPress={() => setExpanded(true)} style={styles.viewButton}>
                   <View style={[styles.viewPill, greenGradient]}>
-                    <Text style={[styles.previewButtonText, { color: colors.onPrimary }]}>{ar ? 'عرض' : 'View'}</Text>
+                    <Text variant="micro" weight="bold" style={{ color: colors.onPrimary }}>{t(lang, 'mapView')}</Text>
                   </View>
                 </Pressable>
               ) : null}
@@ -221,14 +222,14 @@ export function MapScreen() {
                     <Pressable accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: item.code })} style={[styles.row, { borderColor: colors.border }]}>
                       {photo ? <SmartImage testID="map-thumb" uri={photo} style={styles.thumb} /> : <View style={[styles.thumb, styles.placeholder, { backgroundColor: colors.cardSubtle }]}><Icon name="units" color={colors.muted} size={23} /></View>}
                       <View style={styles.rowText}>
-                        {item.title ? <Text style={[styles.unitTitle, { color: colors.text }]} numberOfLines={2}>{item.title}</Text> : null}
+                        {item.title ? <Text variant="bodySm" weight="bold" style={{ color: colors.text }} numberOfLines={2}>{item.title}</Text> : null}
                         <View style={styles.chips}>
                           {type ? <Pill testID={`pin-type-${item.code}`} tone="primary" label={type} /> : null}
                           <Pill testID={`pin-code-${item.code}`} tone="primary" label={item.code} />
                           {item.listingType === 'sale' || item.listingType === 'rent' ? <Pill testID={`pin-deal-${item.code}`} tone={item.listingType === 'rent' ? 'accent' : 'primary'} label={t(lang, item.listingType)} /> : null}
                         </View>
-                        <Text style={[styles.caption, { color: colors.muted }]}>{[item.bedrooms !== null ? `${item.bedrooms} ${t(lang, 'roomsN')}` : null, item.area !== null ? `${item.area} m²` : null].filter(Boolean).join(' · ')}</Text>
-                        {price ? <Text style={[styles.unitTitle, { color: colors.primaryInk }]}>{price}</Text> : null}
+                        <Text variant="caption" style={{ color: colors.muted }}>{[item.bedrooms !== null ? `${item.bedrooms} ${t(lang, 'roomsN')}` : null, item.area !== null ? `${item.area} m²` : null].filter(Boolean).join(' · ')}</Text>
+                        {price ? <Text variant="bodySm" weight="bold" style={{ color: colors.primaryInk }}>{price}</Text> : null}
                       </View>
                     </Pressable>
                   );
@@ -246,16 +247,14 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   root: { flex: 1, paddingHorizontal: MAP_GUTTER, paddingBottom: MAP_GUTTER, gap: spacing.sm },
   intro: { gap: 2 },
-  title: { fontSize: 19, fontWeight: '800' },
-  caption: { fontSize: 12 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.xs },
   filterButton: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1 },
   frame: { flex: 1, borderRadius: 20, borderWidth: 1, overflow: 'hidden' },
   search: { position: 'absolute', top: MAP_INSET, start: MAP_INSET, end: MAP_INSET, gap: spacing.xs, zIndex: 2 },
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: radius.md, borderWidth: 1 },
-  searchInput: { flex: 1, minHeight: 46, paddingVertical: spacing.xs, fontSize: 14 },
+  searchInput: { flex: 1, minHeight: 46, paddingVertical: spacing.xs, fontSize: typeScale.bodySm.fontSize },
   go: { minHeight: 36, minWidth: 42, justifyContent: 'center', alignItems: 'center', borderRadius: radius.sm, borderWidth: 1 },
-  input: { minHeight: 44, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, fontSize: 15 },
+  input: { minHeight: 44, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, fontSize: typeScale.bodySm.fontSize },
   list: { borderWidth: 1, borderRadius: radius.md, maxHeight: 200 },
   item: { minHeight: 46, justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   overlay: { position: 'absolute', start: MAP_INSET, end: MAP_INSET, bottom: MAP_INSET, borderRadius: radius.lg, borderWidth: 1 },
@@ -265,13 +264,8 @@ const styles = StyleSheet.create({
   h: { fontWeight: '700', marginTop: spacing.md, marginBottom: spacing.xs },
   sheet: { maxHeight: '56%', padding: MAP_INSET, gap: spacing.sm },
   sheetHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.xs },
-  sheetTitle: { fontSize: 16, fontWeight: '800' },
   previewText: { flex: 1, minWidth: 0, gap: 2 },
   previewTextWithPhoto: { marginStart: spacing.xs },
-  previewTitle: { fontSize: 13, lineHeight: 15, includeFontPadding: false, fontWeight: '800' },
-  previewMeta: { fontSize: 11, lineHeight: 13, includeFontPadding: false },
-  previewPrice: { fontSize: 12, lineHeight: 14, includeFontPadding: false, fontWeight: '800' },
-  previewButtonText: { fontSize: 11, fontWeight: '800' },
   previewClose: { alignSelf: 'flex-start', marginTop: -spacing.xs },
   row: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   rowText: { flex: 1, gap: spacing.xs },
@@ -282,5 +276,4 @@ const styles = StyleSheet.create({
   viewPill: { borderRadius: 999, paddingHorizontal: MAP_INSET, paddingVertical: spacing.xs + 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   unitList: { flexShrink: 1 },
-  unitTitle: { fontSize: 14, fontWeight: '800' },
 });
