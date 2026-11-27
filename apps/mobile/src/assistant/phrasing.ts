@@ -34,6 +34,7 @@ export function phraseFor(turnId: string, lang: Lang, r: AssistantQueryResponse)
 
   switch (r.intent) {
     case 'unit_search': {
+      if (r.units && r.units.status !== 'results' && r.units.status !== 'none') return withTail(ar ? pick(turnId, ['اتفضل اللي لقيته.', 'دي النتيجة.']) : pick(turnId, ['Here is what I found.', 'Here you go.']));
       if (!n) {
         return ar
           ? pick(turnId, ['مفيش وحدات مطابقة للطلب ده — جرّب الاقتراحات.', 'ملقيتش حاجة بالمواصفات دي — نوسّع البحث؟'])

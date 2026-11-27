@@ -23,3 +23,9 @@ test('a USD unit is not compared with an EGP budget; type and deal match', () =>
   expect(matchReasons(u({ currency: 'USD' }), { maxPrice: 5e6 }, 'en')).toEqual([]);
   expect(matchReasons(u(), { propertyType: 'apartment', dealType: 'sale' }, 'en')).toEqual(['✓ Apartment', '✓ Sale']);
 });
+
+test('a broad field inside a narrower query is not a hit; the exact narrower field is', () => {
+  expect(matchReasons(u({ district: null, city: 'Cairo' }), { areaQuery: 'New Cairo' }, 'en')).toEqual([]);
+  expect(matchReasons(u({ district: 'New Cairo', city: 'Cairo' }), { areaQuery: 'New Cairo' }, 'en')).toEqual(['✓ New Cairo']);
+  expect(matchReasons(u({ district: 'New Cairo' }), { areaQuery: 'cairo' }, 'en')).toEqual(['✓ New Cairo']);
+});

@@ -228,6 +228,41 @@ function CardBody({
   );
 }
 
+/** The server's next-step buttons: search every market, pivot to Primary, change the search. `serverOnly` skips the generic "change search" button when the server sent no such action. */
+export function AssistantActions({ response, query, ar, onViewAllMarkets, onPivotPrimary, onChangeSearch, serverOnly }: {
+  response: AssistantQueryResponse;
+  query: string;
+  ar: boolean;
+  onViewAllMarkets?: (q: string) => void;
+  onPivotPrimary: (q: string) => void;
+  onChangeSearch?: (q: string) => void;
+  serverOnly?: boolean;
+}) {
+  const lang = ar ? 'ar' : 'en';
+  const pivotAction = response.actions?.find((a) => a.kind === 'pivot_mode');
+  const viewAllMarketsAction = response.actions?.find((a): a is Extract<typeof a, { kind: 'view_all_markets' }> => a.kind === 'view_all_markets');
+  const changeSearchAction = response.actions?.find((a): a is Extract<typeof a, { kind: 'change_search' }> => a.kind === 'change_search');
+  const showPivot = Boolean(response.suggestPrimary || pivotAction);
+  return (
+    <>
+      {viewAllMarketsAction && onViewAllMarkets ? (
+        <Button testID="assistant-view-all-markets" variant="secondary" label={viewAllMarketsAction.label} onPress={() => onViewAllMarkets(query)} />
+      ) : null}
+      {showPivot ? (
+        <Button
+          testID="assistant-pivot-primary"
+          variant="secondary"
+          label={pivotAction?.label || (ar ? 'ابحث في مشاريع المطورين بدل كده' : 'Search Primary projects instead')}
+          onPress={() => onPivotPrimary(query)}
+        />
+      ) : null}
+      {onChangeSearch && (changeSearchAction || (!serverOnly && query.trim())) ? (
+        <Button testID="assistant-change-search" variant="quiet" label={changeSearchAction?.label || t(lang, 'changeSearch')} onPress={() => onChangeSearch(changeSearchAction?.query ?? query)} />
+      ) : null}
+    </>
+  );
+}
+
 /** Renders Option B visual accountability/executive/resale assistant responses with inline actions. */
 export function AssistantCards({
   response,
@@ -275,12 +310,11 @@ export function AssistantCards({
   const [busyRefs, setBusyRefs] = useState<Record<string, boolean>>({});
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState<string | null>(null);
+  const viewAllMarketsAction = response.actions?.find((a) => a.kind === 'view_all_markets');
   const pivotAction = response.actions?.find((a) => a.kind === 'pivot_mode');
-  const viewAllMarketsAction = response.actions?.find((a): a is Extract<typeof a, { kind: 'view_all_markets' }> => a.kind === 'view_all_markets');
-  const changeSearchAction = response.actions?.find((a): a is Extract<typeof a, { kind: 'change_search' }> => a.kind === 'change_search');
+  const showPivot = Boolean(response.suggestPrimary || pivotAction);
   const queueActions = (response.actions ?? []).filter((a): a is Extract<typeof a, { kind: 'open_queue' }> => a.kind === 'open_queue');
   const appliedFilters = response.understood?.appliedFilters ?? [];
-  const showPivot = Boolean(response.suggestPrimary || pivotAction);
 
   const formatActionError = (e: unknown): string => {
     if (e instanceof ApiClientError && e.status === 409) {
@@ -390,32 +424,7 @@ export function AssistantCards({
         </View>
       ) : null}
 
-      {viewAllMarketsAction && onViewAllMarkets ? (
-        <Button
-          testID="assistant-view-all-markets"
-          variant="secondary"
-          label={viewAllMarketsAction.label}
-          onPress={() => onViewAllMarkets(query)}
-        />
-      ) : null}
-
-      {showPivot ? (
-        <Button
-          testID="assistant-pivot-primary"
-          variant="secondary"
-          label={pivotAction?.label || (ar ? 'ابحث في مشاريع المطورين بدل كده' : 'Search Primary projects instead')}
-          onPress={() => onPivotPrimary(query)}
-        />
-      ) : null}
-
-      {onChangeSearch && (changeSearchAction || query.trim()) ? (
-        <Button
-          testID="assistant-change-search"
-          variant="quiet"
-          label={changeSearchAction?.label || t(lang, 'changeSearch')}
-          onPress={() => onChangeSearch(changeSearchAction?.query ?? query)}
-        />
-      ) : null}
+      <AssistantActions response={response} query={query} ar={ar} onViewAllMarkets={onViewAllMarkets} onPivotPrimary={onPivotPrimary} onChangeSearch={onChangeSearch} />
 
       {(queueActions.length || response.links?.length) ? (
         <View style={styles.footerLinks}>

@@ -26,7 +26,8 @@ export function UnitHeroCard({ unit, lang, onPress, onShare, onSave, reasons, ph
   const { colors, elev } = useTheme();
   const name = unit.compound ?? unit.code;
   const place = [unit.district, unit.city].filter(Boolean).join(' · ');
-  const perSqm = unit.price !== null && unit.area ? Math.round(unit.price / unit.area).toLocaleString('en-US') : null;
+  // per m² is an EGP-sale figure: rentals and USD/EUR units would show a wrong number.
+  const perSqm = unit.dealType === 'sale' && (!unit.currency || unit.currency.toUpperCase() === 'EGP') && unit.price !== null && unit.area ? Math.round(unit.price / unit.area).toLocaleString('en-US') : null;
   const facts = [
     unit.bedrooms !== null ? { icon: 'bed' as const, text: String(unit.bedrooms) } : null,
     unit.bathrooms !== null ? { icon: 'bath' as const, text: String(unit.bathrooms) } : null,

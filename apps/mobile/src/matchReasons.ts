@@ -32,7 +32,9 @@ export function matchReasons(unit: ApiUnit, understood: MatchFilters | null | un
   if (unit.bedrooms !== null && f.bedrooms != null && unit.bedrooms === f.bedrooms) out.push(t(lang, 'rBeds').replace('{n}', digits(unit.bedrooms, lang)));
   const q = norm(f.areaQuery);
   if (q) {
-    const hit = [unit.district, unit.compound, unit.compoundEn, unit.city, unit.phase, unit.phaseEn].find((p) => p && (norm(p).includes(q) || q.includes(norm(p))));
+    // The query must equal the unit field or be a whole-word part of it: query "New Cairo" is not a hit for city "Cairo", but is for district "New Cairo".
+    const words = ` ${q} `;
+    const hit = [unit.district, unit.compound, unit.compoundEn, unit.city, unit.phase, unit.phaseEn].find((p) => { const n = norm(p); return n && (n === q || ` ${n} `.includes(words)); });
     if (hit) out.push(`✓ ${hit}`);
   }
   if (unit.propertyType && f.propertyType && norm(unit.propertyType) === norm(f.propertyType)) out.push(`✓ ${labelOf(ALL_TYPES, unit.propertyType, lang) ?? unit.propertyType}`);

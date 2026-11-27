@@ -48,7 +48,7 @@ export function FullResults({ full, lang, onStatus, onRetry, onMore, onOpen, onS
         <View style={styles.chips}>
           {selection.highlight}
           {(['active', 'sold', 'archived'] as const).map((st) => (
-            <Pressable key={st} onLayout={selection.measure(st)} accessibilityRole="button" accessibilityState={{ selected: st === full.params.status }} disabled={full.pending}
+            <Pressable key={st} onLayout={selection.measure(st)} accessibilityRole="button" accessibilityState={{ selected: st === full.params.status }} disabled={full.pending || full.loadingMore}
               onPress={() => onStatus(st)}
               style={[styles.chip, { borderColor: st === full.params.status ? colors.primary : colors.border }, st === full.params.status && !selection.highlight && greenGradient]}>
               <Text weight="bold" style={{ color: st === full.params.status ? colors.onPrimary : colors.text }}>{t(lang, st)} ({counts[st] ?? 0})</Text>

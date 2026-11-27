@@ -57,3 +57,12 @@ test('reset empties, restore only fills an empty thread, resolve of an unknown i
   expect(threadReducer(started, { type: 'resolve', id: 'gone', response: res() })).toEqual(started);
   expect(threadReducer(started, { type: 'reset' })).toEqual([]);
 });
+
+test('persistableTurns keeps inventory answers, drops lead/CRM turns and strips lead cards', () => {
+  const { persistableTurns } = require('../src/assistant/thread');
+  const done = (id: string, response: AssistantQueryResponse): Turn => ({ id, question: id, source: 'text', status: 'done', response });
+  const lead = { kind: 'stuck_leads', queue: 'q', total: 1, recommendedBrokers: [], canAssign: false, canNudge: false, items: [{ name: 'Client' }] } as unknown as AssistantQueryResponse['cards'][number];
+  const kept = persistableTurns([done('a', res({ cards: [lead] })), done('b', res({ intent: 'crm_leads', cards: [lead] })), { id: 'c', question: 'c', source: 'text', status: 'pending' }]);
+  expect(kept.map((t: Turn) => t.id)).toEqual(['a']);
+  expect(kept[0].response.cards).toEqual([]);
+});

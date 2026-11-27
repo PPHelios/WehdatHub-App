@@ -25,3 +25,10 @@ test('hero card leaves out per m2 and actions when data or handlers are missing'
   expect(screen.queryByTestId('per-sqm-HP-301')).toBeNull();
   expect(screen.queryByText('Send to client')).toBeNull();
 });
+
+test('hero card shows per m2 only for EGP sale units', async () => {
+  const { rerender } = await render(<UnitHeroCard unit={{ ...unit, currency: 'USD' } as ApiUnitListItem} lang="en" onPress={() => undefined} />);
+  expect(screen.queryByTestId('per-sqm-HP-301')).toBeNull();
+  await rerender(<UnitHeroCard unit={{ ...unit, dealType: 'rent' } as ApiUnitListItem} lang="en" onPress={() => undefined} />);
+  expect(screen.queryByTestId('per-sqm-HP-301')).toBeNull();
+});

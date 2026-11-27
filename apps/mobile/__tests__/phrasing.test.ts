@@ -35,3 +35,9 @@ test('a real server headline is kept; a missing or generic one is replaced', () 
   expect(isGenericHeadline('3 leads waiting')).toBe(false);
   expect(leadLine('t', 'ar', { ...cases.unit_many, headline: 'نتايج' })).toMatch(/42/);
 });
+
+test('unit_search count lead is only used for results/none statuses', () => {
+  const ask = { ...base, intent: 'unit_search', units: { status: 'ask', source: 'parser', total: 4, items: [] } } as AssistantQueryResponse;
+  expect(phraseFor('t', 'en', ask)).not.toMatch(/units|No units/);
+  expect(phraseFor('t', 'en', cases.unit_few)).toMatch(/3/);
+});

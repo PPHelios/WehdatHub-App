@@ -9,7 +9,7 @@ import { timed, usage } from '../usage';
 import { track } from '../analytics';
 import { needsVoiceConfirm } from '../voiceConfirm';
 import { shouldUseAssistantEndpoint } from './routing';
-import { contextOf, PERSISTED_TURNS, threadReducer, type Turn, type TurnSource } from './thread';
+import { contextOf, persistableTurns, PERSISTED_TURNS, threadReducer, type Turn, type TurnSource } from './thread';
 
 const THREAD_KEY = 'wehdathub.thread.v1';
 const MAX_PERSISTED_CHARS = 400000;
@@ -51,11 +51,16 @@ export function useAssistantThread({ brokerId, lang, onIntent, onRemember }: {
   turnsRef.current = turns;
   const key = brokerId ? `${THREAD_KEY}:${brokerId}` : null;
   const hydrated = useRef<string | null>(null);
+  /** Set once the broker acts, so a slow restore never lands on top of a newer thread. */
+  const dirty = useRef(false);
+  const moreInFlight = useRef(false);
   const refreshCredits = () => { queries.invalidateQueries({ queryKey: ['search-credits'] }); };
 
   /** The one reset: new conversation, the Home tab, back button, and a different signed-in broker. */
   const reset = useCallback(() => {
     generation.current += 1;
+    dirty.current = true;
+    moreInFlight.current = false;
     reqs.current.clear();
     dispatch({ type: 'reset' });
     setFull(null);
@@ -66,11 +71,13 @@ export function useAssistantThread({ brokerId, lang, onIntent, onRemember }: {
   useEffect(() => {
     let active = true;
     reset();
+    dirty.current = false;
     hydrated.current = null;
     if (!key) return undefined;
     AsyncStorage.getItem(key).then((raw) => {
       if (!active) return;
       hydrated.current = key;
+      if (dirty.current) return;
       const saved: unknown = raw ? JSON.parse(raw) : [];
       if (Array.isArray(saved)) dispatch({ type: 'restore', turns: saved.filter((x): x is Turn => Boolean(x) && typeof x.id === 'string' && x.status === 'done' && Boolean(x.response)) });
     }).catch(() => { if (active) hydrated.current = key; });
@@ -79,7 +86,7 @@ export function useAssistantThread({ brokerId, lang, onIntent, onRemember }: {
 
   useEffect(() => {
     if (!key || hydrated.current !== key) return;
-    let kept = turns.filter((x) => x.status === 'done').slice(-PERSISTED_TURNS);
+    let kept = persistableTurns(turns).slice(-PERSISTED_TURNS);
     let json = JSON.stringify(kept);
     while (json.length > MAX_PERSISTED_CHARS && kept.length > 1) { kept = kept.slice(1); json = JSON.stringify(kept); }
     (kept.length ? AsyncStorage.setItem(key, json) : AsyncStorage.removeItem(key)).catch(() => undefined);
@@ -144,6 +151,7 @@ export function useAssistantThread({ brokerId, lang, onIntent, onRemember }: {
     const clean = q.trim();
     if (!clean) return;
     generation.current += 1;
+    dirty.current = true;
     setTranscribing(false);
     setVoiceError(null);
     setFull(null);
@@ -163,7 +171,8 @@ export function useAssistantThread({ brokerId, lang, onIntent, onRemember }: {
   const retry = (id: string, change?: Partial<SearchParams>) => {
     const req = reqs.current.get(id);
     if (!req) return;
-    if (change) req.search = { ...req.search, ...change };
+    req.gen = generation.current;
+    if (change) { req.search = { ...req.search, ...change }; req.kind = 'search'; }
     dispatch({ type: 'retry', id });
     execute(id);
   };
@@ -190,7 +199,7 @@ export function useAssistantThread({ brokerId, lang, onIntent, onRemember }: {
     const market = units.marketLock ?? (req?.mode === 'resale' ? 'resale' : undefined);
     const params: SearchParams = { drop: req?.search.drop ?? false, status: status ?? units.unitStatus ?? 'active', ...(units.f ? { f: units.f } : {}), ...(market ? { market } : {}), ...(units.sort ? { sort: units.sort } : {}) };
     const same = params.status === (units.unitStatus ?? 'active');
-    const next: FullList = { turnId: turn.id, q: turn.question, params, data: same ? units : null, extra: [], pending: !same, error: null, loadingMore: false, done: same && units.items.length >= units.total };
+    const next: FullList = { turnId: turn.id, q: turn.question, params, data: same ? { ...units, counts: units.counts ?? turn.response?.statusCounts } : null, extra: [], pending: !same, error: null, loadingMore: false, done: same && units.items.length >= units.total };
     setFull(next);
     if (!same) loadFull(next);
   };
@@ -202,16 +211,24 @@ export function useAssistantThread({ brokerId, lang, onIntent, onRemember }: {
   };
   const rerunFull = () => { if (full) { const next = { ...full, pending: true, error: null }; setFull(next); loadFull(next); } };
   const loadMore = async () => {
-    if (!full || !full.data || full.loadingMore || full.done) return;
+    if (!full || !full.data || full.loadingMore || full.done || moreInFlight.current) return;
+    moreInFlight.current = true;
     const gen = generation.current;
     const cur = full;
     setFull({ ...cur, loadingMore: true });
     try {
       const r = await fetchFull(cur, cur.data!.items.length + cur.extra.length);
-      if (gen === generation.current) setFull((f) => (f ? { ...f, loadingMore: false, done: !r.items.length, extra: [...f.extra, ...r.items] } : f));
+      if (gen === generation.current) {
+        setFull((f) => {
+          if (!f || f.turnId !== cur.turnId || f.params.status !== cur.params.status) return f;
+          const seen = new Set([...(f.data?.items ?? []), ...f.extra].map((u) => u.id));
+          const fresh = r.items.filter((u) => !seen.has(u.id));
+          return { ...f, loadingMore: false, done: !fresh.length, extra: [...f.extra, ...fresh] };
+        });
+      }
     } catch (e) {
-      if (gen === generation.current) { setFull((f) => (f ? { ...f, loadingMore: false, done: true } : f)); setVoiceError(errorText(e, lang)); }
-    }
+      if (gen === generation.current) { setFull((f) => (f && f.turnId === cur.turnId && f.params.status === cur.params.status ? { ...f, loadingMore: false, done: true } : f)); setVoiceError(errorText(e, lang)); }
+    } finally { moreInFlight.current = false; }
   };
 
   /** Voice note to text. `confirm` means the words look risky and the broker should check them before they run. */

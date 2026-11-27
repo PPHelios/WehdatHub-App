@@ -1106,3 +1106,17 @@ test('searching unassigned leads in Arabic or English routes to assistantQuery i
   await waitFor(() => expect(mocked.assistantQuery).toHaveBeenCalledWith(expect.objectContaining({ q: 'without broker' })));
   expect(screen.queryByTestId('search-lead-lookup')).toBeNull();
 });
+
+test('a unit-results turn still shows the server change_search action', async () => {
+  mocked.assistantQuery.mockResolvedValue({
+    intent: 'unit_search', headline: '1 unit', aiUsed: false, cards: [],
+    actions: [{ kind: 'change_search', label: 'Edit my search' }],
+    units: { status: 'results', source: 'parser', total: 1, counts: { active: 1, sold: 0, archived: 0 }, items: [{ id: 'u1', code: 'A-1', status: 'active', title: null, propertyType: 'apartment', dealType: 'sale', price: 3000000, priceText: null, currency: 'EGP', area: 140, bedrooms: 3, bathrooms: 2, compound: 'Zayed', district: 'Sheikh Zayed', city: 'Giza', finishing: null, photo: null }] },
+  });
+  await wrap();
+  await fireEvent.press(screen.getByTestId('search-mode-trigger'));
+  await fireEvent.press(await screen.findByTestId('popover-mode-resale'));
+  await fireEvent.changeText(screen.getByTestId('search-input'), 'apartments in zayed');
+  await fireEvent.press(screen.getByTestId('search-go'));
+  expect(await screen.findByText('Edit my search')).toBeTruthy();
+});

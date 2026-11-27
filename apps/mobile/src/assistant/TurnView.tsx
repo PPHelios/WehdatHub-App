@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import type { AssistantSuggestion, Lang, UnitStatus } from '@wehdathub/shared';
 import { AskResults } from '../components/AskResults';
-import { AssistantCards } from '../components/AssistantCards';
+import { AssistantActions, AssistantCards } from '../components/AssistantCards';
 import { AppText as Text } from '../components/AppText';
 import { Button } from '../components/Button';
 import { Chip } from '../components/Chip';
@@ -102,9 +102,7 @@ function UnitResults({ turn, lang, h }: { turn: Turn; lang: Lang; h: TurnHandler
           {NARROWING.map((k) => <Chip key={k} label={t(lang, k)} onPress={() => h.onSend(`${turn.question} ${t(lang, k)}`, 'chip')} />)}
         </View>
       ) : null}
-      {r.suggestPrimary ? (
-        <Button testID="assistant-pivot-primary" variant="secondary" label={t(lang, 'pivotPrimaryAsk')} onPress={() => h.cards.onPivotPrimary(turn.question)} />
-      ) : null}
+      <AssistantActions serverOnly response={r} query={turn.question} ar={lang === 'ar'} onViewAllMarkets={h.cards.onViewAllMarkets} onPivotPrimary={h.cards.onPivotPrimary} onChangeSearch={h.cards.onChangeSearch} />
     </View>
   );
 }

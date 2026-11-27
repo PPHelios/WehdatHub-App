@@ -52,3 +52,13 @@ export function contextOf(turns: Turn[]): AssistantContext | null {
   }
   return null;
 }
+
+const SAFE_INTENTS = new Set(['unit_search', 'inventory_count', 'primary', 'clarify']);
+const SAFE_CARDS = new Set(['text_answer', 'disambiguate']);
+
+/** What may be saved on the phone: finished inventory/project answers only. Lead and CRM data (client names, phones) is never persisted. */
+export function persistableTurns(turns: Turn[]): Turn[] {
+  return turns
+    .filter((x) => x.status === 'done' && x.response && SAFE_INTENTS.has(x.response.intent))
+    .map((x) => ({ ...x, response: { ...x.response!, cards: x.response!.cards.filter((c) => SAFE_CARDS.has(c.kind)) } }));
+}
