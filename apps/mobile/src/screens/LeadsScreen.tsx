@@ -115,7 +115,7 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
       <View style={[styles.search, { borderColor: colors.border, backgroundColor: colors.card }]}>
         <Icon name="search" size={18} color={colors.primaryInk} />
         <TextInput testID="leads-search" style={[styles.searchInput, { color: colors.text }]} value={text} onChangeText={setText} placeholder={t(lang, 'searchLeads')} placeholderTextColor={colors.muted} autoCorrect={false} returnKeyType="search" />
-        {text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching) ? <ActivityIndicator color={colors.primaryInk} /> : null}
+        {!list.isPending && (text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching)) ? <ActivityIndicator color={colors.primaryInk} /> : null}
       </View>
       <View style={styles.chipsBox}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>

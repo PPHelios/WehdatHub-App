@@ -625,7 +625,6 @@ export function WhatsAppImportScreen() {
     const label = stage === 'list' ? W.stageList : stage === 'chat' ? W.stageChat : stage === 'photos' ? W.stagePhotos : stage === 'match' ? W.stageMatch : W.stageCodes;
     return (
       <View style={[styles.screen, { backgroundColor: colors.bg }, styles.center]}>
-        <ActivityIndicator color={colors.spinner} />
         <Text testID="wa-stage" accessibilityLiveRegion="polite" style={[styles.h, { color: colors.text }]}>{label} · {pct}%</Text>
         <Text style={{ color: colors.muted }}>{fill(W.stepOf, { i: ['list', 'chat', 'photos', 'match'].indexOf(stage) + 1 || 5, n: 5 })}</Text>
         <View accessibilityRole="progressbar" accessibilityLabel={W.progressLabel} accessibilityValue={{ min: 0, max: 100, now: pct }} style={[styles.bar, { backgroundColor: colors.border }]}><View testID="wa-bar" style={[styles.barFill, { backgroundColor: colors.chartBar, width: `${pct}%` }]} /></View>

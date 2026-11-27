@@ -146,7 +146,7 @@ export function MapScreen() {
           <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }, elev('md')]}>
             <Icon name="pin" color={colors.primaryInk} size={18} />
             <TextInput testID="map-search" style={[styles.searchInput, { color: colors.text }]} value={query} onChangeText={(v) => { setQuery(v); setSearching(true); }} onFocus={() => setSearching(true)} onBlur={() => setSearching(false)} onSubmitEditing={submitPlace} placeholder={t(lang, 'mapSearchPh')} placeholderTextColor={colors.muted} autoCorrect={false} returnKeyType="go" />
-            {map.isFetching ? <ActivityIndicator color={colors.primaryInk} /> : null}
+            {map.isFetching && !(expanded && units.isPending) ? <ActivityIndicator color={colors.primaryInk} /> : null}
             <Pressable testID="map-go" accessibilityRole="button" accessibilityLabel={ar ? 'روح للمكان' : 'Go to place'} disabled={!suggestions.length} onPress={submitPlace}
               style={[styles.go, { backgroundColor: colors.cardSubtle, borderColor: colors.border, opacity: suggestions.length ? 1 : 0.6 }]}>
               <Text style={[styles.caption, { color: colors.primaryInk }]}>{ar ? 'روح' : 'Go'}</Text>

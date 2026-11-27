@@ -26,14 +26,14 @@ export function TodayCall({ phone, label }: { phone: string; label: string }) {
   return <Button label={label} variant="secondary" size="sm" onPress={() => Linking.openURL(`tel:+${phone}`)} />;
 }
 
-export function TodayDetails({ brief }: { brief?: { ops: boolean; units: boolean; viewing: TodayTask | null; approvals?: boolean; approvalsAccess?: boolean; approvalsNames?: boolean; commissions?: boolean; leases?: boolean } } = {}) {
+export function TodayDetails({ brief, suppressLoading = false }: { brief?: { ops: boolean; units: boolean; viewing: TodayTask | null; approvals?: boolean; approvalsAccess?: boolean; approvalsNames?: boolean; commissions?: boolean; leases?: boolean }; suppressLoading?: boolean } = {}) {
   const { colors } = useTheme();
   const lang = currentLang();
   const stack = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const q = useQuery({ queryKey: ['today'], queryFn: () => api.today() });
   const planState = usePlanState();
 
-  if (q.isPending) return <Loading label={t(lang, 'loading')} />;
+  if (q.isPending) return suppressLoading ? null : <Loading label={t(lang, 'loading')} />;
   if (q.isError || !q.data) return <ErrorView message={errorText(q.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await q.refetch(); }} altLabel={t(lang, 'openUnits')} onAlt={() => stack.navigate('UnitsList')} />;
   const { counts, tasks, moreTasks } = q.data;
   const viewing = brief?.viewing;

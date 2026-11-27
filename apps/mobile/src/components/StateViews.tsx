@@ -1,14 +1,16 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useBusy } from '../busy';
 import { AppText as Text } from './AppText';
 import { spacing, useTheme } from '../theme';
 import { Button } from './Button';
 
 export function Loading({ label }: { label?: string }) {
   const { colors } = useTheme();
+  const { busy } = useBusy();
   return (
     <View style={styles.center} accessibilityLiveRegion="polite">
-      <ActivityIndicator color={colors.spinner} size="large" />
+      {!busy ? <ActivityIndicator color={colors.spinner} size="large" /> : null}
       {label ? <Text style={[styles.text, { color: colors.muted }]}>{label}</Text> : null}
     </View>
   );

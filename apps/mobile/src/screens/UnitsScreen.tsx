@@ -101,7 +101,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
       <TextInput testID="units-search" style={[styles.search, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'search')} placeholderTextColor={colors.muted} autoCapitalize="characters" autoCorrect={false} returnKeyType="search" />
-      {text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching) ? <ActivityIndicator style={styles.searching} color={colors.primaryInk} /> : null}
+      {!list.isPending && (text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching)) ? <ActivityIndicator style={styles.searching} color={colors.primaryInk} /> : null}
       <View style={styles.chips}>
         <Pressable testID="units-filters" accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((v) => !v)} style={[styles.chip, { borderColor: filtered ? colors.primary : colors.border }]}>
           <Text style={{ color: colors.text, fontWeight: '600' }}>{t(lang, 'filters')}{filtered ? ' •' : ''}</Text>

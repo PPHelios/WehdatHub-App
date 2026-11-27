@@ -76,7 +76,7 @@ export function SearchDeals({ initialPeriod }: { initialPeriod: Period }) {
           </View>
         </View>
         <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{week === undefined ? (ar ? 'كل صفقات الفترة' : 'All deals in period') : (ar ? 'صفقات الفترة المختارة' : 'Deals in selected period')}</Text>
-        {query.isFetching && !query.isFetchingNextPage ? <Loading label={t(lang, 'loading')} /> : null}
+        {!query.isPending && !detail.isPending && query.isFetching && !query.isFetchingNextPage ? <Loading label={t(lang, 'loading')} /> : null}
         {!query.isPlaceholderData && !rows.length ? <Text style={{ color: colors.muted }}>{ar ? 'مفيش صفقات في الفترة دي' : 'No deals in this period'}</Text> : null}
         {!query.isPlaceholderData ? rows.map((row) => {
           const code = 'D-' + String(row.ref).padStart(4, '0');
