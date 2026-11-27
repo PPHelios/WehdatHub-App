@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
 import { create } from 'zustand';
 import { track } from './analytics';
+import { clearDraft } from './draft';
 import type { ApiBroker, LoginResult } from '@wehdathub/shared';
 
 const SERVICE = 'wehdathub.session';
@@ -66,6 +67,8 @@ export const useAuth = create<AuthState>((set, get) => ({
     await Keychain.resetGenericPassword({ service: SERVICE }).catch(() => {});
     // Saved assistant threads belong to the signed-out broker.
     try { await AsyncStorage.removeMany((await AsyncStorage.getAllKeys()).filter((k) => k.startsWith('wehdathub.thread.v1:'))); } catch { /* best effort */ }
+    // The half-filled unit can hold the owner's phone; an expired session signs out here without the menu's clean-up.
+    await clearDraft();
     set({ status: 'signedOut', token: null, broker: null, agencyName: null });
   },
 }));

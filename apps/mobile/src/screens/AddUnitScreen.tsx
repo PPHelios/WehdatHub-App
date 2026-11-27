@@ -181,8 +181,10 @@ export function AddUnitScreen() {
   useEffect(() => {
     (async () => {
       if (editCode) {
+        let loaded = false;
         try {
           const [r, u] = await Promise.all([api.unitEditFields(editCode), api.unit(editCode)]);
+          loaded = true;
           setFields(unphoneName({ ...r.fields, code: r.code }));
           descAuto.current = isAutoDraft(str(r.fields.clean_summary));
           setVersion(r.version);
@@ -197,7 +199,8 @@ export function AddUnitScreen() {
         } catch (e) {
           setError(toastError(errorText(e, lang)));
         }
-        setReady(true);
+        // The unit never loaded: Save stays off, so an empty form can never overwrite it.
+        if (loaded) setReady(true);
         return;
       }
       const d = await loadDraft();

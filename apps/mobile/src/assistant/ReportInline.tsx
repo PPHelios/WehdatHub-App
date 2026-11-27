@@ -24,7 +24,7 @@ export function ReportInline({ report, lang, onOpenFull }: { report: ReportSpec;
   const deals = useQuery({ queryKey: ['chat-deals', period], queryFn: () => api.dealReport(period), enabled: report.kind === 'deals' });
   // A named broker needs the team list to resolve, so those counts are left to the full report.
   const leadsOn = report.kind === 'leads' && !report.assignee;
-  const leads = useQuery({ queryKey: ['chat-lead-counts', filters?.lookup ?? '', filters?.queue ?? ''], queryFn: () => api.leadCounts(filters?.lookup, undefined, undefined, filters?.queue), enabled: leadsOn });
+  const leads = useQuery({ queryKey: ['chat-lead-counts', filters?.lookup ?? '', filters?.queue ?? '', Boolean(filters?.assigned)], queryFn: () => api.leadCounts(filters?.lookup, undefined, filters?.assigned ? 'last' : undefined, filters?.queue), enabled: leadsOn });
   const board = useQuery({ queryKey: ['dashboard', '30', '', '', ''], queryFn: () => api.dashboard(30), enabled: report.kind === 'dashboard' || report.kind === 'ranking' });
   const q = report.kind === 'deals' ? deals : report.kind === 'leads' ? leads : board;
   const active = report.kind !== 'leads' || leadsOn;

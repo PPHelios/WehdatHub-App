@@ -116,9 +116,9 @@ export function TeamScreen() {
             <Chevron rtl={lang === 'ar'} color={colors.muted} />
           </View>
           <View style={[styles.metrics, { backgroundColor: colors.cardSubtle, borderColor: colors.border }]}>
-            <Text variant="caption" weight="bold" style={[styles.metric, { color: colors.primaryInk }]}>{item.open} ${t(lang, 'openLeads')}</Text>
-            <Text variant="caption" weight="bold" style={[styles.metric, { color: item.overdue ? colors.danger : colors.muted }]}>{item.overdue} ${t(lang, 'overdue')}</Text>
-            <Text variant="caption" weight="bold" style={[styles.metric, { color: colors.muted }]}>{item.soon} ${t(lang, 'dueSoon')}</Text>
+            <Text variant="caption" weight="bold" style={[styles.metric, { color: colors.primaryInk }]}>{item.open} {t(lang, 'openLeads')}</Text>
+            <Text variant="caption" weight="bold" style={[styles.metric, { color: item.overdue ? colors.danger : colors.muted }]}>{item.overdue} {t(lang, 'overdue')}</Text>
+            <Text variant="caption" weight="bold" style={[styles.metric, { color: colors.muted }]}>{item.soon} {t(lang, 'dueSoon')}</Text>
           </View>
         </Pressable>
       )}

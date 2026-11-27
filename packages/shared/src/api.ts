@@ -777,7 +777,8 @@ export function createApiClient(opts: ApiClientOptions) {
     } catch {
       /* not JSON */
     }
-    if (res.status === 401 && token) opts.onUnauthorized?.();
+    // Only the session that sent this request is signed out; a late 401 must not end a newer sign-in.
+    if (res.status === 401 && token && opts.getToken() === token) opts.onUnauthorized?.();
     if (res.status === 402 && (code === 'plan_readonly' || code === 'plan_blocked')) {
       const locked = new PlanLockedError(code, extra);
       opts.onPlanLocked?.(locked);

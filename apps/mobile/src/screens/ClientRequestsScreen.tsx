@@ -18,7 +18,7 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
-import { toastError } from '../components/Toast';
+import { toast, toastError } from '../components/Toast';
 import { sx } from '../sharedStyles';
 
 function AddRequest({ onDone }: { onDone: () => void }) {
@@ -86,8 +86,9 @@ export function ClientRequestsScreen() {
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
   const refresh = useCallback(() => qc.invalidateQueries({ queryKey: ['clientRequests'] }), [qc]);
   const openLead = useCallback((ref: string) => nav.navigate('Lead', { ref }), [nav]);
-  const fulfil = useCallback(async (id: string) => { await api.clientRequestFulfil(id); await refresh(); }, [refresh]);
-  const remove = useCallback(async (id: string) => { await api.clientRequestDelete(id); await refresh(); }, [refresh]);
+  const fail = useCallback((e: unknown) => toast(errorText(e, lang), true), [lang]);
+  const fulfil = useCallback(async (id: string) => { try { await api.clientRequestFulfil(id); await refresh(); } catch (e) { fail(e); } }, [refresh, fail]);
+  const remove = useCallback(async (id: string) => { try { await api.clientRequestDelete(id); await refresh(); } catch (e) { fail(e); } }, [refresh, fail]);
   const renderItem = useCallback(({ item }: { item: ClientRequest }) => <RequestCard r={item} tab={tab} lang={lang} onOpenLead={openLead} onFulfil={fulfil} onDelete={remove} />, [tab, lang, openLead, fulfil, remove]);
   return (
     <FlashList

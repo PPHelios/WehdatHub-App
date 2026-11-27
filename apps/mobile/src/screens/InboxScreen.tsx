@@ -11,6 +11,7 @@ import { ChoiceSheet, type ChoiceAsk } from '../components/Sheet';
 import { ErrorView, Loading } from '../components/StateViews';
 import { rowDate } from '../dates';
 import { errorText } from '../errors';
+import { toast } from '../components/Toast';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
 import { clearTray } from '../tray';
@@ -46,13 +47,14 @@ export function InboxScreen() {
   const unread = list.data?.pages[0]?.unread;
   // Nothing unread: close what the phone still shows and clear the icon number.
   useEffect(() => { if (unread === 0) clearTray(); }, [unread]);
-  const read = useCallback(async (id: string) => { await api.notificationRead(id); await refresh(); }, [refresh]);
-  const remove = useCallback(async (id: string) => { await api.notificationDelete(id); await refresh(); }, [refresh]);
+  const fail = useCallback((e: unknown) => toast(errorText(e, lang), true), [lang]);
+  const read = useCallback(async (id: string) => { try { await api.notificationRead(id); await refresh(); } catch (e) { fail(e); } }, [refresh, fail]);
+  const remove = useCallback(async (id: string) => { try { await api.notificationDelete(id); await refresh(); } catch (e) { fail(e); } }, [refresh, fail]);
   const [ask, setAsk] = useState<ChoiceAsk | null>(null);
   const askDeleteAll = () =>
     setAsk({
       title: t(lang, 'deleteAll'),
-      actions: [{ label: t(lang, 'deleteAll'), variant: 'danger', onPress: () => { api.notificationsDeleteAll().then(refresh).catch(() => undefined); } }],
+      actions: [{ label: t(lang, 'deleteAll'), variant: 'danger', onPress: () => { api.notificationsDeleteAll().then(refresh).catch(fail); } }],
     });
   const renderItem = useCallback(({ item }: { item: InboxItem }) => <InboxCard n={item} lang={lang} onRead={read} onDelete={remove} />, [lang, read, remove]);
   if (list.isPending) return <View style={[styles.pad, { backgroundColor: colors.bg }]}><Loading label={t(lang, 'loading')} /></View>;
@@ -69,7 +71,7 @@ export function InboxScreen() {
       onEndReachedThreshold={0.6}
       ListHeaderComponent={items.length ? (
         <View style={[styles.row, styles.gap]}>
-          <View style={styles.flex}><Button testID="inbox-read-all" variant="secondary" label={t(lang, 'markAllRead')} onPress={async () => { await api.notificationsReadAll(); await refresh(); }} /></View>
+          <View style={styles.flex}><Button testID="inbox-read-all" variant="secondary" label={t(lang, 'markAllRead')} onPress={async () => { try { await api.notificationsReadAll(); await refresh(); } catch (e) { fail(e); } }} /></View>
           <View style={styles.flex}><Button testID="inbox-delete-all" variant="secondary" label={t(lang, 'deleteAll')} onPress={async () => askDeleteAll()} /></View>
         </View>
       ) : <Text testID="inbox-empty" style={{ color: colors.muted }}>{t(lang, 'inboxEmpty')}</Text>}
