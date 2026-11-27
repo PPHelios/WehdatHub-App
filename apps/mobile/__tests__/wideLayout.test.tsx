@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RootNavigation } from '../src/navigation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../src/auth';
 import type { ApiBroker } from '@wehdathub/shared';
 
@@ -20,7 +21,10 @@ jest.mock('../src/screens/MoreScreens', () => ({ PlanScreen: () => null }));
 jest.mock('../src/screens/InsightsScreens', () => ({ DashboardScreen: () => null }));
 
 const open = () => render(<QueryClientProvider client={new QueryClient()}><RootNavigation /></QueryClientProvider>);
-beforeEach(() => useAuth.setState({ status: 'signedIn', broker: { id: 'b', name: 'Sara Ali', role: 'broker', lang: 'en' } as ApiBroker }));
+beforeEach(async () => {
+  await AsyncStorage.setItem('wehdathub.welcomeSeen:b', '1');
+  useAuth.setState({ status: 'signedIn', broker: { id: 'b', name: 'Sara Ali', role: 'broker', lang: 'en' } as ApiBroker });
+});
 
 test('a tablet gets the side nav, not the bottom bar', async () => {
   mockWidth = 1194;

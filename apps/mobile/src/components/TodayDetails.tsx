@@ -116,7 +116,7 @@ export function TodayDetails({ brief, suppressLoading = false }: { brief?: { ops
         ))}
       </View> : null}
       {!brief && !remaining.length ? (
-        <View style={styles.empty}><EmptyView title={t(lang, 'allClear')} hint={t(lang, 'allClearHint')} actionLabel={t(lang, 'openUnits')} actionVariant="primary" onAction={() => stack.navigate('UnitsList')} /></View>
+        <View style={styles.empty}><EmptyView icon="check" title={t(lang, 'allClear')} hint={t(lang, 'allClearHint')} actionLabel={t(lang, 'openUnits')} actionVariant="primary" onAction={() => stack.navigate('UnitsList')} /></View>
       ) : (
         remaining.length ? <View style={styles.list}>
           {brief ? <Text accessibilityRole="header" style={[styles.name, { color: colors.text }]}>{lang === 'ar' ? 'مهام النهارده' : 'Today’s tasks'}</Text> : null}

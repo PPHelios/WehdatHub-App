@@ -10,6 +10,8 @@ import { currentLang } from '../auth';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { useRights } from '../rights';
+import { openAssistant } from '../searchLink';
 import { VIEWING_STATUS, labelOf } from '../unitOptions';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
@@ -31,6 +33,7 @@ export function CalendarScreen() {
   const { colors, elev } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const rights = useRights();
   const tomorrow = useRoute<RouteProp<RootStackParams, 'Calendar'>>().params?.tomorrow;
   const q = useQuery({ queryKey: ['viewings', Boolean(tomorrow)], queryFn: () => tomorrow ? api.viewings({ tomorrow: true }) : api.viewings() });
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
@@ -46,7 +49,7 @@ export function CalendarScreen() {
       onRefresh={() => { q.refetch(); }}
       stickySectionHeadersEnabled={false}
       ListHeaderComponent={tomorrow ? <Text style={[styles.day, { color: colors.text }]}>{lang === 'ar' ? 'معاينات بكرة' : 'Tomorrow’s viewings'}</Text> : undefined}
-      ListEmptyComponent={<EmptyView title={t(lang, 'noViewings')} />}
+      ListEmptyComponent={<EmptyView title={t(lang, 'noViewings')} icon="calendar" actionLabel={t(lang, rights.leads ? 'leadsTab' : 'askAssistant')} onAction={() => (rights.leads ? nav.navigate('LeadsList') : openAssistant(nav))} />}
       renderSectionHeader={({ section }) => <Text style={[styles.day, { color: colors.muted }]}>{section.title}</Text>}
       renderItem={({ item }) => (
         <Pressable testID={`viewing-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('Lead', { ref: item.leadRef })} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>

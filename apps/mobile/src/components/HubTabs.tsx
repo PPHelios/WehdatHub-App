@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { useSelectionHighlight } from './SelectionHighlight';
 import { greenGradient, spacing, useTheme } from '../theme';
+import { currentLang } from '../auth';
+import { t } from '../i18n';
+import { CoachMark } from './CoachMark';
 
 export interface HubTabItem<T extends string> {
   id: T;
@@ -21,9 +24,11 @@ interface HubTabsProps<T extends string> {
 export function HubTabs<T extends string>({ tabs, active, onSelect, testID }: HubTabsProps<T>) {
   const { colors } = useTheme();
   const selection = useSelectionHighlight(active, greenGradient, 999, 0, 'hub-tab-highlight');
+  const box = useRef<React.ComponentRef<typeof View>>(null);
 
   return (
-    <View style={[styles.box, { backgroundColor: colors.bg, borderBottomColor: colors.border }]} testID={testID}>
+    <View ref={box} collapsable={false} style={[styles.box, { backgroundColor: colors.bg, borderBottomColor: colors.border }]} testID={testID}>
+      <CoachMark id="hubTabs" targetRef={box} text={t(currentLang(), 'coachTabs')} />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

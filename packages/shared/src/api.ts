@@ -320,6 +320,7 @@ export type AssistantAction =
   | { kind: 'view_all_markets'; label: string }
   | { kind: 'change_search'; label: string; query?: string };
 export interface AssistantSuggestion { label: string; q: string }
+export interface AssistantCardLink { screen: string; params?: Record<string, unknown> }
 export type AssistantCard =
   | {
       kind: 'stuck_leads';
@@ -333,8 +334,12 @@ export type AssistantCard =
     }
   | { kind: 'broker_scorecard'; broker: DashboardBoardRow }
   | { kind: 'broker_discipline'; summary: DashboardDisciplineSummary; rows: DashboardBoardRow[] }
-  | { kind: 'metric_row'; items: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' | 'critical'; unit?: string }[] }
-  | { kind: 'bar_breakdown'; title: string; rows: { key: string; label: string; count: number; valueLabel?: string; commission?: number; spend?: number | null; won?: number }[] }
+  | { kind: 'metric_row'; items: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' | 'critical'; unit?: string; /** % change vs the previous period, when the server has it. */ delta?: number | null }[]; summary?: string; link?: AssistantCardLink }
+  | { kind: 'bar_breakdown'; title: string; rows: { key: string; label: string; count: number; valueLabel?: string; commission?: number; spend?: number | null; won?: number; avatarUrl?: string | null }[]; summary?: string; link?: AssistantCardLink }
+  | { kind: 'trend'; title: string; points: { label: string; value: number }[]; direction: 'rising' | 'falling' | 'flat'; directionLabel: string; changePct: number | null; summary: string; link?: AssistantCardLink }
+  | { kind: 'share'; title: string; total: number; parts: { key: string; label: string; value: number; pct: number }[]; summary: string; link?: AssistantCardLink }
+  | { kind: 'price_range'; title: string; place: string | null; unit: 'EGP'; units: number; min: number; max: number; median: number; bins: { from: number; to: number; count: number }[]; budget?: { value: number; label: string }; summary: string; link?: AssistantCardLink }
+  | { kind: 'compare'; title: string; columns: { code: string; title: string | null }[]; rows: { key: string; label: string; values: (string | null)[]; best: number | null }[]; summary: string; link?: AssistantCardLink }
   | { kind: 'disambiguate'; prompt?: string; options: { id: string; label: string; query: string }[] }
   | { kind: 'text_answer'; answer: string; dataDates: string | null; found: boolean; source: 'ai' | 'local'; logId?: string | null };
 export interface AssistantUnderstood {

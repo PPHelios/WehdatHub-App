@@ -26,6 +26,7 @@ import type { RootStackParams } from '../navigation';
 import { Split, useWide } from '../layout';
 import { spacing, useTheme } from '../theme';
 import { VoiceBar } from '../components/VoiceBar';
+import { CoachMark } from '../components/CoachMark';
 import { FullResults } from '../assistant/FullResults';
 import { ReportView, type LeadFilters, type ReportKind } from '../assistant/ReportView';
 import { ThreadView } from '../assistant/ThreadView';
@@ -47,6 +48,7 @@ export function SearchScreen({ initialMode, modeStamp }: { initialMode?: Assista
   const practiceKey = broker?.id ? `search-practice-v1:${broker.id}:${broker.role}` : null;
   const [invitation, setInvitation] = useState<string | null>(null);
   const [practicing, setPracticing] = useState(false);
+  const micRef = useRef<React.ComponentRef<typeof View>>(null);
   useEffect(() => {
     if (!practiceKey) return;
     let active = true;
@@ -337,6 +339,7 @@ export function SearchScreen({ initialMode, modeStamp }: { initialMode?: Assista
         <View testID="search-composer" style={[styles.barBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <VoiceBar
             compact
+            micRef={micRef}
             multiline
             hideLeadingWhenTyping
             actionDecoration={<SearchCreditRings data={credits.data} loading={credits.isPending} error={credits.isError} ar={ar} />}
@@ -365,6 +368,7 @@ export function SearchScreen({ initialMode, modeStamp }: { initialMode?: Assista
             }
             onSubmit={() => { submit(text, voiceConfirmOrigin !== null ? 'voice' : 'text'); }} onFile={onVoice} onError={thread.setVoiceError} disabled={transcribing} busy={busy || transcribing} />
         </View>
+        <CoachMark id="mic" targetRef={micRef} text={t(lang, 'coachMic')} />
       </Animated.View>
   );
   if (wide) {

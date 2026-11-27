@@ -10,6 +10,9 @@ import { Field } from '../components/Field';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 import { toastError } from '../components/Toast';
 
@@ -20,6 +23,7 @@ export function LeadRulesScreen() {
   const { colors, elev } = useTheme();
   const lang = currentLang();
   const qc = useQueryClient();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const q = useQuery({ queryKey: ['team-rules'], queryFn: () => api.teamRules() });
   const [on, setOn] = useState(false);
   const [wait, setWait] = useState('30');
@@ -74,7 +78,7 @@ export function LeadRulesScreen() {
       {msg ? <Text testID="rules-message" style={{ color: colors.accentInk }}>{msg}</Text> : null}
       <Button testID="rules-save" label={t(lang, 'save')} onPress={save} />
       <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'awayTitle')}</Text>
-      {d.brokers.length ? null : <EmptyView title={t(lang, 'noTeam')} hint="" />}
+      {d.brokers.length ? null : <EmptyView title={t(lang, 'noTeam')} icon="team" actionLabel={t(lang, 'invite')} onAction={() => nav.navigate('Invite')} />}
       {d.brokers.map((b) => (
         <View key={b.id} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={{ color: colors.text, fontWeight: '700', flex: 1 }}>{b.name} · {b.open}</Text>

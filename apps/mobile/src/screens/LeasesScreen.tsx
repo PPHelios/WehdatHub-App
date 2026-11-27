@@ -23,7 +23,7 @@ export function LeasesScreen() {
   const items = q.data.items;
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={async () => { await q.refetch(); }} />}>
-      {items.length === 0 ? <EmptyView title={t(lang, 'leasesEmpty')} hint="" /> : null}
+      {items.length === 0 ? <EmptyView title={t(lang, 'leasesEmpty')} icon="key" actionLabel={t(lang, 'openUnits')} onAction={() => nav.navigate('UnitsList')} /> : null}
       {items.map((z) => (
         <Pressable key={z.code} testID={`lease-${z.code}`} accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: z.code })} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.row}>

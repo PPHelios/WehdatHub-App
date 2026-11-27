@@ -64,7 +64,7 @@ export function AskResults({ q, onOpenProject, showStatus = false, initial, hide
   });
   if (showStatus && r.isError) return <ErrorView message={errorText(r.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => r.refetch()} />;
   if (showStatus && r.isPending) return <Loading label={t(lang, 'loading')} />;
-  if (!r.data || (!r.data.projects.length && !drop.length && !active)) return showStatus ? <EmptyView title={T.noMatch} /> : null;
+  if (!r.data || (!r.data.projects.length && !drop.length && !active)) return showStatus ? <EmptyView title={T.noMatch} icon="search" actionLabel={t(lang, 'retry')} onAction={() => { void r.refetch(); }} /> : null;
   const d = r.data;
   const reset = () => setPage(1);
   // What the broker does next goes to the search log; a failure never shows.

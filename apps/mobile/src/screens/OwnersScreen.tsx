@@ -24,6 +24,7 @@ import type { RootStackParams } from '../navigation';
 import { ot } from '../ownerText';
 import { useRights } from '../rights';
 import { t } from '../i18n';
+import { openAssistant } from '../searchLink';
 import { UNIT_STATUS, labelOf } from '../unitOptions';
 import { useDebounced } from '../useDebounced';
 import { radius, spacing, useTheme } from '../theme';
@@ -55,7 +56,7 @@ export function OwnersScreen() {
           keyExtractor={(o) => o.id}
           ListHeaderComponent={renames.data?.items.length ? <RenameRequests items={renames.data.items} /> : null}
           onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
-          ListEmptyComponent={<EmptyView title={ot(lang, 'none')} />}
+          ListEmptyComponent={<EmptyView title={ot(lang, 'none')} icon="owners" actionLabel={t(lang, rights.addUnits ? 'addUnit' : 'askAssistant')} onAction={() => (rights.addUnits ? nav.navigate('AddUnit') : openAssistant(nav))} />}
           renderItem={({ item }) => (
             <Pressable testID={`owner-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('Owner', { id: item.id, name: item.name || ot(lang, 'noName') })}
               style={({ pressed }) => [styles.card, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.84 : 1 }]}>

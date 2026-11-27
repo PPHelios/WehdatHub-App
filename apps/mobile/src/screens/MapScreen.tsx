@@ -104,7 +104,7 @@ export function MapScreen() {
 
   if (map.isPending) return <Loading label={t(lang, 'loading')} />;
   if (map.isError && !map.data) return <ErrorView message={errorText(map.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await map.refetch(); }} />;
-  if (!tilesUrl) return <EmptyView title={t(lang, 'mapOff')} hint={t(lang, 'mapOffHint')} />;
+  if (!tilesUrl) return <EmptyView title={t(lang, 'mapOff')} hint={t(lang, 'mapOffHint')} icon="map" actionLabel={t(lang, 'openUnits')} onAction={() => nav.navigate('UnitsList')} />;
 
   const roomOptions = [{ value: '', label: t(lang, 'anyRooms') }, ...(map.data?.facets.rooms ?? []).map((r) => ({ value: String(r), label: `${r}${r >= 5 ? '+' : ''} ${t(lang, 'roomsN')}` }))];
   const selectedPin = map.data?.pins.find((p) => p.id === selectedId);

@@ -24,6 +24,7 @@ import { useRights, useRightsState } from '../rights';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { openAssistant } from '../searchLink';
 import { planT } from '../planText';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
@@ -97,7 +98,7 @@ export function TeamScreen() {
           ? (lang === 'ar' ? 'الأكتر في المتابعات المتأخرة الأول' : 'Most overdue follow-ups first')
           : (lang === 'ar' ? 'الوسطاء اللي مش في إجازة، الأقل في العملاء المفتوحين الأول' : 'Brokers who are not away, fewest open leads first')}</Text> : null}
         {canManage ? <View>{switcher}<View style={styles.toolbar}>{styleSelector}<Button testID="team-add" size="sm" label={t(lang, 'invite')} onPress={() => nav.navigate('Invite')} /></View></View> : null}</View>}
-      ListEmptyComponent={<EmptyView title={t(lang, 'teamEmpty')} />}
+      ListEmptyComponent={<EmptyView title={t(lang, 'teamEmpty')} icon="team" actionLabel={t(lang, canManage ? 'invite' : 'askAssistant')} onAction={() => (canManage ? nav.navigate('Invite') : openAssistant(nav))} />}
       renderItem={({ item }) => (
         <Pressable testID={`member-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('TeamMember', { id: item.id, name: item.name, role: item.role, me: item.me, teamLeadId: item.teamLeadId ?? null })}
           style={({ pressed }) => [styles.card, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.84 : 1 }]}>
@@ -138,6 +139,7 @@ function memberError(e: unknown, lang: 'ar' | 'en'): string {
 function FormerList({ header }: { header: React.ReactNode }) {
   const { colors } = useTheme();
   const lang = currentLang();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['teamFormer'], queryFn: () => api.formerTeam() });
   const done = () => Promise.all([qc.invalidateQueries({ queryKey: ['teamFormer'] }), qc.invalidateQueries({ queryKey: ['team'] })]).catch(() => {});
@@ -158,7 +160,7 @@ function FormerList({ header }: { header: React.ReactNode }) {
       refreshing={q.isRefetching}
       onRefresh={() => { q.refetch(); }}
       ListHeaderComponent={<View>{header}</View>}
-      ListEmptyComponent={<EmptyView title={lang === 'ar' ? 'مفيش حد موقوف.' : 'Nobody is deactivated.'} />}
+      ListEmptyComponent={<EmptyView title={lang === 'ar' ? 'مفيش حد موقوف.' : 'Nobody is deactivated.'} icon="team" actionLabel={t(lang, 'invite')} onAction={() => nav.navigate('Invite')} />}
       renderItem={({ item }) => (
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.identity}>
@@ -281,7 +283,7 @@ export function TeamMemberScreen() {
           ) : null}
         </View>
       }
-      ListEmptyComponent={<EmptyView title={t(lang, 'noLeadsHere')} />}
+      ListEmptyComponent={<EmptyView title={t(lang, 'noLeadsHere')} icon="leads" actionLabel={t(lang, 'leadsTab')} onAction={() => nav.navigate('LeadsList')} />}
       renderItem={({ item }) => (
         <View style={styles.listSlot}><LeadCard lead={item} lang={lang} phoneVisibility="hidden" onPress={() => nav.navigate('Lead', { ref: item.ref })} /></View>
       )}

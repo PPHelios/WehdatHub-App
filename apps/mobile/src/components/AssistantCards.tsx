@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
-import { ApiClientError, formatEgp, ltr, type AssistantCard, type AssistantQueryResponse, type BrokerDiscipline, type LeadQueue } from '@wehdathub/shared';
+import { ApiClientError, ltr, type AssistantCard, type AssistantQueryResponse, type BrokerDiscipline, type LeadQueue } from '@wehdathub/shared';
 import { looksLikePhone } from './PhoneText';
 import { errorText } from '../errors';
 import { t } from '../i18n';
@@ -10,7 +10,12 @@ import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { KpiTile, SectionCard, UrgencyBadge, type BadgeTone } from './SectionCard';
-import { StatRow } from './StatRow';
+import { BarBreakdown } from './charts/BarBreakdown';
+import { Compare } from './charts/Compare';
+import { MetricRow } from './charts/MetricRow';
+import { PriceRange } from './charts/PriceRange';
+import { Share as ShareChart } from './charts/Share';
+import { Trend } from './charts/Trend';
 import { UnitCard } from './UnitCard';
 
 function disciplineMeta(d: BrokerDiscipline | undefined, ar: boolean): { tone: BadgeTone; label: string } | null {
@@ -30,6 +35,8 @@ function buildShareSummary(response: AssistantQueryResponse, ar: boolean): strin
     } else if (card.kind === 'bar_breakdown') {
       lines.push(card.title);
       for (const r of (card.rows ?? []).slice(0, 6)) lines.push(`• ${r.label}: ${r.valueLabel ?? r.count}`);
+    } else if (card.kind === 'trend' || card.kind === 'share' || card.kind === 'price_range' || card.kind === 'compare') {
+      lines.push(card.summary);
     } else if (card.kind === 'broker_scorecard') {
       const b = card.broker;
       lines.push(`${b.name}: ${b.deals} ${ar ? 'صفقة' : 'deals'} · ${b.updates ?? 0} ${ar ? 'تحديث' : 'updates'} · ${b.noNextStep ?? 0} ${ar ? 'بدون خطوة' : 'no next step'}`);
@@ -56,6 +63,7 @@ function CardBody({
   onNudge,
   onOpenLead,
   onSelectOption,
+  onNavigate,
 }: {
   card: AssistantCard;
   ar: boolean;
@@ -67,6 +75,7 @@ function CardBody({
   onNudge: (ref: string) => void;
   onOpenLead: (ref: string) => void;
   onSelectOption?: (query: string) => void;
+  onNavigate?: (screen: string, params?: Record<string, unknown>) => void;
 }) {
   const { colors } = useTheme();
   const locale = ar ? 'ar-EG' : 'en-GB';
@@ -180,33 +189,12 @@ function CardBody({
     );
   }
 
-  if (card.kind === 'metric_row') {
-    const items = card.items ?? [];
-    return (
-      <SectionCard testID="card-metric-row">
-        <View style={styles.kpiGrid}>
-          {items.map((item, i) => {
-            const val = typeof item.value === 'number'
-              ? (item.unit === 'EGP' ? formatEgp(item.value) : num(item.value))
-              : String(item.value);
-            return <KpiTile key={`${item.label}-${i}`} label={item.label} value={val} tone={item.tone ?? 'neutral'} />;
-          })}
-        </View>
-      </SectionCard>
-    );
-  }
-
-  if (card.kind === 'bar_breakdown') {
-    const rows = card.rows ?? [];
-    const maxCount = Math.max(1, ...rows.map((r) => Number(r.count || 0)));
-    return (
-      <SectionCard testID="card-bar-breakdown" title={card.title}>
-        {rows.map((r) => (
-          <StatRow key={r.key} animate label={r.label} value={r.valueLabel ?? num(r.count)} pct={(Number(r.count || 0) / maxCount) * 100} />
-        ))}
-      </SectionCard>
-    );
-  }
+  if (card.kind === 'metric_row') return <MetricRow card={card} num={num} onNavigate={onNavigate} />;
+  if (card.kind === 'bar_breakdown') return <BarBreakdown card={card} num={num} onNavigate={onNavigate} />;
+  if (card.kind === 'trend') return <Trend card={card} onNavigate={onNavigate} />;
+  if (card.kind === 'share') return <ShareChart card={card} num={num} onNavigate={onNavigate} />;
+  if (card.kind === 'price_range') return <PriceRange card={card} onNavigate={onNavigate} />;
+  if (card.kind === 'compare') return <Compare card={card} onNavigate={onNavigate} />;
 
   if (card.kind === 'disambiguate') {
     const options = card.options ?? [];
@@ -226,7 +214,7 @@ function CardBody({
 
   return (
     <SectionCard testID="card-text-answer">
-      <Text selectable style={{ color: colors.text, fontSize: 16 }}>{card.answer ?? ''}</Text>
+      <Text selectable style={{ color: colors.text, fontSize: 16 }}>{card.answer ?? (card as { summary?: string }).summary ?? ''}</Text>
       {card.source === 'local' ? <Text style={{ color: colors.muted, fontSize: 13 }}>{ar ? 'إجابة مباشرة من البيانات المحفوظة.' : 'Direct answer from catalogue data.'}</Text> : null}
       {card.dataDates ? <Text style={{ color: colors.muted, fontSize: 12 }}>{card.dataDates}</Text> : null}
     </SectionCard>
@@ -418,6 +406,7 @@ export function AssistantCards({
           onNudge={(ref) => void handleNudge(ref)}
           onOpenLead={onOpenLead}
           onSelectOption={onSelectOption}
+          onNavigate={onNavigateLink}
         />
       ))}
 

@@ -47,7 +47,7 @@ export function RequestsScreen() {
           data={items}
           keyExtractor={(r) => String(r.id)}
           onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
-          ListEmptyComponent={<EmptyView title={ot(lang, 'noRequests')} />}
+          ListEmptyComponent={<EmptyView title={ot(lang, 'noRequests')} icon="lock" actionLabel={t(lang, 'openUnits')} onAction={() => nav.navigate('UnitsList')} />}
           renderItem={({ item }) => (
             <View testID={`request-${item.id}`} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Pressable accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: item.code })}><Text style={[styles.name, { color: colors.primaryInk }]}>{item.code}</Text></Pressable>
@@ -87,6 +87,7 @@ export function activityText(text: string, ar: boolean): string {
 export function ActivityLogScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const list = useInfiniteQuery({
     queryKey: ['activityLog'],
     initialPageParam: 0,
@@ -103,7 +104,7 @@ export function ActivityLogScreen() {
       data={items}
       keyExtractor={(r) => String(r.id)}
       onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
-      ListEmptyComponent={<EmptyView title={lang === 'ar' ? 'مفيش نشاط لسه.' : 'No activity yet.'} />}
+      ListEmptyComponent={<EmptyView title={lang === 'ar' ? 'مفيش نشاط لسه.' : 'No activity yet.'} icon="folder" actionLabel={t(lang, 'openUnits')} onAction={() => nav.navigate('UnitsList')} />}
       renderItem={({ item, index }) => (
         <TimelineEntry at={item.at} title={activityText(item.text, lang === 'ar')} actor={item.who} lang={lang}
           first={index === 0} last={index === items.length - 1} />

@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
@@ -17,6 +17,7 @@ import { LeadCard } from '../components/LeadCard';
 import { BulkAssign } from '../components/BulkAssign';
 import { useRights } from '../rights';
 import { SwipeRow } from '../components/SwipeRow';
+import { CoachMark } from '../components/CoachMark';
 import { tick } from '../haptics';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
@@ -96,7 +97,7 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
     setSel((c) => { const n = { ...c }; if (n[l.ref]) delete n[l.ref]; else n[l.ref] = l; return n; });
   }, [selecting, onOpen]);
   const renderItem = useCallback(
-    ({ item }: { item: ApiLead }) => <LeadItem lead={item} lang={lang} picked={selecting ? Boolean(sel[item.ref]) : undefined} onPress={press} onQuick={quick} onCall={callLead} onMark={markLead} />,
+    ({ item, index }: { item: ApiLead; index: number }) => <LeadItem coach={index === 0} lead={item} lang={lang} picked={selecting ? Boolean(sel[item.ref]) : undefined} onPress={press} onQuick={quick} onCall={callLead} onMark={markLead} />,
     [lang, selecting, sel, press, quick, callLead, markLead],
   );
   const listExtra = useMemo(() => ({ selecting, sel }), [selecting, sel]);
@@ -152,7 +153,7 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
             onEndReachedThreshold={0.6}
             refreshing={list.isRefetching && !list.isFetchingNextPage}
             onRefresh={() => list.refetch()}
-            ListEmptyComponent={<EmptyView title={t(lang, 'noLeads')} hint={t(lang, 'noLeadsHint')} actionLabel={t(lang, 'newLead')} onAction={onNewLead} />}
+            ListEmptyComponent={<EmptyView icon="leads" title={t(lang, 'noLeads')} hint={t(lang, 'noLeadsHint')} actionLabel={t(lang, 'newLead')} onAction={onNewLead} />}
             ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : null}
           />
         )}
@@ -176,9 +177,11 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
 }
 
 /** One row: swipe to call or mark called, tap to open, press and hold for the quick menu. */
-const LeadItem = memo(function LeadItem({ lead, lang, picked, onPress, onQuick, onCall, onMark }: { lead: ApiLead; lang: Lang; picked?: boolean; onPress: (l: ApiLead) => void; onQuick: (l: ApiLead) => void; onCall: (l: ApiLead) => void; onMark: (l: ApiLead) => void }) {
+const LeadItem = memo(function LeadItem({ coach, lead, lang, picked, onPress, onQuick, onCall, onMark }: { coach?: boolean; lead: ApiLead; lang: Lang; picked?: boolean; onPress: (l: ApiLead) => void; onQuick: (l: ApiLead) => void; onCall: (l: ApiLead) => void; onMark: (l: ApiLead) => void }) {
+  const slot = useRef<React.ComponentRef<typeof View>>(null);
   return (
-    <View style={styles.cardSlot}>
+    <View ref={slot} collapsable={false} style={styles.cardSlot}>
+      {coach ? <CoachMark id="leadSwipe" targetRef={slot} text={t(lang, 'coachSwipe')} /> : null}
       <SwipeRow rightLabel={t(lang, 'quickCall')} leftLabel={t(lang, 'markCalled')} onSwipeRight={() => onCall(lead)} onSwipeLeft={() => onMark(lead)}>
         <LeadCard lead={lead} lang={lang} selected={picked} phoneVisibility="full" onPress={() => onPress(lead)} onLongPress={() => onQuick(lead)} />
       </SwipeRow>

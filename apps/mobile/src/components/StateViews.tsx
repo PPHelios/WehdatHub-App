@@ -45,21 +45,18 @@ export function ErrorView({ message, retryLabel, onRetry, altLabel, onAlt }: { m
   );
 }
 
-/** An empty list always offers an action. */
-export function EmptyView({ title, hint, actionLabel, onAction, actionVariant = 'secondary', icon, secondaryAction }: { title: string; hint?: string; actionLabel?: string; onAction?: () => void; actionVariant?: 'primary' | 'secondary'; icon?: IconName; secondaryAction?: { label: string; onPress: () => void } }) {
+/** An empty list always has an icon and a way forward: a primary action is required. */
+export function EmptyView({ title, hint, actionLabel, onAction, actionVariant = 'secondary', icon, secondaryAction }: { title: string; hint?: string; actionLabel: string; onAction: () => void; actionVariant?: 'primary' | 'secondary'; icon: IconName; secondaryAction?: { label: string; onPress: () => void } }) {
   const { colors } = useTheme();
-  const primary = actionLabel && onAction;
   return (
     <Animated.View entering={enter()} style={styles.center}>
-      {icon ? <View testID="empty-icon" style={[styles.iconCircle, { backgroundColor: colors.primarySoft }]}><Icon name={icon} color={colors.primaryInk} size={28} /></View> : null}
+      <View testID="empty-icon" style={[styles.iconCircle, { backgroundColor: colors.primarySoft }]}><Icon name={icon} color={colors.primaryInk} size={28} /></View>
       <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       {hint ? <Text style={[styles.text, { color: colors.muted }]}>{hint}</Text> : null}
-      {primary || secondaryAction ? (
-        <View style={styles.actions}>
-          {primary ? <Button label={actionLabel} onPress={onAction} variant={actionVariant} /> : null}
-          {secondaryAction ? <Button label={secondaryAction.label} onPress={secondaryAction.onPress} variant="quiet" /> : null}
-        </View>
-      ) : null}
+      <View style={styles.actions}>
+        <Button testID="empty-action" label={actionLabel} onPress={onAction} variant={actionVariant} />
+        {secondaryAction ? <Button label={secondaryAction.label} onPress={secondaryAction.onPress} variant="quiet" /> : null}
+      </View>
     </Animated.View>
   );
 }

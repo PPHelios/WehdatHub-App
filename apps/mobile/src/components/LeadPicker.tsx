@@ -29,7 +29,7 @@ export function LeadPicker({ initial = '', onPick }: { initial?: string; onPick:
     <Field label={t(lang, 'searchLeads')} value={text} onChangeText={setText} testID="lead-picker-input" />
     {q && list.isPending ? <Loading label={t(lang, 'loading')} /> : null}
     {list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => list.refetch()} /> : null}
-    {q && list.isSuccess && !items.length ? <EmptyView title={t(lang, 'noLeads')} /> : null}
+    {q && list.isSuccess && !items.length ? <EmptyView title={t(lang, 'noLeads')} icon="leads" actionLabel={t(lang, 'clearSearch')} onAction={() => setText('')} /> : null}
     {items.map((lead) => <LeadCard key={lead.ref} lead={lead} lang={lang} disabled={q !== text.trim()} onPress={() => onPick(lead)} />)}
     {list.hasNextPage ? <Button variant="secondary" label={lang === 'ar' ? 'عملاء أكتر' : 'More leads'} loading={list.isFetchingNextPage} onPress={() => list.fetchNextPage()} /> : null}
   </View>;

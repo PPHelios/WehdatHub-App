@@ -20,6 +20,7 @@ import { TodayCards } from '../components/TodayCards';
 import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { openAssistant } from '../searchLink';
 import type { RootStackParams } from '../navigation';
 import { Split, useColumns, useWide } from '../layout';
 import { UnitScreen } from './UnitScreen';
@@ -174,7 +175,7 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
           onEndReachedThreshold={0.6}
           refreshing={list.isRefetching && !list.isFetchingNextPage}
           onRefresh={() => list.refetch()}
-          ListEmptyComponent={<EmptyView title={t(lang, 'noUnits')} hint={t(lang, 'noUnitsHint')} actionLabel={q ? t(lang, 'clearSearch') : undefined} onAction={q ? () => setText('') : undefined} />}
+          ListEmptyComponent={<EmptyView title={t(lang, 'noUnits')} hint={t(lang, 'noUnitsHint')} icon="units" actionLabel={t(lang, q ? 'clearSearch' : rights.addUnits ? 'addUnit' : 'askAssistant')} onAction={() => (q ? setText('') : rights.addUnits ? nav.navigate('AddUnit') : openAssistant(nav))} />}
           ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => list.fetchNextPage()} /> : null}
         />
       )}

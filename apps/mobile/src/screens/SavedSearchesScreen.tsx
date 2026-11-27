@@ -11,6 +11,7 @@ import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { openAssistant } from '../searchLink';
 import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 
@@ -26,7 +27,7 @@ export function SavedSearchesScreen() {
   if (list.isError || !list.data) return <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} />;
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} refreshControl={<RefreshControl refreshing={list.isRefetching} onRefresh={async () => { await list.refetch(); }} />}>
-      {list.data.items.length === 0 ? <EmptyView title={t(lang, 'savedSearchesEmpty')} hint="" /> : null}
+      {list.data.items.length === 0 ? <EmptyView title={t(lang, 'savedSearchesEmpty')} icon="bookmark" actionLabel={t(lang, 'searchNow')} onAction={() => openAssistant(nav)} /> : null}
       {list.data.items.map((s) => (
         <View key={s.id} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Pressable testID={`saved-${s.id}`} accessibilityRole="button" onPress={() => setOpen(open === s.id ? null : s.id)}>

@@ -61,6 +61,8 @@ interface Props {
   maxInputHeight?: number;
   actionDecoration?: React.ReactNode;
   compact?: boolean;
+  /** Ref to the round mic / send button (a coach mark points at it). */
+  micRef?: React.Ref<React.ComponentRef<typeof View>>;
 }
 
 const clamp = (n: number, lo: number, hi: number) => {
@@ -73,7 +75,7 @@ const clamp = (n: number, lo: number, hi: number) => {
  * The button is a mic when the box is empty (hold to record, lift to send, slide left to cancel, slide up to lock)
  * and a send arrow when there is text. Without text input it is a mic-only bar.
  */
-export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = false, value, onChangeText, placeholder, onSubmit, accessory, leadingAccessory, hideLeadingWhenTyping = false, multiline = false, maxInputHeight = 88, actionDecoration, compact = false }: Props) {
+export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = false, value, onChangeText, placeholder, onSubmit, accessory, leadingAccessory, hideLeadingWhenTyping = false, multiline = false, maxInputHeight = 88, actionDecoration, compact = false, micRef }: Props) {
   const { colors } = useTheme();
   const lang = currentLang();
   const reduced = useReducedMotion();
@@ -558,6 +560,8 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
         </Animated.View>
         {onFile || showSend ? <GestureDetector gesture={pan}>
           <Animated.View
+            ref={micRef}
+            collapsable={false}
             testID={`${id}-mic`}
             accessible
             accessibilityRole="button"

@@ -47,7 +47,7 @@ export function ContactsScreen() {
             <Text style={{ color: colors.muted }}>{ltr(item.phone)}</Text>
           </Pressable>
         )}
-        ListEmptyComponent={<EmptyView title={t(lang, 'noContacts')} hint={t(lang, 'noContactsHint')} />}
+        ListEmptyComponent={<EmptyView title={t(lang, 'noContacts')} hint={t(lang, 'noContactsHint')} icon="phone" actionLabel={t(lang, text ? 'clearSearch' : 'newLead')} onAction={() => (text ? setText('') : nav.navigate('NewLead'))} />}
       />
     </View>
   );
