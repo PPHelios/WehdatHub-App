@@ -12,6 +12,7 @@ import { ErrorView, Loading } from '../components/StateViews';
 import { AppSettings } from '../components/AppSettings';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 const REMINDERS = [30, 60, 120] as const;
 /** WhatsApp is not an alert channel any more: an old saved choice shows as the default (both when Telegram is linked, else web). */
@@ -64,7 +65,11 @@ export function NotificationsScreen() {
         if (v.locked || v.urgent) continue;
         kinds[k] = { on: v.on, channel: v.channel, frequency: v.frequency };
       }
-      const saved = await api.saveNotificationSettings({ kinds, reminderMinutes: draft.reminderMinutes, quiet: draft.quiet });
+      const agencyUnitChecks = draft.agencyUnitChecks?.enabled;
+      const saved = await api.saveNotificationSettings({
+        kinds, reminderMinutes: draft.reminderMinutes, quiet: draft.quiet,
+        ...(!draft.agencyUnitChecks?.locked && agencyUnitChecks !== q.data?.agencyUnitChecks?.enabled ? { agencyUnitChecks } : {}),
+      });
       queries.setQueryData(['notification-settings'], saved);
       setDraft(noWhatsapp(saved));
       setMsg({ text: t(lang, 'notifSaved'), bad: false });
@@ -77,22 +82,32 @@ export function NotificationsScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.body, { backgroundColor: colors.bg }]}>
-      <Text style={[styles.h, { color: colors.text }]}>🔔 {t(lang, 'notifWhere')}</Text>
+      <Text variant="heading" weight="bold" style={[styles.h, { color: colors.text }]}>🔔 {t(lang, 'notifWhere')}</Text>
       <Text style={{ color: colors.muted }}>{t(lang, 'notifHint')}</Text>
+      {draft.agencyUnitChecks ? <View style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        <View style={styles.row}>
+          <Text variant="body" weight="bold" style={[styles.flex, { color: colors.text }]}>{lang === 'ar' ? 'تنبيهات الوحدات اللي محتاجة تحديث' : 'Overdue unit reminders'}</Text>
+          <BusySwitch testID="agency-unit-checks" accessibilityLabel={lang === 'ar' ? 'تنبيهات الوحدات اللي محتاجة تحديث' : 'Overdue unit reminders'}
+            value={draft.agencyUnitChecks.enabled} disabled={busy || draft.agencyUnitChecks.locked}
+            onValueChange={(enabled) => setDraft({ ...draft, agencyUnitChecks: { enabled, locked: false } })} />
+        </View>
+        <Text style={{ color: colors.muted }}>{lang === 'ar' ? 'لكل الشركة. الوحدات هتفضل ظاهرة في قائمة المراجعة.' : 'Applies to the whole agency. Units stay in the review list.'}</Text>
+        {draft.agencyUnitChecks.locked ? <Text style={{ color: colors.muted }}>{t(lang, 'notifLockedBy')}</Text> : null}
+      </View> : null}
       {Object.entries(draft.kinds).map(([k, v]) => {
         const fixed = Boolean(v.locked);
         const off = !v.on;
         return (
           <View key={k} testID={`kind-${k}`} style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
             <View style={styles.row}>
-              <Text style={[styles.flex, styles.kind, { color: colors.text }]}>{v.label[lang]}</Text>
+              <Text variant="body" weight="bold" style={[styles.flex, { color: colors.text }]}>{v.label[lang]}</Text>
               {v.urgent ? null : <BusySwitch testID={`on-${k}`} value={v.on} disabled={fixed} onValueChange={(on) => setKind(k, { on })} />}
             </View>
             {v.urgent ? <Text style={{ color: colors.muted }}>{t(lang, 'notifAlways')}</Text> : null}
             {fixed ? <Text style={{ color: colors.muted }}>🔒 {t(lang, 'notifLockedBy')}</Text> : null}
             {/* No point choosing a channel for an alert that is switched off. */}
             <Text style={{ color: colors.muted }}>{t(lang, 'notifChannel')}</Text>
-            <Chips testID={`channel-${k}`} options={channels} value={v.channel} disabled={off || fixed} onChange={(channel) => setKind(k, { channel })} />
+            <Chips testID={`channel-${k}`} options={channels} value={v.channel === 'app' || !draft.telegramLinked ? 'web' : v.channel} disabled={off || fixed} onChange={(channel) => setKind(k, { channel })} />
             {v.urgent ? null : (
               <>
                 <Text style={{ color: colors.muted }}>{t(lang, 'notifFreq')}</Text>
@@ -102,7 +117,7 @@ export function NotificationsScreen() {
           </View>
         );
       })}
-      <Text style={[styles.h, { color: colors.text }]}>⏰ {t(lang, 'remindersTitle')}</Text>
+      <Text variant="heading" weight="bold" style={[styles.h, { color: colors.text }]}>⏰ {t(lang, 'remindersTitle')}</Text>
       <Text style={{ color: colors.muted }}>{t(lang, 'remindersHint')}</Text>
       <View style={styles.wrap}>
         {REMINDERS.map((m) => {
@@ -114,7 +129,7 @@ export function NotificationsScreen() {
           );
         })}
       </View>
-      <Text style={[styles.h, { color: colors.text }]}>🌙 {t(lang, 'quietTitle')}</Text>
+      <Text variant="heading" weight="bold" style={[styles.h, { color: colors.text }]}>🌙 {t(lang, 'quietTitle')}</Text>
       <View style={styles.row}>
         <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'quietHold')}</Text>
         <BusySwitch testID="quiet-switch" value={draft.quiet.enabled} onValueChange={(enabled) => setQuiet({ enabled })} />
@@ -122,9 +137,9 @@ export function NotificationsScreen() {
       {(['start', 'end'] as const).map((key) => (
         <View key={key} style={styles.row}>
           <Text style={[styles.flex, { color: draft.quiet.enabled ? colors.text : colors.muted }]}>{t(lang, key === 'start' ? 'quietFrom' : 'quietUntil')}</Text>
-          <Pressable testID={`${key}-minus`} accessibilityLabel="-" disabled={!draft.quiet.enabled} onPress={() => step(key, -1)} style={[styles.step, { borderColor: colors.border, opacity: draft.quiet.enabled ? 1 : 0.4 }]}><Text style={{ color: colors.text, fontSize: 20 }}>−</Text></Pressable>
-          <Text testID={`${key}-value`} style={{ color: colors.text, fontSize: 18, minWidth: 64, textAlign: 'center' }}>{hh(draft.quiet[key])}</Text>
-          <Pressable testID={`${key}-plus`} accessibilityLabel="+" disabled={!draft.quiet.enabled} onPress={() => step(key, 1)} style={[styles.step, { borderColor: colors.border, opacity: draft.quiet.enabled ? 1 : 0.4 }]}><Text style={{ color: colors.text, fontSize: 20 }}>+</Text></Pressable>
+          <Pressable testID={`${key}-minus`} accessibilityLabel="-" disabled={!draft.quiet.enabled} onPress={() => step(key, -1)} style={[styles.step, { borderColor: colors.border, opacity: draft.quiet.enabled ? 1 : 0.4 }]}><Text variant="heading" weight="regular" style={{ color: colors.text }}>−</Text></Pressable>
+          <Text testID={`${key}-value`} variant="heading" weight="regular" style={[{ color: colors.text }, sx.minWidth64_textAlignCenter]}>{hh(draft.quiet[key])}</Text>
+          <Pressable testID={`${key}-plus`} accessibilityLabel="+" disabled={!draft.quiet.enabled} onPress={() => step(key, 1)} style={[styles.step, { borderColor: colors.border, opacity: draft.quiet.enabled ? 1 : 0.4 }]}><Text variant="heading" weight="regular" style={{ color: colors.text }}>+</Text></Pressable>
         </View>
       ))}
       {msg ? <Text accessibilityLiveRegion="polite" style={{ color: msg.bad ? colors.danger : colors.muted }}>{msg.text}</Text> : null}
@@ -136,11 +151,10 @@ export function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   body: { padding: spacing.xl, gap: spacing.md },
-  h: { fontSize: 18, fontWeight: '700', marginTop: spacing.md },
+  h: { marginTop: spacing.md },
   card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   flex: { flex: 1 },
-  kind: { fontSize: 16, fontWeight: '700' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   step: { width: 44, height: 44, borderWidth: 1, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },

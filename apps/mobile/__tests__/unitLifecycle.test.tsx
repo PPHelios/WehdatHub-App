@@ -6,6 +6,7 @@ import { UnitCard } from '../src/components/UnitCard';
 import { api } from '../src/api';
 
 jest.mock('../src/api', () => ({ api: { unitStatus: jest.fn(), unitDelete: jest.fn() } }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: jest.fn() }) }));
 const m = api as unknown as Record<string, jest.Mock>;
 const wrap = (ui: React.ReactElement) => render(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>);

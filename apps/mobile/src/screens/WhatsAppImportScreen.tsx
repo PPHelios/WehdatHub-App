@@ -1,16 +1,24 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
+import { FlashList } from '@shopify/flash-list';
 import { AppText as Text } from '../components/AppText';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { errorCodes, isErrorWithCode, pick, types } from '@react-native-documents/picker';
-import { ApiClientError, displayPhone, looksLikePhone, ltr, contactPhoneSchema } from '@wehdathub/shared';
+import { ApiClientError, PlanLockedError, displayPhone, looksLikePhone, ltr, contactPhoneSchema } from '@wehdathub/shared';
+import { usePlanLock } from '../planLock';
+import { usePlanState } from '../planState';
 import { phoneHelp } from '../readback';
 import type { ChatPlanChange, ChatPlanPost, CodeState, UnitFields, UploadFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang, useAuth } from '../auth';
 import { Button } from '../components/Button';
+import { Card } from '../components/Card';
+import { Icon } from '../components/Icon';
+import { Sheet } from '../components/Sheet';
+import { enter, layout } from '../motion';
 import { Field } from '../components/Field';
 import { SmartImage } from '../components/SmartImage';
 import { placeLabel } from '../unitBoxRules';
@@ -23,7 +31,8 @@ import { compressAhead, compressPhotos } from '../compress';
 import { reportError } from '../errorReport';
 import { useRights } from '../rights';
 import { newSaveKey, withSaveCheck } from '../saveKey';
-import { radius, spacing, useTheme } from '../theme';
+import { useSelectionHighlight } from '../components/SelectionHighlight';
+import { greenGradient, radius, spacing, useTheme } from '../theme';
 import { usage } from '../usage';
 import { sendable, withImpliedFeatures } from '../unitRules';
 import {
@@ -38,10 +47,9 @@ import type { Memory, Outcome } from '../whatsappImportMemory';
 import { ZipImportError, cancelUnpack, cleanUp, openChat, readChat } from '../zipImport';
 import { toast } from '../components/Toast';
 
-/** Cards drawn on the first frame, and photos drawn per card before the "+N" chip (the rest load when it is tapped). */
-const INITIAL_CARDS = 6;
+/** Photos drawn per card before the "+N" chip (the rest load when it is tapped). */
 const THUMB_CAP = 8;
-const Gap = () => <View style={{ height: spacing.md }} />;
+const Gap = () => <View style={styles.sep} />;
 
 type Nav = NativeStackNavigationProp<RootStackParams>;
 type Phase = 'pick' | 'range' | 'reading' | 'review';
@@ -66,6 +74,13 @@ export function WhatsAppImportScreen() {
   const rights = useRights();
   const allowed = rights.manager || rights.agencyOwner || rights.dataEntry;
   const brokerId = String(useAuth.getState().broker?.id ?? 'me');
+  const planState = usePlanState();
+  useEffect(() => {
+    if (planState.phase === 'readonly') {
+      usePlanLock.getState().show(new PlanLockedError('plan_readonly'));
+      if (nav.canGoBack()) nav.goBack();
+    }
+  }, [planState.phase, nav]);
 
   const [zipName, setZipName] = useState<string>(route.params?.zip?.name ?? '');
   const [phase, setPhase] = useState<Phase>('pick');
@@ -75,6 +90,7 @@ export function WhatsAppImportScreen() {
   const [info, setInfo] = useState<ChatInfo | null>(null);
   const [lastImportAt, setLastImportAt] = useState<string | null>(null);
   const [kind, setKind] = useState<SinceKind>('30');
+  const rangeSelection = useSelectionHighlight(kind, greenGradient);
   const [sinceText, setSinceText] = useState('');
   const [untilText, setUntilText] = useState('');
   const [rangeError, setRangeError] = useState<'since' | 'until' | 'order' | null>(null);
@@ -98,6 +114,8 @@ export function WhatsAppImportScreen() {
   const [forgotNote, setForgotNote] = useState(false);
   const [earlierN, setEarlierN] = useState(0);
   const [moreOpen, setMoreOpen] = useState<Record<string, boolean>>({});
+  // The confirm sheet (save, forget, leave): what it says and what its action does.
+  const [ask, setAsk] = useState<{ title: string; body?: string; cancel: string; go: string; destructive?: boolean; onGo: () => void } | null>(null);
   const memory = useRef<Memory>({});
   const noRecord = useRef(false);
   const dir = useRef<string | null>(null);
@@ -123,7 +141,7 @@ export function WhatsAppImportScreen() {
     const o = opened.current;
     opened.current = null;
     const d = dir.current;
-    void (loop.current ?? Promise.resolve()).catch(() => undefined).then(async () => {
+    (loop.current ?? Promise.resolve()).catch(() => undefined).then(async () => {
       cancelUnpack();
       if (o) await o.close().catch(() => undefined);
       await cleanUp(d);
@@ -162,7 +180,7 @@ export function WhatsAppImportScreen() {
       setRangeError(null);
       setPhase('range');
     } catch (e) {
-      usage('wa_import_read', false, Date.now() - t0, { reason: e instanceof ZipImportError ? e.reason : 'unexpected', stage: stageRef.current, ...(e instanceof ZipImportError && e.detail ? { detail: e.detail } : {}) });
+      usage('wa_import_read', false, Date.now() - t0, { reason: e instanceof ZipImportError ? e.reason : 'unexpected', stage: stageRef.current });
       if (!(e instanceof ZipImportError)) reportError(e, 'WhatsAppImport.open');
       setPhase('pick');
       setError(reasonText(e));
@@ -254,7 +272,7 @@ export function WhatsAppImportScreen() {
       setPhase('review');
     } catch (e) {
       // Why it failed (a zip problem, or something unexpected that is also reported as an error) goes to the usage log.
-      usage('wa_import_read', false, Date.now() - t0, { reason: e instanceof ZipImportError ? e.reason : 'unexpected', stage: stageRef.current, since_kind: sinceKind, ...(e instanceof ZipImportError && e.detail ? { detail: e.detail } : {}) });
+      usage('wa_import_read', false, Date.now() - t0, { reason: e instanceof ZipImportError ? e.reason : 'unexpected', stage: stageRef.current, since_kind: sinceKind });
       if (!(e instanceof ZipImportError)) reportError(e, 'WhatsAppImport.read');
       setPhase('range');
       setError(reasonText(e));
@@ -276,14 +294,14 @@ export function WhatsAppImportScreen() {
     try {
       for (const p of targets) {
         const fields = change(p.fields ?? {});
-        let missing: string[] | undefined = p.missing;
+        let absent: string[] | undefined = p.missing;
         try {
           // A post whose code is an existing unit is an update: it is reviewed as that unit's edit, so its own code is not "taken".
           const existing = p.post.code && codes?.[p.post.code]?.state === 'update' ? p.post.code : undefined;
           const rv = await api.reviewUnit(sendable(withImpliedFeatures(nonEmpty(fields))), keptOf(p).length, existing);
-          missing = missingOf(rv.blockers);
+          absent = missingOf(rv.blockers);
         } catch { /* the card keeps its old list; Edit checks it again */ }
-        patchPost(p.id, { fields, missing, note: undefined, ...(p.blocker === 'invalid' ? { blocker: undefined } : {}) });
+        patchPost(p.id, { fields, missing: absent, note: undefined, ...(p.blocker === 'invalid' ? { blocker: undefined } : {}) });
       }
       setBulkNote(fill(W.bulkDone, { n: targets.length }));
       usage('wa_import_bulk', true, undefined, { posts: targets.length });
@@ -296,7 +314,7 @@ export function WhatsAppImportScreen() {
   useEffect(() => {
     if (started.current || !allowed || !route.params?.zip) return;
     started.current = true;
-    void openZip(route.params.zip);
+    openZip(route.params.zip);
   }, [allowed, openZip, route.params?.zip]);
 
   // An edited post that was saved in the add-unit screen comes back here marked as added.
@@ -310,7 +328,7 @@ export function WhatsAppImportScreen() {
       const [f] = await pick({ type: [types.zip, types.allFiles] });
       if (!f) return;
       if (!looksLikeZip({ name: f.name, type: f.type })) return setError(W.errNotZip);
-      void openZip({ uri: f.uri, name: f.name || 'chat.zip', type: 'application/zip' });
+      openZip({ uri: f.uri, name: f.name || 'chat.zip', type: 'application/zip' });
     } catch (e) {
       if (!(isErrorWithCode(e) && e.code === errorCodes.OPERATION_CANCELED)) setError(W.errFailed);
     }
@@ -324,6 +342,7 @@ export function WhatsAppImportScreen() {
   // Only the posts still to decide are listed (virtualized: the cards and their photo strips are made for what is on screen).
   // View filter only: it never touches discarded, ticks or what is saved.
   const [filter, setFilter] = useState<'all' | 'new' | 'updated' | 'fix'>('all');
+  const filterSelection = useSelectionHighlight(filter, greenGradient);
   const [hideUnchanged, setHideUnchanged] = useState(true);
   const viewable = useMemo(() => list.map((p, index) => ({ p, index, k: kindOf(p, badges[index] ?? { kind: 'none' }) })).filter(({ p }) => p.state !== 'saved' && !p.discarded), [list, badges]);
   const viewCounts = useMemo(() => {
@@ -352,12 +371,11 @@ export function WhatsAppImportScreen() {
       if (!r.set.length && !r.cleared.length) return;
       memory.current = r.mem;
       setMemCount(Object.keys(r.mem).length);
-      void (async () => { if (r.cleared.length) await restoreMemory(fp, r.cleared); if (r.set.length) await recordMemory(fp, r.set); })();
+      (async () => { if (r.cleared.length) await restoreMemory(fp, r.cleared); if (r.set.length) await recordMemory(fp, r.set); })();
     };
     flushMem.current = run;
     const t = setTimeout(run, 700);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list, badges, phase, info]);
   useEffect(() => () => { flushMem.current?.(); }, []);
 
@@ -370,7 +388,7 @@ export function WhatsAppImportScreen() {
     setForgotNote(true);
     await forgetAll(info.fingerprint);
   };
-  const confirmForget = () => Alert.alert(W.forget, undefined, [{ text: W.cancel, style: 'cancel' }, { text: W.forgetGo, style: 'destructive', onPress: () => { void forget(); } }]);
+  const confirmForget = () => setAsk({ title: W.forget, cancel: W.cancel, go: W.forgetGo, destructive: true, onGo: () => { forget(); } });
   // A post that was imported before comes back to the list (not ticked).
   const bringBack = (id: string) => {
     const p = priorSaved.find((x) => x.id === id);
@@ -551,7 +569,7 @@ export function WhatsAppImportScreen() {
           if (!(e instanceof ApiClientError)) reportError(e, 'WhatsAppImport.add');
           tally.failed += 1;
           patchPost(p.id, { state: 'failed', note: e instanceof ApiClientError && e.code === 'plan_limit' ? undefined : W.noteFailed });
-          if (e instanceof ApiClientError && e.code === 'plan_limit') { toast(lang === 'en' ? "You reached your plan's unit limit." : 'وصلت للحد الأقصى للوحدات في باقتك.', true); break; }
+          if (e instanceof ApiClientError && e.code === 'plan_limit') { toast(W.planLimit, true); break; }
         }
         done += 1;
         if (!unmounted.current) setProgress(done / todo.length);
@@ -573,16 +591,18 @@ export function WhatsAppImportScreen() {
   const onMore = useCallback((id: string) => setMoreOpen((o) => ({ ...o, [id]: true })), []);
   const onEdit = useCallback((id: string) => { const i = listRef.current.findIndex((p) => p.id === id); if (i >= 0) latest.current.edit(listRef.current[i], badgesRef.current[i]); }, []);
   const onDiscard = useCallback((id: string) => { const i = listRef.current.findIndex((p) => p.id === id); if (i >= 0) latest.current.discard(listRef.current[i], badgesRef.current[i]); }, []);
-  const renderPost = useCallback(({ item: { p, index } }: { item: { p: ImportPost; index: number } }) => (
+  const renderPost = useCallback(({ item: { p, index }, index: at }: { item: { p: ImportPost; index: number }; index: number }) => (
+    <Animated.View layout={layout} entering={enter(Math.min(at, 7))}>
     <PostCard p={p} badge={badges[index]} open={Boolean(openText[p.id])} moreOpen={Boolean(moreOpen[p.id])} locked={p.state === 'working' || adding}
       onPick={onPick} onToggleText={onToggleText} onTogglePhoto={onTogglePhoto} onMore={onMore} onEdit={onEdit} onDiscard={onDiscard} />
+    </Animated.View>
   ), [badges, openText, moreOpen, adding, onPick, onToggleText, onTogglePhoto, onMore, onEdit, onDiscard]);
   const listExtra = useMemo(() => [openText, adding, moreOpen, badges, showDiscarded, showPrior, priorSaved, memCount, forgotNote], [openText, adding, moreOpen, badges, showDiscarded, showPrior, priorSaved, memCount, forgotNote]);
 
   const counts = importCounts(list, badges);
   const canSave = counts.willSave > 0;
   const buttonLabel = `${counts.unticked > 0 ? W.saveTicked : W.addSelected} (${counts.willSave})`;
-  const confirmSave = () => Alert.alert(W.confirmTitle, fill(W.confirmBody, { n: counts.willSave, a: counts.newCount, b: counts.updated }), [{ text: W.cancel, style: 'cancel' }, { text: W.confirmGo, onPress: () => { void addSelected(); } }]);
+  const confirmSave = () => setAsk({ title: W.confirmTitle, body: fill(W.confirmBody, { n: counts.willSave, a: counts.newCount, b: counts.updated }), cancel: W.cancel, go: W.confirmGo, onGo: () => { addSelected(); } });
 
   // Leaving while a save runs, or with units still ticked, asks first (a save in progress stops at the next post).
   const dirty = useRef(false);
@@ -591,10 +611,7 @@ export function WhatsAppImportScreen() {
     const sub = (nav as unknown as { addListener?: (ev: string, fn: (e: { preventDefault: () => void; data: { action: never } }) => void) => () => void }).addListener?.('beforeRemove', (e) => {
       if (!dirty.current) return;
       e.preventDefault();
-      Alert.alert(W.leaveTitle, W.leaveBody, [
-        { text: W.leaveStay, style: 'cancel' },
-        { text: W.leaveGo, style: 'destructive', onPress: () => { stopped.current = true; nav.dispatch(e.data.action); } },
-      ]);
+      setAsk({ title: W.leaveTitle, body: W.leaveBody, cancel: W.leaveStay, go: W.leaveGo, destructive: true, onGo: () => { stopped.current = true; nav.dispatch(e.data.action); } });
     });
     return sub;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -603,7 +620,7 @@ export function WhatsAppImportScreen() {
   if (!allowed) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.bg }, styles.center]}>
-        <Text style={{ color: colors.text, textAlign: 'center' }}>{W.notAllowed}</Text>
+        <Text style={[styles.tc, { color: colors.text }]}>{W.notAllowed}</Text>
         <Button label={W.addOne} onPress={() => nav.replace('AddUnit')} />
       </View>
     );
@@ -613,11 +630,10 @@ export function WhatsAppImportScreen() {
     const label = stage === 'list' ? W.stageList : stage === 'chat' ? W.stageChat : stage === 'photos' ? W.stagePhotos : stage === 'match' ? W.stageMatch : W.stageCodes;
     return (
       <View style={[styles.screen, { backgroundColor: colors.bg }, styles.center]}>
-        <ActivityIndicator color={colors.primary} />
-        <Text testID="wa-stage" accessibilityLiveRegion="polite" style={[styles.h, { color: colors.text }]}>{label} · {pct}%</Text>
+        <Text testID="wa-stage" accessibilityLiveRegion="polite" variant="heading" style={{ color: colors.text }}>{label} · {pct}%</Text>
         <Text style={{ color: colors.muted }}>{fill(W.stepOf, { i: ['list', 'chat', 'photos', 'match'].indexOf(stage) + 1 || 5, n: 5 })}</Text>
-        <View accessibilityRole="progressbar" accessibilityLabel={W.progressLabel} accessibilityValue={{ min: 0, max: 100, now: pct }} style={[styles.bar, { backgroundColor: colors.border }]}><View testID="wa-bar" style={[styles.barFill, { backgroundColor: colors.primary, width: `${pct}%` }]} /></View>
-        <Text style={{ color: colors.muted, textAlign: 'center' }}>{W.keepOpen}</Text>
+        <View accessibilityRole="progressbar" accessibilityLabel={W.progressLabel} accessibilityValue={{ min: 0, max: 100, now: pct }} style={[styles.bar, { backgroundColor: colors.border }]}><View testID="wa-bar" style={[styles.barFill, { backgroundColor: colors.chartBar, width: `${pct}%` }]} /></View>
+        <Text style={[styles.tc, { color: colors.muted }]}>{W.keepOpen}</Text>
         <Button label={W.cancel} variant="secondary" onPress={() => { signal.current.cancelled = true; cancelUnpack(); }} />
       </View>
     );
@@ -644,20 +660,21 @@ export function WhatsAppImportScreen() {
     const err = rangeError === 'since' ? W.errSince : rangeError === 'until' ? W.errUntil : rangeError === 'order' ? W.errOrder : null;
     return (
       <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.h, { color: colors.text }]}>{W.rangeTitle}</Text>
+        <Text variant="heading" style={{ color: colors.text }}>{W.rangeTitle}</Text>
         {zipName ? <Text style={{ color: colors.muted }} numberOfLines={1}>{zipName}</Text> : null}
         {error ? <Text accessibilityRole="alert" testID="wa-error" style={{ color: colors.danger }}>{error}</Text> : null}
         <Text testID="wa-chat-span" style={{ color: colors.text }}>{fill(W.chatSpan, { a: utcDay(info.firstAt) || '-', b: utcDay(info.lastAt) || '-', n: info.total })}</Text>
         <View style={styles.chips}>
+          {rangeSelection.highlight}
           {options.map((o) => (
-            <Pressable key={o.k} testID={`wa-range-${o.k}`} accessibilityRole="button" accessibilityState={{ selected: kind === o.k }} onPress={() => { setKind(o.k); setRangeError(null); }}
-              style={[styles.chip, { borderColor: kind === o.k ? colors.primary : colors.border, backgroundColor: kind === o.k ? colors.primary : 'transparent' }]}>
-              <Text style={{ color: kind === o.k ? colors.onPrimary : colors.text, fontWeight: kind === o.k ? '700' : '400' }}>{o.label}</Text>
+            <Pressable key={o.k} onLayout={rangeSelection.measure(o.k)} testID={`wa-range-${o.k}`} accessibilityRole="button" accessibilityState={{ selected: kind === o.k }} onPress={() => { setKind(o.k); setRangeError(null); }}
+              style={[styles.chip, { borderColor: kind === o.k ? colors.primary : colors.border }, kind === o.k && !rangeSelection.highlight && greenGradient]}>
+              <Text weight={kind === o.k ? 'bold' : 'regular'} style={{ color: kind === o.k ? colors.onPrimary : colors.text }}>{o.label}</Text>
             </Pressable>
           ))}
         </View>
         {kind === 'custom' ? (
-          <View style={{ gap: spacing.sm }}>
+          <View style={styles.gap}>
             <Field testID="wa-since-input" label={W.sinceInput} value={sinceText} onChangeText={(v: string) => { setSinceText(v); setRangeError(null); }} autoCapitalize="none" keyboardType="numbers-and-punctuation" />
             <Field testID="wa-until-input" label={W.untilInput} value={untilText} onChangeText={(v: string) => { setUntilText(v); setRangeError(null); }} autoCapitalize="none" keyboardType="numbers-and-punctuation" />
           </View>
@@ -671,38 +688,34 @@ export function WhatsAppImportScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
-      <FlatList
+      <FlashList
         data={rows}
         keyExtractor={(r) => r.p.id}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
-        initialNumToRender={INITIAL_CARDS}
-        maxToRenderPerBatch={4}
-        windowSize={5}
-        removeClippedSubviews
         ItemSeparatorComponent={Gap}
         extraData={listExtra}
         ListHeaderComponent={(
       <View style={styles.headerBox}>
-        <Text testID="wa-summary" style={{ color: colors.text, fontWeight: '700' }}>{fill(W.summary, { n: counts.remaining, p: counts.photos })}</Text>
+        <Text testID="wa-summary" weight="bold" style={{ color: colors.text }}>{fill(W.summary, { n: counts.remaining, p: counts.photos })}</Text>
         {truncated ? <Text testID="wa-truncated" style={{ color: colors.accent }}>{fill(W.truncated, { n: truncated.shown, m: truncated.total, d: truncated.date })}</Text> : null}
         {videos ? <Text style={{ color: colors.muted }}>🎞 {fill(W.videos, { n: videos })}</Text> : null}
         {missing ? <Text style={{ color: colors.muted }}>{fill(W.missing, { n: missing })}</Text> : null}
         {counts.saved > 0 ? <Text testID="wa-saved-line" style={{ color: colors.text }}>{fill(W.doneLine, { a: counts.saved })}</Text> : null}
         {bulkCount.deal + bulkCount.owner > 0 ? (
-          <View testID="wa-bulk" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
-            <Text style={{ color: colors.text, fontWeight: '700' }}>🧰 {W.bulkTitle}</Text>
+          <Card testID="wa-bulk" style={styles.card}>
+            <View style={styles.iconRow}><Icon name="tools" size={16} color={colors.text} /><Text weight="bold" style={{ color: colors.text }}>{W.bulkTitle}</Text></View>
             {bulkCount.deal > 0 ? (
-              <View style={{ gap: spacing.sm }}>
+              <View style={styles.gap}>
                 <Text style={{ color: colors.text }}>{fill(W.bulkDeal, { n: bulkCount.deal })}</Text>
-                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                  <View style={{ flex: 1 }}><Button testID="wa-all-rent" label={W.allRent} variant="secondary" loading={bulkBusy} disabled={adding} onPress={() => applyBulk((f) => withDealType(f, 'rent'), lacksDealType)} /></View>
-                  <View style={{ flex: 1 }}><Button testID="wa-all-sale" label={W.allSale} variant="secondary" loading={bulkBusy} disabled={adding} onPress={() => applyBulk((f) => withDealType(f, 'sale'), lacksDealType)} /></View>
+                <View style={styles.row}>
+                  <View style={styles.flex}><Button testID="wa-all-rent" label={W.allRent} variant="secondary" loading={bulkBusy} disabled={adding} onPress={() => applyBulk((f) => withDealType(f, 'rent'), lacksDealType)} /></View>
+                  <View style={styles.flex}><Button testID="wa-all-sale" label={W.allSale} variant="secondary" loading={bulkBusy} disabled={adding} onPress={() => applyBulk((f) => withDealType(f, 'sale'), lacksDealType)} /></View>
                 </View>
               </View>
             ) : null}
             {bulkCount.owner > 0 ? (
-              <View style={{ gap: spacing.sm }}>
+              <View style={styles.gap}>
                 <Text style={{ color: colors.text }}>{fill(W.bulkOwner, { n: bulkCount.owner })}</Text>
                 <Field testID="wa-owner-all" label="" value={ownerAll} onChangeText={(v: string) => { setOwnerAll(v); setOwnerBad(false); }} keyboardType="phone-pad" placeholder={W.bulkOwnerPlaceholder} hint={phoneHelp(lang)} />
                 {ownerBad ? <Text accessibilityRole="alert" testID="wa-owner-bad" style={{ color: colors.danger }}>{W.bulkBadPhone}</Text> : null}
@@ -714,48 +727,49 @@ export function WhatsAppImportScreen() {
               </View>
             ) : null}
             {bulkNote ? <Text testID="wa-bulk-done" style={{ color: colors.muted }}>{bulkNote}</Text> : null}
-          </View>
+          </Card>
         ) : bulkNote ? <Text testID="wa-bulk-done" style={{ color: colors.muted }}>{bulkNote}</Text> : null}
         {readFailed ? (
-          <View testID="wa-read-failed" style={[styles.card, { borderColor: colors.danger, backgroundColor: colors.card }]}>
-            <Text style={{ color: colors.danger, fontWeight: '700' }}>{W.readFailed}</Text>
+          <Card testID="wa-read-failed" accentColor={colors.danger} variant="accent" style={styles.card}>
+            <Text weight="bold" style={{ color: colors.danger }}>{W.readFailed}</Text>
             <Button testID="wa-read-retry" label={W.retry} variant="secondary" onPress={retryDetails} />
-          </View>
+          </Card>
         ) : null}
         {counts.discarded > 0 ? (
-          <View testID="wa-discarded-bar" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <Card testID="wa-discarded-bar" style={styles.card}>
             <View style={styles.row}>
               <Pressable testID="wa-discarded-toggle" accessibilityRole="button" style={styles.flex} onPress={() => { setShowDiscarded((v) => !v); }}>
                 <Text style={{ color: colors.text }}>{fill(W.discardedLine, { n: counts.discarded })}</Text>
-                {earlierN > 0 ? <Text testID="wa-earlier-line" style={[styles.small, { color: colors.muted }]}>{fill(W.earlierLine, { n: earlierN })}</Text> : null}
+                {earlierN > 0 ? <Text testID="wa-earlier-line" variant="caption" style={{ color: colors.muted }}>{fill(W.earlierLine, { n: earlierN })}</Text> : null}
               </Pressable>
-              <Pressable testID="wa-restore-all" accessibilityRole="button" disabled={adding} style={styles.hit} onPress={restoreAll}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{W.restoreAll}</Text></Pressable>
+              <Pressable testID="wa-restore-all" accessibilityRole="button" disabled={adding} style={styles.hit} onPress={restoreAll}><Text weight="bold" style={{ color: colors.primaryInk }}>{W.restoreAll}</Text></Pressable>
             </View>
             {showDiscarded ? list.filter((p) => p.discarded && p.state !== 'saved').map((p) => (
               <View key={p.id} style={styles.row}>
-                <Text style={[styles.flex, styles.small, { color: colors.muted }]} numberOfLines={1}>{p.post.code ? `${p.post.code} · ` : ''}{p.post.orig || p.post.text}</Text>
-                <Pressable testID={`wa-restore-${p.id}`} accessibilityRole="button" accessibilityLabel={fill(W.restorePost, { c: p.post.code ?? p.id })} disabled={adding} style={styles.hit} onPress={() => restore(p.id)}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{W.restore}</Text></Pressable>
+                <Text variant="caption" style={[styles.flex, { color: colors.muted }]} numberOfLines={1}>{p.post.code ? `${p.post.code} · ` : ''}{p.post.orig || p.post.text}</Text>
+                <Pressable testID={`wa-restore-${p.id}`} accessibilityRole="button" accessibilityLabel={fill(W.restorePost, { c: p.post.code ?? p.id })} disabled={adding} style={styles.hit} onPress={() => restore(p.id)}><Text weight="bold" style={{ color: colors.primaryInk }}>{W.restore}</Text></Pressable>
               </View>
             )) : null}
-          </View>
+          </Card>
         ) : null}
         {result ? (
-          <View testID="wa-result" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
-            <Text style={{ color: colors.text, fontWeight: '700' }}>{W.resultTitle}</Text>
+          <Card testID="wa-result" style={styles.card}>
+            <Text weight="bold" style={{ color: colors.text }}>{W.resultTitle}</Text>
             <Text style={{ color: colors.text }}>{fill(W.resultLine, { n: result.saved, a: result.created, b: result.updated, y: result.unchanged.length })}</Text>
             {result.unchanged.length ? <Text testID="wa-result-unchanged" style={{ color: colors.muted }}>{fill(W.resultUnchanged, { list: result.unchanged.join(J) })}</Text> : null}
             {result.photosFailed.length ? <Text testID="wa-result-photos" style={{ color: colors.danger }}>{fill(W.resultPhotosFailed, { list: result.photosFailed.join(J) })}</Text> : null}
             {result.failed ? <Text style={{ color: colors.danger }}>{fill(W.resultFailed, { n: result.failed })} · {W.failedNext}</Text> : <Text style={{ color: colors.muted }}>{W.resultNext}</Text>}
-          </View>
+          </Card>
         ) : null}
         {counts.errors + counts.unchanged > 0 ? <Button testID="wa-discard-errors" label={fill(W.discardErrors, { n: counts.errors + counts.unchanged })} variant="secondary" size="sm" disabled={adding} onPress={discardErrors} /> : null}
         {counts.remaining > 0 ? <Button testID="wa-select-valid" label={W.selectValid} variant="secondary" size="sm" disabled={adding} onPress={selectValid} /> : null}
         {kindsShown > 1 ? (
           <View style={styles.chips}>
+            {filterSelection.highlight}
             {([['all', W.filterAll, viewCounts.new + viewCounts.updated + viewCounts.fix + (hideUnchanged ? 0 : viewCounts.unchanged)], ['new', W.filterNew, viewCounts.new], ['updated', W.filterUpdated, viewCounts.updated], ['fix', W.filterFix, viewCounts.fix]] as const).map(([k, label, n]) => (
-              <Pressable key={k} testID={`wa-filter-${k}`} accessibilityRole="button" accessibilityState={{ selected: filter === k }} onPress={() => setFilter(k)}
-                style={[styles.chip, { borderColor: filter === k ? colors.primary : colors.border, backgroundColor: filter === k ? colors.primary : 'transparent' }]}>
-                <Text style={{ color: filter === k ? colors.onPrimary : colors.text, fontWeight: filter === k ? '700' : '400' }}>{label} ({n})</Text>
+              <Pressable key={k} onLayout={filterSelection.measure(k)} testID={`wa-filter-${k}`} accessibilityRole="button" accessibilityState={{ selected: filter === k }} onPress={() => setFilter(k)}
+                style={[styles.chip, { borderColor: filter === k ? colors.primary : colors.border }, filter === k && !filterSelection.highlight && greenGradient]}>
+                <Text weight={filter === k ? 'bold' : 'regular'} style={{ color: filter === k ? colors.onPrimary : colors.text }}>{label} ({n})</Text>
               </Pressable>
             ))}
             <Pressable testID="wa-hide-unchanged" accessibilityRole="checkbox" accessibilityState={{ checked: hideUnchanged }} onPress={() => setHideUnchanged((v) => !v)}
@@ -764,38 +778,43 @@ export function WhatsAppImportScreen() {
             </Pressable>
           </View>
         ) : null}
-        {counts.remaining === 0 ? <Text testID="wa-all-added" style={{ color: colors.text, fontWeight: '700', textAlign: 'center' }}>{W.allAdded}</Text> : null}
+        {counts.remaining === 0 ? <Text testID="wa-all-added" weight="bold" style={[styles.tc, { color: colors.text }]}>{W.allAdded}</Text> : null}
         {priorSaved.length > 0 ? (
-          <View testID="wa-prior-bar" style={[styles.card, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <Card testID="wa-prior-bar" style={styles.card}>
             <View style={styles.row}>
               <Text testID="wa-prior-line" style={[styles.flex, { color: colors.text }]}>{fill(W.priorLine, { n: priorSaved.length })}</Text>
-              <Pressable testID="wa-prior-toggle" accessibilityRole="button" style={styles.hit} onPress={() => setShowPrior((v) => !v)}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{showPrior ? W.priorHide : W.priorShow}</Text></Pressable>
+              <Pressable testID="wa-prior-toggle" accessibilityRole="button" style={styles.hit} onPress={() => setShowPrior((v) => !v)}><Text weight="bold" style={{ color: colors.primaryInk }}>{showPrior ? W.priorHide : W.priorShow}</Text></Pressable>
             </View>
             {showPrior ? priorSaved.map((p) => (
               <View key={p.id} style={styles.row}>
-                <Text style={[styles.flex, styles.small, { color: colors.muted }]} numberOfLines={1}>{p.post.code ? `${p.post.code} · ` : ''}{p.post.orig || p.post.text}</Text>
-                <Pressable testID={`wa-bring-${p.id}`} accessibilityRole="button" accessibilityLabel={fill(W.restorePost, { c: p.post.code ?? p.id })} disabled={adding} style={styles.hit} onPress={() => bringBack(p.id)}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{W.restore}</Text></Pressable>
+                <Text variant="caption" style={[styles.flex, { color: colors.muted }]} numberOfLines={1}>{p.post.code ? `${p.post.code} · ` : ''}{p.post.orig || p.post.text}</Text>
+                <Pressable testID={`wa-bring-${p.id}`} accessibilityRole="button" accessibilityLabel={fill(W.restorePost, { c: p.post.code ?? p.id })} disabled={adding} style={styles.hit} onPress={() => bringBack(p.id)}><Text weight="bold" style={{ color: colors.primaryInk }}>{W.restore}</Text></Pressable>
               </View>
             )) : null}
-          </View>
+          </Card>
         ) : null}
-        {memCount > 0 ? <Pressable testID="wa-forget" accessibilityRole="button" disabled={adding} style={styles.hit} onPress={confirmForget}><Text style={{ color: colors.muted, textDecorationLine: 'underline' }}>{W.forget}</Text></Pressable> : null}
+        {memCount > 0 ? <Pressable testID="wa-forget" accessibilityRole="button" disabled={adding} style={styles.hit} onPress={confirmForget}><Text style={[styles.underline, { color: colors.muted }]}>{W.forget}</Text></Pressable> : null}
         {forgotNote ? <Text testID="wa-forgot-note" style={{ color: colors.muted }}>{W.forgotten}</Text> : null}
       </View>
         )}
         renderItem={renderPost}
-        ListEmptyComponent={counts.remaining > 0 ? <Text testID="wa-empty-filter" style={{ color: colors.muted, textAlign: 'center' }}>{W.emptyFilter}</Text> : undefined}
+        ListEmptyComponent={counts.remaining > 0 ? <Text testID="wa-empty-filter" style={[styles.tc, { color: colors.muted }]}>{W.emptyFilter}</Text> : undefined}
         ListFooterComponent={hideUnchanged && filter === 'all' && viewCounts.unchanged > 0 ? (
           <Pressable testID="wa-unchanged-hidden" accessibilityRole="button" style={styles.hit} onPress={() => setHideUnchanged(false)}>
-            <Text style={{ color: colors.primaryInk, textAlign: 'center' }}>{fill(W.unchangedHidden, { n: viewCounts.unchanged })}</Text>
+            <Text style={[styles.tc, { color: colors.primaryInk }]}>{fill(W.unchangedHidden, { n: viewCounts.unchanged })}</Text>
           </Pressable>
         ) : undefined}
       />
       <View style={[styles.bottom, { borderColor: colors.border, backgroundColor: colors.bg }]}>
-        <Text testID="wa-ready" style={{ color: colors.muted, textAlign: 'center' }}>{`${fill(W.willSave, { n: counts.willSave, a: counts.newCount, b: counts.updated, m: counts.skipped, x: counts.errors, y: counts.unchanged, z: counts.discarded })}${counts.unticked > 0 ? fill(W.willSaveUnticked, { u: counts.unticked }) : ''}`}</Text>
+        <Text testID="wa-ready" style={[styles.tc, { color: colors.muted }]}>{`${fill(W.willSave, { n: counts.willSave, a: counts.newCount, b: counts.updated, m: counts.skipped, x: counts.errors, y: counts.unchanged, z: counts.discarded })}${counts.unticked > 0 ? fill(W.willSaveUnticked, { u: counts.unticked }) : ''}`}</Text>
         <Button testID="wa-add" label={buttonLabel} progress={adding ? progress : undefined} disabled={adding || !canSave} onPress={confirmSave} />
-        {adding ? <Text style={{ color: colors.muted, textAlign: 'center' }}>{fill(W.savingLine, { d: Math.round(progress * saveTotal), t: saveTotal })} · {W.leaveWarn}</Text> : null}
+        {adding ? <Text style={[styles.tc, { color: colors.muted }]}>{fill(W.savingLine, { d: Math.round(progress * saveTotal), t: saveTotal })} · {W.leaveWarn}</Text> : null}
       </View>
+      <Sheet visible={Boolean(ask)} onClose={() => setAsk(null)} title={ask?.title} testID="wa-ask">
+        {ask?.body ? <Text style={{ color: colors.muted }}>{ask.body}</Text> : null}
+        <Button testID="wa-ask-go" label={ask?.go ?? ''} variant={ask?.destructive ? 'danger' : 'primary'} onPress={() => { const go = ask?.onGo; setAsk(null); go?.(); }} />
+        <Button testID="wa-ask-cancel" label={ask?.cancel ?? ''} variant="secondary" onPress={() => setAsk(null)} />
+      </Sheet>
     </View>
   );
 }
@@ -817,34 +836,34 @@ function SummaryGrid({ W, lang, J, post, colors, changed }: { W: ReturnType<type
     { k: 'compound', label: W.f_compound, value: placeLabel(f) },
     { k: 'price_value', label: W.f_price_value, value: price ? `${Number(price).toLocaleString('en')}${str(f.currency) === 'USD' ? ` ${W.usd}` : ''}` : '' },
     { k: 'area_value', label: W.f_area_value, value: str(f.area_value) ? `${str(f.area_value)} ${W.sqm}` : '' },
-    { k: 'land_area', label: L2 === 'en' ? 'Land' : 'الأرض', value: str(f.land_area) ? `${str(f.land_area)} ${W.sqm}` : '' },
-    { k: 'garden_area', label: L2 === 'en' ? 'Garden' : 'الجنينة', value: str(f.garden_area) ? `${str(f.garden_area)} ${W.sqm}` : '' },
-    { k: 'floor_level', label: L2 === 'en' ? 'Floor' : 'الدور', value: str(f.floor_level) },
-    { k: 'rent_period', label: L2 === 'en' ? 'Rent' : 'الإيجار', value: f.rent_period === 'monthly' ? (L2 === 'en' ? 'Monthly' : 'شهري') : f.rent_period === 'yearly' ? (L2 === 'en' ? 'Yearly' : 'سنوي') : '' },
+    { k: 'land_area', label: W.fLand, value: str(f.land_area) ? `${str(f.land_area)} ${W.sqm}` : '' },
+    { k: 'garden_area', label: W.fGarden, value: str(f.garden_area) ? `${str(f.garden_area)} ${W.sqm}` : '' },
+    { k: 'floor_level', label: W.fFloor, value: str(f.floor_level) },
+    { k: 'rent_period', label: W.fRent, value: f.rent_period === 'monthly' ? W.monthly : f.rent_period === 'yearly' ? W.yearly : '' },
     { k: 'bedrooms', label: W.f_bedrooms, value: str(f.bedrooms) },
     { k: 'bathrooms', label: W.baths, value: str(f.bathrooms) },
-    { k: 'finishing', label: L2 === 'en' ? 'Finishing' : 'التشطيب', value: labelOf(FINISHING, str(f.finishing), L2) ?? '' },
-    { k: 'furnishing', label: L2 === 'en' ? 'Furnishing' : 'الفرش', value: labelOf(FURNISHING, str(f.furnishing), L2) ?? '' },
+    { k: 'finishing', label: W.fFinishing, value: labelOf(FINISHING, str(f.finishing), L2) ?? '' },
+    { k: 'furnishing', label: W.fFurnishing, value: labelOf(FURNISHING, str(f.furnishing), L2) ?? '' },
     { k: 'owner_phone', label: W.f_owner_phone, value: f.owner_phone ? ltr(displayPhone(str(f.owner_phone))) : '' },
   ];
   const alwaysShown = ['listing_type', 'property_type', 'compound', 'price_value', 'area_value', 'owner_phone'];
   const shown = cells.filter((c) => c.value || miss.has(c.k) || alwaysShown.includes(c.k));
   const missingNames = [...miss].map((k) => (W as unknown as Record<string, string>)[`f_${k}`] ?? k);
   return (
-    <View testID={`wa-summary-${post.id}`} style={{ gap: 6 }}>
+    <View testID={`wa-summary-${post.id}`} style={styles.summary}>
       <View style={styles.grid}>
         {shown.map((c) => {
           const bad = miss.has(c.k);
           const diff = !bad && changed.has(c.k);
           return (
             <View key={c.k} testID={bad ? `wa-missing-${post.id}-${c.k}` : undefined} style={[styles.cell, { backgroundColor: bad ? colors.badSoft : diff ? colors.primarySoft : colors.card, borderColor: bad ? colors.danger : diff ? colors.primary : colors.border }]}>
-              <Text style={{ color: bad ? colors.badInk : diff ? colors.text : colors.muted, fontSize: 11 }}>{diff ? `✎ ${c.label}` : c.label}</Text>
-              <Text style={{ color: bad ? colors.badInk : colors.text, fontWeight: '700' }}>{bad && !c.value ? `⚠️ ${L2 === 'en' ? 'Missing' : 'ناقص'}` : c.value}</Text>
+              <Text variant="micro" style={{ color: bad ? colors.badInk : diff ? colors.text : colors.muted }}>{diff ? `✎ ${c.label}` : c.label}</Text>
+              <Text weight="bold" style={{ color: bad ? colors.badInk : colors.text }}>{bad && !c.value ? `⚠️ ${W.missingCell}` : c.value}</Text>
             </View>
           );
         })}
       </View>
-      {missingNames.length ? <Text testID={`wa-missing-note-${post.id}`} style={{ color: colors.badInk, fontWeight: '600' }}>⛔ {fill(W.missingNote, { list: missingNames.join(J) })}</Text> : null}
+      {missingNames.length ? <Text testID={`wa-missing-note-${post.id}`} weight="bold" style={{ color: colors.badInk }}>⛔ {fill(W.missingNote, { list: missingNames.join(J) })}</Text> : null}
     </View>
   );
 }
@@ -869,28 +888,28 @@ const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, 
   const label = p.post.code ?? p.id;
   const blockNote = p.blocker === 'other_unit' ? W.noteOtherUnit : p.blocker === 'older' ? W.noteOlder : p.blocker === 'invalid' ? W.noteInvalid : p.blocker === 'forbidden' ? W.noteForbidden : p.blocker === 'compare_failed' || (badge.kind === 'update' && !p.plan) ? W.noteCompare : null;
   return (
-    <View testID={`wa-post-${p.id}`} style={[styles.card, { borderColor: missingFor(p).length ? colors.danger : colors.border, backgroundColor: colors.card }]}>
+    <Card testID={`wa-post-${p.id}`} variant="accent" accentColor={missingFor(p).length ? colors.danger : colors.border} style={styles.card}>
       <View style={styles.row}>
         <Pressable testID={`wa-pick-${p.id}`} accessibilityRole="checkbox" accessibilityLabel={fill(W.selectPost, { c: label })} accessibilityState={{ checked: p.picked, disabled: kind === 'error' || locked }} disabled={kind === 'error' || locked} onPress={() => onPick(p.id)} style={styles.hit}>
-          <View style={[styles.box, { borderColor: colors.primary, backgroundColor: p.picked ? colors.primary : 'transparent' }]}>
-            <Text style={{ color: p.picked ? colors.onPrimary : 'transparent' }}>✓</Text>
+          <View style={[styles.box, { borderColor: colors.primary }, p.picked && { backgroundColor: colors.primary }]}>
+            {p.picked ? <Icon name="check" size={16} color={colors.onPrimary} /> : null}
           </View>
         </Pressable>
         <View style={styles.flex}>
           <BadgeLine W={W} badge={badge} colors={colors} willChange={p.plan?.kind === 'update'} />
-          {kind === 'unchanged' ? <Text testID={`wa-unchanged-${p.id}`} style={{ color: colors.muted, fontWeight: '600' }}>{W.unchangedBadge}</Text> : null}
-          {kind === 'updated' && changes?.length ? <Text testID={`wa-changes-${p.id}`} style={{ color: colors.accent, fontWeight: '600' }}>{fill(W.changesLine, { list: changes.map((c) => changeLine(c)).join(J) })}</Text> : null}
-          {blockNote ? <Text testID={`wa-blocker-${p.id}`} style={{ color: colors.danger, fontWeight: '600' }}>{blockNote}</Text> : null}
-          {p.blocker === 'other_unit' && changes?.length ? <Text testID={`wa-diff-${p.id}`} style={{ color: colors.primaryInk, fontWeight: '600' }}>{fill(W.otherDiff, { list: changes.map((c) => changeLine(c)).join(J) })}</Text> : null}
-          <Text style={[styles.small, { color: colors.muted }]} numberOfLines={1}>{[p.post.sender && looksLikePhone(p.post.sender) ? ltr(displayPhone(p.post.sender)) : p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
+          {kind === 'unchanged' ? <Text testID={`wa-unchanged-${p.id}`} weight="bold" style={{ color: colors.muted }}>{W.unchangedBadge}</Text> : null}
+          {kind === 'updated' && changes?.length ? <Text testID={`wa-changes-${p.id}`} weight="bold" style={{ color: colors.accent }}>{fill(W.changesLine, { list: changes.map((c) => changeLine(c)).join(J) })}</Text> : null}
+          {blockNote ? <Text testID={`wa-blocker-${p.id}`} weight="bold" style={{ color: colors.danger }}>{blockNote}</Text> : null}
+          {p.blocker === 'other_unit' && changes?.length ? <Text testID={`wa-diff-${p.id}`} weight="bold" style={{ color: colors.primaryInk }}>{fill(W.otherDiff, { list: changes.map((c) => changeLine(c)).join(J) })}</Text> : null}
+          <Text variant="caption" style={{ color: colors.muted }} numberOfLines={1}>{[p.post.sender && looksLikePhone(p.post.sender) ? ltr(displayPhone(p.post.sender)) : p.post.sender, p.post.at].filter(Boolean).join('  ·  ')}</Text>
         </View>
-        {p.state === 'working' ? <ActivityIndicator color={colors.primary} /> : null}
+        {p.state === 'working' ? <ActivityIndicator color={colors.spinner} /> : null}
       </View>
       <SummaryGrid W={W} lang={lang} J={J} post={p} colors={colors} changed={new Set((changes ?? []).map((c) => c.field.replace(/^details./, '')))} />
       <Pressable testID={`wa-desc-${p.id}`} accessibilityRole="button" accessibilityLabel={`${W.originalTitle}: ${open ? W.showLess : W.showMore}`} accessibilityState={{ expanded: open }} onPress={() => onToggleText(p.id)}>
-        <Text style={[styles.small, styles.bold, { color: colors.muted }]}>💬 {W.originalTitle}</Text>
-        <Text style={[styles.small, { color: colors.muted }]} numberOfLines={open ? undefined : 3}>{p.post.orig || p.post.text}</Text>
-        <Text style={[styles.small, { color: colors.primaryInk }]}>{open ? W.showLess : W.showMore}</Text>
+        <View style={styles.iconRow}><Icon name="chat" size={14} color={colors.muted} /><Text variant="caption" weight="bold" style={{ color: colors.muted }}>{W.originalTitle}</Text></View>
+        <Text variant="caption" style={{ color: colors.muted }} numberOfLines={open ? undefined : 3}>{p.post.orig || p.post.text}</Text>
+        <Text variant="caption" style={{ color: colors.primaryInk }}>{open ? W.showLess : W.showMore}</Text>
       </Pressable>
       {p.photos.length ? (
         <View style={styles.photos}>
@@ -900,12 +919,12 @@ const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, 
             {(moreOpen ? p.photos : p.photos.slice(0, THUMB_CAP)).map((f, n) => (
               <Pressable key={f.uri} testID={`wa-photo-${p.id}-${n}`} accessibilityRole="checkbox" accessibilityLabel={`${fill(W.photoN, { n: n + 1 })}: ${f.notKept ? W.photoOut : W.photoKept}`} accessibilityState={{ checked: !f.notKept, disabled: locked }} disabled={locked} onPress={() => onTogglePhoto(p.id, f.uri)} style={f.notKept ? styles.dim : undefined}>
                 <SmartImage uri={f.uri} style={styles.thumb} />
-                <Text style={[styles.tick, { color: colors.onPrimary, backgroundColor: f.notKept ? colors.border : colors.primary }]}>{f.notKept ? '–' : '✓'}</Text>
+                <Text variant="caption" style={[styles.tick, { color: colors.onPrimary, backgroundColor: f.notKept ? colors.border : colors.primary }]}>{f.notKept ? '–' : '✓'}</Text>
               </Pressable>
             ))}
             {!moreOpen && p.photos.length > THUMB_CAP ? (
               <Pressable testID={`wa-more-${p.id}`} accessibilityRole="button" accessibilityLabel={fill(W.morePhotos, { n: p.photos.length - THUMB_CAP })} onPress={() => onMore(p.id)} style={[styles.thumb, styles.moreChip, { borderColor: colors.border, backgroundColor: colors.card }]}>
-                <Text style={{ color: colors.text, fontWeight: '700' }}>+{p.photos.length - THUMB_CAP}</Text>
+                <Text weight="bold" style={{ color: colors.text }}>+{p.photos.length - THUMB_CAP}</Text>
               </Pressable>
             ) : null}
           </ScrollView>
@@ -915,7 +934,7 @@ const PostCard = memo(function PostCardView({ p, badge, open, moreOpen, locked, 
       {p.state === 'failed' && !p.note ? <Text style={{ color: colors.danger }}>{W.stateFailed}</Text> : null}
       <Button label={badge.kind === 'update' ? W.editUpdate : W.edit} variant="secondary" disabled={locked || badge.kind === 'taken'} onPress={() => onEdit(p.id)} />
       <Button testID={`wa-discard-${p.id}`} label={fill(W.discardPost, { c: label })} variant="secondary" size="sm" disabled={locked} onPress={() => onDiscard(p.id)} />
-    </View>
+    </Card>
   );
 }, (a, b) => {
   if (a.p !== b.p || a.open !== b.open || a.moreOpen !== b.moreOpen || a.locked !== b.locked) return false;
@@ -933,33 +952,36 @@ function BadgeLine({ W, badge, colors, willChange }: { W: ReturnType<typeof wi>;
     : badge.kind === 'dup' ? [`⚠️ ${fill(W.badgeDup, { n: badge.of })}`, colors.danger]
     : badge.kind === 'checking' ? [W.badgeChecking, colors.muted]
     : [W.badgeFailed, colors.muted];
-  return <Text testID={`wa-badge-${badge.kind}`} style={{ color, fontWeight: '600' }}>{text}</Text>;
+  return <Text testID={`wa-badge-${badge.kind}`} weight="bold" style={{ color }}>{text}</Text>;
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   center: { alignItems: 'center', justifyContent: 'center', padding: spacing.lg, gap: spacing.md },
   content: { padding: spacing.md, gap: spacing.md, paddingBottom: 220 },
-  h: { fontSize: 18, fontWeight: '700' },
+  tc: { textAlign: 'center' },
+  underline: { textDecorationLine: 'underline' },
+  iconRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  gap: { gap: spacing.sm },
+  sep: { height: spacing.md },
+  summary: { gap: spacing.xs + 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   flex: { flex: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, minHeight: 44, justifyContent: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  cell: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4, minWidth: 96 },
-  bar: { height: 12, borderRadius: 6, alignSelf: 'stretch', overflow: 'hidden' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs + 2 },
+  cell: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, minWidth: 96 },
+  bar: { height: 12, borderRadius: radius.sm, alignSelf: 'stretch', overflow: 'hidden' },
   barFill: { height: 12 },
-  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
+  card: { padding: spacing.md, gap: spacing.sm },
   hit: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  box: { width: 26, height: 26, borderWidth: 2, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  box: { width: 26, height: 26, borderWidth: 2, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   headerBox: { gap: spacing.md, marginBottom: spacing.md },
   moreChip: { borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   strip: { gap: spacing.sm, paddingVertical: spacing.sm },
-  photos: { gap: 4 },
-  small: { fontSize: 12 },
-  bold: { fontWeight: '700' },
-  thumb: { width: 76, height: 76, borderRadius: 10 },
+  photos: { gap: spacing.xs },
+  thumb: { width: 76, height: 76, borderRadius: radius.md },
   dim: { opacity: 0.4 },
-  tick: { position: 'absolute', top: 4, end: 4, fontSize: 12, paddingHorizontal: 5, borderRadius: 8, overflow: 'hidden' },
+  tick: { position: 'absolute', top: 4, end: 4, paddingHorizontal: 5, borderRadius: 8, overflow: 'hidden' },
   bottom: { position: 'absolute', start: 0, end: 0, bottom: 0, padding: spacing.md, gap: spacing.sm, borderTopWidth: 1 },
 });

@@ -10,7 +10,8 @@ import { PlanBlockedGate } from '../src/components/PlanBlockedGate';
 import { api } from '../src/api';
 import { useAuth } from '../src/auth';
 import { usePlanLock } from '../src/planLock';
-import { bannerText, planPhase, priceRows, unitWarnPct } from '../src/planState';
+import { bannerText, planPhase, preEndStatus, priceRows, unitWarnPct } from '../src/planState';
+import { formatDaysArabic, preEndText, unitCapText } from '../src/planText';
 import { errorText } from '../src/errors';
 
 jest.mock('../src/api', () => ({ api: { usage: jest.fn(), me: jest.fn(), plan: jest.fn() } }));
@@ -49,6 +50,10 @@ describe('plan state rules', () => {
   });
   test('banner text is bilingual and a broker is only told to ask the manager', () => {
     expect(bannerText('ar', 'grace', 3, true)).toContain('فترة سماح');
+    expect(bannerText('ar', 'grace', 3, true)).toContain('فاضل 3 أيام');
+    expect(bannerText('ar', 'grace', 1, true)).toContain('فاضل يوم');
+    expect(bannerText('ar', 'grace', 2, true)).toContain('فاضل يومين');
+    expect(bannerText('ar', 'grace', 0, true)).toContain('النهارده آخر يوم');
     expect(bannerText('en', 'grace', 3, true)).toContain('3 days left');
     expect(bannerText('en', 'readonly', 7, true)).toContain('read-only');
     expect(bannerText('en', 'blocked', null, true)).toContain('stopped');
@@ -56,6 +61,39 @@ describe('plan state rules', () => {
     expect(bannerText('ar', 'readonly', 7, false)).toContain('اطلب من مديرك');
     expect(bannerText('en', 'readonly', 7, true)).not.toContain('Ask your manager');
     expect(bannerText('en', 'none', null, true)).toBeNull();
+  });
+  test('Arabic pluralization formatting for days left', () => {
+    expect(formatDaysArabic(0)).toBe('النهارده آخر يوم');
+    expect(formatDaysArabic(1)).toBe('فاضل يوم');
+    expect(formatDaysArabic(2)).toBe('فاضل يومين');
+    expect(formatDaysArabic(3)).toBe('فاضل 3 أيام');
+    expect(formatDaysArabic(10)).toBe('فاضل 10 أيام');
+    expect(formatDaysArabic(11)).toBe('فاضل 11 يوم');
+    expect(formatDaysArabic(30)).toBe('فاضل 30 يوم');
+  });
+  test('pre-expiration countdown detection and messages', () => {
+    const paidSoon = allowance({ source: 'paid', until: '2026-06-15T12:00:00Z' });
+    expect(preEndStatus(paidSoon, NOW)).toEqual({ source: 'paid', daysLeft: 5 });
+    expect(preEndText('ar', 'paid', 5)).toContain('فاضل 5 أيام على انتهاء باقتك');
+    expect(preEndText('ar', 'paid', 0)).toContain('النهارده آخر يوم في باقتك');
+    expect(preEndText('en', 'paid', 5)).toContain('5 days left on your plan');
+
+    const trialSoon = allowance({ source: 'trial', until: '2026-06-12T12:00:00Z' });
+    expect(preEndStatus(trialSoon, NOW)).toEqual({ source: 'trial', daysLeft: 2 });
+    expect(preEndText('ar', 'trial', 2)).toContain('فاضل يومين على انتهاء فترة التجربة');
+    expect(preEndText('ar', 'trial', 0)).toContain('النهارده آخر يوم في فترة التجربة');
+
+    // Not ending soon (> 7 days for paid, > 3 days for trial)
+    const paidFar = allowance({ source: 'paid', until: '2026-06-25T12:00:00Z' });
+    expect(preEndStatus(paidFar, NOW)).toBeNull();
+    const trialFar = allowance({ source: 'trial', until: '2026-06-20T12:00:00Z' });
+    expect(preEndStatus(trialFar, NOW)).toBeNull();
+  });
+  test('unit cap text warnings', () => {
+    expect(unitCapText('ar', 85)).toContain('استهلكت 85% من حد الوحدات');
+    expect(unitCapText('ar', 100)).toContain('وصلت للحد الأقصى للوحدات (100%)');
+    expect(unitCapText('en', 90)).toContain('You reached 90% of your unit limit');
+    expect(unitCapText('en', 100)).toContain('You reached 100% of your unit limit');
   });
   test('unit warning from 85 percent, never for unlimited', () => {
     expect(unitWarnPct({ used: 84, limit: 100 })).toBeNull();
@@ -180,13 +218,13 @@ describe('plan and usage screen', () => {
     expect(screen.getByText(/no VAT/)).toBeTruthy();
     expect(screen.getByText(/InstaPay or bank transfer only/)).toBeTruthy();
   });
-  test('trial copy says 1 user, 50 units, 80 credits and never mentions a free plan', async () => {
+  test.each([['trial', 'Trial', 1, 80], ['trial_team', 'Team Trial', 5, 200]])('%s shows the server plan limits', async (id, name, seats, credits) => {
     asMember(true);
-    const trial = allowance({ source: 'trial', plan: { ...plan, id: 'trial', name: ['تجربة', 'Trial'], priceEgp: 0, units: 50, credits: 80, prices: {} }, units: { used: 3, limit: 50 }, credits: { used: 0, limit: 80, plan: 80, bundles: 0, grants: 0 } });
+    const trial = allowance({ source: 'trial', plan: { ...plan, id, name: ['تجربة', name], priceEgp: 0, seats, units: 50, credits, prices: {} }, units: { used: 3, limit: 50 }, credits: { used: 0, limit: 80, plan: 80, bundles: 0, grants: 0 } });
     m.usage.mockResolvedValue({ allowance: trial });
     m.plan.mockResolvedValue(planReply(trial));
     await wrap(<UsageScreen />);
-    await waitFor(() => expect(screen.getByTestId('plan-trial-copy')).toHaveTextContent(/1 user, 50 units and 80 AI credits/));
+    await waitFor(() => expect(screen.getByTestId('plan-trial-copy')).toHaveTextContent(`${seats} ${seats === 1 ? 'user' : 'users'}, 50 units and ${credits} AI credits`));
     expect(screen.queryByTestId('plan-prices')).toBeNull();
     expect(screen.queryByText(/free plan/i)).toBeNull();
   });

@@ -7,12 +7,12 @@ const LIMIT = 500 * 1024;
 const QUALITIES = [82, 70, 60, 50, 40];
 const done = new Set<string>();
 
-export async function compressPhoto(f: UploadFile): Promise<UploadFile> {
+export async function compressPhoto(f: UploadFile, side = SIDE): Promise<UploadFile> {
   if (done.has(f.uri) || /^https?:/i.test(f.uri)) return f;
   try {
-    let out = await ImageResizer.createResizedImage(f.uri, SIDE, SIDE, 'JPEG', QUALITIES[0], 0, undefined, false, { mode: 'contain', onlyScaleDown: true });
+    let out = await ImageResizer.createResizedImage(f.uri, side, side, 'JPEG', QUALITIES[0], 0, undefined, false, { mode: 'contain', onlyScaleDown: true });
     for (let i = 1; out.size > LIMIT && i < QUALITIES.length; i++) {
-      out = await ImageResizer.createResizedImage(f.uri, SIDE, SIDE, 'JPEG', QUALITIES[i], 0, undefined, false, { mode: 'contain', onlyScaleDown: true });
+      out = await ImageResizer.createResizedImage(f.uri, side, side, 'JPEG', QUALITIES[i], 0, undefined, false, { mode: 'contain', onlyScaleDown: true });
     }
     done.add(out.uri);
     return { uri: out.uri, name: f.name.replace(/\.[^.]+$/, '') + '.jpg', type: 'image/jpeg' };
@@ -22,8 +22,8 @@ export async function compressPhoto(f: UploadFile): Promise<UploadFile> {
 }
 
 export const compressPhotos = (files: UploadFile[], onEach?: (done: number, total: number) => void) => {
-  let done = 0;
-  return Promise.all(files.map(async (f) => { const r = await compressPhoto(f); onEach?.(++done, files.length); return r; }));
+  let finished = 0;
+  return Promise.all(files.map(async (f) => { const r = await compressPhoto(f); onEach?.(++finished, files.length); return r; }));
 };
 
 /**
@@ -39,6 +39,6 @@ export function compressAhead(files: UploadFile[], cap = 2): Promise<UploadFile>
       slots[i].settle(await compressPhoto(files[i]));
     }
   };
-  for (let w = 0; w < Math.min(cap, files.length); w++) void worker();
+  for (let w = 0; w < Math.min(cap, files.length); w++) worker();
   return slots.map((s) => s.promise);
 }

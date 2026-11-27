@@ -10,6 +10,7 @@ jest.mock('../src/api', () => ({ api: { unitEditFields: jest.fn(), saveUnitEdit:
 const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
 let mockParams: object | undefined = { edit: 'A-1' };
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate, replace: jest.fn() }), useRoute: () => ({ params: mockParams }) }));
 jest.mock('../src/voice', () => ({ ensureMic: jest.fn(), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
 const m = api as unknown as Record<string, jest.Mock>;
@@ -30,6 +31,7 @@ test('edit mode loads the unit, saves with its version and goes back', async () 
   await waitFor(() => expect(screen.getByText(/Mivida/)).toBeTruthy());
   expect(screen.getByTestId('add-photos')).toBeTruthy();
   await fireEvent.changeText(screen.getByTestId('f-price_value'), '8500000');
+  await waitFor(() => expect(screen.getByTestId('save-unit')).toBeEnabled());
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(m.saveUnitEdit).toHaveBeenCalledWith('A-1', 4, expect.objectContaining({ price_value: '8500000' }), expect.any(String)));
   await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
@@ -51,6 +53,7 @@ test('a stale version says the unit changed elsewhere', async () => {
   m.saveUnitEdit.mockRejectedValue(new ApiClientError(409, 'conflict'));
   await render(<QueryClientProvider client={client()}><AddUnitScreen /></QueryClientProvider>);
   await waitFor(() => expect(screen.getByText(/Mivida/)).toBeTruthy());
+  await waitFor(() => expect(screen.getByTestId('save-unit')).toBeEnabled());
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(screen.getByTestId('unit-error')).toBeTruthy());
   expect(mockGoBack).not.toHaveBeenCalled();

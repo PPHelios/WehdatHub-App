@@ -7,6 +7,7 @@ import { openChat, readChat } from '../src/zipImport';
 import { lacksDealType, lacksOwnerPhone, missingOf, withDealType, withOwnerPhone } from '../src/whatsappImport';
 import type { ImportPost } from '../src/whatsappImport';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({ api: { chatPlan: jest.fn(), chatDecisions: jest.fn(), saveChatDecisions: jest.fn(), forgetChatDecisions: jest.fn(), codeCheck: jest.fn(), chatRead: jest.fn(), extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn() } }));
 jest.mock('../src/zipImport', () => {
   class ZipImportError extends Error { reason: string; constructor(reason: string) { super(reason); this.reason = reason; } }
@@ -15,6 +16,7 @@ jest.mock('../src/zipImport', () => {
 jest.mock('../src/usage', () => ({ usage: jest.fn() }));
 jest.mock('../src/errorReport', () => ({ reportError: jest.fn() }));
 jest.mock('../src/photoUpload', () => ({ uploadPhoto: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../src/planState', () => ({ ...jest.requireActual('../src/planState'), usePlanState: () => ({ phase: 'none', daysLeft: 30, manager: true, allowance: undefined }) }));
 jest.mock('../src/rights', () => ({ useRights: () => ({ manager: true, agencyOwner: false, dataEntry: false, addUnits: true }) }));
 jest.mock('../src/components/SmartImage', () => ({ SmartImage: () => null }));
 jest.mock('@react-navigation/native', () => ({

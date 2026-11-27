@@ -10,7 +10,8 @@ import { currentLang } from '../auth';
 import { Button } from './Button';
 import { errorText } from '../errors';
 import { t } from '../i18n';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 /** Pick a team member and hand every selected lead to them, one by one (each carries its own version). */
 export function BulkAssign({ leads, onDone, onCancel }: { leads: ApiLead[]; onDone: () => void; onCancel: () => void }) {
@@ -43,11 +44,11 @@ export function BulkAssign({ leads, onDone, onCancel }: { leads: ApiLead[]; onDo
       <View style={styles.back}>
         <View style={[styles.box, { backgroundColor: colors.card }]}>
           <Text style={[styles.title, { color: colors.text }]}>{t(lang, 'assignTo')} ({leads.length})</Text>
-          {team.isPending ? <ActivityIndicator color={colors.primary} /> : null}
+          {team.isPending ? <ActivityIndicator color={colors.spinner} /> : null}
           <ScrollView style={styles.list}>
             {(team.data?.items ?? []).map((m) => (
               <Pressable key={m.id} testID={`assign-${m.id}`} accessibilityRole="button" disabled={busy || m.away} onPress={() => run(m.id)} style={[styles.row, { borderColor: colors.border, opacity: m.away ? 0.5 : 1 }]}>
-                <Text style={{ color: colors.text, fontWeight: '600' }}>{m.name}{m.me ? ` (${t(lang, 'me')})` : ''}</Text>
+                <Text style={[{ color: colors.text }, sx.fontWeight600]}>{m.name}{m.me ? ` (${t(lang, 'me')})` : ''}</Text>
                 <Text style={{ color: colors.muted }}>{m.away ? t(lang, 'awayShort') : `${m.open}`}</Text>
               </Pressable>
             ))}
@@ -61,9 +62,9 @@ export function BulkAssign({ leads, onDone, onCancel }: { leads: ApiLead[]; onDo
 }
 
 const styles = StyleSheet.create({
-  back: { flex: 1, backgroundColor: '#0008', justifyContent: 'center', padding: spacing.lg },
+  back: { flex: 1, backgroundColor: 'rgba(0,0,0,0.53)', justifyContent: 'center', padding: spacing.lg },
   box: { borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md, maxHeight: '80%' },
-  title: { fontSize: 18, fontWeight: '700' },
+  title: { fontSize: typeScale.heading.fontSize, fontWeight: '700' },
   list: { flexGrow: 0 },
   row: { flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, paddingVertical: spacing.md },
 });

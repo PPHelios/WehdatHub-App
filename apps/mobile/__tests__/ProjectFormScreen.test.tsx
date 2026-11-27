@@ -10,6 +10,7 @@ import { usePlaces } from '../src/placeList';
 jest.mock('../src/api', () => ({ api: { readProject: jest.fn(), saveProject: jest.fn(), projectPhotos: jest.fn(), project: jest.fn(), placeBox: jest.fn(), placeList: jest.fn().mockRejectedValue(new Error('offline')), developerSuggest: jest.fn(), catalogue: jest.fn() } }));
 const mockNav = { goBack: jest.fn(), navigate: jest.fn(), replace: jest.fn(), addListener: jest.fn(() => () => undefined), dispatch: jest.fn() };
 let mockParams: { id?: string } | undefined;
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => mockNav, useRoute: () => ({ params: mockParams }) }));
 const m = api as unknown as Record<string, jest.Mock>;
 

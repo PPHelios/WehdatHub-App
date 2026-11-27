@@ -1,6 +1,6 @@
 import { PermissionsAndroid, Platform } from 'react-native';
 import { getApps, initializeApp } from '@react-native-firebase/app';
-import { getCrashlytics, recordError, setCrashlyticsCollectionEnabled, setUserId } from '@react-native-firebase/crashlytics';
+import { getCrashlytics, recordError, setCrashlyticsCollectionEnabled } from '@react-native-firebase/crashlytics';
 import { getInitialNotification, getMessaging, getToken, onMessage, onNotificationOpenedApp, onTokenRefresh, requestPermission } from '@react-native-firebase/messaging';
 import type { AppConfig } from '@wehdathub/shared';
 import { api } from './api';
@@ -31,12 +31,14 @@ export async function startFirebase(cfg: AppConfig['firebase']): Promise<boolean
   }
 }
 
-/** Crash reports on, tagged with the broker's id only (never a name or a number). */
-export async function startCrashReports(brokerId: string) {
+let crashReportingStarted = false;
+
+export async function startCrashReports() {
+  if (crashReportingStarted) return;
+  crashReportingStarted = true;
   try {
     const c = getCrashlytics();
     await setCrashlyticsCollectionEnabled(c, true);
-    await setUserId(c, brokerId);
     const previous = (globalThis as { ErrorUtils?: { getGlobalHandler(): (e: Error, fatal?: boolean) => void; setGlobalHandler(h: (e: Error, fatal?: boolean) => void): void } }).ErrorUtils;
     if (previous) {
       const old = previous.getGlobalHandler();
@@ -50,7 +52,7 @@ export async function startCrashReports(brokerId: string) {
       });
     }
   } catch {
-    // Crash reports are optional.
+    crashReportingStarted = false;
   }
 }
 
@@ -64,7 +66,7 @@ async function allowed(): Promise<boolean> {
 }
 
 /** Asks for permission, saves this phone's token on the server, keeps it fresh and opens the screen an alert points to. */
-export async function startPush(open: (s: Screen) => void): Promise<() => void> {
+export async function startPush(open: (s: Screen) => void, received: (text: string, screen: Screen | null) => void | Promise<void>): Promise<() => void> {
   const stops: Array<() => void> = [];
   try {
     if (!(await allowed())) return () => undefined;
@@ -76,7 +78,10 @@ export async function startPush(open: (s: Screen) => void): Promise<() => void> 
     };
     await save(await getToken(m));
     stops.push(onTokenRefresh(m, (t) => { save(t).catch(() => undefined); }));
-    stops.push(onMessage(m, () => undefined));
+    stops.push(onMessage(m, (msg) => {
+      const text = [msg.notification?.title, msg.notification?.body].filter(Boolean).join(': ');
+      return received(text, screenFor(msg.data?.url));
+    }));
     stops.push(onNotificationOpenedApp(m, (msg) => { const s = screenFor(msg.data?.url); if (s) open(s); }));
     const first = await getInitialNotification(m);
     const s = screenFor(first?.data?.url);

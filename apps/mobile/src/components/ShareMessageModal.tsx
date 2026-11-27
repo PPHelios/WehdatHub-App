@@ -3,7 +3,7 @@ import { Modal, StyleSheet, View } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from './AppText';
 import type { Lang } from '@wehdathub/shared';
 import { api } from '../api';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
 import { KeyboardLift } from './KeyboardLift';
 import { Chips } from './Chips';
@@ -43,6 +43,6 @@ export function ShareMessageModal({ visible, code, startLang, lang, onSend, onCa
 const styles = StyleSheet.create({
   back: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing.lg },
   card: { borderRadius: radius.md, padding: spacing.lg, gap: spacing.sm },
-  h: { fontSize: 18, fontWeight: '700' },
-  box: { minHeight: 160, maxHeight: 320, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, fontSize: 15, textAlignVertical: 'top' },
+  h: { fontSize: typeScale.heading.fontSize, fontWeight: '700' },
+  box: { minHeight: 160, maxHeight: 320, borderWidth: 1, borderRadius: radius.md, padding: spacing.md, fontSize: typeScale.body.fontSize, textAlignVertical: 'top' },
 });

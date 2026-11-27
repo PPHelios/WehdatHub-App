@@ -24,9 +24,10 @@ import { EMPTY_SEARCH, STATUS_TEXT, deliveryOf, isFiltered, moneyShort, numberOf
 import type { CatalogueSearch } from '../projectRules';
 import { pt } from '../projectText';
 import { plain, withCommas } from '../readback';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 import { toast } from '../components/Toast';
+import { sx } from '../sharedStyles';
 
 const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 const num = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : Number(v).toLocaleString('en-US'));
@@ -68,8 +69,8 @@ export function ProjectsScreen() {
         onOpenProject={(id, name) => nav.navigate('Project', { id, name })}
       />
       <View style={styles.filters}>
-        <Text style={{ color: colors.muted, fontWeight: '600' }}>{T.bedrooms}</Text>
-        <Chips<string> testID="catalogue-bed" options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))} value={search.bed ? String(search.bed) : ''} onChange={(v) => setSearch({ ...search, bed: search.bed === Number(v) ? undefined : Number(v) })} />
+        <Text style={[{ color: colors.muted }, sx.fontWeight600]}>{T.bedrooms}</Text>
+        <Chips<string> animateFilter testID="catalogue-bed" options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))} value={search.bed ? String(search.bed) : ''} onChange={(v) => setSearch({ ...search, bed: search.bed === Number(v) ? undefined : Number(v) })} />
         <Field testID="catalogue-max" label={T.priceUpTo} value={withCommas(search.max ?? '')} onChangeText={(v) => setSearch({ ...search, max: plain(v) })} keyboardType="number-pad" placeholder="5,000,000" />
         {filtered ? <Button testID="catalogue-clear" variant="secondary" label={T.clear} onPress={() => setSearch(EMPTY_SEARCH)} /> : null}
       </View>
@@ -92,7 +93,7 @@ export function ProjectsScreen() {
 
 const Fact = ({ label, value }: { label: string; value: string | null }) => {
   const { colors } = useTheme();
-  return value ? <View style={styles.fact}><Text style={{ color: colors.muted }}>{label}</Text><Text style={{ color: colors.text, fontWeight: '700', flexShrink: 1, textAlign: 'right' }}>{value}</Text></View> : null;
+  return value ? <View style={styles.fact}><Text style={{ color: colors.muted }}>{label}</Text><Text style={[{ color: colors.text }, sx.fontWeight700_flexShrink1_textAlignRight]}>{value}</Text></View> : null;
 };
 
 /** One project: a photo carousel, its facts, offers, plans, files and units. Managers can edit and archive it. */
@@ -122,10 +123,10 @@ export function ProjectScreen() {
         return (
           <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad}>
             {photos.length ? <PhotoGallery photos={photos} closeLabel={t(lang, 'closePanel')} /> : <Text testID="project-no-photos" style={{ color: colors.muted }}>{T.noPhotos}</Text>}
-            {d.canEdit ? <ProjectGallery projectId={id} images={d.images ?? []} lang={lang} onChanged={() => { void qc.invalidateQueries({ queryKey: ['project', id] }); }} /> : null}
+            {d.canEdit ? <ProjectGallery projectId={id} images={d.images ?? []} lang={lang} onChanged={() => { qc.invalidateQueries({ queryKey: ['project', id] }); }} /> : null}
             <Card>
               <Text style={[styles.h, { color: colors.text }]}>{lang === 'en' ? str(p.name_en) || str(p.name) : str(p.name)}</Text>
-              {p.status ? <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{STATUS_TEXT[str(p.status)]?.[lang] ?? str(p.status)}</Text> : null}
+              {p.status ? <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{STATUS_TEXT[str(p.status)]?.[lang] ?? str(p.status)}</Text> : null}
               <Fact label={T.developer} value={d.developer ? str(d.developer.name) : null} />
               <Fact label={T.place} value={str(p.district) || null} />
               <Fact label={T.governorate} value={str(p.city) || null} />
@@ -168,7 +169,7 @@ const styles = StyleSheet.create({
   gap: { gap: spacing.md },
   filters: { gap: spacing.sm },
   card: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
-  h: { fontSize: 17, fontWeight: '800' },
+  h: { fontSize: typeScale.heading.fontSize, fontWeight: '800' },
   fact: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, minHeight: 28, alignItems: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: 6 },

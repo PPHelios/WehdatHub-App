@@ -10,8 +10,12 @@ import { Field } from '../components/Field';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
 import { toastError } from '../components/Toast';
+import { sx } from '../sharedStyles';
 
 const day = (plus: number) => new Date(Date.now() + plus * 86400000).toISOString().slice(0, 10);
 
@@ -20,6 +24,7 @@ export function LeadRulesScreen() {
   const { colors, elev } = useTheme();
   const lang = currentLang();
   const qc = useQueryClient();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const q = useQuery({ queryKey: ['team-rules'], queryFn: () => api.teamRules() });
   const [on, setOn] = useState(false);
   const [wait, setWait] = useState('30');
@@ -62,10 +67,10 @@ export function LeadRulesScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'rrTitle')}</Text>
-      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'rrOn')}</Text><BusySwitch testID="rr-switch" value={rr} onValueChange={setRr} /></View>
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'ruleTitle')}</Text>
-      <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'ruleOn')}</Text><BusySwitch testID="rule-switch" value={on} onValueChange={setOn} /></View>
+      <Text variant="heading" weight="bold" style={[styles.h, { color: colors.text }]}>{t(lang, 'rrTitle')}</Text>
+      <View style={styles.row}><Text style={[{ color: colors.text }, sx.flex1]}>{t(lang, 'rrOn')}</Text><BusySwitch testID="rr-switch" value={rr} onValueChange={setRr} /></View>
+      <Text variant="heading" weight="bold" style={[styles.h, { color: colors.text }]}>{t(lang, 'ruleTitle')}</Text>
+      <View style={styles.row}><Text style={[{ color: colors.text }, sx.flex1]}>{t(lang, 'ruleOn')}</Text><BusySwitch testID="rule-switch" value={on} onValueChange={setOn} /></View>
       <Field label={t(lang, 'ruleWait')} value={wait} onChangeText={setWait} keyboardType="number-pad" testID="rule-wait" />
       <View style={styles.row}>
         <View style={styles.flex}><Field label={t(lang, 'ruleFrom')} value={start} onChangeText={setStart} keyboardType="number-pad" /></View>
@@ -73,15 +78,15 @@ export function LeadRulesScreen() {
       </View>
       {msg ? <Text testID="rules-message" style={{ color: colors.accentInk }}>{msg}</Text> : null}
       <Button testID="rules-save" label={t(lang, 'save')} onPress={save} />
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'awayTitle')}</Text>
-      {d.brokers.length ? null : <EmptyView title={t(lang, 'noTeam')} hint="" />}
+      <Text variant="heading" weight="bold" style={[styles.h, { color: colors.text }]}>{t(lang, 'awayTitle')}</Text>
+      {d.brokers.length ? null : <EmptyView title={t(lang, 'noTeam')} icon="team" actionLabel={t(lang, 'invite')} onAction={() => nav.navigate('Invite')} />}
       {d.brokers.map((b) => (
         <View key={b.id} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={{ color: colors.text, fontWeight: '700', flex: 1 }}>{b.name} · {b.open}</Text>
+          <Text style={[{ color: colors.text }, sx.fontWeight700_flex1]}>{b.name} · {b.open}</Text>
           {b.away ? (
-            <Pressable testID={`back-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, null)}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{t(lang, 'awayBack')}</Text></Pressable>
+            <Pressable testID={`back-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, null)}><Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{t(lang, 'awayBack')}</Text></Pressable>
           ) : (
-            <Pressable testID={`away-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, day(8))}><Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{t(lang, 'awayWeek')}</Text></Pressable>
+            <Pressable testID={`away-${b.id}`} accessibilityRole="button" onPress={() => away(b.id, day(8))}><Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{t(lang, 'awayWeek')}</Text></Pressable>
           )}
         </View>
       ))}
@@ -91,7 +96,7 @@ export function LeadRulesScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.md },
-  h: { fontSize: 18, fontWeight: '700', marginTop: spacing.md },
+  h: { marginTop: spacing.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   flex: { flex: 1 },
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.card, borderWidth: 1 },

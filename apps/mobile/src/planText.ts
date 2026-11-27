@@ -14,7 +14,6 @@ const P = {
     bodyBlocked: 'الحساب متوقف لحد التجديد. بياناتك محفوظة.',
     openPlan: 'افتح صفحة الباقة',
     ok: 'تمام',
-    trial: 'فترة التجربة 14 يوم: مستخدم واحد، 50 وحدة، و80 رصيد ذكاء اصطناعي.',
     perMonth: '≈ {n} جنيه / شهر',
     months: '{n} شهر',
     month1: 'شهر',
@@ -47,7 +46,6 @@ const P = {
     bodyBlocked: 'The account is stopped until it is renewed. Your data is safe.',
     openPlan: 'Open the Plan page',
     ok: 'OK',
-    trial: 'The trial lasts 14 days: 1 user, 50 units and 80 AI credits.',
     perMonth: '≈ {n} EGP / month',
     months: '{n} months',
     month1: 'month',
@@ -71,8 +69,69 @@ const P = {
 } as const;
 
 export type PlanTextKey = keyof (typeof P)['ar'];
+
+/** Formats days remaining according to Arabic plural rules and English rules. */
+export function formatDaysArabic(n: number): string {
+  if (n <= 0) return 'النهارده آخر يوم';
+  if (n === 1) return 'فاضل يوم';
+  if (n === 2) return 'فاضل يومين';
+  if (n >= 3 && n <= 10) return `فاضل ${n} أيام`;
+  return `فاضل ${n.toLocaleString('en-US')} يوم`;
+}
+
+export function formatDaysLeft(lang: Lang, n: number): string {
+  if (lang === 'ar') return formatDaysArabic(n);
+  if (n <= 0) return 'today is the last day';
+  if (n === 1) return '1 day left';
+  return `${n} days left`;
+}
+
+export function preEndText(lang: Lang, source: 'paid' | 'trial', daysLeft: number): string {
+  if (lang === 'ar') {
+    if (source === 'trial') {
+      if (daysLeft <= 0) return 'النهارده آخر يوم في فترة التجربة. اختار باقة عشان تكمل شغل.';
+      return `${formatDaysArabic(daysLeft)} على انتهاء فترة التجربة. اختار باقة عشان تكمل شغل.`;
+    }
+    if (daysLeft <= 0) return 'النهارده آخر يوم في باقتك. جدّد قبل ما تنتهي.';
+    return `${formatDaysArabic(daysLeft)} على انتهاء باقتك. جدّد دلوقتي عشان مفيش حاجة تقف.`;
+  }
+  if (source === 'trial') {
+    if (daysLeft <= 0) return 'Today is the last day of your trial. Choose a plan to keep working.';
+    return `${formatDaysLeft('en', daysLeft)} on your trial. Choose a plan to keep working.`;
+  }
+  if (daysLeft <= 0) return 'Today is the last day of your plan. Renew before it expires.';
+  return `${formatDaysLeft('en', daysLeft)} on your plan. Renew now to avoid interruption.`;
+}
+
+export function unitCapText(lang: Lang, pct: number): string {
+  if (lang === 'ar') {
+    if (pct >= 100) return 'وصلت للحد الأقصى للوحدات (100%). مينفعش تضيف وحدات جديدة لحد ما ترقّي الباقة.';
+    return `استهلكت ${pct}% من حد الوحدات. قربت توصل للحد الأقصى، رقّي باقتك قبل ما توصل للحد.`;
+  }
+  if (pct >= 100) return 'You reached 100% of your unit limit. You cannot add new units until you upgrade.';
+  return `You reached ${pct}% of your unit limit. Upgrade your plan before you hit the limit.`;
+}
+
 /** A plan string; `{n}` is replaced by `n` when given. */
 export const planT = (lang: Lang, key: PlanTextKey, n?: number | string): string => {
+  if (typeof n === 'number') {
+    if (key === 'bannerGrace') {
+      if (lang === 'ar') {
+        const d = n <= 0 ? 'النهارده آخر يوم' : formatDaysArabic(n);
+        return `باقتك خلصت وإنت في فترة سماح: ${d} وكل حاجة شغالة.`;
+      }
+      const d = n <= 0 ? 'today is the last day' : n === 1 ? '1 day left' : `${n} days left`;
+      return `Your plan ended and you are in a grace period: ${d} and everything still works.`;
+    }
+    if (key === 'bannerReadonly') {
+      if (lang === 'ar') {
+        const d = n <= 0 ? 'النهارده آخر يوم' : formatDaysArabic(n);
+        return `الحساب للقراءة بس: تشوف وتبحث، لكن مينفعش تضيف أو تعدّل أو تستخدم الذكاء الاصطناعي. ${d} قبل ما يتوقف.`;
+      }
+      const d = n <= 0 ? 'Today is the last day' : n === 1 ? '1 day left' : `${n} days left`;
+      return `The account is read-only: you can view and search, but not add, edit or use AI. ${d} before it stops.`;
+    }
+  }
   const s: string = P[lang][key];
   return n === undefined ? s : s.replace('{n}', typeof n === 'number' ? n.toLocaleString('en-US') : n);
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
+import { Chevron } from './Icon';
 import { BusySwitch } from './BusySwitch';
 import type { Lang, UnitFields } from '@wehdathub/shared';
 import { ux } from '../unitExtraText';
@@ -9,8 +10,9 @@ import { phoneHelp, readArea, readPhone, readPrice, readSum, plain, withCommas }
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { sizeShows } from '../unitRules';
 import { api } from '../api';
-import { spacing, useTheme } from '../theme';
+import { greenGradient, spacing, typeScale, useTheme } from '../theme';
 import { Chips } from './Chips';
+import { sx } from '../sharedStyles';
 
 // The four sections of the add/edit unit form (docs/plans/unified-unit-box.md, section 5). The place box is in the first one.
 
@@ -30,13 +32,13 @@ const FREQUENCIES = [
 ];
 
 /** A section's number, title and one-line hint. */
-export function SectionHead({ n, title, hint }: { n: number; title: string; hint?: string }) {
+export function SectionHead({ n, title, hint }: { n?: number; title: string; hint?: string }) {
   const { colors } = useTheme();
   return (
     <View style={styles.head}>
       <View style={styles.headRow}>
-        <View style={[styles.num, { backgroundColor: colors.primary }]}><Text style={{ color: colors.onPrimary, fontWeight: '800' }}>{n}</Text></View>
-        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+        {n !== undefined ? <View style={[styles.num, greenGradient]}><Text style={[{ color: colors.onPrimary }, sx.fontWeight800]}>{n}</Text></View> : null}
+        <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{title}</Text>
       </View>
       {hint ? <Text style={{ color: colors.muted }}>{hint}</Text> : null}
     </View>
@@ -49,7 +51,7 @@ export function SwitchRow({ label, value, onChange, testID }: { label: string; v
   return (
     <View style={styles.switchRow}>
       <Text style={[styles.flex, { color: colors.text }]}>{label}</Text>
-      <BusySwitch testID={testID} value={value} onValueChange={onChange} />
+      <BusySwitch testID={testID} value={value} onValueChange={onChange} trackColor={{ true: colors.primary, false: colors.border }} />
     </View>
   );
 }
@@ -131,7 +133,7 @@ export function DeliverySection({ fields, set, field, lang }: SectionProps) {
           </View>
           {PLAN_ROWS.map((i) => (
             <View key={i} style={styles.plan}>
-              <Text style={{ color: colors.muted, fontWeight: '700' }}>{lang === 'en' ? `Plan ${i}` : `نظام ${i}`}</Text>
+              <Text style={[{ color: colors.muted }, sx.fontWeight700]}>{lang === 'en' ? `Plan ${i}` : `نظام ${i}`}</Text>
               <View style={styles.row}>
                 <View style={styles.flex}>{field(`plan_down_${i}`, lang === 'en' ? 'Down %' : 'مقدم %', { keyboardType: 'decimal-pad' })}</View>
                 <View style={styles.flex}>{field(`plan_years_${i}`, lang === 'en' ? 'Years' : 'سنين', { keyboardType: 'decimal-pad' })}</View>
@@ -192,8 +194,9 @@ export function OwnerSection({ fields, set, field, lang, expanded, onDescribeAga
       {field('owner_phone', lang === 'en' ? 'Owner phone' : 'تليفون المالك', { keyboardType: 'phone-pad', hint: [readPhone(str(fields.owner_phone)) || phoneHelp(lang), found].filter(Boolean).join('  ') })}
       <SwitchRow label={lang === 'en' ? 'No name: use the phone as the name' : 'مفيش اسم: استخدم التليفون كاسم'} value={fields.owner_name_from_phone === '1'} onChange={(v) => set('owner_name_from_phone', v ? '1' : '')} testID="f-owner_name_from_phone" />
       {field('owner_lead', x.ownerLead, { autoCapitalize: 'characters', autoCorrect: false, placeholder: 'L-0042' })}
-      <Pressable accessibilityRole="button" testID="more-details" onPress={() => setMore((m) => !m)} style={styles.more}>
-        <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{more ? '▾' : '▸'} {L.moreDetails}</Text>
+      <Pressable accessibilityRole="button" testID="more-details" accessibilityState={{ expanded: more }} onPress={() => setMore((m) => !m)} style={[styles.more, styles.moreDisclosure]}>
+        <Chevron rtl={lang === 'ar'} color={colors.primaryInk} expanded={more} />
+        <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{L.moreDetails}</Text>
       </Pressable>
       {more ? (
         <View style={styles.stack}>
@@ -208,7 +211,7 @@ export function OwnerSection({ fields, set, field, lang, expanded, onDescribeAga
       {/* Written from the unit's fields until the broker types in it; "write it again" takes the draft back. */}
       {field('clean_summary', L.description, { multiline: true, testID: 'clean-summary' })}
       <Pressable accessibilityRole="button" testID="describe-again" onPress={onDescribeAgain} style={styles.more}>
-        <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{L.describeAgain}</Text>
+        <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{L.describeAgain}</Text>
       </Pressable>
     </View>
   );
@@ -222,11 +225,12 @@ const styles = StyleSheet.create({
   head: { gap: spacing.xs, marginTop: spacing.md },
   headRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   num: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 18, fontWeight: '700' },
-  label: { fontSize: 15, fontWeight: '700' },
+  title: { fontSize: typeScale.heading.fontSize, fontWeight: '700' },
+  label: { fontSize: typeScale.body.fontSize, fontWeight: '700' },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   plan: { gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.sm },
+  moreDisclosure: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   more: { minHeight: 44, justifyContent: 'center' },
 });

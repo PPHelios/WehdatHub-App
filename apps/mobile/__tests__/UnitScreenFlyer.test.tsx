@@ -32,7 +32,9 @@ test.each([['flyer', 'dark', false], ['flyer-light', 'light', false], ['flyer-no
   let done: (v: { url: string }) => void = () => undefined;
   mocked.unitFlyer.mockReturnValue(new Promise((r) => { done = r; }));
   await wrap();
-  await waitFor(() => expect(screen.getByTestId(id)).toBeTruthy());
+  await waitFor(() => expect(screen.getByTestId('unit-flyers')).toBeTruthy());
+  expect(screen.queryByTestId(id)).toBeNull();
+  await fireEvent.press(screen.getByTestId('unit-flyers'));
   const first = fireEvent.press(screen.getByTestId(id)); // settles when the flyer is made
   await waitFor(() => expect(screen.getAllByTestId('button-spinner')).toHaveLength(1));
   expect(mocked.unitFlyer).toHaveBeenCalledWith('A-1', theme, nobrand, expect.anything());
@@ -48,7 +50,8 @@ test('Send the flyer opens the share sheet with the flyer picture (WhatsApp gets
   mocked.unitFlyer.mockResolvedValue({ url: 'https://x/f.png' });
   asGlobal.fetch = jest.fn().mockResolvedValue({ headers: { get: () => 'image/png; charset=binary' }, blob: async () => ({ type: '' }) });
   await wrap();
-  await waitFor(() => expect(screen.getByTestId('flyer')).toBeTruthy());
+  await waitFor(() => expect(screen.getByTestId('unit-flyers')).toBeTruthy());
+  await fireEvent.press(screen.getByTestId('unit-flyers'));
   await act(async () => { fireEvent.press(screen.getByTestId('flyer')); });
   await waitFor(() => expect(screen.getByTestId('flyer-share')).toBeTruthy());
   await act(async () => { fireEvent.press(screen.getByTestId('flyer-share')); });

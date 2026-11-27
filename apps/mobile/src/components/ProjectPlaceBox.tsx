@@ -8,9 +8,10 @@ import type { ProjectFields } from '../projectRules';
 import { fill, pt } from '../projectText';
 import { syncPlaces } from '../placeList';
 import { useBoxItems } from '../useBoxItems';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { Field } from './Field';
 import { featureKeys, otherFeatures } from '../unitBoxRules';
+import { sx } from '../sharedStyles';
 
 const OTHER_MAX = 20;
 const OTHER_LEN = 60;
@@ -73,51 +74,51 @@ export function ProjectPlaceBox({ fields, patch, lang, invalid = false }: { fiel
       <View style={styles.chips}>
         {label ? (
           <Pressable testID="pbox-place" accessibilityRole="button" accessibilityLabel={fill(T.removeChip, { s: label })} onPress={clearPlace} style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary }]}>
-            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{pending ? `${label} · ${T.devNew}` : label}  ×</Text>
+            <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{pending ? `${label} · ${T.devNew}` : label}  ×</Text>
           </Pressable>
         ) : null}
         {chosen.map((k) => (
           <Pressable key={k} testID={`pbox-feature-${k}`} accessibilityRole="button" onPress={() => patch({ feature: chosen.filter((c) => c !== k) })} style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary }]}>
-            <Text style={{ color: colors.primaryInk, fontWeight: '600' }}>{featureChip(k, lang).label}  ×</Text>
+            <Text style={[{ color: colors.primaryInk }, sx.fontWeight600]}>{featureChip(k, lang).label}  ×</Text>
           </Pressable>
         ))}
         {others.map((o) => (
           <Pressable key={o} testID={`pbox-other-${o}`} accessibilityRole="button" onPress={() => patch({ features_other: others.filter((x) => x !== o).join('، ') })} style={[styles.chip, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-            <Text style={{ color: colors.muted, fontWeight: '600' }}>{o} · {T.notInList}  ×</Text>
+            <Text style={[{ color: colors.muted }, sx.fontWeight600]}>{o} · {T.notInList}  ×</Text>
           </Pressable>
         ))}
       </View>
       {label ? (
         <View testID="pbox-context">
-          {str(fields.place_path) ? <Text style={{ color: colors.muted, fontSize: 13 }}>{T.parents}: {str(fields.place_path)}</Text> : null}
-          {str(fields.place_governorate) ? <Text style={{ color: colors.muted, fontSize: 13 }}>{T.governorateIs}: {str(fields.place_governorate)}</Text> : null}
-          {pending ? <Text testID="pbox-pending" style={{ color: colors.accent, fontSize: 13 }}>{T.pendingNote}</Text> : null}
+          {str(fields.place_path) ? <Text variant="bodySm" style={{ color: colors.muted }}>{T.parents}: {str(fields.place_path)}</Text> : null}
+          {str(fields.place_governorate) ? <Text variant="bodySm" style={{ color: colors.muted }}>{T.governorateIs}: {str(fields.place_governorate)}</Text> : null}
+          {pending ? <Text testID="pbox-pending" variant="bodySm" style={{ color: colors.accent }}>{T.pendingNote}</Text> : null}
         </View>
       ) : null}
-      {note ? <Text style={{ color: colors.accent, fontSize: 13 }}>{note}</Text> : null}
-      {invalid && !label ? <Text style={{ color: colors.danger, fontSize: 13 }}>{T.areaNone}</Text> : null}
-      <Text style={{ color: colors.muted, fontSize: 13 }}>{T.areaHelp}</Text>
+      {note ? <Text variant="bodySm" style={{ color: colors.accent }}>{note}</Text> : null}
+      {invalid && !label ? <Text variant="bodySm" style={{ color: colors.danger }}>{T.areaNone}</Text> : null}
+      <Text variant="bodySm" style={{ color: colors.muted }}>{T.areaHelp}</Text>
 
       {typed.length >= 2 ? (
         <View testID="pbox-list" style={[styles.list, { borderColor: colors.border, backgroundColor: colors.card }]}>
           {places.length ? <Text style={[styles.group, { color: colors.muted }]}>{T.searchPlaces}</Text> : null}
           {places.map((it) => (
             <Pressable key={`${it.kind}-${it.id}`} testID={`pbox-opt-${it.id}`} accessibilityRole="button" onPress={() => choose(it)} style={styles.opt}>
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>{nameOf(it)}</Text>
-              {it.path ? <Text style={{ color: colors.muted, fontSize: 13 }}>{it.path}</Text> : null}
+              <Text variant="body" weight="bold" style={{ color: colors.text }}>{nameOf(it)}</Text>
+              {it.path ? <Text variant="bodySm" style={{ color: colors.muted }}>{it.path}</Text> : null}
             </Pressable>
           ))}
           {features.length ? <Text style={[styles.group, { color: colors.muted }]}>{T.searchFeatures}</Text> : null}
           {features.map((it) => (
             <Pressable key={it.key} testID={`pbox-opt-${it.key}`} accessibilityRole="button" onPress={() => choose(it)} style={styles.opt}>
-              <Text style={{ color: colors.text, fontSize: 16 }}>{it.label}</Text>
+              <Text variant="body" style={{ color: colors.text }}>{it.label}</Text>
             </Pressable>
           ))}
           <Pressable testID="pbox-request" accessibilityRole="button" onPress={() => { setRequesting(true); patch({ compound: typed, compound_new: '1', place_label: typed }); setInput(''); }} style={styles.opt}>
-            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(T.requestSub, { s: typed })}</Text>
+            <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{fill(T.requestSub, { s: typed })}</Text>
           </Pressable>
           <Pressable testID="pbox-other" accessibilityRole="button" onPress={() => addOther(typed)} style={styles.opt}>
-            <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{fill(T.addOther, { s: typed })}</Text>
+            <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{fill(T.addOther, { s: typed })}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -144,16 +145,16 @@ function NewSubarea({ fields, patch, lang, onCancel, onDone }: { fields: Project
       <Field testID="pbox-new-ar" label={T.subAr} value={str(fields.compound_ar)} onChangeText={(v) => patch({ compound_ar: v })} />
       <Text style={[styles.label, { color: colors.text }]}>{T.subParent}</Text>
       {parent ? (
-        <Pressable testID="pbox-new-parent" accessibilityRole="button" onPress={() => setParent(null)} style={[styles.chip, { backgroundColor: colors.primarySoft, borderColor: colors.primary, alignSelf: 'flex-start' }]}>
-          <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{nameOf(parent)}  ×</Text>
+        <Pressable testID="pbox-new-parent" accessibilityRole="button" onPress={() => setParent(null)} style={[styles.chip, [{ backgroundColor: colors.primarySoft, borderColor: colors.primary }, sx.alignSelfFlexStart]]}>
+          <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{nameOf(parent)}  ×</Text>
         </Pressable>
       ) : (
         <>
           <TextInput testID="pbox-new-parent-input" value={parentQ} onChangeText={setParentQ} placeholder={T.subParentSearch} placeholderTextColor={colors.muted} autoCorrect={false} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} />
           {hits.map((a) => (
             <Pressable key={a.id} testID={`pbox-new-area-${a.id}`} accessibilityRole="button" onPress={() => { setParent(a); setParentQ(''); }} style={styles.opt}>
-              <Text style={{ color: colors.text, fontSize: 16 }}>{nameOf(a)}</Text>
-              {a.path ? <Text style={{ color: colors.muted, fontSize: 13 }}>{a.path}</Text> : null}
+              <Text variant="body" style={{ color: colors.text }}>{nameOf(a)}</Text>
+              {a.path ? <Text variant="bodySm" style={{ color: colors.muted }}>{a.path}</Text> : null}
             </Pressable>
           ))}
           {!hits.length && pq.length >= 2 ? <Text style={{ color: colors.muted }}>{T.subParentPick}</Text> : null}
@@ -161,10 +162,10 @@ function NewSubarea({ fields, patch, lang, onCancel, onDone }: { fields: Project
       )}
       <View style={styles.row}>
         <Pressable testID="pbox-new-save" accessibilityRole="button" accessibilityState={{ disabled: !ok }} disabled={!ok} onPress={() => { if (parent) { patch(newSubareaPatch(name, str(fields.compound_ar).trim(), parent)); onDone(); } }} style={[styles.btn, { backgroundColor: colors.primary, opacity: ok ? 1 : 0.4 }]}>
-          <Text style={{ color: colors.onPrimary, fontWeight: '700' }}>{T.subSave}</Text>
+          <Text style={[{ color: colors.onPrimary }, sx.fontWeight700]}>{T.subSave}</Text>
         </Pressable>
-        <Pressable testID="pbox-new-cancel" accessibilityRole="button" onPress={onCancel} style={[styles.btn, { borderWidth: 1, borderColor: colors.border }]}>
-          <Text style={{ color: colors.text, fontWeight: '600' }}>{T.cancel}</Text>
+        <Pressable testID="pbox-new-cancel" accessibilityRole="button" onPress={onCancel} style={[styles.btn, [{ borderColor: colors.border }, sx.borderWidth1]]}>
+          <Text style={[{ color: colors.text }, sx.fontWeight600]}>{T.cancel}</Text>
         </Pressable>
       </View>
     </View>
@@ -173,12 +174,12 @@ function NewSubarea({ fields, patch, lang, onCancel, onDone }: { fields: Project
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
-  label: { fontSize: 15, fontWeight: '700' },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  label: { fontSize: typeScale.body.fontSize, fontWeight: '700' },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, minHeight: 36, justifyContent: 'center' },
   list: { borderWidth: 1, borderRadius: radius.md, overflow: 'hidden' },
-  group: { fontSize: 12, fontWeight: '700', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  group: { fontSize: typeScale.caption.fontSize, fontWeight: '700', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   opt: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   newBox: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },

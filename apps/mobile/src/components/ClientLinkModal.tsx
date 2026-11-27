@@ -6,7 +6,7 @@ import { currentLang } from '../auth';
 import { filterContacts, loadContacts } from '../contacts';
 import type { PhoneContact } from '../contacts';
 import { t } from '../i18n';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
 import { KeyboardLift } from './KeyboardLift';
 import { Field } from './Field';
@@ -53,7 +53,7 @@ export function ClientLinkModal({ visible, busy, error, onSubmit, onCancel }: { 
           ) : null}
           {!listOpen && matches.map((c) => (
             <Pressable key={c.id} accessibilityRole="button" onPress={() => setText(c.phone)} style={[styles.match, { borderColor: colors.border }]}>
-              <Text style={{ color: colors.text }}>{c.name} · {c.phone}</Text>
+              <Text style={{ color: colors.text }}>{c.name} · {ltr(c.phone)}</Text>
             </Pressable>
           ))}
           {error ? <Text testID="client-error" style={{ color: colors.danger }}>{error}</Text> : null}
@@ -69,7 +69,7 @@ export function ClientLinkModal({ visible, busy, error, onSubmit, onCancel }: { 
 const styles = StyleSheet.create({
   back: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing.lg },
   card: { borderRadius: radius.md, padding: spacing.lg, gap: spacing.sm },
-  h: { fontSize: 18, fontWeight: '700' },
+  h: { fontSize: typeScale.heading.fontSize, fontWeight: '700' },
   match: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md },
   list: { maxHeight: 220 },
   denied: { gap: spacing.sm },

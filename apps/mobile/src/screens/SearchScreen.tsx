@@ -1,45 +1,107 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { timed } from '../usage';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { usage } from '../usage';
+import { track } from '../analytics';
+import { BackHandler, Keyboard, Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
-import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
-import { FlashList } from '@shopify/flash-list';
-import { useMutation } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import Animated, { FadeIn, FadeOut, ReduceMotion, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { ApiUnitListItem, SearchResult, UnitStatus, VoiceFile } from '@wehdathub/shared';
-import { api } from '../api';
-import { currentLang } from '../auth';
+import type { AssistantMode, LeadQueue } from '@wehdathub/shared';
+import { SearchCreditRings, useSearchCredits } from '../components/SearchCreditRings';
+import { currentLang, useAuth } from '../auth';
+import { Chip } from '../components/Chip';
+import { ComposerPopover } from '../components/ComposerPopover';
+import { Icon } from '../components/Icon';
+import { useKeyboardVisible } from '../components/KeyboardLift';
+import { readLeadCommand } from '../components/SearchLeadAction';
+import { useRightsState } from '../rights';
+import type { SearchIntent } from '../searchCapabilities';
+import { SearchPractice } from '../components/SearchPractice';
+import { SearchHome } from '../components/SearchHome';
+import { HomeRow } from '../components/HomeRow';
 import { Button } from '../components/Button';
-import { EmptyView, ErrorView, Loading } from '../components/StateViews';
-import { SaveSearchButton } from '../components/SaveSearchButton';
-import { UnitCard } from '../components/UnitCard';
-import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { radius, spacing, useTheme } from '../theme';
+import { Split, useWide } from '../layout';
+import { spacing, useTheme } from '../theme';
 import { VoiceBar } from '../components/VoiceBar';
+import { CoachMark } from '../components/CoachMark';
+import { FullResults } from '../assistant/FullResults';
+import { ReportView, type LeadFilters, type ReportKind } from '../assistant/ReportView';
+import { ThreadView } from '../assistant/ThreadView';
+import type { Turn, TurnSource } from '../assistant/thread';
+import { useAssistantThread } from '../assistant/useAssistantThread';
+import { sx } from '../sharedStyles';
+
+export { shouldUseAssistantEndpoint } from '../assistant/routing';
 
 const RECENT_KEY = 'wehdathub.recentSearches';
 
-const AnimatedFlashList = Animated.createAnimatedComponent(FlashList<ApiUnitListItem>);
-
-export function SearchScreen() {
+export function SearchScreen({ initialMode, modeStamp }: { initialMode?: AssistantMode; modeStamp?: number } = {}) {
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
+  const ar = lang === 'ar';
+  const broker = useAuth((state) => state.broker);
+  const recentKey = broker?.id ? `${RECENT_KEY}:${broker.id}` : null;
+  const previousIdentity = useRef(recentKey);
+  const practiceKey = broker?.id ? `search-practice-v1:${broker.id}:${broker.role}` : null;
+  const [invitation, setInvitation] = useState<string | null>(null);
+  const [practicing, setPracticing] = useState(false);
+  const micRef = useRef<React.ComponentRef<typeof View>>(null);
+  useEffect(() => {
+    if (!practiceKey) return;
+    let active = true;
+    AsyncStorage.getItem(practiceKey).then((seen) => {
+      if (active && !seen) setInvitation(practiceKey);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [practiceKey]);
+  const dismissInvitation = () => {
+    setInvitation(null);
+    if (practiceKey) AsyncStorage.setItem(practiceKey, '1').catch(() => undefined);
+  };
+  const startPractice = () => {
+    dismissInvitation();
+    Keyboard.dismiss();
+    setPracticing(true);
+  };
+
+  const [mode, setMode] = useState<AssistantMode>(initialMode ?? 'auto');
+  // A link such as the old Ask screen's opens this tab already in that mode.
+  useEffect(() => { if (initialMode) setMode(initialMode); }, [initialMode, modeStamp]);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const credits = useSearchCredits();
+  const [submitted, setSubmitted] = useState('');
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [report, setReport] = useState<ReportKind | null>(null);
+  const { rights, nav: appNav } = useRightsState();
+  const [leadFilters, setLeadFilters] = useState<LeadFilters>({});
+  const [assignee, setAssignee] = useState<string>();
+  const [dealLastMonth, setDealLastMonth] = useState(false);
+  const [clarification, setClarification] = useState('');
   const [text, setText] = useState('');
-  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceConfirmOrigin, setVoiceConfirmOrigin] = useState<string | null>(null);
   // The search box and mic float at the bottom like a chat app: they slide away on scrolling down and come back on scrolling up.
   const slide = useSharedValue(0);
   const lastY = useSharedValue(0);
   const hidden = useSharedValue(false);
   const reduceMotion = useReducedMotion();
+  const keyboardVisible = useKeyboardVisible();
+  const keyboardOpen = useSharedValue(false);
+  useEffect(() => {
+    keyboardOpen.value = keyboardVisible;
+    if (keyboardVisible) {
+      hidden.value = false;
+      slide.value = 0;
+    }
+  }, [hidden, keyboardOpen, keyboardVisible, slide]);
   const onScroll = useAnimatedScrollHandler((e) => {
     const y = Math.max(0, e.contentOffset.y);
     const dy = y - lastY.value;
     lastY.value = y;
+    if (keyboardOpen.value) return;
     const hide = dy > 6 && y > 60 ? true : dy < -6 || y <= 60 ? false : hidden.value;
     if (hide !== hidden.value) {
       hidden.value = hide;
@@ -47,147 +109,314 @@ export function SearchScreen() {
     }
   });
   const barSlide = useAnimatedStyle(() => ({ transform: [{ translateY: slide.value }] }));
-  const search = useMutation<SearchResult, Error, { q: string; drop?: boolean; status?: UnitStatus }>({ mutationFn: ({ q, drop, status }) => timed('search', () => api.search(q, { drop, status })) });
-  // Active units first; Sold and Archived are one tap away, with their counts from the start. More results load on demand.
-  const [last, setLast] = useState<{ q: string; drop: boolean; status: UnitStatus } | null>(null);
-  const [extra, setExtra] = useState<ApiUnitListItem[]>([]);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [done, setDone] = useState(false);
-  const [recent, setRecent] = useState<string[]>([]);
-  useEffect(() => {
-    AsyncStorage.getItem(RECENT_KEY).then((raw) => { const p = raw ? JSON.parse(raw) : []; if (Array.isArray(p)) setRecent(p.filter((x) => typeof x === 'string').slice(0, 3)); }).catch(() => undefined);
-  }, []);
 
-  const run = async (q: string, drop = false, status: UnitStatus = 'active') => {
+  const clearedRecents = useRef(false);
+  const [recent, setRecent] = useState<string[]>([]);
+  const rememberRecent = (clean: string) => {
+    setRecent((prev) => {
+      const next = [clean, ...prev.filter((x) => x !== clean)].slice(0, 3);
+      if (recentKey) AsyncStorage.setItem(recentKey, JSON.stringify(next)).catch(() => undefined);
+      return next;
+    });
+  };
+
+  /** Requests that are a report screen, not a chat answer. */
+  const showIntent = (intent: SearchIntent, clean = '') => {
+    const clarify = (message: string) => { setClarification(message); setReport('clarify'); };
+    const denied = () => clarify(t(lang, 'roleDenied'));
+    if (intent.kind === 'leads') {
+      if (!rights.leads) return denied();
+      return thread.addReport(clean, { kind: 'leads', leadFilters: intent.filters });
+    }
+    if (intent.kind === 'assignee') {
+      if (!(rights.manager || rights.agencyOwner || rights.teamLead)) return denied();
+      return thread.addReport(clean, { kind: 'leads', assignee: intent.name });
+    }
+    if (intent.kind === 'deals') {
+      return thread.addReport(clean, { kind: 'deals', dealLastMonth: intent.lastMonth });
+    }
+    return clarify(t(lang, 'clarifySearch'));
+  };
+  const thread = useAssistantThread({ brokerId: broker?.id, lang, onIntent: showIntent, onRemember: rememberRecent });
+  const { turns, full, busy, transcribing } = thread;
+  const wide = useWide();
+  const [selectedUnit, setSelectedUnit] = useState<string>();
+
+  const submit = (q: string, source: TurnSource = 'text', fromClarification = false) => {
     const clean = q.trim();
     if (!clean) return;
-    setVoiceError(null);
-    setExtra([]);
-    setDone(false);
-    setLast({ q: clean, drop, status });
-    const next = [clean, ...recent.filter((x) => x !== clean)].slice(0, 3);
-    setRecent(next);
-    AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next)).catch(() => undefined);
-    await search.mutateAsync({ q: clean, drop, status }).catch(() => undefined);
-  };
-  const loadMore = async () => {
-    if (!last || !search.data || loadingMore || done) return;
-    setLoadingMore(true);
-    try {
-      const r = await api.search(last.q, { drop: last.drop, status: last.status, offset: search.data.items.length + extra.length });
-      if (!r.items.length) setDone(true);
-      setExtra((e) => [...e, ...r.items]);
-    } catch (e) {
-      setDone(true);
-      setVoiceError(errorText(e, lang));
-    } finally {
-      setLoadingMore(false);
+    setPopoverOpen(false);
+    Keyboard.dismiss();
+    setSubmitted(clean);
+    hidden.value = false;
+    slide.value = 0;
+    if (!fromClarification && rights.leads && readLeadCommand(clean)) {
+      setReport('lead-action');
+      return;
     }
+    setReport(null);
+    thread.send(clean, { source, mode, forceSearch: fromClarification, ...(report === 'leads' || report === 'deals' ? { report } : {}) });
+  };
+  const sendFrom = (q: string, source: TurnSource, m?: AssistantMode) => {
+    setText('');
+    setSubmitted(q);
+    setReport(null);
+    thread.send(q, { source, mode: m ?? mode });
+  };
+  const onVoice = async (file: Parameters<typeof thread.transcribe>[0]) => {
+    const heard = await thread.transcribe(file, mode);
+    if (!heard) return;
+    setText(heard.text);
+    if (heard.confirm) { setVoiceConfirmOrigin(heard.text); return; }
+    setVoiceConfirmOrigin(null);
+    submit(heard.text, 'voice');
   };
 
-  const onVoice = async (file: VoiceFile) => {
-    setVoiceError(null);
-    try {
-      const { q } = await api.voiceToText(file);
-      setText(q);
-      await run(q);
-    } catch (e) {
-      setVoiceError(errorText(e, lang));
+  const resetToHome = useCallback(() => {
+    Keyboard.dismiss();
+    setPracticing(false);
+    setText('');
+    setSubmitted('');
+    setReport(null);
+    setToolsOpen(false);
+    setPopoverOpen(false);
+    setMode('auto');
+    setLeadFilters({});
+    setAssignee(undefined);
+    setDealLastMonth(false);
+    setClarification('');
+    hidden.value = false;
+    lastY.value = 0;
+    slide.value = 0;
+    setVoiceConfirmOrigin(null);
+    thread.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset is stable
+  }, [hidden, lastY, slide, thread.reset]);
+  const clearChat = () => {
+    resetToHome();
+    clearedRecents.current = true;
+    setRecent([]);
+    if (recentKey) AsyncStorage.removeItem(recentKey).catch(() => undefined);
+  };
+  useEffect(() => {
+    let active = true;
+    clearedRecents.current = false;
+    setRecent([]);
+    if (previousIdentity.current !== recentKey) {
+      previousIdentity.current = recentKey;
+      resetToHome();
     }
+    AsyncStorage.removeItem(RECENT_KEY).catch(() => undefined);
+    if (recentKey) AsyncStorage.getItem(recentKey).then((raw) => {
+      const values = raw ? JSON.parse(raw) : [];
+      if (active && !clearedRecents.current && Array.isArray(values)) setRecent(values.filter((value) => typeof value === 'string').slice(0, 3));
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [recentKey, resetToHome]);
+
+  const clearDisabled = busy || transcribing || !(submitted || text || report || recent.length || turns.length);
+  const atHome = !report && !turns.length && !full;
+  const focused = useIsFocused();
+  useEffect(() => {
+    const addListener = (nav as unknown as { addListener?: (event: string, cb: () => void) => () => void }).addListener;
+    if (typeof addListener !== 'function') return undefined;
+    return addListener('tabPress', resetToHome);
+  }, [nav, resetToHome]);
+  useEffect(() => {
+    if (!focused || (!practicing && atHome)) return undefined;
+    const sub = BackHandler?.addEventListener?.('hardwareBackPress', () => {
+      if (practicing) { Keyboard.dismiss(); setPracticing(false); return true; }
+      if (full) { thread.closeFull(); return true; }
+      if (report && turns.length) { setReport(null); return true; }
+      if (!atHome) { resetToHome(); return true; }
+      return false;
+    });
+    return () => sub?.remove();
+  }, [atHome, focused, full, practicing, report, resetToHome, thread, turns.length]);
+  const showInvitation = Boolean(invitation && invitation === practiceKey);
+  const HOME_REPORT_LABEL = { leads: 'leadsTab', deals: 'closedDeals', dashboard: 'dashboard', ranking: 'brokerRanking' } as const;
+  /** A home shortcut answers in the chat like a question would. */
+  const openHomeReport = (value: 'leads' | 'deals' | 'dashboard' | 'ranking', queue?: LeadQueue) => {
+    setReport(null);
+    thread.addReport(t(lang, HOME_REPORT_LABEL[value]), { kind: value, ...(queue ? { leadFilters: { queue } } : {}) });
+  };
+  /** The full screen for a report shown in the chat. */
+  const openFullReport = (turn: Turn) => {
+    const r = turn.report;
+    if (!r) return;
+    setSubmitted(turn.question);
+    setLeadFilters(r.leadFilters ?? {});
+    setAssignee(r.assignee);
+    setDealLastMonth(Boolean(r.dealLastMonth));
+    setReport(r.kind);
   };
 
-  const data = search.data;
-  const body = search.isPending ? (
-    <Loading label={t(lang, 'loading')} />
-  ) : search.isError ? (
-    <ErrorView message={errorText(search.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => run(text)} />
-  ) : !data ? (
-    <View style={styles.hero}>
-      <View style={[styles.heroIcon, { backgroundColor: colors.primarySoft }]}><Text style={{ fontSize: 36 }}>🔎</Text></View>
-      <Text style={[styles.heroTitle, { color: colors.text }]}>{t(lang, 'searchTab')}</Text>
-      <Text style={{ color: colors.muted, textAlign: 'center' }}>{t(lang, 'searchHint')}</Text>
-      <Text style={{ color: colors.muted, fontSize: 13 }}>{t(lang, recent.length ? 'searchRecent' : 'searchTry')}</Text>
-      {(recent.length ? recent : (['searchExample1', 'searchExample2', 'searchExample3'] as const).map((k) => t(lang, k))).map((q, i) => (
-        <Pressable key={q} testID={recent.length ? `searchRecent${i + 1}` : `searchExample${i + 1}`} accessibilityRole="button" onPress={() => { setText(q); run(q); }} style={[styles.example, { backgroundColor: colors.accent + '22' }]}>
-          <Text style={{ color: colors.text, fontWeight: '600' }}>{q}</Text>
-        </Pressable>
-      ))}
-    </View>
-  ) : data.status === 'ask' ? (
-    <View style={styles.ask}>
-      <Text style={[styles.askTitle, { color: colors.text }]}>{t(lang, 'askTitle')}</Text>
-      <Text style={{ color: colors.accentInk, fontWeight: '700' }}>{[...(data.ask?.terms ?? []), ...(data.ask?.numbers ?? []).map(String)].join(' · ')}</Text>
-      <Button label={t(lang, 'askSearchAnyway')} onPress={() => run(text, true)} />
-      <Button label={t(lang, 'askEdit')} variant="secondary" onPress={() => search.reset()} />
-    </View>
-  ) : data.status === 'small_talk' || data.status === 'other' ? (
-    <EmptyView title={t(lang, 'smallTalk')} hint={t(lang, 'searchHint')} />
-  ) : data.status === 'listing' ? (
-    <EmptyView title={t(lang, 'listingHint')} />
-  ) : data.status === 'none' ? (
-    <EmptyView title={t(lang, 'noResults')} hint={t(lang, 'noResultsHint')} actionLabel={t(lang, 'clearSearch')} onAction={() => { setText(''); search.reset(); }} />
-  ) : (
-    <AnimatedFlashList
-      data={[...data.items, ...extra]}
-      keyExtractor={(u) => u.id}
-      ListHeaderComponent={
-        <View>
-          {data.f && data.total > 0 ? <SaveSearchButton f={data.f} /> : null}
-          {data.reading ? <Text testID="reading-line" style={[styles.count, { color: colors.text }]}>{data.reading}</Text> : null}
-          <Text style={[styles.count, { color: colors.muted }]}>{data.total} {t(lang, 'results')}{data.relaxed ? ` · ${t(lang, 'relaxedNote')}` : ''}</Text>
-          {data.guesses?.length ? <Text testID="guess-note" style={[styles.count, { color: colors.accentInk }]}>{data.guesses.map((g) => t(lang, 'guessNote').replace('{typed}', g.typed).replace('{as}', g.as)).join(' ')}</Text> : null}
-          {data.unapplied?.length ? <Text testID="unapplied-note" style={[styles.count, { color: colors.accentInk }]}>{t(lang, 'unappliedNote')} {data.unapplied.join(' · ')}</Text> : null}
-          {data.ignoredTerms?.length ? <Text testID="ignored-note" style={[styles.count, { color: colors.accentInk }]}>{t(lang, 'ignoredNote')} {data.ignoredTerms.join(' · ')}</Text> : null}
-        </View>
-      }
-      renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => nav.navigate('Unit', { code: item.code })} />}
-      onScroll={onScroll}
-      scrollEventThrottle={16}
-      contentContainerStyle={{ paddingBottom: 150 }}
-      onEndReached={() => { if (data.items.length + extra.length < data.total) loadMore(); }}
-      onEndReachedThreshold={0.6}
-      ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.count} color={colors.primaryInk} /> : null}
-    />
+  if (practicing) return <SearchPractice onClose={() => { Keyboard.dismiss(); setPracticing(false); }} />;
+
+  const home = (
+    <SearchHome openQueue={(queue) => openHomeReport('leads', queue)} onTryPrompt={(prompt) => { setText(prompt); submit(prompt); }}
+      invitation={showInvitation ? <View style={styles.invitation}>
+        <Button label={t(lang, 'tryPractice')} onPress={startPractice} variant="secondary" size="sm" testID="practice-start" />
+        <Button label={t(lang, 'skipPractice')} onPress={dismissInvitation} variant="quiet" size="sm" testID="practice-skip" />
+      </View> : null}>
+      <HomeRow testID="search-tools" title={t(lang, 'searchShortcuts')} icon="search" expanded={toolsOpen} onPress={() => setToolsOpen((value) => !value)} />
+      {toolsOpen ? <Animated.View entering={FadeIn.duration(180).reduceMotion(ReduceMotion.System)} exiting={FadeOut.duration(100).reduceMotion(ReduceMotion.System)} style={styles.tools}>
+        {!showInvitation ? <HomeRow title={t(lang, 'tryPractice')} onPress={startPractice} icon="help" testID="practice-replay" /> : null}
+        <Text variant="bodySm" style={{ color: colors.muted }}>{t(lang, recent.length ? 'searchRecent' : 'searchTry')}</Text>
+        {(recent.length ? recent : (['searchExample1', 'searchExample2', 'searchExample3'] as const).map((k) => t(lang, k))).map((q, i) => (
+          <HomeRow key={q} title={q} testID={recent.length ? `searchRecent${i + 1}` : `searchExample${i + 1}`} onPress={() => { setText(q); submit(q); }} />
+        ))}
+        {([{ value: 'deals', label: t(lang, 'closedDeals') },
+          ...(rights.leads ? [{ value: 'leads', label: t(lang, 'leadsTab') }] : []),
+          ...(rights.manager ? [{ value: 'dashboard', label: t(lang, 'dashboard') }, { value: 'ranking', label: t(lang, 'brokerRanking') }] : []),
+        ] as { value: 'leads' | 'deals' | 'dashboard' | 'ranking'; label: string }[]).map(({ value, label }) => (
+          <HomeRow key={value} title={label} onPress={() => openHomeReport(value)} />
+        ))}
+      </Animated.View> : null}
+    </SearchHome>
   );
 
-  return (
-    <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      {voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{voiceError}</Text> : null}
-      {data?.counts && last ? (
-        <View style={styles.chips}>
-          {(['active', 'sold', 'archived'] as const).map((st) => (
-            <Pressable key={st} accessibilityRole="button" accessibilityState={{ selected: st === last.status }} onPress={() => run(last.q, last.drop, st)} style={[styles.chip, { borderColor: st === last.status ? colors.primary : colors.border }, st === last.status && { backgroundColor: colors.primary }]}>
-              <Text style={{ color: st === last.status ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, st)} ({data.counts?.[st] ?? 0})</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-      {data && data.source === 'fallback' && /QUOTA|AI_OFF/.test(data.aiError ?? '') ? (
-        <View testID="quick-reader-note" style={styles.quick}>
-          <Text style={{ color: colors.muted }}>⚡ {t(lang, 'quickReaderNote')}</Text>
-          <Pressable testID="quick-reader-units" accessibilityRole="button" onPress={() => nav.navigate('UnitsList')}><Text style={{ color: colors.primaryInk, fontWeight: '600' }}>{t(lang, 'useUnitFilters')}</Text></Pressable>
-        </View>
-      ) : null}
-      <View style={styles.flex}>{body}</View>
-      <Animated.View style={[styles.bar, { backgroundColor: colors.bg, borderColor: colors.border, bottom: 0 }, barSlide]}>
-      <VoiceBar id="search" label={t(lang, 'mic')} value={text} onChangeText={setText} placeholder={t(lang, 'searchPlaceholder')} onSubmit={() => run(text)} onFile={onVoice} onError={setVoiceError} disabled={search.isPending} busy={search.isPending} />
+  const voiceErr = thread.voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{thread.voiceError}</Text> : null;
+  const threadEl = (
+    <ThreadView turns={turns} lang={lang} mode={mode} onScroll={onScroll} onSend={sendFrom} onRetry={(id) => thread.retry(id)} onSearchAnyway={(id) => thread.retry(id, { drop: true })}
+      onSeeAll={thread.openFull} onNewConversation={resetToHome} onChangeMode={setMode} onOpenQueue={(queue) => openHomeReport('leads', queue)} onRate={thread.rate} onOpenReport={openFullReport}
+      onChangeSearch={(q) => setText(q)} />
+  );
+  const mainEl = (
+      <Animated.View key={atHome ? 'brief' : 'results'} entering={FadeIn.duration(200).reduceMotion(ReduceMotion.System)} style={styles.flex}>
+        {report ? (
+          <ReportView report={report} lang={lang} submitted={submitted} clarification={clarification} canSeeLeads={rights.leads} leadFilters={leadFilters} assignee={assignee} dealLastMonth={dealLastMonth}
+            onShowLeads={() => { setLeadFilters({}); setAssignee(undefined); setReport('leads'); }}
+            onSearchInstead={() => submit(submitted, 'text', true)}
+            onCloseAction={() => { setReport('leads'); setSubmitted(''); setText(''); }} />
+        ) : full ? (
+          <FullResults full={full} lang={lang} onStatus={thread.setFullStatus} onRetry={thread.rerunFull} onMore={() => thread.loadMore()} onScroll={onScroll}
+            selectedCode={wide ? selectedUnit : undefined}
+            onOpen={(code) => { track('search_unit_opened'); setSelectedUnit(code); nav.navigate('Unit', { code }); }} />
+        ) : turns.length && !wide ? threadEl : home}
       </Animated.View>
+  );
+  const composer = (
+      <Animated.View style={[styles.composerStack, barSlide]}>
+        <ComposerPopover
+          visible={popoverOpen}
+          mode={mode}
+          onSelectMode={setMode}
+          onRunQuery={(query) => {
+            setText(query);
+            submit(query);
+          }}
+          onNavigateSources={() => nav.navigate('Sources', undefined)}
+          recent={recent}
+          rights={rights}
+          nav={appNav}
+          role={broker?.role}
+          ar={ar}
+          onClose={() => setPopoverOpen(false)}
+        />
+        {voiceConfirmOrigin !== null ? (
+          <View testID="voice-confirm-bar" style={[styles.modeChipRow, [{ gap: spacing.xs }, sx.alignItemsCenter_flexWrapWrap]]}>
+            <Text variant="caption" style={{ color: colors.muted }}>
+              {t(lang, 'sr_voiceConfirm')}
+            </Text>
+            <Button
+              testID="voice-confirm-send"
+              size="sm"
+              label={t(lang, 'sr_run')}
+              onPress={() => {
+                usage('voice_edited', true, undefined, { edited: text.trim() !== voiceConfirmOrigin, mode });
+                setVoiceConfirmOrigin(null);
+                submit(text, 'voice');
+              }}
+            />
+            <Button testID="voice-confirm-dismiss" size="sm" variant="quiet" label={t(lang, 'cancel')} onPress={() => setVoiceConfirmOrigin(null)} />
+          </View>
+        ) : null}
+        {mode !== 'auto' ? (
+          <View testID="mode-lock-chip" style={styles.modeChipRow}>
+            <Chip
+              selected
+              label={`${t(lang, mode === 'resale' ? 'sr_resale' : mode === 'primary' ? 'sr_primary' : 'sr_reports')} ×`}
+              testID="mode-lock-clear"
+              onPress={() => setMode('auto')}
+            />
+          </View>
+        ) : null}
+        <View testID="search-composer" style={[styles.barBox, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: colors.shadow }]}>
+          <VoiceBar
+            compact
+            micRef={micRef}
+            multiline
+            hideLeadingWhenTyping
+            actionDecoration={<SearchCreditRings data={credits.data} loading={credits.isPending} error={credits.isError} ar={ar} />}
+            leadingAccessory={
+              <Pressable
+                testID="search-mode-trigger"
+                accessibilityRole="button"
+                accessibilityLabel={t(lang, 'sr_modesLabel')}
+                accessibilityState={{ expanded: popoverOpen }}
+                onPress={() => setPopoverOpen((v) => !v)}
+                style={styles.modeButton}
+              >
+                <Text variant="body">✨</Text>
+              </Pressable>
+            }
+            accessory={<Pressable testID="search-clear-chat" accessibilityRole="button" accessibilityLabel={t(lang, 'sr_clearChat')}
+              accessibilityState={{ disabled: clearDisabled }} disabled={clearDisabled} onPress={clearChat} style={styles.clearButton}>
+              <Icon name="trash" size={20} color={clearDisabled ? colors.border : colors.muted} />
+            </Pressable>}
+            id="search" label={t(lang, 'mic')} value={text} onChangeText={(v) => { setText(v); if (popoverOpen && v.trim()) setPopoverOpen(false); }}
+            placeholder={
+              t(lang, mode === 'resale' ? 'sr_phResale' : mode === 'primary' ? 'sr_phPrimary' : mode === 'reports' ? 'sr_phReports' : 'sr_phAuto')
+            }
+            onSubmit={() => { submit(text, voiceConfirmOrigin !== null ? 'voice' : 'text'); }} onFile={onVoice} onError={thread.setVoiceError} disabled={transcribing} busy={busy || transcribing} />
+        </View>
+        <CoachMark id="mic" targetRef={micRef} text={t(lang, 'coachMic')} />
+      </Animated.View>
+  );
+  if (wide) {
+    // Tablets: the chat (thread or suggestions, and the composer) is a panel on the end side; Home or the full results fill the rest.
+    const results = Boolean(report || full);
+    const chips = (['searchExample1', 'searchExample2', 'searchExample3'] as const).map((k) => t(lang, k));
+    const panel = (
+      <View testID="chat-panel" style={[styles.panel, !results && styles.panelFixed, { backgroundColor: colors.bg, borderStartColor: colors.border }]}>
+        {voiceErr}
+        {turns.length ? threadEl : (
+          <View testID="chat-empty" style={styles.chatEmpty}>
+            {chips.map((q, i) => <Chip key={q} testID={`chat-chip-${i + 1}`} label={q} onPress={() => { setText(q); submit(q); }} />)}
+          </View>
+        )}
+        {composer}
+      </View>
+    );
+    return (
+      <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+        {results ? <Split list={panel} detail={mainEl} /> : <View style={styles.wideRow}><View style={styles.flex}>{mainEl}</View>{panel}</View>}
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.flex, styles.composerFrame, { backgroundColor: colors.bg }]}>
+      {voiceErr}
+      {mainEl}
+      {composer}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  heroIcon: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
-  heroTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  example: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.lg },
-  bar: { position: 'absolute', start: 0, end: 0, bottom: 0, padding: spacing.md, gap: spacing.sm, borderTopWidth: 1 },
+  wideRow: { flex: 1, flexDirection: 'row' },
+  panel: { flex: 1, overflow: 'hidden', borderStartWidth: StyleSheet.hairlineWidth },
+  panelFixed: { flex: 0, width: 380 },
+  chatEmpty: { flex: 1, justifyContent: 'center', alignItems: 'flex-start', padding: spacing.lg, gap: spacing.sm },
+  invitation: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  tools: { gap: spacing.sm },
+  composerFrame: { overflow: 'hidden' },
+  composerStack: { position: 'absolute', start: 22, end: 22, bottom: 12 },
+  modeChipRow: { flexDirection: 'row', marginBottom: spacing.xs },
+  barBox: { padding: 4, borderRadius: 26, borderWidth: 1, shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
   err: { padding: spacing.lg, textAlign: 'center' },
-  ask: { padding: spacing.xl, gap: spacing.md },
-  askTitle: { fontSize: 18, fontWeight: '700' },
-  count: { padding: spacing.lg },
-  quick: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.xs },
-  chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, height: 40, justifyContent: 'center' },
+  modeButton: { minWidth: 36, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
+  clearButton: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
 });

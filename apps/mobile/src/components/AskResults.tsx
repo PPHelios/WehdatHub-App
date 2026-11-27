@@ -4,17 +4,20 @@ import { AppText as Text } from './AppText';
 import { BusySwitch } from './BusySwitch';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ApiClientError } from '@wehdathub/shared';
-import type { AskAction, ProjectFilters, ProjectSort } from '@wehdathub/shared';
+import type { AskAction, AskResults as AskResultsData, ProjectFilters, ProjectSort } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { numberOf } from '../projectRules';
 import { fill, pt } from '../projectText';
 import { plain, withCommas } from '../readback';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 import { Button } from './Button';
 import { Chips } from './Chips';
 import { Field } from './Field';
+import { EmptyView, ErrorView, Loading } from './StateViews';
+import { errorText } from '../errors';
+import { t } from '../i18n';
 import { Count, Pager, ProjectCardView } from './ProjectList';
 
 const SORTS: ProjectSort[] = ['best', 'cheap', 'pricey', 'small', 'big', 'down'];
@@ -30,7 +33,7 @@ export const chipText = (v: unknown): string => (v && typeof v === 'object' ? Ob
  * (price range, area range, max down payment, bedrooms), project cards with their offers or the notes that fit, WhatsApp, and pages.
  * The same cards as the catalogue list.
  */
-export function AskResults({ q, onOpenProject }: { q: string; onOpenProject?: (id: string, name: string) => void }) {
+export function AskResults({ q, onOpenProject, showStatus = false, initial, hideAnswerLine = false }: { q: string; onOpenProject?: (id: string, name: string) => void; showStatus?: boolean; initial?: AskResultsData | null; hideAnswerLine?: boolean }) {
   const { colors } = useTheme();
   const lang = currentLang();
   const T = pt(lang);
@@ -43,20 +46,25 @@ export function AskResults({ q, onOpenProject }: { q: string; onOpenProject?: (i
   const [report, setReport] = useState<'closed' | 'open' | 'done' | 'again'>('closed');
   const [note, setNote] = useState('');
   // The first answer's token and log id ride along on every later page, sort and filter, so the question is read and logged once.
-  const link = useRef<{ token?: string; logId?: string }>({});
+  const link = useRef<{ token?: string; logId?: string }>({ token: initial?.token ?? undefined, logId: initial?.log_id ?? undefined });
   const typed = useDebounced(range, 500);
   const filters: ProjectFilters = { ...Object.fromEntries(RANGES.map((k) => [k, numberOf(typed[k])]).filter(([, v]) => v !== undefined)), ...(bed ? { bed } : {}) };
   const active = Object.keys(filters).length > 0;
+  const seeded = Boolean(initial && page === 1 && sort === 'best' && !drop.length && !active && !unitsOnly);
   const r = useQuery({
     queryKey: ['askResults', q, page, sort, drop.join(','), JSON.stringify(filters), unitsOnly],
     queryFn: async () => {
-      const r = await api.askResults({ q, page, sort, drop, ...filters, ...(unitsOnly ? { units: true } : {}), ...link.current });
-      if (!link.current.token && r.token) link.current = { token: r.token, logId: r.log_id ?? undefined };
-      return r;
+      const res = await api.askResults({ q, page, sort, drop, ...filters, ...(unitsOnly ? { units: true } : {}), ...link.current });
+      if (!link.current.token && res.token) link.current = { token: res.token, logId: res.log_id ?? undefined };
+      return res;
     },
+    initialData: seeded ? (initial ?? undefined) : undefined,
+    enabled: !seeded,
     placeholderData: keepPreviousData,
   });
-  if (!r.data || (!r.data.projects.length && !drop.length && !active)) return null;
+  if (showStatus && r.isError) return <ErrorView message={errorText(r.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => r.refetch()} />;
+  if (showStatus && r.isPending) return <Loading label={t(lang, 'loading')} />;
+  if (!r.data || (!r.data.projects.length && !drop.length && !active)) return showStatus ? <EmptyView title={T.noMatch} icon="search" actionLabel={t(lang, 'retry')} onAction={() => { r.refetch(); }} /> : null;
   const d = r.data;
   const reset = () => setPage(1);
   // What the broker does next goes to the search log; a failure never shows.
@@ -72,7 +80,7 @@ export function AskResults({ q, onOpenProject }: { q: string; onOpenProject?: (i
   return (
     <View testID="ask-results" style={styles.wrap}>
       <Text style={[styles.title, { color: colors.text }]}>{T.askResults}</Text>
-      {d.answer_line ? <Text testID="ask-line" style={{ color: colors.text }}>{d.answer_line}</Text> : null}
+      {!hideAnswerLine && d.answer_line ? <Text testID="ask-line" style={{ color: colors.text }}>{d.answer_line}</Text> : null}
       <Count projects={d.total_projects} options={d.total_options ?? d.total_offers} lang={lang} />
       {d.chips.length ? (
         <View style={styles.chips}>
@@ -84,7 +92,7 @@ export function AskResults({ q, onOpenProject }: { q: string; onOpenProject?: (i
         </View>
       ) : null}
       <Text style={[styles.label, { color: colors.muted }]}>{T.sortBy}</Text>
-      <Chips<ProjectSort> testID="ask-sort" value={sort} options={SORTS.map((s) => ({ value: s, label: T[SORT_KEY[s]] }))} onChange={(v) => { log('sort', v); setSort(v); reset(); }} />
+      <Chips<ProjectSort> animateFilter testID="ask-sort" value={sort} options={SORTS.map((s) => ({ value: s, label: T[SORT_KEY[s]] }))} onChange={(v) => { log('sort', v); setSort(v); reset(); }} />
       <View testID="ask-filters" style={styles.filters}>
         <Text style={[styles.label, { color: colors.muted }]}>{T.priceRange}</Text>
         <View style={styles.row}>{box('pmin', T.min)}{box('pmax', T.max)}</View>
@@ -96,7 +104,7 @@ export function AskResults({ q, onOpenProject }: { q: string; onOpenProject?: (i
           <BusySwitch testID="ask-units" value={unitsOnly} onValueChange={(v) => { log('filter', 'units'); setUnitsOnly(v); reset(); }} />
         </View>
         <Text style={[styles.label, { color: colors.muted }]}>{T.bedrooms}</Text>
-        <Chips<string> testID="ask-bed" value={bed ? String(bed) : ''} options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))} onChange={(v) => { log('filter', 'bed'); setBed(bed === Number(v) ? undefined : Number(v)); reset(); }} />
+        <Chips<string> animateFilter testID="ask-bed" value={bed ? String(bed) : ''} options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))} onChange={(v) => { log('filter', 'bed'); setBed(bed === Number(v) ? undefined : Number(v)); reset(); }} />
       </View>
       {d.projects.length ? d.projects.map((p, i) => (
         <ProjectCardView key={p.id ?? `${p.name}-${i}`} p={p} lang={lang} onOpen={p.id && onOpenProject ? () => { log('open', p.id); onOpenProject(p.id as string, p.name); } : undefined} onSend={() => log('send', p.id)} />
@@ -119,8 +127,8 @@ export function AskResults({ q, onOpenProject }: { q: string; onOpenProject?: (i
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
-  title: { fontSize: 16, fontWeight: '800' },
-  label: { fontSize: 13, fontWeight: '600' },
+  title: { fontSize: typeScale.body.fontSize, fontWeight: '800' },
+  label: { fontSize: typeScale.bodySm.fontSize, fontWeight: '600' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, minHeight: 44, justifyContent: 'center' },
   filters: { gap: spacing.sm },

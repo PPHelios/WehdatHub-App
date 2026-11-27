@@ -8,7 +8,7 @@ import { useAuth } from '../src/auth';
 jest.mock('../src/api', () => ({ api: { me: jest.fn(), appSettings: jest.fn(), setLang: jest.fn(), logout: jest.fn() } }));
 jest.mock('../src/components/AppSettings', () => ({ AppSettings: () => null }));
 const rights = { current: { manager: false, agencyOwner: false, team: false } as Record<string, boolean> };
-jest.mock('../src/rights', () => ({ useRights: () => rights.current }));
+jest.mock('../src/rights', () => ({ useRights: () => rights.current, useRightsState: () => ({ rights: rights.current, ready: true, nav: undefined, workspace: undefined, inviteRoles: undefined }), hasNavApp: () => false }));
 jest.mock('../src/lock', () => ({ lockAvailable: async () => false, useLock: () => ({ enabled: false, enable: async () => true, disable: async () => undefined }) }));
 jest.mock('../src/push', () => ({ stopPush: async () => undefined }));
 const m = api as unknown as { me: jest.Mock };

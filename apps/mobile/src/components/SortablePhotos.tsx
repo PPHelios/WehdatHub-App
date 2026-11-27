@@ -10,8 +10,9 @@ import type { UploadFile } from '@wehdathub/shared';
 import { currentLang } from '../auth';
 import { t } from '../i18n';
 import { moveKept } from '../photos';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { SmartImage } from './SmartImage';
+import { sx } from '../sharedStyles';
 
 const ROW = 76;
 
@@ -85,7 +86,7 @@ export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRe
             style={[
               styles.row,
               { backgroundColor: colors.card, borderColor: dragged ? colors.primary : colors.border, zIndex: dragged ? 10 : 0, elevation: dragged ? 6 : 0 },
-              p.notKept ? { opacity: 0.55 } : null,
+              p.notKept ? sx.opacity0_55 : null,
             ]}
             onBegin={() => begin(i)}
             onMove={(moved) => move(i, moved)}
@@ -102,11 +103,11 @@ export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRe
             <SmartImage uri={p.uri} style={styles.thumb} />
             <Text style={[styles.pos, { color: colors.text }]}>{i === 0 ? '★ 1' : String(i + 1)}</Text>
             {p.failed ? (
-              <Pressable testID={`photo-retry-${i}`} accessibilityRole="button" accessibilityLabel={t(lang, 'retryPhoto')} onPress={() => onRetry?.(p.uri)} style={styles.remove}><Text style={{ color: colors.danger, fontWeight: '700' }}>↻</Text></Pressable>
+              <Pressable testID={`photo-retry-${i}`} accessibilityRole="button" accessibilityLabel={t(lang, 'retryPhoto')} onPress={() => onRetry?.(p.uri)} style={styles.remove}><Text style={[{ color: colors.danger }, sx.fontWeight700]}>↻</Text></Pressable>
             ) : p.key ? (
-              <Text testID={`photo-done-${i}`} accessibilityLabel={t(lang, 'photoUploaded')} style={{ color: colors.accent, fontWeight: '700' }}>✓</Text>
+              <Text testID={`photo-done-${i}`} accessibilityLabel={t(lang, 'photoUploaded')} style={[{ color: colors.accent }, sx.fontWeight700]}>✓</Text>
             ) : p.pct !== undefined ? (
-              <Text testID={`photo-pct-${i}`} style={{ color: colors.muted, fontWeight: '700' }}>{p.pct}%</Text>
+              <Text testID={`photo-pct-${i}`} style={[{ color: colors.muted }, sx.fontWeight700]}>{p.pct}%</Text>
             ) : null}
             {onToggle && p.type !== 'existing' ? (
               <Pressable testID={`photo-keep-${i}`} accessibilityRole="button" onPress={() => onToggle(p.uri)} style={styles.remove}>
@@ -114,7 +115,7 @@ export function SortablePhotos({ photos, onChange, onDragging, removeLabel, onRe
               </Pressable>
             ) : null}
             <Pressable testID={`photo-remove-${i}`} accessibilityRole="button" onPress={() => onChange(photos.filter((_x, j) => j !== i))} style={styles.remove}>
-              <Text style={{ color: colors.danger, fontWeight: '700' }}>{removeLabel}</Text>
+              <Text style={[{ color: colors.danger }, sx.fontWeight700]}>{removeLabel}</Text>
             </Pressable>
           </DragRow>
         );
@@ -167,8 +168,8 @@ function DragRow({ index, dy, from, shift, testID, style, onBegin, onMove, onEnd
 const styles = StyleSheet.create({
   row: { height: ROW - 8, marginVertical: 4, borderWidth: 1, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', paddingEnd: spacing.md, gap: spacing.md },
   handle: { width: 52, height: '100%', alignItems: 'center', justifyContent: 'center' },
-  grip: { fontSize: 24, fontWeight: '800' },
+  grip: { fontSize: typeScale.title.fontSize, fontWeight: '800' },
   thumb: { width: 56, height: 56, borderRadius: radius.sm },
-  pos: { flex: 1, fontSize: 16, fontWeight: '700' },
+  pos: { flex: 1, fontSize: typeScale.body.fontSize, fontWeight: '700' },
   remove: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
 });

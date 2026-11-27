@@ -6,7 +6,7 @@ import { CalendarScreen, groupByDay } from '../src/screens/CalendarScreen';
 import { api } from '../src/api';
 
 jest.mock('../src/api', () => ({ api: { setViewing: jest.fn(), viewings: jest.fn() } }));
-jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));
+jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn() }), useRoute: () => ({ params: undefined }) }));
 const m = api as unknown as { setViewing: jest.Mock; viewings: jest.Mock };
 
 const lead = { ref: 'L-0001', name: 'Sara', phones: ['201011112222'], kind: 'buyer', stage: 'new', lostReason: null, source: null, notes: null, nextFollowUpAt: null, followUpKind: null, followUpNote: null, lastContactAt: null, assignee: null, version: 3 } as const;

@@ -4,7 +4,7 @@ import { AppText as Text } from './AppText';
 import { currentLang } from '../auth';
 import { t } from '../i18n';
 import { useLock } from '../lock';
-import { spacing, useTheme } from '../theme';
+import { spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
 
 export function LockScreen() {
@@ -21,6 +21,6 @@ export function LockScreen() {
 
 const styles = StyleSheet.create({
   root: { position: "absolute", top: 0, bottom: 0, start: 0, end: 0, alignItems: 'center', justifyContent: 'center', gap: spacing.xl, zIndex: 100 },
-  title: { fontSize: 22, fontWeight: '800' },
+  title: { fontSize: typeScale.title.fontSize, fontWeight: '800' },
   btn: { alignSelf: 'stretch', paddingHorizontal: spacing.xl },
 });

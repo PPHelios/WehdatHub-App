@@ -1,5 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
 import { create } from 'zustand';
+import { track } from './analytics';
+import { clearDraft } from './draft';
 import type { ApiBroker, LoginResult } from '@wehdathub/shared';
 
 const SERVICE = 'wehdathub.session';
@@ -15,6 +18,8 @@ interface AuthState {
   signOut: () => Promise<void>;
   /** The language button: the broker's language changes here at once (the server is told by the caller). */
   setLang: (lang: ApiBroker['lang']) => Promise<void>;
+  /** The profile photo changed (or was removed): keep it with the saved session. */
+  setAvatar: (avatarUrl: string | null) => Promise<void>;
 }
 
 /** The session token lives in the phone's secure storage (Keychain / Keystore), never in plain storage. */
@@ -42,6 +47,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
     });
     set({ status: 'signedIn', token: r.token, broker: r.broker, agencyName });
+    track('sign_in');
   },
   async setLang(lang) {
     const { token, broker, agencyName } = get();
@@ -50,8 +56,19 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ broker: next });
     await Keychain.setGenericPassword('session', JSON.stringify({ token, broker: next, agencyName }), { service: SERVICE, accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY }).catch(() => undefined);
   },
+  async setAvatar(avatarUrl) {
+    const { token, broker, agencyName } = get();
+    if (!token || !broker) return;
+    const next = { ...broker, avatarUrl };
+    set({ broker: next });
+    await Keychain.setGenericPassword('session', JSON.stringify({ token, broker: next, agencyName }), { service: SERVICE, accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY }).catch(() => undefined);
+  },
   async signOut() {
     await Keychain.resetGenericPassword({ service: SERVICE }).catch(() => {});
+    // Saved assistant threads belong to the signed-out broker.
+    try { await AsyncStorage.removeMany((await AsyncStorage.getAllKeys()).filter((k) => k.startsWith('wehdathub.thread.v1:'))); } catch { /* best effort */ }
+    // The half-filled unit can hold the owner's phone; an expired session signs out here without the menu's clean-up.
+    await clearDraft();
     set({ status: 'signedOut', token: null, broker: null, agencyName: null });
   },
 }));

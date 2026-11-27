@@ -55,3 +55,12 @@ test('WhatsApp is not offered, and an old WhatsApp choice is saved as the defaul
   await waitFor(() => expect(m.saveNotificationSettings).toHaveBeenCalled());
   expect(m.saveNotificationSettings.mock.calls[0][0].kinds.follow_up.channel).toBe('web');
 });
+
+test('agency overdue reminders are shown when the server grants access and can be saved off', async () => {
+  m.notificationSettings.mockResolvedValue({ ...data, agencyUnitChecks: { enabled: true, locked: false } });
+  m.saveNotificationSettings.mockResolvedValue({ ...data, agencyUnitChecks: { enabled: false, locked: false } });
+  await wrap();
+  await fireEvent(await screen.findByTestId('agency-unit-checks'), 'valueChange', false);
+  await fireEvent.press(screen.getByTestId('save-notifications'));
+  await waitFor(() => expect(m.saveNotificationSettings).toHaveBeenCalledWith(expect.objectContaining({ agencyUnitChecks: false })));
+});

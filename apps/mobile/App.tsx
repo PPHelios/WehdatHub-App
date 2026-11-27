@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { startUsage, usage } from './src/usage';
 import { Alert, AppState, I18nManager, StatusBar, useColorScheme } from 'react-native';
 import { BusyProvider } from './src/busy';
-import { ToastHost } from './src/components/Toast';
+import { ToastHost, toast } from './src/components/Toast';
 import { KeyboardLift } from './src/components/KeyboardLift';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -30,6 +30,7 @@ import { watchShares } from './src/share';
 import { syncDirection } from './src/direction';
 import { usePrefs } from './src/prefs';
 import { t } from './src/i18n';
+import { sx } from './src/sharedStyles';
 
 I18nManager.allowRTL(true);
 
@@ -55,7 +56,7 @@ export default function App() {
   useEffect(() => {
     restore();
     useLock.getState().load();
-    void usePrefs.getState().load();
+    usePrefs.getState().load();
     // The server says the lowest app version it supports. A failure to ask never blocks the app.
     queries.fetchQuery(configOptions).then((c) => isOutdated(APP_VERSION, c.minAppVersion) && setTooOld(c)).catch(() => undefined);
   }, [restore]);
@@ -86,7 +87,7 @@ export default function App() {
       // A WhatsApp chat export (a zip) opens the import screen; everything else opens Add unit.
       if (s.zip) usage('wa_import_share', true);
       const go = () => (s.zip ? navigationRef.navigate('WhatsAppImport', { zip: s.zip }) : navigationRef.navigate('AddUnit', s));
-      const open = (fn: () => void) => (navigationRef.isReady() ? fn() : void setTimeout(fn, 800));
+      const open = (fn: () => void) => (navigationRef.isReady() ? fn() : setTimeout(fn, 800));
       // Text only, shared by a manager or the owner: a portal enquiry (Bayut, Dubizzle, Nawy) opens its own screen.
       const rights = queries.getQueryData(meOptions().queryKey)?.rights;
       const text = s.text;
@@ -106,28 +107,35 @@ export default function App() {
       clearPlaces().catch(() => undefined);
       // The session ended (e.g. a 401): drop the last person's cached data, as the manual logout does.
       queries.clear();
-      void listsStore.removeClient();
+      listsStore.removeClient();
       return;
     }
   }, [status]);
   usePlaceSync(status === 'signedIn');
 
-  // Alerts and crash reports start once signed in, if the server has the phone's Firebase identifiers.
+  // Crash reporting and Analytics can start before sign-in. Push needs a signed-in broker.
   useEffect(() => {
-    if (status !== 'signedIn') return;
+    if (status === 'loading') return;
     let stop = () => undefined as void;
     let gone = false;
     queries
       .fetchQuery(configOptions)
       .then(async (c) => {
-        if (gone || !(await startFirebase(c.firebase))) return;
-        const id = useAuth.getState().broker?.id;
-        if (id) startCrashReports(String(id)).catch(() => undefined);
-        startAnalytics().catch(() => undefined);
+        if (gone || !(await startFirebase(c.firebase)) || gone) return;
+        startCrashReports();
+        startAnalytics();
+        if (status !== 'signedIn') return;
         const off = await startPush((s) => {
           const go = () => navigationRef.navigate(s.name, s.params as never);
           if (navigationRef.isReady()) go();
           else setTimeout(go, 800);
+        }, async (text, s) => {
+          if (gone) return;
+          toast(text);
+          const keys = [['inbox'], ['leads'], ['units'], ['today']];
+          if (s?.name === 'Lead') keys.push(['lead', s.params.ref]);
+          if (s?.name === 'Unit') keys.push(['unit', s.params.code]);
+          await Promise.all(keys.map((queryKey) => queries.invalidateQueries({ queryKey })));
         });
         if (gone) off();
         else stop = off;
@@ -140,7 +148,7 @@ export default function App() {
   }, [status]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={sx.flex1}>
     <SafeAreaProvider>
       <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       {tooOld ? (

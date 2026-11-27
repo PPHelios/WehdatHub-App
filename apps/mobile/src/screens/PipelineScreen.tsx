@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
@@ -9,7 +9,7 @@ import type { LeadTab } from '@wehdathub/shared';
 import { api } from '../api';
 import { teamOptions } from '../queries';
 import { currentLang } from '../auth';
-import { Chips } from '../components/Chips';
+import { FilterPicker } from '../components/FilterPicker';
 import { ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { stageLabel, t } from '../i18n';
@@ -32,14 +32,22 @@ export function PipelineScreen() {
   const open = (tab: LeadTab) => nav.navigate('LeadsList', { tab, broker: broker || undefined });
   const row = (tab: LeadTab, label: string, warn = false) => (
     <Pressable key={tab} testID={`pipe-${tab}`} accessibilityRole="button" onPress={() => open(tab)} style={[styles.row, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={{ color: colors.text, fontSize: 16 }}>{label}</Text>
-      <Text style={{ color: warn && (n[tab] ?? 0) > 0 ? colors.danger : colors.accentInk, fontSize: 20, fontWeight: '700' }}>{n[tab] ?? 0}</Text>
+      <Text variant="body" style={{ color: colors.text }}>{label}</Text>
+      <Text variant="heading" weight="bold" style={{ color: warn && (n[tab] ?? 0) > 0 ? colors.danger : colors.accentInk }}>{n[tab] ?? 0}</Text>
     </Pressable>
   );
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={counts.isRefetching} onRefresh={async () => { await counts.refetch(); }} />}>
       {team.data && team.data.items.length > 1 ? (
-        <Chips<string> options={[{ value: '', label: t(lang, 'pipelineAll') }, ...team.data.items.map((m) => ({ value: m.id, label: m.name }))]} value={broker} onChange={setBroker} />
+        <View style={styles.filterBar}>
+          <FilterPicker<string>
+            testID="pipe-broker"
+            label={lang === 'ar' ? 'الوسيط' : 'Broker'}
+            options={[{ value: '', label: t(lang, 'pipelineAll') }, ...team.data.items.map((m) => ({ value: m.id, label: m.name }))]}
+            value={broker}
+            onChange={setBroker}
+          />
+        </View>
       ) : null}
       {LEAD_STAGES.map((s) => row(s, stageLabel(lang, s)))}
       {EXTRA.map(([tab, key]) => row(tab, t(lang, key), tab !== 'no_next_step'))}
@@ -49,5 +57,6 @@ export function PipelineScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.sm },
+  filterBar: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.xs },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md, borderRadius: radius.card, borderWidth: 1 },
 });

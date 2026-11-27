@@ -1,10 +1,12 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LeadsScreen } from '../src/screens/LeadsScreen';
 import { NewLeadScreen } from '../src/screens/NewLeadScreen';
 import { api } from '../src/api';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({ api: { leads: jest.fn(), leadCounts: jest.fn(), team: jest.fn(), assignLead: jest.fn(), extractLead: jest.fn(), createLead: jest.fn() } }));
 jest.mock('../src/rights', () => ({ useRights: () => ({ manager: true }) }));
 jest.mock('../src/layout', () => ({ useWide: () => false, useColumns: () => 1, Split: () => null }));
@@ -26,6 +28,22 @@ test('the Unassigned chip asks the server for unassigned leads', async () => {
   await waitFor(() => expect(screen.getByTestId('chip-unassigned')).toBeTruthy());
   await fireEvent.press(screen.getByTestId('chip-unassigned'));
   await waitFor(() => expect(m.leads).toHaveBeenCalledWith(expect.objectContaining({ broker: 'none' })));
+});
+
+test('typing a search keeps the selected stage and updates its count in the same space', async () => {
+  m.leadCounts.mockImplementation(async (q?: string) => ({ counts: { new: q ? 1 : 120 } }));
+  await wrap(<LeadsScreen />);
+  const filter = await screen.findByTestId('lead-filter-new');
+  await fireEvent.press(filter);
+  const count = await screen.findByText('(120)');
+  const width = StyleSheet.flatten(count.props.style).width;
+
+  await fireEvent.changeText(screen.getByTestId('leads-search'), 'Alpha');
+  await waitFor(() => expect(m.leads).toHaveBeenLastCalledWith(expect.objectContaining({ tab: 'new', q: 'Alpha' })));
+  await waitFor(() => expect(count).toHaveTextContent('(1)'));
+  expect(filter.props.accessibilityState.selected).toBe(true);
+  expect(width).toBe(32);
+  expect(StyleSheet.flatten(count.props.style).width).toBe(width);
 });
 
 test('select two leads and hand them to a broker, each with its own version', async () => {

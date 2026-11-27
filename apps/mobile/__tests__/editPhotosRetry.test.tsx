@@ -5,8 +5,9 @@ import { ApiClientError } from '@wehdathub/shared';
 import { AddUnitScreen } from '../src/screens/AddUnitScreen';
 import { api } from '../src/api';
 
-jest.mock('../src/api', () => ({ api: { unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn(), unit: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn(), unit: jest.fn(), reviewUnit: jest.fn().mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null }) } }));
 const mockGoBack = jest.fn();
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: mockGoBack, navigate: jest.fn(), replace: jest.fn() }), useRoute: () => ({ params: { edit: 'A-1' } }) }));
 jest.mock('../src/voice', () => ({ ensureMic: jest.fn(), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
 const m = api as unknown as Record<string, jest.Mock>;
@@ -19,9 +20,11 @@ test('when the photos fail after the details saved, a second Save retries only t
   await render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><AddUnitScreen /></QueryClientProvider>);
   await waitFor(() => expect(screen.getByTestId('photo-remove-0')).toBeTruthy());
   await fireEvent.press(screen.getByTestId('photo-remove-0'));
+  await waitFor(() => expect(screen.getByTestId('save-unit')).toBeEnabled());
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(screen.getByTestId('unit-error')).toBeTruthy());
   expect(mockGoBack).not.toHaveBeenCalled();
+  await waitFor(() => expect(screen.getByTestId('save-unit')).toBeEnabled());
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
   expect(m.saveUnitEdit).toHaveBeenCalledTimes(1);

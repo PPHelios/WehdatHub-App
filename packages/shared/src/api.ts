@@ -12,6 +12,8 @@ export interface NavItem { key: string; label: NavLabel; icon: string; web: stri
 export interface NavGroup { key: string; label: NavLabel; items: NavItem[] }
 export interface Nav { role: string; tabs: NavTab[]; groups: NavGroup[] }
 /** AI use per person (read only in the app): the agency's mode, this person's own allowance and use, and (managers) everyone. */
+export interface SearchCreditMeter { used: number; limit: number | null; remaining: number | null }
+export interface SearchCredits { personal: SearchCreditMeter; agency?: SearchCreditMeter }
 export interface AiUsage {
   mode: 'pool' | 'per_user';
   defaultCredits: number | null;
@@ -20,7 +22,7 @@ export interface AiUsage {
   mine: { allowance: number | null; used: number; remaining: number | null };
   people?: { id: string; name: string; role: string; override: number | null; allowance: number | null; used: number }[];
 }
-export interface ApiBroker { id: string; name: string; role: string; lang: Lang }
+export interface ApiBroker { id: string; name: string; role: string; lang: Lang; avatarUrl?: string | null }
 export interface ApiAgency { id: string; name: string; slug: string; logoUrl: string | null }
 /** Present only for the test number: its roles, its own role, and whether it may view NCH (read only). */
 /** The kind of workspace (GET /me): tier by seats, mode for this person, team style. Menus and pages use it to hide what does not apply. */
@@ -37,6 +39,8 @@ export interface ApiUnit {
   dealType: string | null;
   price: number | null;
   priceText: string | null;
+  currency?: string | null;
+  rentPeriod?: 'monthly' | 'yearly' | string | null;
   area: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -62,6 +66,10 @@ export interface ApiUnit {
 export interface ApiUnitListItem extends ApiUnit { photo: string | null }
 export interface ApiUnitDetail extends ApiUnit {
   canEdit?: boolean;
+  canEditColleague?: boolean;
+  canDelete?: boolean;
+  canManagePrivate?: boolean;
+  colleagueEdit?: { version: number; description: string | null };
   features: string[];
   images:{ id: string; url: string; position: number }[];
 }
@@ -77,9 +85,54 @@ export interface TodayCards {
   approvals: { access: number; names: number } | null;
 }
 export interface LeaseRow { code: string; tenant_name: string | null; tenant_ref: string | null; broker_name: string | null; rent: number | null; end: string; daysLeft: number; done: boolean; doneKind: string | null }
+export type SearchHomePriorityUrgency = 'high' | 'medium' | 'low';
+export type SearchHomePriorityAction =
+  | { kind: 'queue'; queue: LeadQueue }
+  | { kind: 'leads_tab'; tab: LeadTab }
+  | { kind: 'screen'; screen: 'Sources' | 'Requests' | 'Owners' | 'Commissions' | 'Leases' }
+  | { kind: 'lead'; ref: string }
+  | { kind: 'units_missing_photos' }
+  | { kind: 'units_old' };
+/** Known ids: unassigned, waiting-over-1h, uncontacted-old, overdue, intake, approvals, owner-names, commissions, next-viewing, calls, new-leads, leases-soon, tomorrow-viewings, overdue-units, missing-photos, stale-units, stuck-leads. An app must hide ids it does not know. */
+export interface SearchHomePriority {
+  id: string;
+  /** One short reason line in the person's language, built from counts. */
+  why?: string;
+  urgency: SearchHomePriorityUrgency;
+  count: number;
+  action: SearchHomePriorityAction;
+  /** Lead cards: the top lead, and what this person may do to it. */
+  lead?: { ref: string; version?: number; assigneeId?: string | null; lastAutoReminderAt?: string | null; recommendedBroker?: { id: string; name: string } | null };
+  canNudge?: boolean;
+  canAssign?: boolean;
+  extra?: Record<string, string | number | boolean | null>;
+}
+export interface SearchHomeData {
+  hour: number;
+  units?: { total: number; items: TodayOldUnit[] } | null;
+  completed?: number;
+  ops?: TodayCards['ops'];
+  overdue?: number;
+  calls?: number;
+  newLeads?: number;
+  tomorrowViewings?: number;
+  nextViewing?: TodayTask | null;
+  waitingOver1h?: number;
+  missingPhotos?: number;
+  intake?: { disconnected: number; failed: number };
+  approvals?: { access: number; names: number } | null;
+  commissions?: { overdue: number; registrations: number } | null;
+  leasesSoon?: number;
+  priorities?: SearchHomePriority[];
+  /** How many items need a decision (high and medium), for the greeting. */
+  summary?: { decisions: number };
+}
 export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number; leases?: { code: string; tenant: string | null; end: string; daysLeft: number }[]; cards?: TodayCards }
 export type LeadStage = 'new' | 'contacted' | 'interested' | 'viewing' | 'negotiation' | 'won' | 'lost';
 export const LEAD_STAGES: LeadStage[] = ['new', 'contacted', 'interested', 'viewing', 'negotiation', 'won', 'lost'];
+export type LeadMatchField = 'price_min' | 'price_max' | 'area_min' | 'area_max' | 'bedrooms_min';
+export type LeadMatchAdjustments = { requestId: string } & Partial<Record<LeadMatchField, string>>;
+export type LeadQueue = 'unassigned' | 'uncontacted' | 'delayed-first-contact' | 'waiting-over-1h' | 'late-response' | 'overdue' | 'viewings-tomorrow' | 'viewings' | 'approaching-sla' | 'opened-no-followup';
 export type LeadTab = 'all' | LeadStage | 'due_today' | 'overdue' | 'no_next_step';
 export interface ApiLead {
   ref: string;
@@ -96,6 +149,7 @@ export interface ApiLead {
   lastContactAt: string | null;
   assignee: string | null;
   assigneeId?: string | null;
+  assigneeAvatarUrl?: string | null;
   version: number;
   /** The language chosen for this client's messages (empty: the broker's own setting). */
   lang?: 'ar' | 'en' | null;
@@ -106,7 +160,7 @@ export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; st
 export interface FormerMember { id: string; name: string; role: string; deactivatedAt: string | null }
 /** What a portal enquiry message (Bayut, Dubizzle, Nawy) states. */
 export interface PortalEnquiryRead { portal: string; name: string | null; link: string; listingNo: string | null }
-export interface TeamMember { id: string; name: string; role: string; teamLeadId?: string | null; me: boolean; away: boolean; open: number; overdue: number; soon: number }
+export interface TeamMember { id: string; name: string; role: string; teamLeadId?: string | null; avatarUrl?: string | null; me: boolean; away: boolean; open: number; overdue: number; soon: number }
 /** One matching offer of a project (Ask): a unit type with its numbers. */
 export interface AskOffer { type?: string | null; area: number | null; floor: string | number | null; bedrooms?: number | null; price: number | null; down: number | null; monthly: number | null; years?: number | null; discount_pct?: number | null }
 /**
@@ -207,20 +261,216 @@ export interface OwnerEvent { kind: string; data: Record<string, unknown> | null
 export interface OwnerRename { id: number; code: string; old_value: string | null; new_value: string; requested_by_name: string | null; created_at: string }
 export interface AccessRequest { id: number; status: 'pending' | 'approved' | 'declined'; created_at: string; code: string; broker_name: string; decided_by_name: string | null }
 export interface ActivityRow { id: string | number; at: string; who: string; text: string; device: string }
-export interface DashboardData { days: number; weekly: number[]; sources: { source: string; n: number }[]; pipeline: Record<string, number>; unassigned: number; uncontacted: number; overdue: number; units: { active: number; stale: number }; deals: { n: number; commission: number; value: number }; leads: number; board: { id: string; name: string; leads: number; contacted: number; forward: number; deals: number; commission: number }[] }
+export type BrokerDiscipline = 'consistent' | 'lagging' | 'silent';
+export interface DashboardBoardRow {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  active?: boolean;
+  role?: string;
+  telegramLinked?: boolean;
+  leads: number;
+  contacted: number;
+  calls?: number;
+  forward: number;
+  viewings?: number;
+  deals: number;
+  commission: number;
+  units?: number;
+  open?: number;
+  responseMin?: number | null;
+  updates?: number;
+  updates48h?: number;
+  activeDays?: number;
+  lastUpdateAt?: string | null;
+  noNextStep?: number;
+  staleOpen?: number;
+  missed?: number;
+  onTimePct?: number | null;
+  discipline?: BrokerDiscipline;
+  /** crm_discipline rows: whether this person may nudge that broker, and the broker's id. */
+  canNudgeBroker?: boolean;
+  brokerId?: string;
+}
+export interface DashboardDisciplineSummary {
+  consistent: number;
+  lagging: number;
+  silent: number;
+  totalNoNextStep: number;
+  totalMissed: number;
+}
+export interface DashboardData {
+  team?: { id: string; name: string }[];
+  teamLeads?: { id: string; name: string }[];
+  mode?: ApiWorkspace['mode'];
+  reports?: { sources: boolean; winLoss: boolean };
+  days: number;
+  weekly: number[];
+  weeklyRanges?: { from: string; to: string; label?: string }[];
+  unassignedScope?: 'agency' | 'scope';
+  sources: { source: string; n: number }[];
+  pipeline: Record<string, number>;
+  unassigned: number;
+  waitingOver1h?: number;
+  uncontacted: number;
+  overdue: number;
+  units: { active: number; stale: number };
+  deals: { n: number; commission: number; value: number };
+  leads: number;
+  disciplineSummary?: DashboardDisciplineSummary;
+  board: DashboardBoardRow[];
+}
+export type AssistantMode = 'auto' | 'resale' | 'primary' | 'reports';
+export interface AssistantLink { label: string; screen: string; params?: Record<string, unknown> }
+export type AssistantAction =
+  | { kind: 'open_queue'; label: string; queue: string }
+  | { kind: 'pivot_mode'; mode: AssistantMode; label: string }
+  | { kind: 'view_all_markets'; label: string }
+  | { kind: 'change_search'; label: string; query?: string };
+export type AssistantFeedbackReason = 'wrong' | 'not_asked' | 'other';
+export interface AssistantFeedback { q: string; lang: Lang; intent: string; route?: string; verdict: 'down'; reason: AssistantFeedbackReason }
+export interface AssistantSuggestion { label: string; q: string }
+export interface AssistantCardLink { screen: string; params?: Record<string, unknown> }
+export type ViewingState = 'booked' | 'confirmed' | 'planned';
+export type AssistantCard =
+  | {
+      kind: 'stuck_leads';
+      title?: string;
+      /** The Leads list queue that returns exactly these leads; null when no list matches. */
+      queue: string | null;
+      total: number;
+      /** Viewings card only: how the total splits. */
+      split?: { booked: number; confirmed: number; planned: number };
+      recommendedBrokers: { id: string; name: string; open: number; avatarUrl?: string | null }[];
+      canAssign: boolean;
+      canNudge: boolean;
+      items: { ref: string; name: string | null; stage: string; version?: number; assignee: string | null; assigneeId: string | null; avatarUrl?: string | null; createdAt: string | null; viewingState?: ViewingState; at?: string | null; action?: { kind: 'book_viewing'; ref: string; at: string }; lastAutoReminderAt?: string | null }[];
+    }
+  | { kind: 'client_matches'; title?: string; total: number; queue: null; items: { ref: string; name: string | null; brokerName: string | null; brokerId?: string | null; avatarUrl?: string | null; wants: string; matchCount: number }[] }
+  | { kind: 'broker_scorecard'; broker: DashboardBoardRow }
+  | { kind: 'broker_discipline'; summary: DashboardDisciplineSummary; rows: DashboardBoardRow[] }
+  | { kind: 'metric_row'; items: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' | 'critical'; unit?: string; /** Change (now minus the previous equal-length period), when the server has it. */ delta?: number | null; /** Whether that change is good news (a lower response time is). */ deltaGood?: boolean }[]; summary?: string; link?: AssistantCardLink }
+  | { kind: 'bar_breakdown'; title: string; rows: { key: string; label: string; count: number; valueLabel?: string; commission?: number; spend?: number | null; won?: number; avatarUrl?: string | null }[]; summary?: string; link?: AssistantCardLink }
+  | { kind: 'trend'; title: string; points: { label: string; value: number }[]; direction: 'rising' | 'falling' | 'flat'; directionLabel: string; changePct: number | null; summary: string; link?: AssistantCardLink }
+  | { kind: 'share'; title: string; total: number; parts: { key: string; label: string; value: number; pct: number }[]; summary: string; link?: AssistantCardLink }
+  | { kind: 'price_range'; title: string; place: string | null; unit: 'EGP'; units: number; min: number; max: number; median: number; bins: { from: number; to: number; count: number }[]; budget?: { value: number; label: string }; summary: string; link?: AssistantCardLink }
+  | { kind: 'compare'; title: string; columns: { code: string; title: string | null }[]; rows: { key: string; label: string; values: (string | null)[]; best: number | null }[]; summary: string; link?: AssistantCardLink }
+  | { kind: 'disambiguate'; prompt?: string; options: { id: string; label: string; query: string }[] }
+  | { kind: 'text_answer'; answer: string; dataDates: string | null; found: boolean; source: 'ai' | 'local'; logId?: string | null };
+export interface AssistantUnderstood {
+  job?: string;
+  market?: 'resale' | 'primary' | null;
+  brokerRole?: 'closer' | 'participant';
+  appliedFilters: string[];
+  exclusions?: string[];
+  unsupportedFilters?: string[];
+  /** What the unit search understood, as data (null = not asked); the app chips compare these with each unit. */
+  filters?: {
+    bedrooms: { min: number | null; max: number | null };
+    propertyTypes: string[];
+    finishing: string[];
+    places: string[];
+    price: { min: number | null; max: number | null };
+    delivery: { ready: boolean | null; byYear: number | null };
+  };
+}
+export interface AssistantContext {
+  job: string;
+  market?: 'resale' | 'primary' | null;
+  brokerRole?: 'closer' | 'participant';
+  areaQuery?: string | null;
+  maxPrice?: number | null;
+  f?: string | null;
+  originalQuery?: string;
+  /** Codes of the top results of the last unit search; the server's "compare" reads them. */
+  unitCodes?: string[];
+  window?: { key: string; from: string; to: string; labelEn: string; labelAr: string } | null;
+}
+export interface AssistantQueryResponse {
+  intent: string;
+  route?: string;
+  /** With route 'clarify': 'units_or_clients' means the two suggestions are the two choices. */
+  clarifyKind?: string;
+  headline: string;
+  windowLabel?: string;
+  modeUsed?: AssistantMode;
+  understood?: AssistantUnderstood;
+  nextContext?: AssistantContext | null;
+  cards: AssistantCard[];
+  actions?: AssistantAction[];
+  links?: AssistantLink[];
+  aiUsed: boolean;
+  units?: SearchResult;
+  projects?: AskResults | null;
+  suggestPrimary?: boolean;
+  interpretation?: string;
+  /** Follow-up questions the server proposes; each is sent as a new turn. */
+  suggestions?: AssistantSuggestion[];
+  /** Active / sold / archived counts for a unit search. */
+  statusCounts?: StatusCounts;
+}
 export interface PriceRow { place: string; listing_type: 'sale' | 'rent'; units: number; median: number; low: number; high: number }
 export interface WinLossGroup { key: string; name?: string; won: number; lost: number; rate: number | null; top: string | null }
 export interface WinLossData { days: number; won: number; lost: number; rate: number | null; reasons: { key: string; n: number; pct: number }[]; brokers: WinLossGroup[]; sources: WinLossGroup[] }
 export type Row = Record<string, unknown>;
-export interface DealsData { items: Row[]; more: boolean; totals: Row[]; statuses: string[] }
-export interface CommissionsData { kind: string; period: string; items: Row[]; total: number; totals: Row | null; statuses: string[] }
-export interface SourcesData { month: string; rows: { source: string; leads: number; deals: number; commission: number; spend: number | null; perLead: number | null; perDeal: number | null }[]; totals: Row }
+export interface DealsFilterOpts {
+  from?: string;
+  to?: string;
+  brokerId?: string;
+  brokerRole?: 'closer' | 'participant';
+  market?: 'resale' | 'primary' | 'unknown';
+  area?: string;
+  summary?: boolean;
+}
+export interface DealSummary {
+  deals: number;
+  volume: number;
+  commissionTotal: number;
+  brokerShareTotal: number | null;
+  commissionBasis: 'deal_commission' | 'broker_share' | 'collected';
+  brokerRole: 'closer' | 'participant';
+  unknownMarketCount: number;
+  unknownAreaCount: number;
+  byMarket?: { market: string; deals: number; commissionTotal: number; volume: number }[];
+  byArea?: { areaKey: string; areaLabel: string; deals: number; commissionTotal: number; volume: number }[];
+}
+export interface DealsData { summary?: { from: string; to: string; weeks: number[] }; dealSummary?: DealSummary; items: Row[]; more: boolean; totals: Row[]; statuses: string[] }
+export interface CommissionDeveloperSummary {
+  developerId: string;
+  developerName: string;
+  claimable: number;
+  claimableCount: number;
+  claimed: number;
+  paid: number;
+  outstanding: number;
+  overdueCount: number;
+  overdueAmount: number;
+}
+export interface CommissionsData {
+  kind: string;
+  period: string;
+  items: Row[];
+  total: number;
+  totals: (Row & { claimable?: number; claimableCount?: number; overdue?: number; overdueAmount?: number; paid?: number; outstanding?: number }) | null;
+  byDeveloper?: CommissionDeveloperSummary[];
+  statuses: string[];
+}
+export interface SourcesData { month: string; rows: { source: string; leads: number; deals: number; commission: number; spend: number | null; perLead: number | null; perDeal: number | null; adBurn?: boolean }[]; totals: Row }
 export interface AskAnswer { answer: string; found: boolean; lang: Lang; dataDates: string | null; /** "local": the AI was off, out of credit or failed, and the answer is the line written from the data. */ source?: 'ai' | 'local'; log_id?: string | null }
 export interface UnitImage { id: string; url: string; position: number }
 export interface ApiViewing { id: string; startsAt: string; place: string | null; status: string; proposedAt: string | null; clientNote: string | null; leadRef: string; leadName: string | null; unitCode: string | null }
 export interface SentLink { createdAt: string; unitCode: string; compound: string | null; opens: number; lastOpenedAt: string | null; recipientPhone: string | null; leadRef: string | null; leadName: string | null; note: string | null }
 export interface ViewingSet { lead: ApiLead; viewing: { id: string; startsAt: string; place: string | null; status: string }; url: string; message: string; wa: string | null }
-export interface LeadDetail { lead: ApiLead; timeline: LeadEvent[] }
+export interface LeadDetail { lead: ApiLead; timeline: LeadEvent[]; canClaim?: boolean; canCollaborate?: boolean; canWork?: boolean; canAssign?: boolean }
+export interface AppSettingsSwitches {
+  brokersMayWrite?: boolean;
+  dataEntryOwners?: boolean;
+  brokersSeeAllLeads?: boolean;
+  brokersWorkSharedLeads?: boolean;
+  brokersEditColleagueUnits?: boolean;
+  dataEntryMissingPhotos?: boolean;
+  dataEntryOverdueUnits?: boolean;
+}
 export interface NewLead { phone1: string; phone2?: string; name?: string; kind?: ApiLead['kind']; notes?: string; lawfulBasis?: 'client_request' | 'consent' | 'existing_client' }
 /** The fields of the add-unit form use the website form's names (strings, features as an array). */
 /** One entry of the place suggestion list: a compound (or its other name), an area, or a sub-zone. area_id and subzone_id are what a unit stores when it is picked. */
@@ -294,6 +544,8 @@ export interface SearchResult {
   f?: string | null;
   /** What the server understood, in the broker's language (e.g. "شقة · بيع أو إيجار · هايد بارك"). */
   reading?: string;
+  marketLock?: 'resale' | 'primary' | null;
+  sort?: string | null;
   ask?: SearchAsk;
 }
 export interface VoiceFile { uri: string; name: string; type: string }
@@ -335,7 +587,10 @@ export interface MapUnit {
   area: number | null;
   price: number | null;
   priceText: string | null;
+  currency?: string | null;
+  rentPeriod?: 'monthly' | 'yearly' | string | null;
   photo?: string | null;
+  thumb?: string | null;
 }
 export interface MapUnits {
   place: { id: string; name_en: string | null; name_ar: string | null };
@@ -343,6 +598,7 @@ export interface MapUnits {
 }
 
 export interface UnitsQuery {
+  missingPhotos?: boolean;
   status?: 'active' | 'sold' | 'archived';
   q?: string;
   compound?: string;
@@ -422,6 +678,10 @@ export interface PlanAllowance {
   seats: PlanMeter;
   units: PlanMeter;
   extraSeats?: number;
+  canPay?: boolean;
+  canBuyCredits?: boolean;
+  managerCanRenewPlan?: boolean;
+  managerCanBuyCredits?: boolean;
 }
 
 /** The plan guard's 402 codes on the app API. */
@@ -431,6 +691,7 @@ export type PlanPayErrorCode = 'plan' | 'forbidden' | 'too_many' | 'amount' | 's
 export const PLAN_PAY_ERRORS: readonly PlanPayErrorCode[] = ['plan', 'forbidden', 'too_many', 'amount', 'same_plan', 'downgrade', 'period_switch', 'upgrade_required', 'upgrade_pending', 'lapsed', 'not_paid', 'not_allowed', 'upgrade_stale'];
 export const isPlanPayError = (c: unknown): c is PlanPayErrorCode => typeof c === 'string' && (PLAN_PAY_ERRORS as readonly string[]).includes(c);
 export type PlanPayBody = { kind: 'plan' | 'upgrade' | 'credit_bundle'; plan?: string; months?: number; bundle?: string };
+export type PaymentChoice = PlanPayBody & { name: [string, string]; amount: number };
 
 /** The per-month equivalent of a period price, rounded (6 months for 1,075 is 179 a month). */
 export const perMonthPrice = (price: number, months: number): number => Math.round(price / Math.max(1, months));
@@ -460,14 +721,14 @@ export interface ApiClientOptions {
   /** Sent with every call (the app's platform and version), so the server's failure log can tell the phones apart. */
   headers?: Record<string, string>;
   /** Called before a write (POST or PUT); the function it returns is called when the call ends. The app uses it to lock the screen while a write runs (busy rule). Return nothing to skip. */
-  onWrite?: (method: 'POST' | 'PUT' | 'DELETE', path: string) => (() => void) | void;
+  onWrite?: (method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string) => (() => void) | void;
   fetchImpl?: typeof fetch;
 }
 
 export function createApiClient(opts: ApiClientOptions) {
   const doFetch = opts.fetchImpl ?? fetch;
 
-  async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>, signal?: AbortSignal): Promise<T> {
+  async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>, signal?: AbortSignal): Promise<T> {
     const end = method === 'GET' ? undefined : opts.onWrite?.(method, path);
     try {
       return await send<T>(method, path, body, query, signal);
@@ -476,7 +737,7 @@ export function createApiClient(opts: ApiClientOptions) {
     }
   }
 
-  async function send<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>, signal?: AbortSignal): Promise<T> {
+  async function send<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown, query?: Record<string, string | number | boolean | string[] | undefined>, signal?: AbortSignal): Promise<T> {
     // An array repeats the key (f=roof&f=garden), as the server reads it.
     const qs = query
       ? Object.entries(query)
@@ -516,7 +777,8 @@ export function createApiClient(opts: ApiClientOptions) {
     } catch {
       /* not JSON */
     }
-    if (res.status === 401 && token) opts.onUnauthorized?.();
+    // Only the session that sent this request is signed out; a late 401 must not end a newer sign-in.
+    if (res.status === 401 && token && opts.getToken() === token) opts.onUnauthorized?.();
     if (res.status === 402 && (code === 'plan_readonly' || code === 'plan_blocked')) {
       const locked = new PlanLockedError(code, extra);
       opts.onPlanLocked?.(locked);
@@ -529,19 +791,21 @@ export function createApiClient(opts: ApiClientOptions) {
   return {
     notificationSettings: () => request<NotificationSettings>('GET', '/notification-settings'),
     saveNotificationSettings: (body: NotificationSettingsInput) => request<NotificationSettings>('PUT', '/notification-settings', body),
-    appSettings: () => request<{ draftStyle: string; quietLine: boolean; switches: { brokersMayWrite: boolean; dataEntryOwners: boolean } | null }>('GET', '/settings'),
-    saveAppSettings: (body: { draftStyle?: string; quietLine?: boolean; switches?: { brokersMayWrite?: boolean; dataEntryOwners?: boolean } }) => request<{ ok: true }>('POST', '/settings', body),
+    appSettings: () => request<{ draftStyle: string; quietLine: boolean; switches: AppSettingsSwitches | null }>('GET', '/settings'),
+    saveAppSettings: (body: { draftStyle?: string; quietLine?: boolean; switches?: Partial<AppSettingsSwitches> }) => request<{ ok: true }>('POST', '/settings', body),
+    trialOptions: () => request<{ enabled: boolean; waAvailable: boolean; tiers: Record<'solo' | 'team', { enabled: boolean; days: number; credits: number; seats: number; units: number }> }>('GET', '/auth/trial-options'),
+    signup: (body: { name: string; phone: string; agency?: string; tier?: 'solo' | 'team'; channel?: 'telegram' | 'whatsapp'; lang?: 'ar' | 'en' }) => request<{ ok: boolean; channel: 'telegram' | 'whatsapp'; verifyUrl: string; phone: string; codeMinutes: number }>('POST', '/auth/signup', body),
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
-    me: (signal?: AbortSignal) => request<{ broker: ApiBroker; workspace?: ApiWorkspace | null; inviteRoles?: string[]; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me', undefined, undefined, signal),
+    me: (signal?: AbortSignal) => request<{ broker: ApiBroker; workspace?: ApiWorkspace | null; inviteRoles?: string[]; onboarding?: { hasUnit: boolean; hasSharedLink: boolean; telegramConnected: boolean; hasAsked?: boolean; hasPhotos?: boolean }; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me', undefined, undefined, signal),
     testRole: (role: string) => request<{ ok: true; role: string }>('POST', '/test-role', { role }),
     testView: (view: 'home' | 'other') => request<{ ok: true; viewing: boolean }>('POST', '/test-view', { view }),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
     map: (f: MapFilters = {}) => request<MapData>('GET', '/map', undefined, { ...f }),
     mapUnits: (placeId: string, f: MapFilters = {}) => request<MapUnits>('GET', `/map/places/${encodeURIComponent(placeId)}/units`, undefined, { ...f }),
-    search: (q: string, o: { ai?: boolean; drop?: boolean; status?: UnitStatus; offset?: number } = {}) => request<SearchResult>('GET', '/search', undefined, { q, ai: o.ai, drop: o.drop, status: o.status, offset: o.offset }),
-    leadCounts: (q?: string, broker?: string) => request<{ counts: Record<string, number> }>('GET', '/leads/counts', undefined, { q, broker }),
+    search: (q: string, o: { ai?: boolean; drop?: boolean; status?: UnitStatus; offset?: number; f?: string; market?: 'resale' | 'primary'; sort?: string } = {}) => request<SearchResult>('GET', '/search', undefined, { q, ai: o.ai, drop: o.drop, status: o.status, offset: o.offset, f: o.f, market: o.market, sort: o.sort }),
+    leadCounts: (q?: string, broker?: string, assigned?: 'last', queue?: LeadQueue) => request<{ counts: Record<string, number> }>('GET', '/leads/counts', undefined, { q, broker, assigned, queue }),
     /** Sends a recorded note; the server writes it down and answers the text to search. */
     voiceToText: (file: VoiceFile) => {
       const form = new FormData();
@@ -551,11 +815,11 @@ export function createApiClient(opts: ApiClientOptions) {
     config: (signal?: AbortSignal) => request<AppConfig>('GET', '/config', undefined, undefined, signal),
     registerDevice: (token: string, platform: 'android' | 'ios') => request<{ ok: true }>('POST', '/devices', { token, platform }),
     removeDevice: (token: string) => request<{ ok: true }>('POST', '/devices/remove', { token }),
-    leads: (o: { tab?: LeadTab; q?: string; offset?: number; broker?: string } = {}) => request<LeadsPage>('GET', '/leads', undefined, { tab: o.tab && o.tab !== 'all' ? o.tab : undefined, q: o.q, offset: o.offset || undefined, broker: o.broker }),
+    leads: (o: { tab?: LeadTab; q?: string; offset?: number; broker?: string; team?: string; assigned?: 'last'; queue?: LeadQueue } = {}) => request<LeadsPage>('GET', '/leads', undefined, { tab: o.tab && o.tab !== 'all' ? o.tab : undefined, q: o.q, offset: o.offset || undefined, broker: o.broker, team: o.team, assigned: o.assigned, queue: o.queue }),
     lead: (ref: string) => request<LeadDetail>('GET', `/leads/${encodeURIComponent(ref)}`),
     /** Sets a viewing. Nothing is sent: the answer carries the client's message and link for the broker to send or not. */
     setViewing: (ref: string, o: { version: number; at: string; unitCode?: string; place?: string; lang: Lang }) => request<ViewingSet>('POST', `/leads/${encodeURIComponent(ref)}/viewing`, o),
-    viewings: (o: { from?: string; to?: string } = {}) => request<{ items: ApiViewing[] }>('GET', '/viewings', undefined, { from: o.from, to: o.to }),
+    viewings: (o: { from?: string; to?: string; tomorrow?: boolean } = {}) => request<{ items: ApiViewing[] }>('GET', '/viewings', undefined, { from: o.from, to: o.to, tomorrow: o.tomorrow ? '1' : undefined }),
     sentLinks: (offset = 0) => request<{ offset: number; hasMore: boolean; items: SentLink[] }>('GET', '/links', undefined, { offset: offset || undefined }),
     extractLead: (message: string) => request<{ name: string; phones: string[]; kind: ApiLead['kind']; source: string; note: string; portal?: undefined } | { portal: true; enquiry: PortalEnquiryRead }>('POST', '/leads/extract', { message }),
     createLead: (l: NewLead) => request<{ outcome: 'created' | 'merged'; lead: ApiLead }>('POST', '/leads', { lawfulBasis: 'client_request', ...l }),
@@ -574,7 +838,16 @@ export function createApiClient(opts: ApiClientOptions) {
     notificationsDeleteAll: () => request<{ ok: boolean; unread: number }>('POST', '/notifications/delete-all', {}),
     leadLang: (ref: string, version: number, lang: 'ar' | 'en' | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/lang`, { lang, version }),
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
+    nudgeBroker: (id: string) => request<void>('POST', `/brokers/${encodeURIComponent(id)}/nudge`, {}),
+    nudgeLead: (ref: string) => request<{ ok: true }>('POST', `/leads/${encodeURIComponent(ref)}/nudge`, {}),
+    assistantQuery: (body: { q: string; mode?: AssistantMode; lang?: Lang; previousContext?: AssistantContext | null }) => request<AssistantQueryResponse>('POST', '/assistant/query', body),
+    assistantFeedback: (body: AssistantFeedback) => request<void>('POST', '/assistant/feedback', body),
+    unitMatchingLeads: (code: string) => request<{ partial: boolean; items: { ref: string; name: string | null; reason?: string }[] }>('GET', `/units/${encodeURIComponent(code)}/matching-leads`),
+    leadMatches: (ref: string, adjustments?: LeadMatchAdjustments) => request<{ requests: { id: string; summary: string; criteria: Record<LeadMatchField, number | null>; total: number; items: { code: string; title: string | null }[] }[] }>('GET', `/leads/${encodeURIComponent(ref)}/matches`, undefined, adjustments),
+    leadUpdate: (ref: string, change: { version: number; stage?: LeadStage; note?: string; lostReason?: string }) =>
+      request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/update`, change),
     leadStage: (ref: string, version: number, stage: LeadStage, lostReason?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/stage`, { version, stage, lostReason }),
+    completeLeadFollowUp: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/follow-up/complete`, { version }),
     leadFollowUp: (ref: string, version: number, at: string, kind: 'call' | 'viewing', note?: string) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/follow-up`, { version, at, kind, note }),
     leadDraft: (ref: string, lang: 'ar' | 'en') => request<{ text: string; wa: string | null }>('POST', `/leads/${encodeURIComponent(ref)}/draft`, { lang }),
     leadSend: (ref: string, code: string, lang: 'ar' | 'en') => request<{ url: string }>('POST', `/leads/${encodeURIComponent(ref)}/send`, { code, lang }),
@@ -604,6 +877,8 @@ export function createApiClient(opts: ApiClientOptions) {
       for (const p of photos) form.append('photos', p as unknown as Blob);
       return request<{ code: string; photos: number; photosFailed: number }>('POST', '/units', form);
     },
+    searchHome: () => request<SearchHomeData>('GET', '/today/home'),
+    overdueUnits: (offset: number) => request<{ total: number; items: TodayOldUnit[] }>('GET', '/today/overdue-units', undefined, { offset }),
     today: () => request<TodayData>('GET', '/today'),
     unit: (code: string) => request<ApiUnitDetail>('GET', `/units/${encodeURIComponent(code)}`),
     unitContact: (code: string) => request<{ name: string | null; phone: string | null }>('GET', `/units/${encodeURIComponent(code)}/contact`),
@@ -635,17 +910,40 @@ export function createApiClient(opts: ApiClientOptions) {
     decideRename: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/owners/requests/${id}`, { decision: approve ? 'approve' : 'reject' }),
     accessRequests: (status: string, page = 0) => request<{ items: AccessRequest[]; total: number }>('GET', '/access-requests', undefined, { status, page }),
     answerAccess: (id: number, approve: boolean) => request<{ ok: true }>('POST', `/access-requests/${id}`, { decision: approve ? 'approve' : 'decline' }),
-    dashboard: (days = 30) => request<DashboardData>('GET', '/dashboard', undefined, { days }),
+    dashboard: (days = 30, scope?: { broker?: string; team?: string; from?: string; to?: string }) => {
+      const hasScope = Boolean(scope?.broker || scope?.team);
+      return request<DashboardData>('GET', '/dashboard', undefined, { days, ...scope, strictScope: hasScope ? '1' : undefined });
+    },
+    setTeamStyle: (style: ApiWorkspace['teamStyle']) => request<{ ok: true; style: ApiWorkspace['teamStyle'] }>('POST', '/team/style', { style }),
     pricePerM2: () => request<{ minUnits: number; items: PriceRow[] }>('GET', '/insights/prices'),
-    winLoss: (days = 30) => request<WinLossData>('GET', '/insights/winloss', undefined, { days }),
+    winLoss: (days = 30, range?: { from?: string; to?: string }) => request<WinLossData>('GET', '/insights/winloss', undefined, { days, ...range }),
     report: (text: string, extra?: { type?: 'bug' | 'suggestion' | 'request'; device?: Record<string, unknown> }) => request<{ ok: true; id: number }>('POST', '/report', { text, ...(extra ?? {}) }),
+    telegramLink: () => request<{ url: string }>('POST', '/me/telegram-link'),
     setLang: (lang: Lang) => request<{ ok: true; lang: Lang }>('POST', '/me/lang', { lang }),
-    deals: (status?: string, page = 0) => request<DealsData>('GET', '/deals', undefined, { status, page }),
+    deals: (status?: string, page = 0, opts?: DealsFilterOpts) =>
+      request<DealsData>('GET', '/deals', undefined, {
+        status,
+        page,
+        ...(opts
+          ? {
+              from: opts.from,
+              to: opts.to,
+              broker: opts.brokerId,
+              brokerRole: opts.brokerRole,
+              market: opts.market,
+              area: opts.area,
+              summary: opts.summary ? '1' : undefined,
+            }
+          : {}),
+      }),
+    dealReport: (report: 'recent' | 'last', week?: number, page = 0) => request<DealsData>('GET', '/deals', undefined, { report, week, page }),
+    dealDetail: (ref: string) => request<{ deal: Row }>('GET', `/deals/${encodeURIComponent(ref)}`),
     dealStatus: (ref: string, status: string, version?: number) => request<{ ok: true }>('POST', `/deals/${ref}/status`, { status, version }),
-    commissions: (kind: 'resale' | 'developers', status?: string, page = 0) => request<CommissionsData>('GET', '/commissions', undefined, { kind, status, page }),
+    commissions: (kind: 'resale' | 'developers', status?: string, page = 0, o: { developer?: string; overdue?: boolean; period?: 'month' | 'week' | 'all' } = {}) =>
+      request<CommissionsData>('GET', '/commissions', undefined, { kind, status, page, developer: o.developer, overdue: o.overdue ? '1' : undefined, period: o.period }),
     commission: (id: string) => request<{ commission: Row }>('GET', `/commissions/${id}`),
     commissionMove: (id: string, body: Row) => request<{ ok: true }>('POST', `/commissions/${id}`, body),
-    sources: (month?: string) => request<SourcesData>('GET', '/sources', undefined, { month }),
+    sources: (month?: string, signed?: boolean) => request<SourcesData>('GET', '/sources', undefined, { month, signed: signed ? '1' : undefined }),
     saveSpend: (month: string, spend: Record<string, string>) => request<{ ok: true }>('POST', '/sources/spend', { month, spend }),
     /** Reads a pasted portal message (managers and the owner): nothing is saved. 422 when it is not a portal enquiry. */
     readPortalEnquiry: (message: string) => request<{ ok: true } & PortalEnquiryRead>('POST', '/portal-enquiries/read', { message }),
@@ -654,7 +952,7 @@ export function createApiClient(opts: ApiClientOptions) {
     portalEnquiries: () => request<{ items: Row[] }>('GET', '/portal-enquiries'),
     assignEnquiry: (id: string, b: { phone: string; brokerId?: string }) => request<{ ok: true; outcome: string }>('POST', `/portal-enquiries/${id}/assign`, b),
     linkEnquiry: (id: string, unitCode: string) => request<{ ok: true }>('POST', `/portal-enquiries/${id}/link`, { unitCode }),
-    openedLinks: (status?: string, page?: number, q?: string, days?: number) => request<{ rows: Row[]; total: number; pages: number; page: number }>('GET', '/opened-links', undefined, { status, page, q, days }),
+    openedLinks: (status?: string, page?: number, q?: string, days?: number, leadRef?: string) => request<{ rows: Row[]; total: number; pages: number; page: number }>('GET', '/opened-links', undefined, { status, page, q, days, leadRef }),
     catalogue: (c: CatalogueQuery = {}) => request<CatalogueList>('GET', '/catalogue', undefined, { q: c.q, page: c.page, pl: c.place, f: c.features?.length ? c.features : undefined, dev: c.developer, bed: c.bed, max: c.max, archived: c.archived }),
     /** The catalogue box's developers and projects (the answer also carries places and features, as the website's). */
     catalogueSearch: (q: string) => request<{ items: CatalogueBoxItem[] }>('GET', '/catalogue/search-box', undefined, { q }),
@@ -683,11 +981,16 @@ export function createApiClient(opts: ApiClientOptions) {
     library: (q?: string, page = 0) => request<{ items: Row[]; pages: number }>('GET', '/library', undefined, { q, page }),
     useLibrary: (id: string) => request<{ ok: true; projectId: string }>('POST', `/library/${id}/use`, {}),
     compare: (codes: string[], lang: 'ar' | 'en') => request<{ url: string; codes: string[] }>('POST', '/compare', { codes, lang }),
-    plan: () => request<{ allowance: PlanAllowance; payTo: { instapay: string; bank: string }; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean }>('GET', '/plan'),
+    plan: () => request<{ allowance: PlanAllowance; payTo: { instapay: string; bank: string }; limits: Row; payments: Row[]; requests: Row[]; referral: Row | null; canPay: boolean; canBuyCredits?: boolean; managerCanRenewPlan?: boolean; managerCanBuyCredits?: boolean; paymentChoices?: PaymentChoice[] }>('GET', '/plan'),
     planPay: (body: PlanPayBody) => request<{ ok: true; payment: Row }>('POST', '/plan/pay', body),
+    updateBillingPermissions: (body: { managerCanRenewPlan?: boolean; managerCanBuyCredits?: boolean }) => request<{ ok: true; permissions: { managerCanRenewPlan: boolean; managerCanBuyCredits: boolean } }>('POST', '/agency/billing-permissions', body),
     creditRequest: (credits: number, note: string) => request<{ ok: true }>('POST', '/plan/credit-request', { credits, note }),
+    searchCredits: () => request<SearchCredits>('GET', '/search/credits'),
     usage: (signal?: AbortSignal) => request<{ allowance: PlanAllowance; ai?: AiUsage }>('GET', '/usage', undefined, undefined, signal),
-    platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean }>('GET', '/platform'),
+    platform: () => request<{ dashboard: Row; period: Row; agencies: Row[]; signupOpen: boolean; pendingPayments?: Row[]; paymentChannels?: { sms: boolean; telegram: boolean } }>('GET', '/platform'),
+    platformPaymentChannels: (body: { sms: boolean; telegram: boolean }) => request<{ ok: true }>('POST', '/platform/payment-channels', body),
+    platformConfirmPayment: (id: string) => request<{ ok: true; payment: Row }>('POST', `/platform/payments/${id}/confirm`, {}),
+    platformCancelPayment: (id: string) => request<{ ok: true; payment: Row }>('POST', `/platform/payments/${id}/cancel`, {}),
     platformAgency: (id: string, action: 'suspend' | 'resume') => request<{ ok: boolean }>('POST', `/platform/agencies/${id}/${action}`, {}),
     platformSignup: (open: boolean) => request<{ ok: true }>('POST', '/platform/signup', { open }),
     platformAnnounce: (title: string, body: string) => request<{ ok: true; sent: number }>('POST', '/platform/announce', { title, body }),
@@ -695,8 +998,10 @@ export function createApiClient(opts: ApiClientOptions) {
     activityLog: (page = 0) => request<{ items: ActivityRow[]; more: boolean }>('GET', '/activity-log', undefined, { page }),
     /** Moves a lead to a broker of the team, or back to the managers with null. */
     assignLead: (ref: string, version: number, brokerId: string | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/assign`, { version, brokerId }),
+    claimLead: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/claim`, { version }),
     ask: (question: string) => request<AskAnswer>('POST', '/ask', { question }),
     unitStatus: (code: string, status: 'active' | 'sold' | 'archived') => request<{ ok: true; status: string }>('POST', `/units/${encodeURIComponent(code)}/status`, { status }),
+    editColleagueUnit: (code: string, body: { version: number; price?: number; description?: string; status?: UnitStatus }) => request<{ ok: true }>('PATCH', `/units/${encodeURIComponent(code)}/colleague`, body),
     unitDelete: (code: string) => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/delete`, {}),
     unitRestore: (code: string) => request<{ ok: true; code: string }>('POST', `/units/${encodeURIComponent(code)}/restore`, {}),
     unitLease: (code: string) => request<{ rent: boolean; lease: { startDate: string; months: number; rent: number | null; increasePct: number | null; tenantName: string | null; remind: boolean; done?: boolean } | null }>('GET', `/units/${encodeURIComponent(code)}/lease`),
@@ -713,6 +1018,13 @@ export function createApiClient(opts: ApiClientOptions) {
       form.append('logo', file as unknown as Blob);
       return request<{ ok: true; url: string }>('POST', '/settings/logo', form);
     },
+    /** The signed-in broker's own profile photo (multipart field "photo", jpeg/png/webp up to 2 MB). */
+    uploadAvatar: (file: UploadFile) => {
+      const form = new FormData();
+      form.append('photo', file as unknown as Blob);
+      return request<{ avatarUrl: string }>('PUT', '/me/avatar', form);
+    },
+    deleteAvatar: () => request<{ avatarUrl: null }>('DELETE', '/me/avatar'),
     removeLogo: () => request<{ ok: true }>('POST', '/settings/logo/remove', {}),
     leases: (soon = false) => request<{ items: LeaseRow[] }>('GET', `/leases${soon ? '?soon=1' : ''}`),
     unitLeaseDone: (code: string, kind: 'renewed' | 'leaving' | 'relist') => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease/done`, { kind }),
@@ -759,8 +1071,8 @@ export function createApiClient(opts: ApiClientOptions) {
 }
 export type ApiClient = ReturnType<typeof createApiClient>;
 
-export type NotifyChannel = 'both' | 'telegram' | 'web' | 'whatsapp';
+export type NotifyChannel = 'both' | 'telegram' | 'web' | 'app' | 'whatsapp';
 export type NotifyFrequency = 'immediate' | 'hourly' | 'daily';
 export interface NotifyKind { label: { ar: string; en: string }; on: boolean; channel: NotifyChannel; frequency: NotifyFrequency; locked: 'owner' | 'manager' | null; urgent: boolean }
-export interface NotificationSettings { kinds: Record<string, NotifyKind>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number }; telegramLinked: boolean }
-export interface NotificationSettingsInput { kinds: Record<string, { on?: boolean; channel?: NotifyChannel; frequency?: NotifyFrequency }>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number } }
+export interface NotificationSettings { agencyUnitChecks?: { enabled: boolean; locked: boolean }; kinds: Record<string, NotifyKind>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number }; telegramLinked: boolean }
+export interface NotificationSettingsInput { agencyUnitChecks?: boolean; kinds: Record<string, { on?: boolean; channel?: NotifyChannel; frequency?: NotifyFrequency }>; reminderMinutes: number[]; quiet: { enabled: boolean; start: number; end: number } }

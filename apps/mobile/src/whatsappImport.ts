@@ -160,7 +160,7 @@ const PHONE_IN_TEXT = /(?<!\d)(?:\+?20)?0?1[0125]\d{8}(?!\d)/g;
 export function phonesInText(text: string): string[] {
   const out: string[] = [];
   asciiDigits(String(text || '')).split(/\r?\n/).forEach((line) => {
-    const squeezed = line.replace(/(?<=\d)[ \-]+(?=\d)/g, '');
+    const squeezed = line.replace(/(?<=\d)[ -]+(?=\d)/g, '');
     for (const m of squeezed.matchAll(PHONE_IN_TEXT)) out.push(comparable('owner_phone', m[0]));
   });
   return out;

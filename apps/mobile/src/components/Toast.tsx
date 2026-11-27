@@ -1,8 +1,11 @@
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
+import Animated, { FadeInDown, FadeOutDown, ReduceMotion } from 'react-native-reanimated';
+import HapticFeedback from 'react-native-haptic-feedback';
 import { AppText as Text } from './AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
+import { DURATION } from '../motion';
 import { radius, spacing, useTheme } from '../theme';
 
 /**
@@ -35,23 +38,26 @@ export function ToastHost() {
   const { text, bad, n } = useToastStore();
   useEffect(() => {
     if (!text) return undefined;
+    try { HapticFeedback.trigger('impactLight', { enableVibrateFallback: false }); } catch { /* haptics are optional */ }
     const id = setTimeout(() => useToastStore.setState({ text: null }), bad ? 6000 : 4000);
     return () => clearTimeout(id);
   }, [text, bad, n]);
   if (!text) return null;
   return (
-    <Pressable
-      testID="toast"
-      accessibilityRole="alert"
-      accessibilityLiveRegion="polite"
-      onPress={() => useToastStore.setState({ text: null })}
+    <Animated.View
+      key={n}
+      entering={FadeInDown.duration(DURATION.base).reduceMotion(ReduceMotion.System)}
+      exiting={FadeOutDown.duration(DURATION.fast).reduceMotion(ReduceMotion.System)}
       style={[styles.box, elev('lg'), { bottom: insets.bottom + 88, backgroundColor: bad ? colors.danger : colors.text }]}
     >
-      <Text style={{ color: bad ? colors.onDanger : colors.bg, fontWeight: '600', textAlign: 'center' }}>{text}</Text>
-    </Pressable>
+      <Pressable testID="toast" accessibilityRole="alert" accessibilityLiveRegion="polite" onPress={() => useToastStore.setState({ text: null })} style={styles.press}>
+        <Text style={{ color: bad ? colors.onDanger : colors.bg, fontWeight: '600', textAlign: 'center' }}>{text}</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  box: { position: 'absolute', start: spacing.lg, end: spacing.lg, borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
+  box: { position: 'absolute', start: spacing.lg, end: spacing.lg, borderRadius: radius.md },
+  press: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
 });

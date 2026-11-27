@@ -51,14 +51,14 @@ export function ProjectCardView({ p, lang, onOpen, onSend }: { p: ProjectCard; l
           {status ? <View style={styles.badge}><Pill solid tone="primary" label={status} /></View> : null}
         </View>
         <View style={styles.body}>
-          <Text style={[styles.name, { color: colors.text }]}>{projectName(p, lang)}</Text>
+          <Text variant="heading" style={{ color: colors.text }}>{projectName(p, lang)}</Text>
           <Text style={{ color: colors.muted }}>{[dev, place].filter(Boolean).join(' · ') || '—'}</Text>
           {pills.length ? (
             <View style={styles.pills}>{pills.map((f) => <Pill key={f} label={f} />)}</View>
           ) : null}
-          {p.matched?.length ? <Text testID="project-matched" style={{ color: colors.primaryInk, fontSize: 13 }}>{T.matches}: {p.matched.map((k) => (T as Record<string, string>)[`m_${k}`] ?? k).join('، ')}</Text> : null}
-          {delivery ? <Text style={{ color: colors.muted, fontSize: 13 }}>{T.delivery}: {delivery}</Text> : null}
-          {p.units !== undefined || p.plans !== undefined ? <Text style={{ color: colors.muted, fontSize: 13 }}>{p.units ?? 0} {T.units} · {p.plans ?? 0} {T.plans}</Text> : null}
+          {p.matched?.length ? <Text testID="project-matched" variant="bodySm" style={{ color: colors.primaryInk }}>{T.matches}: {p.matched.map((k) => (T as Record<string, string>)[`m_${k}`] ?? k).join('، ')}</Text> : null}
+          {delivery ? <Text variant="bodySm" style={{ color: colors.muted }}>{T.delivery}: {delivery}</Text> : null}
+          {p.units !== undefined || p.plans !== undefined ? <Text variant="bodySm" style={{ color: colors.muted }}>{p.units ?? 0} {T.units} · {p.plans ?? 0} {T.plans}</Text> : null}
         </View>
       </Pressable>
       {offers.length ? (
@@ -68,13 +68,13 @@ export function ProjectCardView({ p, lang, onOpen, onSend }: { p: ProjectCard; l
         </View>
       ) : p.free_text ? (
         <View style={styles.offers} testID="project-free-text">
-          <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700' }}>{T.freeText}</Text>
+          <Text variant="caption" weight="bold" style={{ color: colors.muted }}>{T.freeText}</Text>
           <Text style={{ color: colors.text }}>{p.free_text}</Text>
         </View>
       ) : null}
       {p.client_text ? (
-        <Pressable testID="project-whatsapp" accessibilityRole="button" onPress={() => { onSend?.(); void sendOnWhatsApp(p.client_text as string); }} style={({ pressed }) => [styles.send, { borderColor: pressed ? '#1EBE5A' : '#25D366', backgroundColor: pressed ? '#1EBE5A' : '#25D366' }]}>
-          <Text style={{ color: '#06260F', fontWeight: '700' }}>{T.whatsapp}</Text>
+        <Pressable testID="project-whatsapp" accessibilityRole="button" onPress={() => { onSend?.(); sendOnWhatsApp(p.client_text as string); }} style={({ pressed }) => [styles.send, { borderColor: pressed ? colors.whatsappPressed : colors.whatsapp, backgroundColor: pressed ? colors.whatsappPressed : colors.whatsapp }]}>
+          <Text weight="bold" style={{ color: colors.onWhatsapp }}>{T.whatsapp}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -85,7 +85,7 @@ export function ProjectCardView({ p, lang, onOpen, onSend }: { p: ProjectCard; l
 export function Count({ projects, options, lang }: { projects: number; options?: number; lang: Lang }) {
   const { colors } = useTheme();
   const T = pt(lang);
-  return <Text testID="project-count" style={[styles.count, { color: colors.text }]}>{projects} {T.projectsCount}{options !== undefined ? ` · ${options} ${T.optionsCount}` : ''}</Text>;
+  return <Text testID="project-count" variant="body" weight="bold" style={{ color: colors.text }}>{projects} {T.projectsCount}{options !== undefined ? ` · ${options} ${T.optionsCount}` : ''}</Text>;
 }
 
 /** Previous, the first, the last and the current page ±2, next. */
@@ -114,11 +114,9 @@ const styles = StyleSheet.create({
   coverImg: { ...StyleSheet.absoluteFill },
   badge: { margin: spacing.sm },
   body: { padding: spacing.md, gap: spacing.xs },
-  name: { fontSize: 17, fontWeight: '800' },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   offers: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.xs },
   send: { margin: spacing.md, marginTop: 0, minHeight: 44, borderWidth: 1, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  count: { fontSize: 16, fontWeight: '800' },
   pager: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignItems: 'center', justifyContent: 'center' },
   pageBtn: { minHeight: 44, minWidth: 44, paddingHorizontal: spacing.md, borderWidth: 1, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
 });

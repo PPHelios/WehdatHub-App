@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { TimelineEntry } from '../components/TimelineEntry';
 import { Chips } from '../components/Chips';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
@@ -40,16 +41,16 @@ export function RequestsScreen() {
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <View style={styles.pad}><Chips<Status> testID="request-status" value={status} onChange={setStatus} options={STATUSES.map((s) => ({ value: s, label: ot(lang, s === 'all' ? 'all' : s) }))} /></View>
+      <View style={styles.pad}><Chips<Status> animateFilter testID="request-status" value={status} onChange={setStatus} options={STATUSES.map((s) => ({ value: s, label: ot(lang, s === 'all' ? 'all' : s) }))} /></View>
       {list.isPending ? <Loading label={t(lang, 'loading')} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} /> : (
         <FlashList
           data={items}
           keyExtractor={(r) => String(r.id)}
           onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
-          ListEmptyComponent={<EmptyView title={ot(lang, 'noRequests')} />}
+          ListEmptyComponent={<EmptyView title={ot(lang, 'noRequests')} icon="lock" actionLabel={t(lang, 'openUnits')} onAction={() => nav.navigate('UnitsList')} />}
           renderItem={({ item }) => (
             <View testID={`request-${item.id}`} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Pressable accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: item.code })}><Text style={[styles.name, { color: colors.primaryInk }]}>{item.code}</Text></Pressable>
+              <Pressable accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: item.code })}><Text variant="body" weight="bold" style={{ color: colors.primaryInk }}>{item.code}</Text></Pressable>
               <Text style={{ color: colors.text }}>{item.broker_name} · {ot(lang, item.status)}{item.decided_by_name ? ` (${item.decided_by_name})` : ''}</Text>
               {item.status === 'pending' ? (
                 <View style={styles.row}>
@@ -84,8 +85,9 @@ export function activityText(text: string, ar: boolean): string {
 
 /** Who did what, when (managers see data requests; the agency owner sees everything). Kept 90 days. */
 export function ActivityLogScreen() {
-  const { colors, elev } = useTheme();
+  const { colors } = useTheme();
   const lang = currentLang();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const list = useInfiniteQuery({
     queryKey: ['activityLog'],
     initialPageParam: 0,
@@ -97,15 +99,15 @@ export function ActivityLogScreen() {
   const items = list.data.pages.flatMap((p) => p.items);
   return (
     <FlashList
+      style={{ backgroundColor: colors.bg }}
+      contentContainerStyle={styles.pad}
       data={items}
       keyExtractor={(r) => String(r.id)}
       onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
-      ListEmptyComponent={<EmptyView title={ot(lang, 'noRequests')} />}
-      renderItem={({ item }) => (
-        <View style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={{ color: colors.text }}>{activityText(item.text, lang === 'ar')}</Text>
-          <Text style={{ color: colors.muted }}>{item.who} · {new Date(item.at).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</Text>
-        </View>
+      ListEmptyComponent={<EmptyView title={lang === 'ar' ? 'مفيش نشاط لسه.' : 'No activity yet.'} icon="folder" actionLabel={t(lang, 'openUnits')} onAction={() => nav.navigate('UnitsList')} />}
+      renderItem={({ item, index }) => (
+        <TimelineEntry at={item.at} title={activityText(item.text, lang === 'ar')} actor={item.who} lang={lang}
+          first={index === 0} last={index === items.length - 1} />
       )}
     />
   );
@@ -116,5 +118,4 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg },
   row: { flexDirection: 'row', gap: spacing.md },
   card: { marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
-  name: { fontSize: 16, fontWeight: '700' },
 });

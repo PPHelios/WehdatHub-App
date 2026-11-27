@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 type Part = { d: string } | { c: [number, number, number] } | { r: [number, number, number, number, number] };
@@ -32,6 +33,7 @@ const ICONS = {
   catalogue: [{ d: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4M9 10h1M14 10h1M9 14h1M14 14h1' }],
   chat: [{ d: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z' }],
   star: [{ d: 'm12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z' }],
+  bookmark: [{ d: 'M6 3h12v18l-6-4-6 4z' }],
   import: [{ d: 'M12 3v12M7 10l5 5 5-5M4 21h16' }],
   chart: [{ d: 'M4 20V10M10 20V4M16 20v-7M22 20H2' }],
   gauge: [{ d: 'M12 14l4-4' }, { d: 'M3.5 18a9 9 0 1 1 17 0z' }],
@@ -64,6 +66,13 @@ const ICONS = {
   building: [{ r: [5, 3, 14, 18, 1] }, { d: 'M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M3 21h18' }],
   compare: [{ d: 'M7 4v16M17 4v16M3 8l4-4 4 4M13 16l4 4 4-4' }],
   check: [{ d: 'm5 12 5 5 9-10' }],
+  cross: [{ d: 'M18 6 6 18M6 6l12 12' }],
+  phone: [{ d: 'M5 3h4l2 5-3 2a13 13 0 0 0 6 6l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z' }],
+  share: [{ d: 'M12 16V3m-4 4 4-4 4 4M5 12v8h14v-8' }],
+  bed: [{ d: 'M3 19v-7m18 7v-7M3 16h18M5 12V7h14v5M3 12h18m-9-5v5' }],
+  bath: [{ d: 'M3 12h18v2a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5v-2zm3 0V6a2 2 0 0 1 4 0v1M7 19l-1 2m11-2 1 2' }],
+  area: [{ d: 'M3 4v16h17L3 4zm4 9v3h3' }],
+  'thumb-down': [{ d: 'M17 14V3H7.5a2 2 0 0 0-2 1.7l-1.2 7A2 2 0 0 0 6.3 14H10l-1 5a2 2 0 0 0 3.6 1.4L17 14zM17 3h3v11h-3' }],
   send: [{ d: 'M22 2 11 13M22 2l-7 20-4-9-9-4z' }],
 } satisfies Record<string, Part[]>;
 
@@ -79,5 +88,15 @@ export function Icon({ name, color, size = 24, fill }: { name: IconName; color: 
         'd' in p ? <Path key={i} d={p.d} /> : 'c' in p ? <Circle key={i} cx={p.c[0]} cy={p.c[1]} r={p.c[2]} /> : <Rect key={i} x={p.r[0]} y={p.r[1]} width={p.r[2]} height={p.r[3]} rx={p.r[4]} />,
       )}
     </Svg>
+  );
+}
+
+/** Closed disclosures and navigation point forward. Open disclosures point down. */
+export function Chevron({ color, rtl, expanded }: { color: string; rtl: boolean; expanded?: boolean }) {
+  const rotation = expanded ? '90deg' : rtl ? '180deg' : '0deg';
+  return (
+    <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ transform: [{ rotate: rotation }] }}>
+      <Icon name="back" size={18} color={color} />
+    </View>
   );
 }

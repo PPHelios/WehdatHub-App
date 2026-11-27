@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LeadRulesScreen } from '../src/screens/LeadRulesScreen';
 import { api } from '../src/api';
 
+jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn() }) }));
 jest.mock('../src/api', () => ({ api: { teamRules: jest.fn(), saveTeamRules: jest.fn(), saveTeamRouting: jest.fn(), setTeamAway: jest.fn() } }));
 const m = api as unknown as Record<string, jest.Mock>;
 const data = { rules: { enabled: false, wait_minutes: 30, start: 9, end: 21, days: [0, 1, 2, 3, 4, 5, 6], max_jumps: 2 }, roundRobin: true, order: ['b1'], brokers: [{ id: 'b1', name: 'Omar', role: 'broker', away: false, open: 4 }] };

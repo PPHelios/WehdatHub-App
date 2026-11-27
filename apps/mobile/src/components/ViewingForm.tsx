@@ -10,11 +10,12 @@ import { errorText } from '../errors';
 import { tick } from '../haptics';
 import { t } from '../i18n';
 import { leadLang } from '../prefs';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
 import { Chips } from './Chips';
 import { Field } from './Field';
 import { toastError } from './Toast';
+import { sx } from '../sharedStyles';
 
 const HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
@@ -26,16 +27,23 @@ export function viewingInstant(dayOffset: number, hour: number, now = new Date()
   return d.toISOString();
 }
 
-/**
- * Sets a viewing on a lead. Nothing goes to the client: the broker sees the message under the (i) button and can send it
- * on WhatsApp or leave it.
- */
-export function ViewingForm({ lead, unitCode = '' }: { lead: ApiLead; unitCode?: string }) {
+/** Schedules a viewing and shows its confirmation text on request. */
+/** Day offset (0-7) and hour (9-20) of a planned time, to prefill the form. */
+export function prefillSlot(at: string | undefined, now = new Date()): { day: number; hour: number } | null {
+  const d = at ? new Date(at) : null;
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const midnight = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const day = Math.round((midnight(d) - midnight(now)) / 86400000);
+  return { day: Math.min(7, Math.max(0, day)), hour: Math.min(20, Math.max(9, d.getHours())) };
+}
+
+export function ViewingForm({ lead, unitCode = '', initialAt }: { lead: ApiLead; unitCode?: string; initialAt?: string }) {
   const { colors } = useTheme();
   const lang = currentLang();
   const qc = useQueryClient();
-  const [day, setDay] = useState(1);
-  const [hour, setHour] = useState(11);
+  const slot = prefillSlot(initialAt);
+  const [day, setDay] = useState(slot?.day ?? 1);
+  const [hour, setHour] = useState(slot?.hour ?? 11);
   const [place, setPlace] = useState('');
   const [unit, setUnit] = useState(unitCode);
   const [error, setError] = useState<string | null>(null);
@@ -75,11 +83,12 @@ export function ViewingForm({ lead, unitCode = '' }: { lead: ApiLead; unitCode?:
           <View style={styles.row}>
             <Text style={[styles.flex, { color: colors.accent }]}>{t(lang, 'viewingSaved')}</Text>
             <Pressable testID="viewing-info" accessibilityRole="button" accessibilityLabel={t(lang, 'clientMessage')} hitSlop={12} onPress={() => setShowMessage((s) => !s)}>
-              <Text style={{ color: colors.primaryInk, fontSize: 18, fontWeight: '800' }}>ⓘ</Text>
+              <Text style={[{ color: colors.primaryInk, fontSize: typeScale.heading.fontSize }, sx.fontWeight800]}>ⓘ</Text>
             </Pressable>
           </View>
           {showMessage ? <Text testID="viewing-message" style={{ color: colors.text }}>{done.message}</Text> : null}
-          {done.wa ? <Button testID="viewing-send" variant="secondary" label={t(lang, 'sendToClient')} onPress={() => { Linking.openURL(done.wa ?? '').catch(() => undefined); }} /> : null}
+          {done.wa ? <Button testID="viewing-send" variant="secondary" label={t(lang, 'sendToClient')} onPress={() => { Linking.openURL(done.wa!).catch(() => undefined); }} /> : null}
+          <Button testID="viewing-finish" variant="quiet" label={t(lang, 'vf_done')} onPress={() => setDone(null)} />
         </View>
       ) : null}
     </View>

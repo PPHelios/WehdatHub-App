@@ -17,7 +17,7 @@ export function reportError(e: unknown, where: string) {
   }
 }
 
-/** Unhandled JS errors and promise rejections go to the server, then the previous handler runs. */
+/** Reports JS errors exposed by React Native, then calls its previous handler. */
 export function installErrorReporting() {
   const eu = (globalThis as { ErrorUtils?: { getGlobalHandler(): (e: Error, fatal?: boolean) => void; setGlobalHandler(h: (e: Error, fatal?: boolean) => void): void } }).ErrorUtils;
   if (!eu) return;

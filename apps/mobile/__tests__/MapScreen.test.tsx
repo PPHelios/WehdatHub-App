@@ -21,11 +21,16 @@ test('without a tiles address the map says it is not set up', async () => {
 
 test('tapping a pin lists its units and a unit opens', async () => {
   mocked.map.mockResolvedValue(data);
-  mocked.mapUnits.mockResolvedValue({ place: { id: 'p1', name_en: 'Mivida', name_ar: null }, items: [{ code: 'MV-1', title: null, propertyType: 'apartment', listingType: 'sale', bedrooms: 3, bathrooms: 2, area: 150, price: 9000000, priceText: null }] });
+  mocked.mapUnits.mockResolvedValue({ place: { id: 'p1', name_en: 'Mivida', name_ar: null }, items: [{ code: 'MV-1', title: null, propertyType: 'apartment', listingType: 'sale', bedrooms: 3, bathrooms: 2, area: 150, price: 250000, priceText: null, currency: 'USD' }] });
   await wrap();
   await waitFor(() => expect(screen.getByTestId('map-web')).toBeTruthy());
   fireEvent(screen.getByTestId('map-web'), 'message', { nativeEvent: { data: JSON.stringify({ type: 'pin', id: 'p1', name: 'Mivida' }) } });
+  expect(screen.queryByText('MV-1')).toBeNull();
+  await fireEvent.press(await screen.findByTestId('map-view-units'));
   await waitFor(() => expect(screen.getByText('MV-1')).toBeTruthy());
+  expect(screen.getByText(/250,000 USD|250,000 دولار/)).toBeTruthy();
+  expect(screen.getByTestId('pin-type-MV-1')).toBeTruthy();
+  expect(screen.getByTestId('pin-code-MV-1')).toBeTruthy();
   expect(screen.getByTestId('pin-deal-MV-1')).toBeTruthy();
   fireEvent.press(screen.getByText('MV-1'));
   expect(mockNavigate).toHaveBeenCalledWith('Unit', { code: 'MV-1' });
@@ -67,7 +72,7 @@ test('typing a place name suggests it from the phone list and picking it fills t
   await waitFor(() => expect(screen.getByTestId('map-search')).toBeTruthy());
   await fireEvent.changeText(screen.getByTestId('map-search'), 'miv');
   await waitFor(() => expect(screen.getByTestId('map-place-p1')).toBeTruthy());
-  await fireEvent.press(screen.getByTestId('map-place-p1'));
+  await fireEvent.press(screen.getByTestId('map-go'));
   await waitFor(() => expect(screen.queryByTestId('map-suggestions')).toBeNull());
   usePlaces.setState({ list: null });
 });

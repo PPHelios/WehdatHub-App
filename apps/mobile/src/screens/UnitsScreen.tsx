@@ -5,24 +5,29 @@ import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { parseMoney } from '@wehdathub/shared';
+import { PlanLockedError, parseMoney } from '@wehdathub/shared';
 import type { UnitsPage } from '@wehdathub/shared';
+import { usePlanLock } from '../planLock';
+import { usePlanState } from '../planState';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { Button } from '../components/Button';
+import { useSelectionHighlight } from '../components/SelectionHighlight';
 import { Chips } from '../components/Chips';
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { TodayCards } from '../components/TodayCards';
 import { UnitCard } from '../components/UnitCard';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { openAssistant } from '../searchLink';
 import type { RootStackParams } from '../navigation';
 import { Split, useColumns, useWide } from '../layout';
 import { UnitScreen } from './UnitScreen';
-import { radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 import { useRights } from '../rights';
+import { sx } from '../sharedStyles';
 
 const PAGE = 20;
 const STATUSES = ['active', 'sold', 'archived'] as const;
@@ -48,7 +53,8 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const route = useRoute<RouteProp<{ p: { old?: boolean } | undefined }, 'p'>>();
+  const route = useRoute<RouteProp<{ p: { old?: boolean; missingPhotos?: boolean } | undefined }, 'p'>>();
+  const [missingPhotos, setMissingPhotos] = useState(Boolean(route.params?.missingPhotos));
   const [oldOnly, setOldOnly] = useState(Boolean(route.params?.old));
   const [status, setStatus] = useState<(typeof STATUSES)[number]>('active');
   const [text, setText] = useState('');
@@ -59,6 +65,8 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const [compound, setCompound] = useState('');
   const [compoundText, setCompoundText] = useState('');
   const [staleDays, setStaleDays] = useState(0);
+  const statusSelection = useSelectionHighlight(status, greenGradient);
+  const staleSelection = useSelectionHighlight(String(staleDays), greenGradient);
   const [deal, setDeal] = useState('');
   const [type, setType] = useState('');
   const [beds, setBeds] = useState('');
@@ -76,57 +84,60 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
   const suggest = useQuery({ queryKey: ['compounds', typed], queryFn: () => api.unitCompounds(typed), enabled: showFilters && !compound });
 
   const list = useInfiniteQuery({
-    queryKey: ['units', status, q, compound, staleDays, oldOnly, deal, type, beds, finishing, furnishing, mine, pmin, pmax],
+    queryKey: ['units', status, q, compound, staleDays, oldOnly, missingPhotos, deal, type, beds, finishing, furnishing, mine, pmin, pmax],
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api.units({ status, q, compound: compound || undefined, staleDays: staleDays || undefined, deal: deal || undefined, type: type || undefined, bedrooms: beds ? Number(beds) : undefined, finishing: finishing || undefined, furnishing: furnishing || undefined, mine: mine || undefined, pmin: pmin || undefined, pmax: pmax || undefined, old: oldOnly && status === 'active' ? true : undefined, limit: PAGE, offset: pageParam }),
+    queryFn: ({ pageParam }) => api.units({ status, q, compound: compound || undefined, staleDays: staleDays || undefined, deal: deal || undefined, type: type || undefined, bedrooms: beds ? Number(beds) : undefined, finishing: finishing || undefined, furnishing: furnishing || undefined, mine: mine || undefined, missingPhotos: missingPhotos || undefined, pmin: pmin || undefined, pmax: pmax || undefined, old: oldOnly && status === 'active' ? true : undefined, limit: PAGE, offset: pageParam }),
     getNextPageParam: (last: UnitsPage) => (last.offset + last.items.length < last.total ? last.offset + last.items.length : undefined),
   });
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
   const counts = list.data?.pages[0]?.counts;
   const rights = useRights();
+  const planState = usePlanState();
   // Data entry has no Today: the units nobody has confirmed (agency-wide) sit above their list instead.
   const old = useQuery({ queryKey: ['today'], queryFn: () => api.today(), enabled: rights.dataEntry && status === 'active' });
-  const editUnit = useCallback((code: string) => nav.navigate('AddUnit', { edit: code }), [nav]);
-  const canEditOthers = rights.dataEntry || rights.manager || rights.agencyOwner;
   const renderItem = useCallback(
-    ({ item }: { item: UnitsPage['items'][number] }) => <UnitCard unit={item} lang={lang} onPress={onOpen} onEdit={rights.editUnits && (item.mine || canEditOthers) ? editUnit : undefined} />,
-    [lang, onOpen, rights.editUnits, canEditOthers, editUnit],
+    ({ item }: { item: UnitsPage['items'][number] }) => <UnitCard unit={item} lang={lang} onPress={onOpen} />,
+    [lang, onOpen],
   );
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
       <TextInput testID="units-search" style={[styles.search, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'search')} placeholderTextColor={colors.muted} autoCapitalize="characters" autoCorrect={false} returnKeyType="search" />
-      {text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching) ? <ActivityIndicator style={styles.searching} color={colors.primaryInk} /> : null}
+      {!list.isPending && (text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching)) ? <ActivityIndicator style={styles.searching} color={colors.primaryInk} /> : null}
       <View style={styles.chips}>
         <Pressable testID="units-filters" accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((v) => !v)} style={[styles.chip, { borderColor: filtered ? colors.primary : colors.border }]}>
-          <Text style={{ color: colors.text, fontWeight: '600' }}>{t(lang, 'filters')}{filtered ? ' •' : ''}</Text>
+          <Text style={[{ color: colors.text }, sx.fontWeight600]}>{t(lang, 'filters')}{filtered ? ' •' : ''}</Text>
         </Pressable>
+        {statusSelection.highlight}
         {STATUSES.map((s) => (
-          <Pressable key={s} accessibilityRole="button" accessibilityState={{ selected: s === status }} onPress={() => setStatus(s)} style={[styles.chip, { borderColor: s === status ? colors.primary : colors.border, backgroundColor: s === status ? colors.primary : 'transparent' }]}>
+          <Pressable key={s} onLayout={statusSelection.measure(s)} accessibilityRole="button" accessibilityState={{ selected: s === status }} onPress={() => setStatus(s)} style={[styles.chip, { borderColor: s === status ? colors.primary : colors.border }, s === status && !statusSelection.highlight && greenGradient]}>
             <Text style={{ color: s === status ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, s)}{counts ? ` (${counts[s]})` : ''}</Text>
           </Pressable>
         ))}
-        <Pressable testID="units-old" accessibilityRole="button" accessibilityState={{ selected: oldOnly }} onPress={() => { setStatus('active'); setOldOnly((v) => !v); }} style={[styles.chip, { borderColor: oldOnly ? colors.primary : colors.border, backgroundColor: oldOnly ? colors.primary : 'transparent' }]}>
+        <Pressable testID="units-old" accessibilityRole="button" accessibilityState={{ selected: oldOnly }} onPress={() => { setStatus('active'); setOldOnly((v) => !v); }} style={[styles.chip, { borderColor: oldOnly ? colors.primary : colors.border, }, oldOnly && greenGradient]}>
           <Text style={{ color: oldOnly ? colors.onPrimary : colors.text, fontWeight: '600' }}>{t(lang, 'tcOldUnits')}</Text>
         </Pressable>
       </View>
+      {missingPhotos ? <Pressable accessibilityRole="button" accessibilityState={{ selected: true }} onPress={() => setMissingPhotos(false)} style={styles.chip}>
+        <Text style={{ color: colors.text }}>{lang === 'ar' ? 'من غير صور · إلغاء' : 'Missing photos · Clear'}</Text>
+      </Pressable> : null}
       {rights.dataEntry && status === 'active' && old.data?.cards?.oldUnits ? <View style={styles.oldStrip}><TodayCards cards={old.data.cards} only="oldUnits" onShowAll={() => { setStatus('active'); setOldOnly(true); }} /></View> : null}
       {showFilters ? (
         <ScrollView style={styles.panelBox} contentContainerStyle={styles.panel} keyboardShouldPersistTaps="handled">
-          <Chips testID="f-deal" options={DEALS.map((d) => ({ value: d.value, label: lang === 'ar' ? d.ar : d.en }))} value={deal} onChange={toggle(setDeal, deal)} />
-          <Chips testID="f-type" options={options(PROPERTY_TYPES, lang)} value={type} onChange={toggle(setType, type)} />
+          <Chips animateFilter testID="f-deal" options={DEALS.map((d) => ({ value: d.value, label: lang === 'ar' ? d.ar : d.en }))} value={deal} onChange={toggle(setDeal, deal)} />
+          <Chips animateFilter testID="f-type" options={options(PROPERTY_TYPES, lang)} value={type} onChange={toggle(setType, type)} />
           <Text style={{ color: colors.muted }}>{t(lang, 'beds')}</Text>
-          <Chips testID="f-beds" options={BEDS.map((b) => ({ value: b, label: b === '5' ? '5+' : b }))} value={beds} onChange={toggle(setBeds, beds)} />
+          <Chips animateFilter testID="f-beds" options={BEDS.map((b) => ({ value: b, label: b === '5' ? '5+' : b }))} value={beds} onChange={toggle(setBeds, beds)} />
           <View style={styles.chipsRow}>
             <TextInput testID="f-pmin" style={[styles.search2, styles.flex, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={pminText} onChangeText={setPminText} placeholder={t(lang, 'priceFrom')} placeholderTextColor={colors.muted} keyboardType="numeric" />
             <TextInput testID="f-pmax" style={[styles.search2, styles.flex, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={pmaxText} onChangeText={setPmaxText} placeholder={t(lang, 'priceTo')} placeholderTextColor={colors.muted} keyboardType="numeric" />
           </View>
-          <Chips testID="f-finishing" options={options(FINISHING, lang)} value={finishing} onChange={toggle(setFinishing, finishing)} />
-          <Chips testID="f-furnishing" options={options(FURNISHING, lang)} value={furnishing} onChange={toggle(setFurnishing, furnishing)} />
-          <Chips testID="f-mine" options={[{ value: 'mine', label: t(lang, 'mineOnly') }]} value={mine ? 'mine' : ''} onChange={() => setMine((v) => !v)} />
+          <Chips animateFilter testID="f-finishing" options={options(FINISHING, lang)} value={finishing} onChange={toggle(setFinishing, finishing)} />
+          <Chips animateFilter testID="f-furnishing" options={options(FURNISHING, lang)} value={furnishing} onChange={toggle(setFurnishing, furnishing)} />
+          <Chips animateFilter testID="f-mine" options={[{ value: 'mine', label: t(lang, 'mineOnly') }]} value={mine ? 'mine' : ''} onChange={() => setMine((v) => !v)} />
           {compound ? (
             <Pressable testID="compound-clear" accessibilityRole="button" onPress={() => { setCompound(''); setCompoundText(''); }} style={[styles.chip, { borderColor: colors.primary }]}>
-              <Text style={{ color: colors.text, fontWeight: '600' }}>{compound} ✕</Text>
+              <Text style={[{ color: colors.text }, sx.fontWeight600]}>{compound} ✕</Text>
             </Pressable>
           ) : (
             <>
@@ -140,8 +151,9 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
           )}
           <Text style={{ color: colors.muted }}>{t(lang, 'staleDays')}</Text>
           <View style={styles.chipsRow}>
+            {staleSelection.highlight}
             {[0, 30, 60, 90].map((d) => (
-              <Pressable key={d} testID={`stale-${d}`} accessibilityRole="button" accessibilityState={{ selected: d === staleDays }} onPress={() => setStaleDays(d)} style={[styles.chip, { borderColor: d === staleDays ? colors.primary : colors.border, backgroundColor: d === staleDays ? colors.primary : 'transparent' }]}>
+              <Pressable key={d} onLayout={staleSelection.measure(String(d))} testID={`stale-${d}`} accessibilityRole="button" accessibilityState={{ selected: d === staleDays }} onPress={() => setStaleDays(d)} style={[styles.chip, { borderColor: d === staleDays ? colors.primary : colors.border }, d === staleDays && !staleSelection.highlight && greenGradient]}>
                 <Text style={{ color: d === staleDays ? colors.onPrimary : colors.text, fontWeight: '600' }}>{d === 0 ? '—' : d}</Text>
               </Pressable>
             ))}
@@ -164,11 +176,25 @@ function UnitsList({ onOpen, single = false }: { onOpen: (code: string) => void;
           onEndReachedThreshold={0.6}
           refreshing={list.isRefetching && !list.isFetchingNextPage}
           onRefresh={() => list.refetch()}
-          ListEmptyComponent={<EmptyView title={t(lang, 'noUnits')} hint={t(lang, 'noUnitsHint')} actionLabel={q ? t(lang, 'clearSearch') : undefined} onAction={q ? () => setText('') : undefined} />}
+          ListEmptyComponent={<EmptyView title={t(lang, 'noUnits')} hint={t(lang, 'noUnitsHint')} icon="units" actionLabel={t(lang, q ? 'clearSearch' : rights.addUnits ? 'addUnit' : 'askAssistant')} onAction={() => (q ? setText('') : rights.addUnits ? nav.navigate('AddUnit') : openAssistant(nav))} />}
           ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : list.isError ? <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => list.fetchNextPage()} /> : null}
         />
       )}
-      {rights.addUnits ? <View style={styles.add}><Button testID="add-unit" label={`＋ ${t(lang, 'addUnit')}`} onPress={() => nav.navigate('AddUnit')} /></View> : null}
+      {rights.addUnits ? (
+        <View style={styles.add}>
+          <Button
+            testID="add-unit"
+            label={`＋ ${t(lang, 'addUnit')}`}
+            onPress={() => {
+              if (planState.phase === 'readonly') {
+                usePlanLock.getState().show(new PlanLockedError('plan_readonly'));
+                return;
+              }
+              nav.navigate('AddUnit');
+            }}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -177,13 +203,13 @@ const styles = StyleSheet.create({
   oldStrip: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   flex: { flex: 1 },
   searching: { position: 'absolute', top: spacing.lg + 14, end: spacing.lg + 14 },
-  search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   panelBox: { maxHeight: 420, flexGrow: 0 },
   panel: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.md },
   chipsRow: { flexDirection: 'row', gap: spacing.sm },
-  search2: { minHeight: 44, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  search2: { minHeight: 44, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   suggest: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md },
   footer: { padding: spacing.lg },
   add: { padding: spacing.lg },

@@ -15,6 +15,7 @@ import Animated, {
   withSequence,
   withSpring,
   withTiming,
+  Easing,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import type { VoiceFile } from '@wehdathub/shared';
@@ -23,8 +24,11 @@ import { t } from '../i18n';
 import { cancelRecording, EmptyRecordingError, ensureMic, startRecording, stopRecording } from '../voice';
 import { reportError } from '../errorReport';
 import * as haptics from '../haptics';
+import { GlassSurface } from './GlassSurface';
 import { Icon } from './Icon';
-import { radius, spacing, useTheme } from '../theme';
+import { binClack, CLOSE_AT, DISCARD_MS, DiscardBin, FLY_FROM, FLY_TO, seg } from './DiscardBin';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 const CANCEL_PX = 80;
 const LOCK_PX = 70;
@@ -41,7 +45,7 @@ interface Props {
   /** Spoken name of the button, and the text shown in the box when there is no text input. */
   label: string;
   /** Called with the note when it is sent. */
-  onFile: (file: VoiceFile) => void | Promise<unknown>;
+  onFile?: (file: VoiceFile) => void | Promise<unknown>;
   /** Called with a ready message when the mic is refused, or recording failed. */
   onError: (message: string) => void;
   disabled?: boolean;
@@ -52,6 +56,15 @@ interface Props {
   onChangeText?: (v: string) => void;
   placeholder?: string;
   onSubmit?: () => void;
+  accessory?: React.ReactNode;
+  leadingAccessory?: React.ReactNode;
+  hideLeadingWhenTyping?: boolean;
+  multiline?: boolean;
+  maxInputHeight?: number;
+  actionDecoration?: React.ReactNode;
+  compact?: boolean;
+  /** Ref to the round mic / send button (a coach mark points at it). */
+  micRef?: React.Ref<React.ComponentRef<typeof View>>;
 }
 
 const clamp = (n: number, lo: number, hi: number) => {
@@ -59,48 +72,12 @@ const clamp = (n: number, lo: number, hi: number) => {
   return Math.min(hi, Math.max(lo, n));
 };
 
-/** Bin that swallows the mic: it lifts, flips, drops into the trash while the lid opens and closes. */
-function BinDrop({ progress, color, reduced }: { progress: { value: number }; color: string; reduced: boolean }) {
-  const micStyle = useAnimatedStyle(() => {
-    const p = progress.value;
-    return {
-      opacity: interpolate(p, [0, 0.75, 0.85], [1, 1, 0], Extrapolation.CLAMP),
-      transform: [
-        { translateY: interpolate(p, [0, 0.4, 0.8], [0, -34, 2], Extrapolation.CLAMP) },
-        { rotate: `${interpolate(p, [0, 0.4], [0, 180], Extrapolation.CLAMP)}deg` },
-        { scale: interpolate(p, [0.4, 0.8], [1, 0.6], Extrapolation.CLAMP) },
-      ],
-    };
-  });
-  const lidStyle = useAnimatedStyle(() => ({
-    transformOrigin: 'left center',
-    transform: [{ rotate: `${interpolate(progress.value, [0, 0.25, 0.4, 0.8, 0.95], [0, -60, -60, -60, 0], Extrapolation.CLAMP)}deg` }],
-  }));
-  const fade = useAnimatedStyle(() => ({ opacity: 1 - progress.value }));
-  if (reduced) {
-    return (
-      <Animated.View style={fade}>
-        <Icon name="trash" color={color} size={24} />
-      </Animated.View>
-    );
-  }
-  return (
-    <View style={styles.binBox}>
-      <Icon name="trash" color={color} size={24} />
-      <Animated.View style={[styles.lid, { backgroundColor: color }, lidStyle]} />
-      <Animated.View style={[styles.binMic, micStyle]}>
-        <Icon name="mic" color={color} size={18} />
-      </Animated.View>
-    </View>
-  );
-}
-
 /**
  * One row: a rounded input and one round button on the physical right (both languages).
  * The button is a mic when the box is empty (hold to record, lift to send, slide left to cancel, slide up to lock)
  * and a send arrow when there is text. Without text input it is a mic-only bar.
  */
-export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = false, value, onChangeText, placeholder, onSubmit }: Props) {
+export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = false, value, onChangeText, placeholder, onSubmit, accessory, leadingAccessory, hideLeadingWhenTyping = false, multiline = false, maxInputHeight = 88, actionDecoration, compact = false, micRef }: Props) {
   const { colors } = useTheme();
   const lang = currentLang();
   const reduced = useReducedMotion();
@@ -136,7 +113,9 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   const lockSv = useSharedValue(0);
   const blink = useSharedValue(1);
   const shimmer = useSharedValue(1);
+  // Bin-drop timeline in ms (0 to DISCARD_MS), and the rail width the mic flies across.
   const bin = useSharedValue(0);
+  const railW = useSharedValue(0);
 
   const resetUi = () => {
     lockSv.value = 0;
@@ -173,6 +152,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   }, [inNote, reduced, blink, shimmer]);
 
   const endDiscard = () => {
+    bin.value = 0;
     go('idle');
     resetUi();
   };
@@ -181,19 +161,29 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   const discard = (animated: boolean) => {
     live.current = 'idle';
     if (kept.current) kept.current = null;
-    else void cancelRecording();
+    else cancelRecording();
     lockSv.value = 0;
     if (!animated) {
       go('idle');
       resetUi();
       return;
     }
-    haptics.discarded();
+    if (reduced) {
+      haptics.discarded();
+      go('idle');
+      resetUi();
+      return;
+    }
     go('discarding');
     bin.value = 0;
-    bin.value = withTiming(1, { duration: reduced ? 250 : 900 }, (finished) => {
-      if (finished) scheduleOnRN(endDiscard);
-    });
+    bin.value = withSequence(
+      withTiming(CLOSE_AT, { duration: CLOSE_AT, easing: Easing.linear }, (finished) => {
+        if (finished) scheduleOnRN(binClack);
+      }),
+      withTiming(DISCARD_MS, { duration: DISCARD_MS - CLOSE_AT, easing: Easing.linear }, (finished) => {
+        if (finished) scheduleOnRN(endDiscard);
+      }),
+    );
   };
 
   const send = async () => {
@@ -204,7 +194,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     lockSv.value = 0;
     resetUi();
     if (short) {
-      void cancelRecording();
+      cancelRecording();
       go('idle');
       haptics.failed();
       showTip();
@@ -214,7 +204,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     try {
       const file = waiting ?? (await stopRecording());
       haptics.sent();
-      await onFile(file);
+      await onFile?.(file);
     } catch (e) {
       if (e instanceof EmptyRecordingError) {
         haptics.failed();
@@ -238,19 +228,19 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
 
   /** Finger down: the microphone starts only after HOLD_MS, so a quick tap never touches it. */
   const press = () => {
-    if (disabled || busy || live.current !== 'idle' || phaseRef.current !== 'idle') return;
+    if (!onFile || disabled || busy || live.current !== 'idle' || phaseRef.current !== 'idle') return;
     startAt.current = Date.now();
     released.current = false;
     away.current = false;
     terminated.current = false;
     live.current = 'pending';
     if (lockWanted.current) {
-      void begin(); // screen readers cannot hold
+      begin(); // screen readers cannot hold
       return;
     }
     holdTimer.current = setTimeout(() => {
       holdTimer.current = null;
-      void begin();
+      begin();
     }, HOLD_MS);
   };
 
@@ -308,9 +298,9 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   };
 
   const finishRelease = () => {
-    if (terminated.current) void keep();
+    if (terminated.current) keep();
     else if (away.current) discard(true);
-    else void send();
+    else send();
   };
 
   const release = (ok: boolean) => {
@@ -347,7 +337,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
       terminated.current = true;
       released.current = true;
     } else if (live.current === 'recording') {
-      void keep();
+      keep();
     }
   };
 
@@ -370,7 +360,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   const jsLock = useCallback(() => box.current.lockCrossed(), []);
 
   const showMic = !hasText || phase !== 'idle';
-  const gestureOn = showMic && !disabled && !busy && phase !== 'sending' && phase !== 'discarding' && phase !== 'stopped';
+  const gestureOn = Boolean(onFile) && showMic && !disabled && !busy && phase !== 'sending' && phase !== 'discarding' && phase !== 'stopped';
   const pan = useMemo(
     () =>
       Gesture.Pan()
@@ -419,12 +409,13 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
     return () => {
       sub.remove();
       if (holdTimer.current) clearTimeout(holdTimer.current);
-      if (live.current === 'recording' || live.current === 'starting') void cancelRecording();
+      if (live.current === 'recording' || live.current === 'starting') cancelRecording();
       if (tipTimer.current) clearTimeout(tipTimer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const controlSize = compact ? 44 : BTN;
+  const off = disabled || busy;
   const smooth = useDerivedValue(() => withTiming(cancelSv.value, { duration: 150 }));
   const railStyle = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(smooth.value, [0, 1], [colors.card, colors.badSoft]),
@@ -432,11 +423,18 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   }));
   const btnStyle = useAnimatedStyle(() => {
     const free = lockSv.value === 0 ? 1 : 0;
+    // Bin drop: fly start-ward along an arc (up, then down) into the bin, shrinking, then fade.
+    const f = seg(bin.value, FLY_FROM, FLY_TO);
+    const fx = Easing.inOut(Easing.quad)(f);
+    const arc = f * (1 - f) * 4;
+    const dx = -(railW.value + spacing.sm + controlSize / 2 - spacing.md - 14) * fx;
+    const dy = -30 * arc;
     return {
+      opacity: (off ? 0.6 : 1) * (1 - seg(bin.value, 360, FLY_TO)),
       transform: [
-        { translateX: clamp(tx.value, -220, 0) * free },
-        { translateY: clamp(ty.value, -LOCK_PX * 1.4, 0) * free },
-        { scale: 1 + 0.45 * held.value * free },
+        { translateX: clamp(tx.value, -220, 0) * free + dx },
+        { translateY: clamp(ty.value, -LOCK_PX * 1.4, 0) * free + dy - 6 * fx },
+        { scale: (1 + 0.45 * held.value * free) * (1 - 0.65 * fx) },
       ],
     };
   });
@@ -457,7 +455,6 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   const heldNote = phase === 'locked' || phase === 'stopped';
   const sendIcon = hasText || heldNote;
   const showSend = (hasText && phase === 'idle') || heldNote;
-  const off = disabled || busy;
 
   const actions =
     phase === 'idle' && !hasText
@@ -471,18 +468,20 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
       if (hasText) onSubmit?.();
       else {
         lockWanted.current = true; // screen readers cannot hold: start hands-free
-        void press();
+        press();
       }
-    } else if (phaseRef.current === 'locked' || phaseRef.current === 'stopped') void send();
+    } else if (phaseRef.current === 'locked' || phaseRef.current === 'stopped') send();
   };
 
+  const pillHeight = { minHeight: controlSize };
+  const control = { width: controlSize, height: controlSize };
   const rowDir = { flexDirection: I18nManager.isRTL ? ('row-reverse' as const) : ('row' as const) };
   const iconColor = colors.onPrimary;
 
   const rail = (
-    <Animated.View testID={`${id}-rail`} style={[styles.pill, rowDir, styles.rail, railStyle]}>
+    <Animated.View testID={`${id}-rail`} onLayout={(e) => { railW.value = e.nativeEvent.layout.width; }} style={[styles.pill, pillHeight, rowDir, styles.rail, railStyle]}>
       {phase === 'discarding' ? (
-        <BinDrop progress={bin} color={colors.danger} reduced={reduced} />
+        <DiscardBin t={bin} color={colors.danger} soft={colors.badSoft} />
       ) : (
         <>
           {heldNote ? (
@@ -504,27 +503,53 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
   );
 
   const field = textMode ? (
-    <TextInput
-      testID={`${id}-input`}
-      style={[styles.pill, styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card, textAlign: lang === 'ar' ? 'right' : 'left', writingDirection: lang === 'ar' ? 'rtl' : 'ltr' }]}
-      value={value}
-      onChangeText={onChangeText}
-      placeholder={placeholder}
-      placeholderTextColor={colors.muted}
-      returnKeyType="search"
-      onSubmitEditing={onSubmit}
-      multiline={false}
-    />
-  ) : (
-    <View style={[styles.pill, styles.input, { borderColor: colors.border, backgroundColor: colors.card, justifyContent: 'center' }]}>
-      <Text style={{ color: colors.muted, textAlign: lang === 'ar' ? 'right' : 'left' }}>{label}</Text>
+    <View style={[styles.inputWrap, { flexDirection: lang === 'ar' ? 'row-reverse' : 'row' }]}>
+      <TextInput
+        testID={`${id}-input`}
+        style={[
+          styles.pill,
+          multiline ? { minHeight: compact ? 44 : BTN, maxHeight: maxInputHeight, paddingVertical: 10 } : pillHeight,
+          styles.input,
+          compact && (multiline ? { fontSize: typeScale.bodySm.fontSize } : styles.compactInput),
+          { color: colors.text, borderColor: 'transparent', backgroundColor: 'transparent', textAlign: lang === 'ar' ? 'right' : 'left', writingDirection: lang === 'ar' ? 'rtl' : 'ltr' },
+        ]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.muted}
+        returnKeyType="search"
+        submitBehavior={multiline ? 'submit' : undefined}
+        onSubmitEditing={onSubmit}
+        multiline={multiline}
+      />
+      {value && value.length > 0 ? (
+        <Pressable
+          testID={`${id}-clear`}
+          accessibilityRole="button"
+          accessibilityLabel={lang === 'ar' ? 'مسح النص' : 'Clear text'}
+          hitSlop={10}
+          onPress={() => onChangeText?.('')}
+          style={styles.clearBtn}
+        >
+          <View style={[styles.clearCircle, { backgroundColor: colors.border }]}>
+            <Icon name="cross" size={12} color={colors.text} />
+          </View>
+        </Pressable>
+      ) : null}
     </View>
+  ) : (
+    <GlassSurface elevation={false} style={[styles.pill, pillHeight, styles.input, sx.justifyContentCenter]}>
+      <Text style={{ color: colors.muted, textAlign: lang === 'ar' ? 'right' : 'left' }}>{label}</Text>
+    </GlassSurface>
   );
 
+  const showLeading = phase === 'idle' && (!hideLeadingWhenTyping || (!hasText && !busy));
   return (
     <View style={[styles.row, rowDir]}>
+      {showLeading ? leadingAccessory : null}
+      {phase === 'idle' ? accessory : null}
       {phase === 'idle' || phase === 'sending' ? field : rail}
-      <View style={styles.slot}>
+      <View style={control}>
         {tip ? (
           <View testID={`${id}-hint`} style={[styles.tip, { backgroundColor: colors.inverse }]}>
             <Text style={{ color: colors.onInverse }}>{t(lang, 'voiceQuickHint')}</Text>
@@ -534,8 +559,10 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
           <Icon name="lock" color={colors.muted} size={16} />
           <View style={styles.up}><Icon name="back" color={colors.muted} size={14} /></View>
         </Animated.View>
-        <GestureDetector gesture={pan}>
+        {onFile || showSend ? <GestureDetector gesture={pan}>
           <Animated.View
+            ref={micRef}
+            collapsable={false}
             testID={`${id}-mic`}
             accessible
             accessibilityRole="button"
@@ -544,22 +571,23 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
             accessibilityState={{ busy: phase === 'sending' || busy, disabled: off }}
             accessibilityActions={actions}
             onAccessibilityAction={(e) => onAction(e.nativeEvent.actionName)}
-            style={[styles.btn, { backgroundColor: colors.primary, opacity: off ? 0.6 : 1 }, btnStyle]}
+            style={[styles.btn, control, { borderRadius: controlSize / 2 }, greenGradient, { opacity: off ? 0.6 : 1 }, btnStyle]}
           >
+            {actionDecoration}
             {phase === 'sending' || busy ? (
               <ActivityIndicator testID="button-spinner" color={colors.onPrimary} />
             ) : (
               <Icon name={sendIcon ? 'send' : 'mic'} color={iconColor} size={22} />
             )}
           </Animated.View>
-        </GestureDetector>
+        </GestureDetector> : null}
         {showSend ? (
           <Pressable
             testID={`${id}-go`}
             accessibilityRole="button"
             accessibilityLabel={t(lang, heldNote ? 'voiceSend' : 'sendBtn')}
             disabled={off}
-            onPress={() => (heldNote ? void send() : onSubmit?.())}
+            onPress={() => (heldNote ? send() : onSubmit?.())}
             style={styles.overlay}
           />
         ) : null}
@@ -570,21 +598,21 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
 
 const styles = StyleSheet.create({
   row: { alignItems: 'center', gap: spacing.sm },
-  pill: { minHeight: BTN, borderWidth: 1, borderRadius: radius.lg * 2, flex: 1 },
-  input: { margin: 0, paddingHorizontal: spacing.lg, fontSize: 16 },
+  inputWrap: { flex: 1, alignItems: 'center' },
+  clearBtn: { justifyContent: 'center', paddingHorizontal: 10 },
+  clearCircle: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  pill: { borderWidth: 1, borderRadius: radius.lg * 2, flex: 1 },
+  input: { margin: 0, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   rail: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md },
-  slot: { width: BTN, height: BTN },
-  btn: { width: BTN, height: BTN, borderRadius: BTN / 2, alignItems: 'center', justifyContent: 'center' },
+  compactInput: { height: 44, paddingVertical: 0, fontSize: typeScale.bodySm.fontSize },
+  btn: { alignItems: 'center', justifyContent: 'center' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: BTN / 2 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  timer: { fontSize: 16, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  timer: { fontSize: typeScale.body.fontSize, fontWeight: '600', fontVariant: ['tabular-nums'] },
   hint: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
   up: { transform: [{ rotate: '-90deg' }] },
   arrow: { transform: [{ rotate: '180deg' }] },
   binBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  binBox: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-  binMic: { position: 'absolute' },
-  lid: { position: 'absolute', top: 5, left: 3, width: 18, height: 2, borderRadius: 1 },
   tip: { position: 'absolute', bottom: BTN + spacing.sm, right: 0, maxWidth: 240, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md },
   lockPill: { position: 'absolute', bottom: BTN + spacing.sm, right: 4, width: 40, height: 64, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'space-evenly' },
 });

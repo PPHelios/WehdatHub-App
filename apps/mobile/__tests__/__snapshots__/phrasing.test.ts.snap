@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`lead line per intent (ar) 1`] = `
+{
+  "clarify": "ممكن توضّح أكتر؟",
+  "deals": "اتفضل ملخص الصفقات. (This month · كقافل)",
+  "leads": "7 عميل في القائمة دي. (Live queue)",
+  "other": "دي النتيجة.",
+  "primary": "اتفضل اللي لقيته في المشاريع.",
+  "team": "اتفضل أداء الفريق.",
+  "unit_few": "3 وحدة على طلبك — اتفضل.",
+  "unit_many": "42 وحدة على طلبك — بدأت بأقرب 5.",
+  "unit_none": "ملقيتش حاجة بالمواصفات دي — نوسّع البحث؟",
+}
+`;
+
+exports[`lead line per intent (en) 1`] = `
+{
+  "clarify": "Could you say a little more?",
+  "deals": "Here is the deals summary. (This month · as closer)",
+  "leads": "7 leads in this list. (Live queue)",
+  "other": "Here you go.",
+  "primary": "Here is the answer from Primary projects.",
+  "team": "Here is the team picture.",
+  "unit_few": "Here you go: 3 units.",
+  "unit_many": "Here you go: 42 units, the 5 closest first.",
+  "unit_none": "Nothing fits those details — shall we widen the search?",
+}
+`;

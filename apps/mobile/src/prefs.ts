@@ -33,9 +33,9 @@ export const usePrefs = create<PrefsState>((set, get) => ({
       /* unreadable storage keeps the defaults */
     }
   },
-  setAppearance(appearance) { set({ appearance }); void save(get()); },
-  setClientLang(clientLang) { set({ clientLang }); void save(get()); },
-  setGroupOpen(key, open) { set({ navOpen: { ...get().navOpen, [key]: open } }); void save(get()); },
+  setAppearance(appearance) { set({ appearance }); save(get()); },
+  setClientLang(clientLang) { set({ clientLang }); save(get()); },
+  setGroupOpen(key, open) { set({ navOpen: { ...get().navOpen, [key]: open } }); save(get()); },
 }));
 
 export const clientLang = (): Lang => usePrefs.getState().clientLang;

@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import type { ScrollViewInstance } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ApiClientError } from '@wehdathub/shared';
+import { ApiClientError, PlanLockedError } from '@wehdathub/shared';
 import type { ReviewResult, UnitFields, UploadFile, VoiceFile } from '@wehdathub/shared';
+import { usePlanLock } from '../planLock';
+import { usePlanState } from '../planState';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { KeyboardLift } from '../components/KeyboardLift';
 import { Button } from '../components/Button';
+import { Sheet } from '../components/Sheet';
 import { useRights } from '../rights';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
@@ -29,7 +32,7 @@ import { compressPhotos } from '../compress';
 import { usePhotoUploads } from '../usePhotoUploads';
 import { SaveNotConfirmed, newSaveKey, withSaveCheck } from '../saveKey';
 import { ALL_TYPES, FINISHING, FURNISHING, PROPERTY_TYPES, labelOf, options } from '../unitOptions';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { tick } from '../haptics';
 import { track } from '../analytics';
 import { VoiceBar } from '../components/VoiceBar';
@@ -39,6 +42,7 @@ import { uf } from '../unitFormText';
 import { sendable, stepOf, stepsFor, withFurnishingSync, withImpliedFeatures } from '../unitRules';
 import type { Step } from '../unitRules';
 import { toastError } from '../components/Toast';
+import { sx } from '../sharedStyles';
 
 const str = (v: UnitFields[string]): string => (typeof v === 'string' ? v : '');
 const phoneDigits = (v: string) => { const d = v.replace(/\D/g, '').replace(/^00/, ''); return d.startsWith('20') ? d.slice(2).replace(/^0+/, '') : d.replace(/^0+/, ''); };
@@ -86,6 +90,7 @@ export function AddUnitScreen() {
   const [duplicate, setDuplicate] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [review, setReview] = useState<ReviewResult | null>(null);
+  const [reviewing, setReviewing] = useState(true);
   const [failedCheck, setFailedCheck] = useState(false);
   const [ack, setAck] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -94,13 +99,21 @@ export function AddUnitScreen() {
   const dirty = useRef(false);
   const shared = useRef(route.params);
   const editCode = route.params?.edit;
+  const planState = usePlanState();
+  useEffect(() => {
+    if (!editCode && planState.phase === 'readonly') {
+      usePlanLock.getState().show(new PlanLockedError('plan_readonly'));
+      if (nav.canGoBack()) nav.goBack();
+    }
+  }, [editCode, planState.phase, nav]);
   // Opened from the WhatsApp import: its own draft, not the person's saved one; saving goes back to the import list.
   const importId = route.params?.importId;
   const fresh = Boolean(route.params?.fresh);
   const [version, setVersion] = useState(0);
+  const [leaveAsk, setLeaveAsk] = useState<(() => void) | null>(null);
   const savedDetails = useRef<string | null>(null);
   const originalIds = useRef<string[]>([]);
-  // One page with four sections: the links on top scroll to them.
+  // Section positions let us scroll to a blocker returned during save.
   const scroll = useRef<ScrollViewInstance>(null);
   const anchors = useRef<Partial<Record<Step, number>>>({});
   // The client description follows the fields while it is empty or still the draft (web: unitFields.js).
@@ -108,20 +121,20 @@ export function AddUnitScreen() {
 
   const patch = (p: UnitFields) => {
     dirty.current = true;
-    setAck(false);
     setFields((f) => withImpliedFeatures(withFurnishingSync(f, { ...f, ...p })));
   };
   const set = (k: string, v: UnitFields[string]) => {
     if (k === 'clean_summary') descAuto.current = isAutoDraft(String(v ?? ''));
     patch({ [k]: v });
   };
-  // Mandatory fields have their own border (blue, red once a check has failed). A studio, shop, office or land has no bedrooms.
+  // A studio, shop, office or land has no bedrooms.
   const noBedrooms = ['studio', 'office', 'shop', 'clinic', 'commercial', 'land'].includes(str(fields.property_type));
   const REQUIRED = ['owner_phone', 'price_value', 'area_value', ...(noBedrooms ? [] : ['bedrooms']), ...(fields.owner_name_from_phone === '1' ? [] : ['owner_name'])];
   // The place (a compound, or an area) is mandatory: checked here at once, and again by the server's review.
   const placeMissing = !placeLabel(fields) && !str(fields.compound) && !str(fields.area_id) && !str(fields.subzone_id);
-  const fromServer = review?.blockers ?? blockers;
+  const fromServer = blockers.length ? blockers : review?.blockers ?? [];
   const allBlockers: Blocker[] = [...(placeMissing && !fromServer.some((b) => b.field === 'location') ? [{ field: 'location', label: L.boxNoPlace }] : []), ...fromServer];
+  const saveDisabled = !ready || reviewing || saving || allBlockers.length > 0 || Boolean(review?.warnings.length && !ack);
   const missing = (k: string) => allBlockers.some((b) => b.field === k);
   const field = (k: string, label: string, extra: object = {}) => <Field key={k} testID={`f-${k}`} label={label} value={str(fields[k])} onChangeText={(v) => set(k, v)} required={REQUIRED.includes(k)} invalid={failedCheck && missing(k)} {...extra} />;
 
@@ -168,8 +181,10 @@ export function AddUnitScreen() {
   useEffect(() => {
     (async () => {
       if (editCode) {
+        let loaded = false;
         try {
           const [r, u] = await Promise.all([api.unitEditFields(editCode), api.unit(editCode)]);
+          loaded = true;
           setFields(unphoneName({ ...r.fields, code: r.code }));
           descAuto.current = isAutoDraft(str(r.fields.clean_summary));
           setVersion(r.version);
@@ -184,7 +199,8 @@ export function AddUnitScreen() {
         } catch (e) {
           setError(toastError(errorText(e, lang)));
         }
-        setReady(true);
+        // The unit never loaded: Save stays off, so an empty form can never overwrite it.
+        if (loaded) setReady(true);
         return;
       }
       const d = await loadDraft();
@@ -221,22 +237,26 @@ export function AddUnitScreen() {
   // The server checks the form as the broker types: what is missing, warnings, a duplicate and (edit) what changes.
   useEffect(() => {
     if (!ready) return;
+    setReviewing(true);
+    setAck(false);
     let live = true;
     const h = setTimeout(() => {
-      api.reviewUnit(sendable(fields), kept.length, editCode).then((r) => { if (live) setReview(r); }).catch(() => undefined);
+      api.reviewUnit(sendable(fields), kept.length, editCode).then((r) => {
+        if (!live) return;
+        setReview(r);
+        setBlockers([]);
+      }).catch(() => undefined).finally(() => {
+        if (live) setReviewing(false);
+      });
     }, 700);
     return () => { live = false; clearTimeout(h); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, kept.length, ready, editCode]);
 
   // Leaving with unsaved edits asks first (a new unit keeps its draft, so only edits ask).
   useEffect(() => nav.addListener?.('beforeRemove', (e) => {
     if (!editCode || !dirty.current || saving || saved.current) return;
     e.preventDefault();
-    Alert.alert(t(lang, 'leaveTitle'), t(lang, 'leaveBody'), [
-      { text: t(lang, 'stay'), style: 'cancel' },
-      { text: t(lang, 'leave'), style: 'destructive', onPress: () => nav.dispatch(e.data.action) },
-    ]);
+    setLeaveAsk(() => () => nav.dispatch(e.data.action));
   }), [nav, editCode, saving, lang]);
 
   const onVoice = async (file: VoiceFile) => {
@@ -276,13 +296,13 @@ export function AddUnitScreen() {
   };
 
   const save = async (force = false) => {
-    if (saving) return;
-    if (allBlockers.length) { setFailedCheck(true); setBlockers(allBlockers); toBlocked(allBlockers); return; }
+    if (saveDisabled) return;
     // A look-alike unit asks before anything is uploaded; accepting it once (the switch or Save anyway) is never asked again.
     const accepted = force || dupAck;
     if (!editCode && !accepted && review?.duplicate) return setDuplicate(review.duplicate);
     if (accepted) setDupAck(true);
     dirty.current = false;
+    track('unit_save_started', { edit: Number(Boolean(editCode)) });
     setSaving(true);
     setProgress(0);
     setSlow(null);
@@ -320,8 +340,8 @@ export function AddUnitScreen() {
         // retries the photos, so it never meets "changed elsewhere" from its own first save.
         const key = JSON.stringify(body);
         if (savedDetails.current !== key) {
-          const saved = await api.saveUnitEdit(editCode, version, body, saveKey.current);
-          setVersion(saved.version);
+          const edited = await api.saveUnitEdit(editCode, version, body, saveKey.current);
+          setVersion(edited.version);
           savedDetails.current = key;
         }
         const sent = await sendPhotos();
@@ -337,7 +357,7 @@ export function AddUnitScreen() {
         }
         tick();
         saved.current = true;
-        await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] })]);
+        await Promise.all([qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['unit', editCode] }), qc.invalidateQueries({ queryKey: ['today'] })]);
         if (importId) // React Navigation 7: navigate() would push a second, empty import screen (the other posts would be lost); popTo returns to the one that is open.
         return nav.popTo('WhatsAppImport', { saved: { id: importId, code: editCode } });
         return nav.goBack();
@@ -352,7 +372,7 @@ export function AddUnitScreen() {
       saveKey.current = newSaveKey();
       saved.current = true;
       tick();
-      track('unit_saved', { photos: files.length });
+      track('unit_saved', { photos: files.length, edit: Number(Boolean(editCode)) });
       // A compound the list does not know is saved as pending on the server; show it on this phone straight away.
       if (fields.compound_new === '1' && str(fields.compound)) addPendingPlace(str(fields.compound)).catch(() => undefined);
       if (!fresh) await clearDraft();
@@ -360,7 +380,7 @@ export function AddUnitScreen() {
       if (importId) return nav.popTo('WhatsAppImport', { saved: { id: importId, code: r.code } });
       nav.replace('Unit', { code: r.code });
     } catch (e) {
-      track('unit_save_refused', { reason: e instanceof ApiClientError ? String(e.code || e.status) : 'error' });
+      track('unit_save_refused', { status: e instanceof ApiClientError ? e.status : 0 });
       if (e instanceof SaveNotConfirmed) return setError(t(lang, 'saveNotConfirmed'));
       if (!(e instanceof ApiClientError)) return setError(toastError(errorText(e, lang)));
       if (editCode && e.code === 'conflict') return setError(t(lang, 'changedElsewhere'));
@@ -400,48 +420,53 @@ export function AddUnitScreen() {
     setNotice(null);
   };
 
-  const stepName = (s: Step) => (s === 1 ? L.step1 : s === 2 ? L.step2 : s === 3 ? L.step3 : L.step4);
   const anchor = (s: Step) => ({ onLayout: (e: { nativeEvent: { layout: { y: number } } }) => { anchors.current[s] = e.nativeEvent.layout.y; } });
-  const saveDisabled = saving || Boolean(review?.warnings.length && !review.blockers.length && !ack);
+  const panel = [styles.panel, { backgroundColor: colors.card, borderColor: colors.border }];
 
   return (
     <KeyboardLift style={[styles.screen, { backgroundColor: colors.bg }]}>
-      <ScrollView ref={scroll} style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.content, saving && styles.locked]} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets scrollEnabled={!dragging} pointerEvents={saving ? 'none' : 'auto'}>
-        <View style={styles.jump}>
-          {flow.map((n) => <Pressable key={n} testID={`jump-${n}`} accessibilityRole="link" onPress={() => jump(n)} style={[styles.jumpChip, { borderColor: colors.border }]}><Text style={{ color: colors.text, fontWeight: '600' }}>{stepName(n)}</Text></Pressable>)}
-        </View>
+      <ScrollView ref={scroll} style={styles.flex} contentContainerStyle={[styles.content, saving && styles.locked]} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets scrollEnabled={!dragging} pointerEvents={saving ? 'none' : 'auto'}>
+        {!editCode && !importId && canWhatsApp ? (
+          <Button
+            testID="add-from-whatsapp"
+            label={t(lang, 'whatsappImport')}
+            onPress={() => {
+              if (planState.phase === 'readonly') {
+                usePlanLock.getState().show(new PlanLockedError('plan_readonly'));
+                return;
+              }
+              nav.navigate('WhatsAppImport');
+            }}
+          />
+        ) : null}
 
-        {!editCode && !importId && canWhatsApp ? <Button testID="add-from-whatsapp" variant="secondary" label={`💬 ${t(lang, 'whatsappImport')}`} onPress={() => nav.navigate('WhatsAppImport')} /> : null}
-
-        {/* A refused save and a look-alike unit show at the top. */}
-        {failedCheck && allBlockers.length ? (
+        {ready && allBlockers.length > 0 ? (
           <View testID="blockers" style={[styles.box, { borderColor: colors.danger, backgroundColor: colors.card }]}>
-            <Text style={{ color: colors.danger, fontWeight: '700' }}>{t(lang, 'stillNeeded')}</Text>
+            <Text style={[{ color: colors.danger }, sx.fontWeight700]}>{t(lang, 'stillNeeded')}</Text>
             {allBlockers.map((b) => <Text key={b.field} style={{ color: colors.text }}>• {b.label}</Text>)}
           </View>
         ) : null}
         {(duplicate ?? (editCode ? null : review?.duplicate ?? null)) !== null ? (
           <View testID="duplicate" style={[styles.box, { borderColor: colors.accent, backgroundColor: colors.card }]}>
-            <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'duplicateAsk')} {duplicate ?? review?.duplicate}</Text>
+            <Text style={[{ color: colors.text }, sx.fontWeight700]}>{t(lang, 'duplicateAsk')} {duplicate ?? review?.duplicate}</Text>
             <SwitchRow label={t(lang, 'dupOk')} value={dupAck} onChange={setDupAck} testID="dup-ack" />
-            <Button label={t(lang, 'saveAnyway')} onPress={() => save(true)} />
+            <Button label={t(lang, 'saveAnyway')} onPress={() => save(true)} disabled={saveDisabled} />
             {duplicate !== null ? <Button label={t(lang, 'cancel')} variant="secondary" onPress={() => setDuplicate(null)} /> : null}
           </View>
         ) : null}
 
-        <View style={styles.stack} {...anchor(1)}>
-          <SectionHead n={1} title={L.step1} />
+        <View style={panel} {...anchor(1)}>
+          <SectionHead title={L.step1} />
           <Field testID="describe" label={importId ? (lang === 'en' ? '💬 Original message (to compare with the fields below)' : '💬 الرسالة الأصلية (للمقارنة مع البيانات تحت)') : t(lang, 'describePlaceholder')} value={describe} onChangeText={onDescribe} multiline />
           {importId ? null : (
             <>
               <Button testID="fill" label={t(lang, 'fillBtn')} onPress={() => runFill({ describe })} disabled={!describe.trim()} />
-              <VoiceBar id="unit" label={t(lang, 'mic')} onFile={onVoice} onError={setError} />
+              <VoiceBar compact id="unit" label={t(lang, 'mic')} onFile={onVoice} onError={setError} />
             </>
           )}
           {notice ? (
             notice === t(lang, 'draftRestored')
-              // A restored draft is loud on purpose: old values must not be saved by mistake.
-              ? <View testID="unit-notice" style={[styles.box, { backgroundColor: colors.warnSoft, borderColor: colors.warn, borderStartWidth: 5 }]}><Text style={{ color: colors.text, fontWeight: '700' }}>↩️ {notice}</Text></View>
+              ? <View testID="unit-notice" style={[styles.box, { backgroundColor: colors.cardSubtle, borderColor: colors.border }]}><Text style={[{ color: colors.text }, sx.fontWeight700]}>↩ {notice}</Text></View>
               : <Text testID="unit-notice" style={{ color: colors.accentInk }}>{notice}</Text>
           ) : null}
           <UnitBox fields={fields} patch={patch} lang={lang} invalid={failedCheck && missing('location')} />
@@ -454,26 +479,26 @@ export function AddUnitScreen() {
           <Chips options={options(PROPERTY_TYPES, lang)} value={str(fields.property_type)} onChange={(v) => set('property_type', v)} testID="f-property_type" required invalid={failedCheck && missing('property_type')} />
         </View>
 
-        <View style={styles.stack} {...anchor(2)}>
-          <SectionHead n={2} title={L.step2} />
+        <View style={panel} {...anchor(2)}>
+          <SectionHead title={L.step2} />
           <SizeSection fields={fields} set={set} field={field} lang={lang} />
         </View>
 
         {fields.listing_type !== 'rent' ? (
-          <View style={styles.stack} {...anchor(3)}>
-            <SectionHead n={3} title={L.step3} />
+          <View style={panel} {...anchor(3)}>
+            <SectionHead title={L.step3} />
             <DeliverySection fields={fields} set={set} field={field} lang={lang} />
           </View>
         ) : null}
 
-        <View style={styles.stack} {...anchor(4)}>
-          <SectionHead n={4} title={L.step4} />
+        <View style={panel} {...anchor(4)}>
+          <SectionHead title={L.step4} />
           <OwnerSection fields={fields} set={set} field={field} lang={lang} expanded={Boolean(fields.commission || fields.co_broker || fields.unit_no || fields.address || fields.pin)} onDescribeAgain={writeDraftAgain} />
 
           <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'photosTitle')} ({kept.length}/{MAX_PHOTOS})</Text>
           <View style={styles.row}>
-            <View style={styles.flex}><Button testID="add-photos" label={t(lang, 'addPhotos')} variant="secondary" onPress={() => addPhotos(() => pickPhotos(MAX_POOL - photos.length))} /></View>
-            <View style={styles.flex}><Button testID="take-photo" label={t(lang, 'takePhoto')} variant="secondary" onPress={() => addPhotos(takePhoto)} disabled={photos.length >= MAX_POOL} /></View>
+            <View style={styles.flex}><Button testID="add-photos" size="sm" label={t(lang, 'addPhotos')} variant="secondary" onPress={() => addPhotos(() => pickPhotos(MAX_POOL - photos.length))} /></View>
+            <View style={styles.flex}><Button testID="take-photo" size="sm" label={t(lang, 'takePhoto')} variant="secondary" onPress={() => addPhotos(takePhoto)} disabled={photos.length >= MAX_POOL} /></View>
           </View>
           {photos.length > 1 ? <Text style={{ color: colors.muted }}>{t(lang, 'dragHint')}</Text> : null}
           {photos.length > kept.length ? <Text testID="photos-picked" style={{ color: colors.muted }}>{t(lang, 'photosPicked').replace('{n}', String(photos.length)).replace('{k}', String(kept.length))}</Text> : null}
@@ -497,45 +522,44 @@ export function AddUnitScreen() {
         <View style={styles.stack}>
           {editCode && review?.changes?.length ? (
             <View testID="changes" style={[styles.box, { borderColor: colors.border, backgroundColor: colors.card }]}>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'willChange')}</Text>
+              <Text style={[{ color: colors.text }, sx.fontWeight700]}>{t(lang, 'willChange')}</Text>
               {review.changes.map((c) => <Text key={c.field} style={{ color: colors.text }}>• {lang === 'ar' ? c.ar : c.en}: {(lang === 'ar' ? c.from_ar : c.from_en) ?? c.from ?? '—'} {lang === 'ar' ? '←' : '→'} {(lang === 'ar' ? c.to_ar : c.to_en) ?? c.to ?? '—'}</Text>)}
             </View>
           ) : null}
-          {review && !review.warnings.length && !review.blockers.length ? <Text testID="no-warnings" style={{ color: colors.muted }}>✓ {t(lang, 'noWarnings')}</Text> : null}
-          {review?.warnings.length && !review.blockers.length ? (
+          {review && !reviewing && !allBlockers.length && !review.warnings.length ? <Text testID="no-warnings" style={{ color: colors.muted }}>✓ {t(lang, 'noWarnings')}</Text> : null}
+          {!reviewing && review?.warnings.length && !allBlockers.length ? (
             <View testID="warnings" style={[styles.box, { borderColor: colors.accent, backgroundColor: colors.card }]}>
               {review.warnings.map((w) => <Text key={w.field + w.text} style={{ color: colors.text }}>• {w.text}</Text>)}
               <SwitchRow label={t(lang, 'warnOk')} value={ack} onChange={setAck} testID="ack" />
             </View>
           ) : null}
         </View>
-        {error ?<Text testID="unit-error" style={{ color: colors.danger }}>{error}</Text> : null}
-        {slow ? <Text testID="slow-net" style={{ color: colors.accentInk, fontWeight: '700' }}>🐢 {slow}</Text> : null}
+        {error ? <Text testID="unit-error" style={{ color: colors.danger }}>{error}</Text> : null}
+        {slow ? <Text testID="slow-net" style={[{ color: colors.accentInk }, sx.fontWeight700]}>🐢 {slow}</Text> : null}
         {editCode ? null : <Button label={t(lang, 'discardDraft')} variant="secondary" onPress={discard} />}
       </ScrollView>
 
-      {/* The fixed Save bar. */}
-      <View style={[styles.bar, { backgroundColor: colors.card, borderTopColor: colors.border }]} testID="unit-bar">
-        <View style={[styles.barBtn, styles.barSave]}>
-          <Button testID="save-unit" label={saving ? `${t(lang, 'saving')} ${Math.round(progress * 100)}%` : t(lang, 'saveUnit')} progress={saving ? progress : undefined} onPress={() => save(false)} loading={saving} disabled={saveDisabled} />
-        </View>
+      <View style={[styles.bar, { backgroundColor: colors.card, borderColor: colors.border }]} testID="unit-bar">
+        <Button testID="save-unit" label={saving ? `${t(lang, 'saving')} ${Math.round(progress * 100)}%` : t(lang, 'saveUnit')} progress={saving ? progress : undefined} onPress={() => save(false)} loading={saving} disabled={saveDisabled} />
       </View>
+      <Sheet visible={Boolean(leaveAsk)} onClose={() => setLeaveAsk(null)} title={t(lang, 'leaveTitle')} testID="leave-sheet">
+        <Text style={{ color: colors.muted }}>{t(lang, 'leaveBody')}</Text>
+        <Button testID="leave-stay" variant="secondary" label={t(lang, 'stay')} onPress={() => setLeaveAsk(null)} />
+        <Button testID="leave-go" variant="danger" label={t(lang, 'leave')} onPress={() => { const go = leaveAsk; setLeaveAsk(null); go?.(); }} />
+      </Sheet>
     </KeyboardLift>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 120 },
+  content: { padding: spacing.md, gap: spacing.md },
+  panel: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.md },
   stack: { gap: spacing.md },
-  h: { fontSize: 16, fontWeight: '700', marginTop: spacing.sm },
+  h: { fontSize: typeScale.body.fontSize, fontWeight: '700', marginTop: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   locked: { opacity: 0.6 },
   box: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
-  jump: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  jumpChip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, minHeight: 36, justifyContent: 'center' },
-  bar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: spacing.sm, padding: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
-  barBtn: { flex: 1 },
-  barSave: { flex: 1 },
+  bar: { padding: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
 });

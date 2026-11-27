@@ -13,6 +13,16 @@ export const contactPhoneSchema = z.string().refine((v) => normalizePhoneDigits(
 /** The six-digit sign-in code. */
 export const codeSchema = z.string().transform((v) => v.replace(/\s/g, '')).pipe(z.string().regex(/^\d{6}$/));
 
+/** Self-serve trial signup input from the mobile app. */
+export const signupSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  phone: phoneSchema,
+  agency: z.string().trim().max(120).optional(),
+  tier: z.enum(['solo', 'team']).default('solo'),
+  channel: z.enum(['telegram', 'whatsapp']).default('telegram'),
+  lang: z.enum(['ar', 'en']).optional(),
+});
+
 /** "1.2.3" → [1,2,3]; anything else → [0,0,0]. */
 const parts = (v: string): number[] => (/^\d+\.\d+\.\d+$/.test(v) ? v.split('.').map(Number) : [0, 0, 0]);
 /** True when the installed app is older than the lowest version the server supports. */

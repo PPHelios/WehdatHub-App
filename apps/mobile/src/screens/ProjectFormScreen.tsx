@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import type { ScrollViewInstance } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import type { UploadFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { Sheet } from '../components/Sheet';
 import { Chips } from '../components/Chips';
 import { DeveloperBox } from '../components/DeveloperBox';
 import { Field } from '../components/Field';
@@ -27,9 +28,10 @@ import type { ProjectFields } from '../projectRules';
 import { fill, pt } from '../projectText';
 import { pickPhotos, takePhoto } from '../photos';
 import { plain, withCommas } from '../readback';
-import { radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { ALL_TYPES, labelOf } from '../unitOptions';
 import { toast, toastError } from '../components/Toast';
+import { sx } from '../sharedStyles';
 
 /** A message pasted this long all at once is read at once (the website reads it too); the broker still checks every field. */
 const PASTE_MIN = 40;
@@ -75,6 +77,7 @@ export function ProjectFormScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [leaveAsk, setLeaveAsk] = useState<(() => void) | null>(null);
   const dirty = useRef(false);
   const saved = useRef(false);
   const scroll = useRef<ScrollViewInstance>(null);
@@ -92,7 +95,7 @@ export function ProjectFormScreen() {
   useEffect(() => nav.addListener?.('beforeRemove', (e) => {
     if (!editing || !dirty.current || saving || saved.current) return;
     e.preventDefault();
-    Alert.alert(T.leaveTitle, T.leaveBody, [{ text: t(lang, 'stay'), style: 'cancel' }, { text: t(lang, 'leave'), style: 'destructive', onPress: () => nav.dispatch(e.data.action) }]);
+    setLeaveAsk(() => () => nav.dispatch(e.data.action));
   }), [nav, editing, saving, lang, T]);
 
   // Reads the pasted message (free, no AI): fills what is still empty and says what it found.
@@ -117,7 +120,7 @@ export function ProjectFormScreen() {
   const onPaste = (v: string) => {
     const pasted = v.length - paste.length >= PASTE_MIN;
     setPaste(v);
-    if (pasted) void read(v);
+    if (pasted) read(v);
   };
 
   const blockers = projectBlockers(fields, lang, editing);
@@ -186,7 +189,7 @@ export function ProjectFormScreen() {
               const n = (i + 1) as 1 | 2 | 3;
               const on = n === step;
               return (
-                <Pressable key={s} testID={`step-${n}`} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => (n > 1 && blockers.length ? setFailed(true) : go(n))} style={[styles.stepChip, { borderColor: on ? colors.primary : colors.border }, on && { backgroundColor: colors.primary }]}>
+                <Pressable key={s} testID={`step-${n}`} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => (n > 1 && blockers.length ? setFailed(true) : go(n))} style={[styles.stepChip, { borderColor: on ? colors.primary : colors.border }, on && greenGradient]}>
                   <Text style={{ color: on ? colors.onPrimary : colors.text, fontWeight: '700' }}>{n}. {s}</Text>
                 </Pressable>
               );
@@ -195,7 +198,7 @@ export function ProjectFormScreen() {
         ) : null}
         {failed && blockers.length ? (
           <View testID="blockers" style={[styles.box, { borderColor: colors.danger }]}>
-            <Text style={{ color: colors.danger, fontWeight: '700' }}>{T.stillNeeded}</Text>
+            <Text style={[{ color: colors.danger }, sx.fontWeight700]}>{T.stillNeeded}</Text>
             {blockers.map((b) => <Text key={b.field} style={{ color: colors.text }}>• {b.label}</Text>)}
           </View>
         ) : null}
@@ -209,7 +212,7 @@ export function ProjectFormScreen() {
             {readNote ? <Text testID="pf-read-note" style={{ color: colors.accentInk }}>{readNote}</Text> : null}
             {existing ? (
               <Pressable testID="pf-known" accessibilityRole="button" onPress={() => nav.navigate('Project', { id: existing.id, name: existing.name })} style={[styles.box, { borderColor: colors.accent }]}>
-                <Text style={{ color: colors.text }}>{T.known}: {existing.name} · <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{T.open}</Text></Text>
+                <Text style={{ color: colors.text }}>{T.known}: {existing.name} · <Text style={[{ color: colors.primaryInk }, sx.fontWeight700]}>{T.open}</Text></Text>
               </Pressable>
             ) : null}
             <Field testID="pf-name" label={`${T.name}`} value={str(fields.name)} onChangeText={(v) => set('name', v)} required invalid={missing('name')} maxLength={120} />
@@ -275,6 +278,11 @@ export function ProjectFormScreen() {
             : <Button testID="pf-save" label={saving ? T.saving : editing ? T.save : T.add} loading={saving} onPress={save} />}
         </View>
       </View>
+      <Sheet visible={Boolean(leaveAsk)} onClose={() => setLeaveAsk(null)} title={T.leaveTitle} testID="leave-sheet">
+        <Text style={{ color: colors.muted }}>{T.leaveBody}</Text>
+        <Button testID="leave-stay" variant="secondary" label={t(lang, 'stay')} onPress={() => setLeaveAsk(null)} />
+        <Button testID="leave-go" variant="danger" label={t(lang, 'leave')} onPress={() => { const leave = leaveAsk; setLeaveAsk(null); leave?.(); }} />
+      </Sheet>
     </View>
   );
 }
@@ -283,7 +291,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 120 },
   stack: { gap: spacing.md },
-  h: { fontSize: 15, fontWeight: '700', marginTop: spacing.sm },
+  h: { fontSize: typeScale.body.fontSize, fontWeight: '700', marginTop: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   locked: { opacity: 0.6 },

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Alert } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { ApiClientError } from '@wehdathub/shared';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,6 +8,7 @@ import { openChat, readChat } from '../src/zipImport';
 import { usage } from '../src/usage';
 import { resetMemoryCache } from '../src/whatsappImportMemory';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({ api: { chatPlan: jest.fn(), chatDecisions: jest.fn(), saveChatDecisions: jest.fn(), forgetChatDecisions: jest.fn(), codeCheck: jest.fn(), chatRead: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn(), unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn() } }));
 jest.mock('../src/zipImport', () => {
   class ZipImportError extends Error { reason: string; constructor(reason: string) { super(reason); this.reason = reason; } }
@@ -17,6 +17,7 @@ jest.mock('../src/zipImport', () => {
 jest.mock('../src/usage', () => ({ usage: jest.fn() }));
 jest.mock('../src/errorReport', () => ({ reportError: jest.fn() }));
 jest.mock('../src/photoUpload', () => ({ uploadPhoto: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../src/planState', () => ({ ...jest.requireActual('../src/planState'), usePlanState: () => ({ phase: 'none', daysLeft: 30, manager: true, allowance: undefined }) }));
 jest.mock('../src/rights', () => ({ useRights: () => ({ manager: true, agencyOwner: false, dataEntry: false, addUnits: true }) }));
 jest.mock('../src/components/SmartImage', () => ({ SmartImage: () => null }));
 const mockAddListener = jest.fn((_ev: string, _fn: unknown) => jest.fn());
@@ -88,7 +89,7 @@ const open = async () => {
   await showUnchanged();
 };
 const ticked = (id: string) => screen.getByTestId(`wa-pick-${id}`).props.accessibilityState.checked as boolean;
-const saveAll = async () => { await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); }); await waitFor(() => expect(screen.getByTestId('wa-result')).toBeTruthy()); };
+const saveAll = async () => { await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); }); await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); }); await waitFor(() => expect(screen.getByTestId('wa-result')).toBeTruthy()); };
 
 describe('the range step', () => {
   test('a zip that arrives is only opened: nothing is read until a range is chosen; the chat span and counts show; 30 days is the default with no watermark', async () => {
@@ -286,6 +287,7 @@ describe('saving a new unit', () => {
     await saveAll();
     await waitFor(() => expect(screen.getByTestId('wa-post-2')).toBeTruthy());
     await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
+    await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); });
     await waitFor(() => expect(m.createUnit).toHaveBeenCalledTimes(2));
     expect(m.createUnit.mock.calls[1][2]).toBe(m.createUnit.mock.calls[0][2]);
   });
@@ -294,6 +296,7 @@ describe('saving a new unit', () => {
     planKinds = { '1': { kind: 'unchanged', code: 'HP-1', existing: unit('HP-1') } };
     await open();
     await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); fireEvent.press(screen.getByTestId('wa-add')); });
+    await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); });
     await waitFor(() => expect(screen.getByTestId('wa-result')).toBeTruthy());
     expect(m.createUnit).toHaveBeenCalledTimes(1);
   });
@@ -304,6 +307,7 @@ describe('saving a new unit', () => {
     // HP-1 update first (slow review); HP-3 is discarded before the loop reaches it.
     await open();
     await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
+    await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); });
     expect(screen.getByTestId('wa-discard-2').props.accessibilityState?.disabled ?? screen.getByTestId('wa-discard-2').props.disabled).toBeTruthy();
     await act(async () => { release(); });
     await waitFor(() => expect(screen.getByTestId('wa-result')).toBeTruthy());
@@ -330,14 +334,13 @@ describe('the list', () => {
   });
 
   test('leaving with units still to save asks first; leaving with nothing to save does not', async () => {
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
     await open();
     const fn = mockAddListener.mock.calls.filter((c) => c[0] === 'beforeRemove').pop()?.[1] as (e: { preventDefault: () => void; data: { action: unknown } }) => void;
     const e = { preventDefault: jest.fn(), data: { action: {} } };
-    fn(e);
+    await act(async () => { fn(e); });
     expect(e.preventDefault).toHaveBeenCalled();
-    expect(alert).toHaveBeenCalled();
-    alert.mockRestore();
+    await act(async () => { await Promise.resolve(); });
+    expect(screen.getByTestId('wa-ask-go')).toBeTruthy();
   });
 
   test('retrying the details keeps the ticks the person set', async () => {

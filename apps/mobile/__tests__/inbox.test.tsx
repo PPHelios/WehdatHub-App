@@ -5,6 +5,7 @@ import { InboxScreen } from '../src/screens/InboxScreen';
 import notifee from '@notifee/react-native';
 import { api } from '../src/api';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({ api: { notificationsInbox: jest.fn(), notificationRead: jest.fn(), notificationDelete: jest.fn(), notificationsReadAll: jest.fn(), notificationsDeleteAll: jest.fn() } }));
 const m = api as unknown as Record<string, jest.Mock>;
 const item = { id: 'n1', kind: 'match', title: 'New match', body: 'A-1', url: null, created_at: '2026-11-14T10:00:00Z', read: false };

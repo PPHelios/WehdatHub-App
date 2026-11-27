@@ -1,18 +1,23 @@
-import React, { memo, useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { ApiLead, Lang, LeadTab, LeadsPage } from '@wehdathub/shared';
-import { rowDate } from '../dates';
+import type { ApiLead, Lang, LeadQueue, LeadTab, LeadsPage } from '@wehdathub/shared';
+import { PlanLockedError } from '@wehdathub/shared';
+import { usePlanLock } from '../planLock';
+import { usePlanState } from '../planState';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { Icon } from '../components/Icon';
+import { LeadCard } from '../components/LeadCard';
 import { BulkAssign } from '../components/BulkAssign';
 import { useRights } from '../rights';
 import { SwipeRow } from '../components/SwipeRow';
+import { CoachMark } from '../components/CoachMark';
 import { tick } from '../haptics';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
@@ -20,7 +25,9 @@ import { stageLabel, t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
 import { Split, useColumns, useWide } from '../layout';
 import { LeadScreen } from './LeadScreen';
-import { radius, spacing, useTheme } from '../theme';
+import { useSelectionHighlight } from '../components/SelectionHighlight';
+import { ChoiceSheet, type ChoiceAsk } from '../components/Sheet';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 import { toast } from '../components/Toast';
 
@@ -39,12 +46,16 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  const params = (useRoute().params ?? {}) as { tab?: LeadTab; broker?: string };
+  const params = (useRoute().params ?? {}) as { tab?: LeadTab; broker?: string; team?: string; queue?: LeadQueue };
   const [tab, setTab] = useState<LeadTab>(params.tab ?? 'all');
+  const selection = useSelectionHighlight(tab, greenGradient);
   const brokerFilter = params.broker;
+  const teamFilter = params.team;
+  const queueFilter = params.queue;
   const [text, setText] = useState('');
   const manager = useRights().manager;
   const [unassigned, setUnassigned] = useState(false);
+  const [quickAsk, setQuickAsk] = useState<ChoiceAsk | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [sel, setSel] = useState<Record<string, ApiLead>>({});
   const [assigning, setAssigning] = useState(false);
@@ -52,14 +63,18 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   const columns = single ? 1 : wideColumns;
   const q = useDebounced(text.trim());
   const list = useInfiniteQuery({
-    queryKey: ['leads', tab, q, unassigned, brokerFilter],
+    queryKey: ['leads', tab, q, unassigned, brokerFilter, teamFilter, queueFilter],
     initialPageParam: 0,
-    queryFn: ({ pageParam }) => api.leads({ tab, q, offset: pageParam, broker: unassigned ? 'none' : brokerFilter }),
+    queryFn: ({ pageParam }) => api.leads({ tab, q, offset: pageParam, broker: unassigned ? 'none' : brokerFilter, team: teamFilter, queue: queueFilter }),
     getNextPageParam: (last: LeadsPage) => (last.more ? last.offset + last.limit : undefined),
   });
   const items = useMemo(() => list.data?.pages.flatMap((p) => p.items) ?? [], [list.data]);
-  // The number on every tab, from the start.
-  const tabCounts = useQuery({ queryKey: ['leads', 'counts', { q }], queryFn: () => api.leadCounts(q || undefined), select: (d) => d.counts }).data;
+  const tabCounts = useQuery({
+    queryKey: ['leads', 'counts', { q }],
+    queryFn: () => api.leadCounts(q || undefined),
+    select: (d) => d.counts,
+    placeholderData: (previous) => previous,
+  }).data;
   const queries = useQueryClient();
   // Press and hold a lead: call it, or mark it as called, without opening it.
   const callLead = useCallback((l: ApiLead) => {
@@ -72,37 +87,54 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   }, [queries, lang]);
   const quick = useCallback((l: ApiLead) => {
     tick();
-    const buttons = [
-      ...(l.phones[0] ? [{ text: t(lang, 'quickCall'), onPress: () => { Linking.openURL(`tel:${l.phones[0]}`).catch(() => undefined); } }] : []),
-      { text: t(lang, 'markCalled'), onPress: () => { api.leadCalled(l.ref, l.version).then(() => { tick(); return queries.invalidateQueries({ queryKey: ['leads'] }); }).catch((e) => toast(errorText(e, lang), true)); } },
-      { text: t(lang, 'cancel'), style: 'cancel' as const },
-    ];
-    Alert.alert(l.name || l.ref, undefined, buttons);
+    setQuickAsk({
+      title: l.name || l.ref,
+      actions: [
+        ...(l.phones[0] ? [{ label: t(lang, 'quickCall'), onPress: () => { Linking.openURL(`tel:${l.phones[0]}`).catch(() => undefined); } }] : []),
+        { label: t(lang, 'markCalled'), onPress: () => { api.leadCalled(l.ref, l.version).then(() => { tick(); return queries.invalidateQueries({ queryKey: ['leads'] }); }).catch((e) => toast(errorText(e, lang), true)); } },
+      ],
+    });
   }, [queries, lang]);
   const press = useCallback((l: ApiLead) => {
     if (!selecting) { onOpen(l.ref); return; }
     setSel((c) => { const n = { ...c }; if (n[l.ref]) delete n[l.ref]; else n[l.ref] = l; return n; });
   }, [selecting, onOpen]);
   const renderItem = useCallback(
-    ({ item }: { item: ApiLead }) => <LeadItem lead={item} lang={lang} picked={selecting ? Boolean(sel[item.ref]) : undefined} onPress={press} onQuick={quick} onCall={callLead} onMark={markLead} />,
+    ({ item, index }: { item: ApiLead; index: number }) => <LeadItem coach={index === 0} lead={item} lang={lang} picked={selecting ? Boolean(sel[item.ref]) : undefined} onPress={press} onQuick={quick} onCall={callLead} onMark={markLead} />,
     [lang, selecting, sel, press, quick, callLead, markLead],
   );
   const listExtra = useMemo(() => ({ selecting, sel }), [selecting, sel]);
 
+  const planState = usePlanState();
+  const onNewLead = useCallback(() => {
+    if (planState.phase === 'readonly') {
+      usePlanLock.getState().show(new PlanLockedError('plan_readonly'));
+      return;
+    }
+    nav.navigate('NewLead');
+  }, [nav, planState.phase]);
+
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <TextInput testID="leads-search" style={[styles.search, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]} value={text} onChangeText={setText} placeholder={t(lang, 'searchLeads')} placeholderTextColor={colors.muted} autoCorrect={false} returnKeyType="search" />
-      {text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching) ? <ActivityIndicator style={styles.searching} color={colors.primaryInk} /> : null}
+      <View style={[styles.search, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        <Icon name="search" size={18} color={colors.primaryInk} />
+        <TextInput testID="leads-search" style={[styles.searchInput, { color: colors.text }]} value={text} onChangeText={setText} placeholder={t(lang, 'searchLeads')} placeholderTextColor={colors.muted} autoCorrect={false} returnKeyType="search" />
+        {!list.isPending && (text.trim() !== q || (list.isFetching && !list.isFetchingNextPage && !list.isRefetching)) ? <ActivityIndicator color={colors.primaryInk} /> : null}
+      </View>
       <View style={styles.chipsBox}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           {manager ? (
-            <Pressable testID="chip-unassigned" accessibilityRole="button" accessibilityState={{ selected: unassigned }} onPress={() => setUnassigned((u) => !u)} style={[styles.chip, { borderColor: unassigned ? colors.accent : colors.border }, unassigned && { backgroundColor: colors.accent }]}>
-              <Text style={[styles.chipText, { color: unassigned ? colors.onAccent : colors.text }]}>{t(lang, 'unassigned')}</Text>
+            <Pressable testID="chip-unassigned" accessibilityRole="button" accessibilityState={{ selected: unassigned }} onPress={() => setUnassigned((u) => !u)} style={[styles.chip, { borderColor: unassigned ? colors.primaryLine : colors.border, backgroundColor: unassigned ? colors.primarySoft : 'transparent' }]}>
+              <Text variant="caption" weight="bold" style={{ color: unassigned ? colors.primaryInk : colors.text }}>{t(lang, 'unassigned')}</Text>
             </Pressable>
           ) : null}
+          {selection.highlight}
           {TABS.map(([v, k]) => (
-            <Pressable key={v} accessibilityRole="button" accessibilityState={{ selected: v === tab }} onPress={() => setTab(v)} style={[styles.chip, { borderColor: v === tab ? colors.primary : colors.border }, v === tab && { backgroundColor: colors.primary }]}>
-              <Text style={[styles.chipText, { color: v === tab ? colors.onPrimary : colors.text }]}>{k.startsWith('st_') ? stageLabel(lang, k.slice(3)) : t(lang, k)}{tabCounts && tabCounts[v] !== undefined ? ` (${tabCounts[v]})` : ''}</Text>
+            <Pressable key={v} testID={`lead-filter-${v}`} onLayout={selection.measure(v)} accessibilityRole="button" accessibilityState={{ selected: v === tab }} onPress={() => setTab(v)} style={[styles.chip, styles.countedChip, { borderColor: v === tab ? colors.primary : colors.border }, v === tab && !selection.highlight && greenGradient]}>
+              <Text variant="caption" weight="bold" style={{ color: v === tab ? colors.onPrimary : colors.muted }}>{k.startsWith('st_') ? stageLabel(lang, k.slice(3)) : t(lang, k)}</Text>
+              <Text testID={`lead-filter-count-${v}`} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} variant="caption" weight="bold" style={[styles.chipCount, { color: v === tab ? colors.onPrimary : colors.muted }]}>
+                {tabCounts?.[v] === undefined ? '' : `(${tabCounts[v]})`}
+              </Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -114,8 +146,8 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
           <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} />
         ) : (
           <FlashList
-          key={`cols-${columns}`}
-          numColumns={columns}
+            key={`cols-${columns}`}
+            numColumns={columns}
             data={items}
             keyExtractor={(l) => l.ref}
             renderItem={renderItem}
@@ -124,63 +156,54 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
             onEndReachedThreshold={0.6}
             refreshing={list.isRefetching && !list.isFetchingNextPage}
             onRefresh={() => list.refetch()}
-            ListEmptyComponent={<EmptyView title={t(lang, 'noLeads')} hint={t(lang, 'noLeadsHint')} actionLabel={t(lang, 'newLead')} onAction={() => nav.navigate('NewLead')} />}
+            ListEmptyComponent={<EmptyView icon="leads" title={t(lang, 'noLeads')} hint={t(lang, 'noLeadsHint')} actionLabel={t(lang, 'newLead')} onAction={onNewLead} />}
             ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : null}
           />
         )}
       </View>
-      {selecting ? (
-        <View style={styles.fab}>
-          <Button testID="assign-selected" label={`${t(lang, 'assignTo')} (${Object.keys(sel).length})`} disabled={!Object.keys(sel).length} onPress={() => setAssigning(true)} />
-          <Button testID="select-done" variant="secondary" label={t(lang, 'doneSelect')} onPress={() => { setSelecting(false); setSel({}); }} />
-        </View>
-      ) : (
-        <View style={styles.fab}>
-          <Button testID="new-lead" label={`＋ ${t(lang, 'newLead')}`} onPress={() => nav.navigate('NewLead')} />
-          {manager ? <Button testID="select-leads" variant="secondary" label={t(lang, 'selectLeads')} onPress={() => setSelecting(true)} /> : null}
-        </View>
-      )}
+      <View style={[styles.actions, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+        {selecting ? (
+          <>
+            <View style={styles.flex}><Button testID="assign-selected" size="sm" label={`${t(lang, 'assignTo')} (${Object.keys(sel).length})`} disabled={!Object.keys(sel).length} onPress={() => setAssigning(true)} /></View>
+            <Button testID="select-done" size="sm" variant="secondary" label={t(lang, 'doneSelect')} onPress={() => { setSelecting(false); setSel({}); }} />
+          </>
+        ) : (
+          <>
+            <View style={styles.flex}><Button testID="new-lead" size="sm" label={t(lang, 'newLead')} onPress={onNewLead} /></View>
+            {manager ? <Button testID="select-leads" size="sm" variant="secondary" label={t(lang, 'selectLeads')} onPress={() => setSelecting(true)} /> : null}
+          </>
+        )}
+      </View>
+      <ChoiceSheet ask={quickAsk} onClose={() => setQuickAsk(null)} cancelLabel={t(lang, 'cancel')} testID="lead-quick-sheet" />
       {assigning ? <BulkAssign leads={Object.values(sel)} onCancel={() => setAssigning(false)} onDone={() => { setAssigning(false); setSelecting(false); setSel({}); tick(); queries.invalidateQueries({ queryKey: ['leads'] }); }} /> : null}
     </View>
   );
 }
 
 /** One row: swipe to call or mark called, tap to open, press and hold for the quick menu. */
-const LeadItem = memo(function LeadItem({ lead, lang, picked, onPress, onQuick, onCall, onMark }: { lead: ApiLead; lang: Lang; picked?: boolean; onPress: (l: ApiLead) => void; onQuick: (l: ApiLead) => void; onCall: (l: ApiLead) => void; onMark: (l: ApiLead) => void }) {
+const LeadItem = memo(function LeadItemView({ coach, lead, lang, picked, onPress, onQuick, onCall, onMark }: { coach?: boolean; lead: ApiLead; lang: Lang; picked?: boolean; onPress: (l: ApiLead) => void; onQuick: (l: ApiLead) => void; onCall: (l: ApiLead) => void; onMark: (l: ApiLead) => void }) {
+  const slot = useRef<React.ComponentRef<typeof View>>(null);
   return (
-    <SwipeRow rightLabel={`📞 ${t(lang, 'quickCall')}`} leftLabel={`✓ ${t(lang, 'markCalled')}`} onSwipeRight={() => onCall(lead)} onSwipeLeft={() => onMark(lead)}>
-      <LeadRow lead={lead} lang={lang} picked={picked} onPress={onPress} onQuick={onQuick} />
-    </SwipeRow>
-  );
-});
-
-const LeadRow = memo(function LeadRow({ lead, lang, picked, onPress, onQuick }: { lead: ApiLead; lang: Lang; picked?: boolean; onPress: (l: ApiLead) => void; onQuick: (l: ApiLead) => void }) {
-  const { colors, elev } = useTheme();
-  const due = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
-  const late = due !== null && due.getTime() < Date.now();
-  return (
-    <Pressable accessibilityRole="button" onPress={() => onPress(lead)} onLongPress={() => onQuick(lead)} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: picked ? colors.primary : colors.border }, picked && { borderWidth: 2 }]}>
-      <View style={styles.cardTop}>
-        <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{picked === undefined ? '' : picked ? '☑ ' : '☐ '}{lead.name || lead.ref}</Text>
-        <Text style={{ color: colors.primaryInk, fontWeight: '700' }}>{stageLabel(lang, lead.stage)}</Text>
-      </View>
-      <Text style={{ color: colors.muted }}>{lead.ref}{lead.phones[0] ? ` · ${lead.phones[0]}` : ''} · {lead.assignee ?? t(lang, 'unassigned')}</Text>
-      {due ? <Text style={{ color: late ? colors.danger : colors.accentInk, fontWeight: '600' }}>{late ? `${t(lang, 'tabOverdue')} · ` : ''}{rowDate(lang, due)}</Text> : null}
-    </Pressable>
+    <View ref={slot} collapsable={false} style={styles.cardSlot}>
+      {coach ? <CoachMark id="leadSwipe" targetRef={slot} text={t(lang, 'coachSwipe')} /> : null}
+      <SwipeRow rightLabel={t(lang, 'quickCall')} leftLabel={t(lang, 'markCalled')} onSwipeRight={() => onCall(lead)} onSwipeLeft={() => onMark(lead)}>
+        <LeadCard lead={lead} lang={lang} selected={picked} phoneVisibility="full" onPress={() => onPress(lead)} onLongPress={() => onQuick(lead)} />
+      </SwipeRow>
+    </View>
   );
 });
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  searching: { position: 'absolute', top: spacing.lg + 14, end: spacing.lg + 14 },
-  search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginTop: spacing.md, marginBottom: spacing.sm, minHeight: 46, borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md },
+  searchInput: { flex: 1, minHeight: 44, paddingVertical: spacing.xs, fontSize: typeScale.bodySm.fontSize },
   chipsBox: { height: 48 },
-  chips: { gap: spacing.sm, paddingHorizontal: spacing.lg },
-  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, height: 40, justifyContent: 'center' },
-  chipText: { fontWeight: '600' },
-  card: { marginHorizontal: spacing.lg, marginBottom: spacing.md, padding: spacing.md, borderRadius: radius.card, borderWidth: 1, gap: 2 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
-  name: { fontSize: 16, fontWeight: '700', flex: 1 },
+  chips: { gap: spacing.xs, paddingHorizontal: spacing.lg },
+  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, height: 40, justifyContent: 'center' },
+  countedChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  // Counts can change digit width as a search updates without moving the filter pills.
+  chipCount: { width: 32, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  cardSlot: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, borderRadius: radius.card, overflow: 'hidden' },
   footer: { padding: spacing.lg },
-  fab: { padding: spacing.lg },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth },
 });

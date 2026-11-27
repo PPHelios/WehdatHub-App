@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AskResults } from '../src/components/AskResults';
+import { SearchCreditRings, creditRatioColor } from '../src/components/SearchCreditRings';
 import { api } from '../src/api';
 
 jest.mock('../src/api', () => ({ api: { askResults: jest.fn(), askAction: jest.fn().mockResolvedValue(undefined), askReport: jest.fn() } }));
@@ -105,4 +106,42 @@ test('Wrong results? sends the note with the log id; a second report is told so'
   await fireEvent.press(screen.getByTestId('ask-report-send'));
   await waitFor(() => expect(m.askReport).toHaveBeenCalledWith('log1', 'wrong place'));
   expect(screen.getByTestId('ask-report-done')).toBeTruthy();
+});
+
+test('seeded initial AskResults skips duplicate page-1 fetch and carries token/log_id to page 2', async () => {
+  const seeded = page({ token: 'tok-seed', log_id: 'log-seed' });
+  await render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <AskResults q="more than 120" initial={seeded as any} />
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByText('Jazeel')).toBeTruthy();
+  expect(m.askResults).not.toHaveBeenCalled();
+
+  await fireEvent.press(screen.getByTestId('page-2'));
+  await waitFor(() => expect(m.askResults).toHaveBeenCalledWith(expect.objectContaining({
+    q: 'more than 120',
+    page: 2,
+    token: 'tok-seed',
+    logId: 'log-seed',
+  })));
+});
+
+test('SearchCreditRings shows neutral state when loading/error and balance accessibilityLabel when loaded', async () => {
+  await render(<SearchCreditRings loading ar={false} />);
+  expect(screen.getByTestId('search-credit-rings').props.accessibilityLabel).toMatch(/Loading/i);
+
+  await render(<SearchCreditRings error ar={false} />);
+  expect(screen.getByTestId('search-credit-rings').props.accessibilityLabel).toMatch(/unavailable/i);
+
+  await render(<SearchCreditRings data={{ personal: { limit: 10, remaining: 7, used: 3 } }} ar={false} />);
+  expect(screen.getByTestId('search-credit-rings').props.accessibilityLabel).toMatch(/7.*10/);
+});
+
+test('creditRatioColor maps the quota ratio to the theme colours', () => {
+  const c = { creditOk: 'ok', warn: 'warn', danger: 'bad' };
+  expect(creditRatioColor(0.9, c)).toBe('ok');
+  expect(creditRatioColor(0.4, c)).toBe('warn');
+  expect(creditRatioColor(0.15, c)).toBe('bad');
+  expect(creditRatioColor(0, c)).toBe('bad');
 });

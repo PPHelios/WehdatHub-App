@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
 import { AppText as Text } from './AppText';
 import { useNavigation } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -10,19 +9,21 @@ import { t } from '../i18n';
 import { useTheme } from '../theme';
 import { Button } from './Button';
 import { Chips } from './Chips';
+import { Sheet } from './Sheet';
 import { toastError } from './Toast';
+import { sx } from '../sharedStyles';
 
 type Status = 'active' | 'sold' | 'archived';
 
 /** Mark a unit available, sold or archived, or delete it (kept 10 days). The server decides who may. */
-export function UnitLifecycle({ code, status }: { code: string; status: Status }) {
+export function UnitLifecycle({ code, status, canDelete = true, canChangeStatus = true, children }: { code: string; status: Status; canDelete?: boolean; canChangeStatus?: boolean; children?: React.ReactNode }) {
   const lang = currentLang();
   const { colors } = useTheme();
   const nav = useNavigation();
   const qc = useQueryClient();
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const after = async () => { await Promise.all([qc.invalidateQueries({ queryKey: ['unit', code] }), qc.invalidateQueries({ queryKey: ['units'] })]); };
+  const after = async () => { await Promise.all([qc.invalidateQueries({ queryKey: ['unit', code] }), qc.invalidateQueries({ queryKey: ['units'] }), qc.invalidateQueries({ queryKey: ['today'] })]); };
   const change = async (s: Status) => {
     if (s === status) return;
     setBusy(true);
@@ -36,17 +37,26 @@ export function UnitLifecycle({ code, status }: { code: string; status: Status }
       setBusy(false);
     }
   };
-  const remove = () =>
-    Alert.alert(t(lang, 'unitDelete'), t(lang, 'unitDeleteAsk'), [
-      { text: t(lang, 'cancel'), style: 'cancel' },
-      { text: t(lang, 'unitDelete'), style: 'destructive', onPress: async () => { try { await api.unitDelete(code); await after(); nav.goBack(); } catch (e) { setMsg(toastError(errorText(e, lang))); } } },
-    ]);
+  const [asking, setAsking] = useState(false);
+  const remove = () => setAsking(true);
+  const doRemove = async () => {
+    setAsking(false);
+    try { await api.unitDelete(code); await after(); nav.goBack(); } catch (e) { setMsg(toastError(errorText(e, lang))); }
+  };
   return (
     <>
-      <Text style={{ color: colors.text, fontWeight: '700' }}>{t(lang, 'unitStatusTitle')}</Text>
-      <Chips<Status> options={[{ value: 'active', label: t(lang, 'stActive') }, { value: 'sold', label: t(lang, 'stSold') }, { value: 'archived', label: t(lang, 'stArchived') }]} value={status} onChange={change} />
-      <Button testID="unit-delete" variant="secondary" label={`🗑 ${t(lang, 'unitDelete')}`} loading={busy} onPress={remove} />
+      {canChangeStatus ? <>
+        <Text style={[{ color: colors.text }, sx.fontWeight700]}>{t(lang, 'unitStatusTitle')}</Text>
+        <Chips<Status> options={[{ value: 'active', label: t(lang, 'stActive') }, { value: 'sold', label: t(lang, 'stSold') }, { value: 'archived', label: t(lang, 'stArchived') }]} value={status} onChange={change} />
+      </> : null}
       {msg ? <Text testID="unit-lifecycle-message" style={{ color: colors.danger }}>{msg}</Text> : null}
+      {children}
+      {canDelete ? <Button testID="unit-delete" variant="danger" label={`🗑 ${t(lang, 'unitDelete')}`} loading={busy} onPress={remove} /> : null}
+      <Sheet visible={asking} onClose={() => setAsking(false)} title={t(lang, 'unitDelete')} testID="unit-delete-sheet">
+        <Text style={{ color: colors.muted }}>{t(lang, 'unitDeleteAsk')}</Text>
+        <Button testID="unit-delete-confirm" variant="danger" label={t(lang, 'unitDelete')} onPress={() => { doRemove(); }} />
+        <Button testID="unit-delete-cancel" variant="secondary" label={t(lang, 'cancel')} onPress={() => setAsking(false)} />
+      </Sheet>
     </>
   );
 }

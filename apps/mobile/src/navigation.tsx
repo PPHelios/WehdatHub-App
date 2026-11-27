@@ -1,9 +1,10 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useCallback, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import type { LeadTab, PortalEnquiryRead, UnitFields, UploadFile } from '@wehdathub/shared';
+import type { AssistantMode, LeadQueue, LeadTab, PortalEnquiryRead, UnitFields, UploadFile } from '@wehdathub/shared';
 import { trackScreen } from './analytics';
-import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation, useRoute } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarProps, BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -13,6 +14,7 @@ import { BottomSafe } from './components/BottomSafe';
 import { PlanBanner } from './components/PlanBanner';
 import { Icon } from './components/Icon';
 import { FAB_TEST_ID, FloatingTabBar } from './components/FloatingTabBar';
+import { SideNav } from './components/SideNav';
 import { MenuButton } from './components/MenuButton';
 import { NotificationBell, inboxUnreadOptions } from './components/NotificationBell';
 import type { IconName } from './components/Icon';
@@ -28,24 +30,29 @@ import { PlanScreen } from './screens/MoreScreens';
 import { pt } from './projectText';
 import { DashboardScreen } from './screens/InsightsScreens';
 import { SearchScreen } from './screens/SearchScreen';
-import { TodayScreen } from './screens/TodayScreen';
 import { UnitsScreen } from './screens/UnitsScreen';
-import { narrow } from './layout';
+import { WelcomeScreen, useWelcomeState } from './screens/WelcomeScreen';
+import { narrow, useWide } from './layout';
 import { useRightsState } from './rights';
+import { openPrimarySearch } from './searchLink';
 import { TAB_TITLE } from './roleNav';
 import { tabPlan } from './navFromServer';
 import type { TabKey } from './roleNav';
 
-const TodayNarrow = narrow(TodayScreen);
-const SearchNarrow = narrow(SearchScreen);
+function SearchTab() {
+  const p = useRoute().params as { mode?: AssistantMode; at?: number } | undefined;
+  return <SearchScreen initialMode={p?.mode} modeStamp={p?.at} />;
+}
+const SearchNarrow = narrow(SearchTab);
+const openMore = (nav: NativeStackNavigationProp<RootStackParams>, s: string) => (s === 'Ask' ? openPrimarySearch(nav) : nav.navigate(s as never));
 function MoreTab() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  return <MoreScreen onOpen={(s) => nav.navigate(s as never)} />;
+  return <MoreScreen onOpen={(s) => openMore(nav, s)} />;
 }
 const MoreNarrow = narrow(MoreTab);
 function SettingsTab() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  return <MoreScreen mode="settings" onOpen={(s) => nav.navigate(s as never)} />;
+  return <MoreScreen mode="settings" onOpen={(s) => openMore(nav, s)} />;
 }
 const SettingsNarrow = narrow(SettingsTab);
 const TeamNarrow = narrow(TeamScreen);
@@ -58,7 +65,6 @@ function lazy(load: () => React.ComponentType<any>, wrap = false): () => React.C
   let c: React.ComponentType<any> | undefined;
   return () => (c ??= wrap ? narrow(load()) : load());
 }
-/* eslint-disable @typescript-eslint/no-require-imports */
 const lazyScreens = {
   Unit: lazy(() => require('./screens/UnitScreen').UnitScreen, true),
   Lead: lazy(() => require('./screens/LeadScreen').LeadScreen, true),
@@ -93,14 +99,21 @@ const lazyScreens = {
   Library: lazy(() => require('./screens/MoreScreens').LibraryScreen),
   Compare: lazy(() => require('./screens/MoreScreens').CompareScreen),
   Usage: lazy(() => require('./screens/MoreScreens').UsageScreen),
+  ConnectTelegram: lazy(() => require('./screens/ConnectTelegramScreen').ConnectTelegramScreen),
   Platform: lazy(() => require('./screens/MoreScreens').PlatformScreen),
-  Ask: lazy(() => require('./screens/AskScreen').AskScreen, true),
   AddUnit: lazy(() => require('./screens/AddUnitScreen').AddUnitScreen, true),
   WhatsAppImport: lazy(() => require('./screens/WhatsAppImportScreen').WhatsAppImportScreen, true),
+  ClientsHub: lazy(() => require('./screens/ClientsHubScreen').ClientsHubScreen),
+  ProjectsHub: lazy(() => require('./screens/ProjectsHubScreen').ProjectsHubScreen),
+  TrackingHub: lazy(() => require('./screens/TrackingHubScreen').TrackingHubScreen),
+  DealsHub: lazy(() => require('./screens/DealsHubScreen').DealsHubScreen),
+  AdminHub: lazy(() => require('./screens/AdminHubScreen').AdminHubScreen),
+  ReportsHub: lazy(() => require('./screens/ReportsHubScreen').ReportsHubScreen),
+  SettingsHub: lazy(() => require('./screens/SettingsHubScreen').SettingsHubScreen),
 };
-/* eslint-enable @typescript-eslint/no-require-imports */
 import { t } from './i18n';
 import { useTheme } from './theme';
+import { sx } from './sharedStyles';
 
 export type AddUnitParams = {
   text?: string; photos?: UploadFile[]; voice?: UploadFile;
@@ -110,7 +123,7 @@ export type AddUnitParams = {
   /** The post as the import read it (the server's rules reader): the form opens with these fields filled. */ fields?: UnitFields;
   /** The code the post writes: filled even when the reader could not be reached. */ code?: string;
 };
-export type RootStackParams = { Tabs: undefined; MoreMenu: undefined; Settings: undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string } | undefined; Contacts: undefined; Calendar: undefined; SentLinks: undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: undefined; Sources: undefined; Portal: undefined; PortalEnquiry: { message: string; enquiry?: PortalEnquiryRead }; Links: undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string } | undefined; Pipeline: undefined; MapList: undefined; TodayList: undefined; TeamMember: { id: string; name: string; role?: string; me?: boolean; teamLeadId?: string | null }; Ask: undefined; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
+export type RootStackParams = { Tabs: undefined; Welcome: undefined; MoreMenu: undefined; Settings: undefined; ClientsHub: { initialTab?: 'calendar' | 'pipeline' | 'requests' | 'compare' } | undefined; ProjectsHub: { initialTab?: 'projects' | 'library' | 'prices' } | undefined; TrackingHub: { initialTab?: 'links' | 'leases' | 'searches' } | undefined; DealsHub: { initialTab?: 'deals' | 'commissions' } | undefined; AdminHub: { initialTab?: 'team' | 'rules' | 'requests' | 'portals' } | undefined; ReportsHub: { initialTab?: 'dashboard' | 'winloss' | 'sources' | 'activity' } | undefined; SettingsHub: { initialTab?: 'app' | 'notifications' | 'plan' | 'support' } | undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string; viewingAt?: string }; NewLead: { name?: string; phone?: string; paste?: string } | undefined; Contacts: undefined; Calendar: { tomorrow?: boolean } | undefined; SentLinks: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: { order?: 'overdue' | 'available' } | undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: { from?: string; to?: string; brokerId?: string; brokerRole?: 'closer' | 'participant'; market?: 'resale' | 'primary' | 'unknown'; area?: string } | undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; ConnectTelegram: undefined; Platform: undefined; Commissions: { kind?: 'resale' | 'developers'; developerId?: string; developerName?: string; overdue?: boolean } | undefined; Sources: { signedOnly?: boolean } | undefined; Portal: undefined; PortalEnquiry: { message: string; enquiry?: PortalEnquiryRead }; Links: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean; missingPhotos?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string; team?: string; queue?: LeadQueue } | undefined; Pipeline: undefined; MapList: undefined; TeamMember: { id: string; name: string; role?: string; me?: boolean; teamLeadId?: string | null }; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = Record<TabKey | 'AddUnitTab', undefined>;
 
@@ -124,8 +137,9 @@ const tabIcon = (name: IconName) => ({ color, focused }: { color: string; focuse
 const NothingHere = () => null;
 
 /** Every tab's screen. Module level: the map never changes. */
-const TAB_SCREENS: Record<TabKey, React.ComponentType> = { Today: TodayNarrow, Search: SearchNarrow, Leads: LeadsScreen, Map: MapScreen, Units: UnitsScreen, More: MoreNarrow, Team: TeamNarrow, Dashboard: DashboardScreen, Owners: OwnersScreen, AddUnit: NothingHere, Plan: PlanScreen, Settings: SettingsNarrow };
-const renderTabBar = (p: BottomTabBarProps) => <FloatingTabBar {...p} />;
+const TAB_SCREENS: Record<TabKey, React.ComponentType> = { Search: SearchNarrow, Leads: LeadsScreen, Map: MapScreen, Units: UnitsScreen, More: MoreNarrow, Team: TeamNarrow, Dashboard: DashboardScreen, Owners: OwnersScreen, AddUnit: NothingHere, Plan: PlanScreen, Settings: SettingsNarrow };
+const renderTabBar = (props: BottomTabBarProps) => <FloatingTabBar {...props} />;
+const renderSideNav = (props: BottomTabBarProps) => <SideNav {...props} />;
 const openInbox = () => navigationRef.navigate('Inbox');
 const openMoreMenu = () => navigationRef.navigate('MoreMenu');
 const addUnitListeners = { tabPress: (e: { preventDefault: () => void }) => { e.preventDefault(); navigationRef.navigate('AddUnit'); } };
@@ -134,38 +148,37 @@ function TabsScreen() {
   const lang = currentLang();
   const { rights, ready, nav } = useRightsState();
   const { colors } = useTheme();
-  const { bg, border, text, muted, primaryInk } = colors;
+  const { bg, border, text } = colors;
+  const wide = useWide();
   // The only poll of the unread count (once a minute, paused in the background); the bell reads the same query.
   useQuery({ ...inboxUnreadOptions, refetchInterval: 60_000, enabled: ready });
   const plan = useMemo(() => (ready ? tabPlan(nav, rights) : null), [ready, nav, rights]);
-  const hasMoreTab = Boolean(plan?.tabs.some((x) => x.key === 'More')); // the older bar has a More tab; the newer one a menu button
+  const hasMoreTab = Boolean(plan?.tabs.some((x) => x.key === 'More'));
   const headerRight = useCallback(() => (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+    <View style={sx.flexDirectionRow_alignItemsCenter}>
       <NotificationBell onPress={openInbox} />
       {hasMoreTab ? null : <MenuButton onPress={openMoreMenu} />}
     </View>
   ), [hasMoreTab]);
   const screenOptions = useMemo<BottomTabNavigationOptions>(() => ({
     headerTitleAlign: 'center',
-    headerLeft: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View>,
+    headerLeft: () => <View style={sx.paddingHorizontal8}><Logo bar /></View>,
     headerStyle: { backgroundColor: bg, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border },
     headerTitleStyle: { color: text, fontFamily: FONT_BOLD },
     headerShadowVisible: false,
-    tabBarActiveTintColor: primaryInk,
-    tabBarInactiveTintColor: muted,
-    // No More tab on this bar: a menu button opens the grouped More list.
     headerRight,
-  }), [bg, border, text, muted, primaryInk, headerRight]);
+    ...(wide ? { tabBarPosition: 'left' as const } : {}),
+  }), [bg, border, text, headerRight, wide]);
   const tabOptions = useMemo(() => (plan?.tabs ?? []).map((spec) => ({ title: spec.label ? spec.label[lang] : t(lang, TAB_TITLE[spec.key]), tabBarIcon: tabIcon(spec.icon), tabBarButtonTestID: spec.fab ? FAB_TEST_ID : undefined })), [plan, lang]);
   if (!plan) {
     return (
-      <View style={{ flex: 1, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={primaryInk} />
+      <View style={[{ backgroundColor: bg }, sx.flex1_alignItemsCenter_justifyContentCenter]}>
+        <ActivityIndicator color={colors.primaryInk} />
       </View>
     );
   }
   return (
-    <Tabs.Navigator tabBar={renderTabBar} initialRouteName={plan.initial} screenOptions={screenOptions}>
+    <Tabs.Navigator tabBar={wide ? renderSideNav : renderTabBar} initialRouteName={plan.initial} screenOptions={screenOptions}>
       {plan.tabs.map((spec, i) => {
         const k = spec.key;
         return (
@@ -173,7 +186,7 @@ function TabsScreen() {
             key={k}
             name={k === 'AddUnit' ? 'AddUnitTab' : k}
             component={TAB_SCREENS[k]}
-            options={tabOptions[i]}
+            options={k === 'Search' ? { ...tabOptions[i], headerTitle: '', headerLeft: () => <View style={sx.paddingHorizontal12}><Logo compact size={0.45} /></View> } : tabOptions[i]}
             listeners={k === 'AddUnit' ? addUnitListeners : undefined}
           />
         );
@@ -184,17 +197,18 @@ function TabsScreen() {
 
 export function RootNavigation() {
   const status = useAuth((s) => s.status);
+  const welcome = useWelcomeState(useAuth((s) => s.broker?.id));
   const { colors, scheme } = useTheme();
   const { primary, bg, card, text, border, danger } = colors;
   const theme = useMemo(() => {
     const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
     return { ...base, colors: { ...base.colors, primary, background: bg, card, text, border, notification: danger } };
   }, [scheme, primary, bg, card, text, border, danger]);
-  if (status === 'loading') {
+  if (status === 'loading' || (status === 'signedIn' && welcome === 'checking')) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', gap: 32 }}>
+      <View style={[{ backgroundColor: colors.bg }, sx.flex1_alignItemsCenter_justifyContentCenter_gap32]}>
         <Logo bilingual />
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.spinner} />
       </View>
     );
   }
@@ -205,9 +219,19 @@ export function RootNavigation() {
           <Stack.Screen name="Tabs" component={LoginScreen} />
         </Stack.Navigator>
       ) : (
-        <Stack.Navigator screenLayout={({ children, options }) => <BottomSafe><PlanBanner topInset={options.headerShown === false} onOpenPlan={() => navigationRef.navigate('Plan')} />{children}</BottomSafe>} screenOptions={{ headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerStyle: { backgroundColor: colors.bg }, headerShadowVisible: false, headerRight: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View> }}>
+        <Stack.Navigator initialRouteName={welcome === 'show' ? 'Welcome' : 'Tabs'} screenLayout={({ children, options, route }) => (
+          <BottomSafe>
+            {route.name === 'Unit' ? (
+              <SafeAreaView edges={['top']} style={[{ backgroundColor: colors.bg }, sx.flex1]}>
+                <PlanBanner onOpenPlan={() => navigationRef.navigate('Plan')} />
+                {children}
+              </SafeAreaView>
+            ) : <><PlanBanner topInset={options.headerShown === false} onOpenPlan={() => navigationRef.navigate('Plan')} />{children}</>}
+          </BottomSafe>
+        )} screenOptions={{ animation: 'slide_from_right', headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerStyle: { backgroundColor: colors.bg }, headerShadowVisible: false, headerRight: () => <View style={sx.paddingHorizontal8}><Logo bar /></View> }}>
           <Stack.Screen name="Tabs" component={TabsScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Unit" getComponent={lazyScreens.Unit} options={{ title: t(currentLang(), 'unit') }} />
+          <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false, gestureEnabled: false }} />
+          <Stack.Screen name="Unit" getComponent={lazyScreens.Unit} options={{ headerShown: false }} />
           <Stack.Screen name="Lead" getComponent={lazyScreens.Lead} options={{ title: t(currentLang(), 'leadsTab') }} />
           <Stack.Screen name="Contacts" getComponent={lazyScreens.Contacts} options={{ title: t(currentLang(), 'fromContacts') }} />
           <Stack.Screen name="NewLead" getComponent={lazyScreens.NewLead} options={{ title: t(currentLang(), 'newLead') }} />
@@ -246,14 +270,20 @@ export function RootNavigation() {
           <Stack.Screen name="Compare" getComponent={lazyScreens.Compare} options={{ title: t(currentLang(), 'compare') }} />
           <Stack.Screen name="Plan" component={PlanScreen} options={{ title: t(currentLang(), 'plan') }} />
           <Stack.Screen name="Usage" getComponent={lazyScreens.Usage} options={{ title: t(currentLang(), 'usage') }} />
+          <Stack.Screen name="ConnectTelegram" getComponent={lazyScreens.ConnectTelegram} options={{ title: t(currentLang(), 'connectTgTitle') }} />
           <Stack.Screen name="Platform" getComponent={lazyScreens.Platform} options={{ title: t(currentLang(), 'platform') }} />
           <Stack.Screen name="UnitsList" component={UnitsScreen} options={{ title: t(currentLang(), 'units') }} />
           <Stack.Screen name="LeadsList" component={LeadsScreen} options={{ title: t(currentLang(), 'leadsTab') }} />
           <Stack.Screen name="MapList" component={MapScreen} options={{ title: t(currentLang(), 'mapTab') }} />
-          <Stack.Screen name="TodayList" component={TodayNarrow} options={{ title: t(currentLang(), 'today') }} />
-          <Stack.Screen name="Ask" getComponent={lazyScreens.Ask} options={{ title: t(currentLang(), 'ask') }} />
           <Stack.Screen name="AddUnit" getComponent={lazyScreens.AddUnit} options={{ title: t(currentLang(), 'addUnit') }} />
           <Stack.Screen name="WhatsAppImport" getComponent={lazyScreens.WhatsAppImport} options={{ title: t(currentLang(), 'whatsappImport') }} />
+          <Stack.Screen name="ClientsHub" getComponent={lazyScreens.ClientsHub} options={{ title: currentLang() === 'ar' ? 'العملاء' : 'Clients' }} />
+          <Stack.Screen name="ProjectsHub" getComponent={lazyScreens.ProjectsHub} options={{ title: currentLang() === 'ar' ? 'المشاريع' : 'Projects' }} />
+          <Stack.Screen name="TrackingHub" getComponent={lazyScreens.TrackingHub} options={{ title: currentLang() === 'ar' ? 'المتابعة' : 'Tracking' }} />
+          <Stack.Screen name="DealsHub" getComponent={lazyScreens.DealsHub} options={{ title: currentLang() === 'ar' ? 'الصفقات' : 'Deals' }} />
+          <Stack.Screen name="AdminHub" getComponent={lazyScreens.AdminHub} options={{ title: currentLang() === 'ar' ? 'إدارة الشركة' : 'Agency Admin' }} />
+          <Stack.Screen name="ReportsHub" getComponent={lazyScreens.ReportsHub} options={{ title: currentLang() === 'ar' ? 'تقارير الشركة' : 'Agency Reports' }} />
+          <Stack.Screen name="SettingsHub" getComponent={lazyScreens.SettingsHub} options={{ title: currentLang() === 'ar' ? 'الإعدادات' : 'Settings' }} />
         </Stack.Navigator>
       )}
     </NavigationContainer>

@@ -1,5 +1,5 @@
 import { filterContacts, type PhoneContact } from '../src/contacts';
-import { waNumber } from '../src/screens/UnitScreen';
+import { waNumber } from '../src/components/ContactRow';
 
 const list: PhoneContact[] = [{ id: '1', name: 'Ahmed Samir', phone: '010 1234 5678' }, { id: '2', name: 'Mona', phone: '+20 111 222 3333' }];
 

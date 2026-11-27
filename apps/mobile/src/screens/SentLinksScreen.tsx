@@ -8,12 +8,17 @@ import { currentLang } from '../auth';
 import { EmptyView, ErrorView, Loading } from '../components/StateViews';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParams } from '../navigation';
 import { radius, spacing, useTheme } from '../theme';
+import { sx } from '../sharedStyles';
 
 /** The client links this broker shared, newest first, with how many times each was opened. */
 export function SentLinksScreen() {
   const { colors, elev } = useTheme();
   const lang = currentLang();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const list = useInfiniteQuery({
     queryKey: ['sentLinks'],
     initialPageParam: 0,
@@ -31,12 +36,12 @@ export function SentLinksScreen() {
       onEndReachedThreshold={0.6}
       refreshing={list.isRefetching && !list.isFetchingNextPage}
       onRefresh={() => { list.refetch(); }}
-      ListEmptyComponent={<EmptyView title={t(lang, 'noLinks')} />}
+      ListEmptyComponent={<EmptyView title={t(lang, 'noLinks')} icon="link" actionLabel={t(lang, 'shareUnit')} onAction={() => nav.navigate('UnitsList')} />}
       ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : null}
       renderItem={({ item }) => (
         <View style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.row}>
-            <Text style={[styles.flex, { color: colors.primaryInk, fontWeight: '800' }]}>{item.unitCode}{item.compound ? ` · ${item.compound}` : ''}</Text>
+            <Text style={[styles.flex, [{ color: colors.primaryInk }, sx.fontWeight800]]}>{item.unitCode}{item.compound ? ` · ${item.compound}` : ''}</Text>
             <Text style={{ color: item.opens ? colors.accentInk : colors.muted, fontWeight: '700' }}>{item.opens} {t(lang, 'opens')}</Text>
           </View>
           <Text style={{ color: colors.muted }}>

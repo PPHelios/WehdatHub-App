@@ -1,5 +1,5 @@
-import React, { memo, useCallback, useEffect, useMemo } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
@@ -7,14 +7,16 @@ import type { InboxItem, Lang } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { ChoiceSheet, type ChoiceAsk } from '../components/Sheet';
 import { ErrorView, Loading } from '../components/StateViews';
 import { rowDate } from '../dates';
 import { errorText } from '../errors';
+import { toast } from '../components/Toast';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
 import { clearTray } from '../tray';
 
-const InboxCard = memo(function InboxCard({ n, lang, onRead, onDelete }: { n: InboxItem; lang: Lang; onRead: (id: string) => void; onDelete: (id: string) => void }) {
+const InboxCard = memo(function InboxCardView({ n, lang, onRead, onDelete }: { n: InboxItem; lang: Lang; onRead: (id: string) => void; onDelete: (id: string) => void }) {
   const { colors, elev } = useTheme();
   return (
     <View testID={`inbox-${n.id}`} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: n.read ? colors.border : colors.primary }]}>
@@ -44,18 +46,21 @@ export function InboxScreen() {
   const refresh = useCallback(() => qc.invalidateQueries({ queryKey: ['inbox'] }), [qc]);
   const unread = list.data?.pages[0]?.unread;
   // Nothing unread: close what the phone still shows and clear the icon number.
-  useEffect(() => { if (unread === 0) void clearTray(); }, [unread]);
-  const read = useCallback(async (id: string) => { await api.notificationRead(id); await refresh(); }, [refresh]);
-  const remove = useCallback(async (id: string) => { await api.notificationDelete(id); await refresh(); }, [refresh]);
+  useEffect(() => { if (unread === 0) clearTray(); }, [unread]);
+  const fail = useCallback((e: unknown) => toast(errorText(e, lang), true), [lang]);
+  const read = useCallback(async (id: string) => { try { await api.notificationRead(id); await refresh(); } catch (e) { fail(e); } }, [refresh, fail]);
+  const remove = useCallback(async (id: string) => { try { await api.notificationDelete(id); await refresh(); } catch (e) { fail(e); } }, [refresh, fail]);
+  const [ask, setAsk] = useState<ChoiceAsk | null>(null);
   const askDeleteAll = () =>
-    Alert.alert(t(lang, 'deleteAll'), undefined, [
-      { text: t(lang, 'cancel'), style: 'cancel' },
-      { text: t(lang, 'deleteAll'), style: 'destructive', onPress: () => { void api.notificationsDeleteAll().then(refresh).catch(() => undefined); } },
-    ]);
+    setAsk({
+      title: t(lang, 'deleteAll'),
+      actions: [{ label: t(lang, 'deleteAll'), variant: 'danger', onPress: () => { api.notificationsDeleteAll().then(refresh).catch(fail); } }],
+    });
   const renderItem = useCallback(({ item }: { item: InboxItem }) => <InboxCard n={item} lang={lang} onRead={read} onDelete={remove} />, [lang, read, remove]);
   if (list.isPending) return <View style={[styles.pad, { backgroundColor: colors.bg }]}><Loading label={t(lang, 'loading')} /></View>;
   if (list.isError) return <View style={[styles.pad, { backgroundColor: colors.bg }]}><ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} /></View>;
   return (
+    <>
     <FlashList
       style={{ backgroundColor: colors.bg }}
       contentContainerStyle={styles.pad}
@@ -66,12 +71,14 @@ export function InboxScreen() {
       onEndReachedThreshold={0.6}
       ListHeaderComponent={items.length ? (
         <View style={[styles.row, styles.gap]}>
-          <View style={styles.flex}><Button testID="inbox-read-all" variant="secondary" label={t(lang, 'markAllRead')} onPress={async () => { await api.notificationsReadAll(); await refresh(); }} /></View>
+          <View style={styles.flex}><Button testID="inbox-read-all" variant="secondary" label={t(lang, 'markAllRead')} onPress={async () => { try { await api.notificationsReadAll(); await refresh(); } catch (e) { fail(e); } }} /></View>
           <View style={styles.flex}><Button testID="inbox-delete-all" variant="secondary" label={t(lang, 'deleteAll')} onPress={async () => askDeleteAll()} /></View>
         </View>
       ) : <Text testID="inbox-empty" style={{ color: colors.muted }}>{t(lang, 'inboxEmpty')}</Text>}
       ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : null}
     />
+    <ChoiceSheet ask={ask} onClose={() => setAsk(null)} cancelLabel={t(lang, 'cancel')} testID="inbox-delete-sheet" />
+    </>
   );
 }
 

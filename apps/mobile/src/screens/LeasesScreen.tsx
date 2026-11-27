@@ -23,11 +23,11 @@ export function LeasesScreen() {
   const items = q.data.items;
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.pad} refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={async () => { await q.refetch(); }} />}>
-      {items.length === 0 ? <EmptyView title={t(lang, 'leasesEmpty')} hint="" /> : null}
+      {items.length === 0 ? <EmptyView title={t(lang, 'leasesEmpty')} icon="key" actionLabel={t(lang, 'openUnits')} onAction={() => nav.navigate('UnitsList')} /> : null}
       {items.map((z) => (
         <Pressable key={z.code} testID={`lease-${z.code}`} accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: z.code })} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.row}>
-            <Text style={[styles.code, { color: colors.text }]}>{z.code}</Text>
+            <Text variant="body" weight="bold" style={{ color: colors.text }}>{z.code}</Text>
             <Text style={{ color: z.done ? colors.muted : z.daysLeft <= 60 ? colors.danger : colors.accentInk, fontWeight: '700' }}>{z.done ? '✅' : `${z.daysLeft} ${t(lang, 'daysN')}`}</Text>
           </View>
           <Text style={{ color: colors.muted }}>{[z.tenant_name, z.broker_name, z.end].filter(Boolean).join(' · ')}</Text>
@@ -41,5 +41,4 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.xl, gap: spacing.md },
   card: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  code: { fontSize: 16, fontWeight: '700' },
 });
