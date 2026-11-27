@@ -103,8 +103,8 @@ export function AppSettings() {
             </View>
           ) : null}
           {([
-            ['dataEntryMissingPhotos', 'Show “Units missing photos” to data entry', 'عرض «وحدات من غير صور» لإدخال البيانات', false],
-            ['dataEntryOverdueUnits', 'Show “Units needing review” to data entry', 'عرض «وحدات محتاجة مراجعة» لإدخال البيانات', false],
+            ['dataEntryMissingPhotos', 'Show “Units missing photos” to data entry and managers', 'عرض «وحدات من غير صور» لإدخال البيانات والمديرين', false],
+            ['dataEntryOverdueUnits', 'Show “Units needing review” to data entry and managers', 'عرض «وحدات محتاجة مراجعة» لإدخال البيانات والمديرين', false],
             ['brokersEditColleagueUnits', 'Can edit colleagues’ units', 'البروكرز يقدروا يعدّلوا وحدات زمايلهم', !sw.brokersMayWrite],
             ['brokersSeeAllLeads', 'Brokers see all shared leads', 'البروكرز يشوفوا كل العملاء المشتركين', false],
             ['brokersWorkSharedLeads', 'Brokers can work shared leads', 'البروكرز يقدروا يتابعوا العملاء المشتركين', !sw.brokersSeeAllLeads],
