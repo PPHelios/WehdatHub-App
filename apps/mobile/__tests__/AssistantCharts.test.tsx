@@ -5,7 +5,7 @@ import { AssistantCards } from '../src/components/AssistantCards';
 
 const noop = async () => undefined;
 const cards: AssistantCard[] = [
-  { kind: 'metric_row', items: [{ label: 'Leads', value: 12, delta: 25 }, { label: 'Deals', value: 2, delta: -10 }] },
+  { kind: 'metric_row', items: [{ label: 'Leads', value: 12, delta: 25, deltaGood: true }, { label: 'Response (min)', value: 9, delta: -4, deltaGood: true }, { label: 'Deals', value: 2, delta: -10, deltaGood: false }] },
   { kind: 'bar_breakdown', title: 'Deals by broker', summary: 'Deals by broker: Sara 3', rows: [{ key: 'b1', label: 'Sara', count: 3, avatarUrl: 'https://x/a.png' }, { key: 'b2', label: 'Nour', count: 1 }] },
   { kind: 'trend', title: 'Leads per week', points: [{ label: '01/01', value: 2 }, { label: '01/08', value: 9 }], direction: 'rising', directionLabel: 'Rising', changePct: 80, summary: 'Leads per week: Rising', link: { screen: 'Dashboard', params: {} } },
   { kind: 'share', title: 'Won vs lost', total: 4, parts: [{ key: 'w', label: 'Won', value: 3, pct: 75 }, { key: 'l', label: 'Lost', value: 1, pct: 25 }], summary: 'Won vs lost: Won 75%' },
@@ -28,8 +28,9 @@ test('renders every chart kind, delta arrows, budget pill, best value, and unkno
   for (const id of ['card-metric-row', 'card-bar-breakdown', 'card-trend', 'card-share', 'card-price-range', 'card-compare', 'card-text-answer']) {
     expect(screen.getByTestId(id)).toBeTruthy();
   }
-  expect(screen.getByText('▲ 25%')).toBeTruthy();
-  expect(screen.getByText('▼ 10%')).toBeTruthy();
+  expect(screen.getByText('▲ 25')).toBeTruthy();
+  expect(screen.getByText('▼ 4')).toBeTruthy();
+  expect(screen.getByText('▼ 10')).toBeTruthy();
   expect(screen.getByText('Client budget 4M')).toBeTruthy();
   expect(screen.getByTestId('compare-best-price')).toBeTruthy();
   expect(screen.getByText('Heat summary')).toBeTruthy();

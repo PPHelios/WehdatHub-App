@@ -145,6 +145,7 @@ export interface ApiLead {
   lastContactAt: string | null;
   assignee: string | null;
   assigneeId?: string | null;
+  assigneeAvatarUrl?: string | null;
   version: number;
   /** The language chosen for this client's messages (empty: the broker's own setting). */
   lang?: 'ar' | 'en' | null;
@@ -334,7 +335,7 @@ export type AssistantCard =
     }
   | { kind: 'broker_scorecard'; broker: DashboardBoardRow }
   | { kind: 'broker_discipline'; summary: DashboardDisciplineSummary; rows: DashboardBoardRow[] }
-  | { kind: 'metric_row'; items: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' | 'critical'; unit?: string; /** % change vs the previous period, when the server has it. */ delta?: number | null }[]; summary?: string; link?: AssistantCardLink }
+  | { kind: 'metric_row'; items: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' | 'critical'; unit?: string; /** Change (now minus the previous equal-length period), when the server has it. */ delta?: number | null; /** Whether that change is good news (a lower response time is). */ deltaGood?: boolean }[]; summary?: string; link?: AssistantCardLink }
   | { kind: 'bar_breakdown'; title: string; rows: { key: string; label: string; count: number; valueLabel?: string; commission?: number; spend?: number | null; won?: number; avatarUrl?: string | null }[]; summary?: string; link?: AssistantCardLink }
   | { kind: 'trend'; title: string; points: { label: string; value: number }[]; direction: 'rising' | 'falling' | 'flat'; directionLabel: string; changePct: number | null; summary: string; link?: AssistantCardLink }
   | { kind: 'share'; title: string; total: number; parts: { key: string; label: string; value: number; pct: number }[]; summary: string; link?: AssistantCardLink }
@@ -358,6 +359,8 @@ export interface AssistantContext {
   maxPrice?: number | null;
   f?: string | null;
   originalQuery?: string;
+  /** Codes of the top results of the last unit search; the server's "compare" reads them. */
+  unitCodes?: string[];
   window?: { key: string; from: string; to: string; labelEn: string; labelAr: string } | null;
 }
 export interface AssistantQueryResponse {
@@ -768,7 +771,7 @@ export function createApiClient(opts: ApiClientOptions) {
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
-    me: (signal?: AbortSignal) => request<{ broker: ApiBroker; workspace?: ApiWorkspace | null; inviteRoles?: string[]; onboarding?: { hasUnit: boolean; hasSharedLink: boolean; telegramConnected: boolean; hasAsked?: boolean }; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me', undefined, undefined, signal),
+    me: (signal?: AbortSignal) => request<{ broker: ApiBroker; workspace?: ApiWorkspace | null; inviteRoles?: string[]; onboarding?: { hasUnit: boolean; hasSharedLink: boolean; telegramConnected: boolean; hasAsked?: boolean; hasPhotos?: boolean }; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me', undefined, undefined, signal),
     testRole: (role: string) => request<{ ok: true; role: string }>('POST', '/test-role', { role }),
     testView: (view: 'home' | 'other') => request<{ ok: true; viewing: boolean }>('POST', '/test-view', { view }),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),
@@ -886,6 +889,7 @@ export function createApiClient(opts: ApiClientOptions) {
     pricePerM2: () => request<{ minUnits: number; items: PriceRow[] }>('GET', '/insights/prices'),
     winLoss: (days = 30, range?: { from?: string; to?: string }) => request<WinLossData>('GET', '/insights/winloss', undefined, { days, ...range }),
     report: (text: string, extra?: { type?: 'bug' | 'suggestion' | 'request'; device?: Record<string, unknown> }) => request<{ ok: true; id: number }>('POST', '/report', { text, ...(extra ?? {}) }),
+    telegramLink: () => request<{ url: string }>('POST', '/me/telegram-link'),
     setLang: (lang: Lang) => request<{ ok: true; lang: Lang }>('POST', '/me/lang', { lang }),
     deals: (status?: string, page = 0, opts?: DealsFilterOpts) =>
       request<DealsData>('GET', '/deals', undefined, {

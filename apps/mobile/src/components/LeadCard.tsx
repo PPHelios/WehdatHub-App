@@ -8,6 +8,7 @@ import { AppText as Text } from './AppText';
 import { Chevron, Icon } from './Icon';
 import { looksLikePhone, PhoneText } from './PhoneText';
 import { Pill } from './Pill';
+import { Avatar } from './Avatar';
 import { InitialAvatar } from './InitialAvatar';
 
 export const LeadCard = memo(function LeadCard({ lead, lang, phoneVisibility = 'masked', selected, disabled = false, onPress, onLongPress }: {
@@ -37,7 +38,12 @@ export const LeadCard = memo(function LeadCard({ lead, lang, phoneVisibility = '
           {lead.name && lead.name !== lead.ref ? <Pill label={lead.ref} /> : null}
         </View>
         {phone ? <PhoneText testID={`lead-card-phone-${lead.ref}`} value={phoneVisibility === 'full' ? phone : `•••${phone.slice(-4)}`} style={[styles.caption, { color: colors.muted }]} /> : null}
-        {lead.assignee || phoneVisibility === 'full' ? <Text style={[styles.caption, { color: colors.muted }]}>{lead.assignee ?? t(lang, 'unassigned')}</Text> : null}
+        {lead.assignee || phoneVisibility === 'full' ? (
+          <View style={styles.assignee}>
+            {lead.assignee && lead.assigneeAvatarUrl ? <Avatar name={lead.assignee} uri={lead.assigneeAvatarUrl} size={28} /> : null}
+            <Text style={[styles.caption, { color: colors.muted }]}>{lead.assignee ?? t(lang, 'unassigned')}</Text>
+          </View>
+        ) : null}
         {due ? <View style={styles.due}>
           <Icon name="calendar" color={overdue ? colors.danger : colors.primaryInk} size={14} />
           <Text style={[styles.caption, styles.dueText, { color: overdue ? colors.danger : colors.primaryInk }]}>{overdue ? `${t(lang, 'tabOverdue')} · ` : ''}{rowDate(lang, due)}</Text>
@@ -56,6 +62,7 @@ const styles = StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderWidth: 1, borderRadius: radius.card },
   content: { flex: 1, minWidth: 0, gap: spacing.xs },
   name: { fontSize: typeScale.body.fontSize, fontWeight: '800' },
+  assignee: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   caption: { fontSize: typeScale.caption.fontSize },
   due: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },

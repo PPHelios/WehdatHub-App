@@ -42,3 +42,7 @@ jest.mock('@react-native-firebase/messaging', () => ({ getMessaging: jest.fn(() 
 jest.mock('react-native-contacts', () => ({ __esModule: true, default: { requestPermission: jest.fn().mockResolvedValue('authorized'), getAllWithoutPhotos: jest.fn().mockResolvedValue([]) } }));
 jest.mock('@bam.tech/react-native-image-resizer', () => ({ __esModule: true, default: { createResizedImage: jest.fn(async (uri) => ({ uri: `${uri}.min.jpg`, name: 'x.jpg', size: 1000 })) } }));
 jest.mock('react-native-haptic-feedback', () => ({ __esModule: true, trigger: jest.fn(), default: { trigger: jest.fn() } }));
+jest.mock('@callstack/liquid-glass', () => {
+  const { View } = require('react-native');
+  return { __esModule: true, isLiquidGlassSupported: false, LiquidGlassView: View };
+});

@@ -5,6 +5,7 @@ import { currentLang } from '../auth';
 import { t } from '../i18n';
 import { spacing, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
+import { GlassSurface, glassAvailable } from './GlassSurface';
 import { Chevron } from './Icon';
 
 interface Props {
@@ -15,13 +16,15 @@ interface Props {
   onBack?: () => void;
   /** Add the status-bar inset on top. */
   safeTop?: boolean;
+  /** Sticky header over scrolling content: iOS 26 glass; unchanged elsewhere. */
+  glass?: boolean;
 }
 
-export function ScreenHeader({ title, subtitle, left, right, onBack, safeTop }: Props) {
+export function ScreenHeader({ title, subtitle, left, right, onBack, safeTop, glass }: Props) {
   const { colors } = useTheme();
   const top = useSafeAreaInsets().top;
   const rtl = currentLang() === 'ar';
-  return (
+  const row = (
     <View style={[styles.row, { paddingTop: spacing.sm + (safeTop ? top : 0) }]}>
       {onBack ? (
         <Pressable testID="header-back" accessibilityRole="button" accessibilityLabel={t(currentLang(), 'back')} hitSlop={8} onPress={onBack} style={styles.back}>
@@ -37,6 +40,7 @@ export function ScreenHeader({ title, subtitle, left, right, onBack, safeTop }: 
       {right}
     </View>
   );
+  return glass && glassAvailable() ? <GlassSurface elevation={false}>{row}</GlassSurface> : row;
 }
 
 const styles = StyleSheet.create({

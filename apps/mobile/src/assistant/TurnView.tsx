@@ -18,6 +18,7 @@ import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
 import { UnitNotes } from './FullResults';
 import { leadLine, SHOWN_UNITS } from './phrasing';
+import { useUnitShare } from './useUnitShare';
 import type { Turn, TurnSource } from './thread';
 
 type CardProps = Omit<React.ComponentProps<typeof AssistantCards>, 'response' | 'query' | 'ar' | 'embedded' | 'leadLine'>;
@@ -67,6 +68,7 @@ function ClarifyShown({ kind }: { kind: string }) {
 
 function UnitResults({ turn, lang, h }: { turn: Turn; lang: Lang; h: TurnHandlers }) {
   const { colors } = useTheme();
+  const share = useUnitShare();
   const r = turn.response!;
   const units = r.units!;
   const hasSuggestions = Boolean(r.suggestions?.length);
@@ -93,10 +95,11 @@ function UnitResults({ turn, lang, h }: { turn: Turn; lang: Lang; h: TurnHandler
       <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.carousel}>
         {top.map((u) => (
           <View key={u.id} style={{ width: HERO_CARD_WIDTH }}>
-            <UnitHeroCard unit={u} lang={lang} reasons={matchReasons(u, filters, lang)} onPress={h.onOpenUnit} onShare={h.onOpenUnit} />
+            <UnitHeroCard unit={u} lang={lang} reasons={matchReasons(u, filters, lang)} onPress={h.onOpenUnit} onShare={share.open} />
           </View>
         ))}
       </ScrollView>
+      {share.modal}
       <UnitNotes data={units} lang={lang} />
       {units.f && units.total > 0 ? <SaveSearchButton f={units.f} /> : null}
       <Button testID="see-all" variant="secondary" label={t(lang, 'seeAllN').replace('{n}', String(units.total))} onPress={() => h.onSeeAll(turn)} />

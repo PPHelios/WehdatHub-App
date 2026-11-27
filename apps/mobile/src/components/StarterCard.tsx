@@ -14,6 +14,7 @@ export type OnboardingStatus = {
   hasSharedLink: boolean;
   telegramConnected: boolean;
   hasAsked?: boolean;
+  hasPhotos?: boolean;
 };
 
 type Props = {
@@ -62,7 +63,7 @@ export function StarterCard({ onboarding, onAddUnit, onShareSample, onConnectTel
     : id === 'share' ? onboarding.hasSharedLink
       : id === 'telegram' ? onboarding.telegramConnected
         : id === 'ask' ? Boolean(onboarding.hasAsked)
-          : false; // shortcut: no server flag for photos yet, so that step never ticks by itself
+          : Boolean(onboarding.hasPhotos);
   const press = (id: StepId) => id === 'add' ? onAddUnit
     : id === 'share' ? (onboarding.hasUnit ? onShareSample : onAddUnit)
       : id === 'telegram' ? onConnectTelegram

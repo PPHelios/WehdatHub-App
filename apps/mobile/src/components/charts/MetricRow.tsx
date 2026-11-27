@@ -20,8 +20,8 @@ export function MetricRow({ card, num, onNavigate }: { card: Card; num: (n: numb
               key={`${item.label}-${i}`}
               label={item.label}
               value={val}
-              hint={d == null ? undefined : `${d > 0 ? '▲' : '▼'} ${num(Math.abs(d))}%`}
-              tone={d != null ? (d > 0 ? 'ok' : 'warn') : (item.tone ?? 'neutral')}
+              hint={d == null ? undefined : `${d > 0 ? '▲' : '▼'} ${num(Math.abs(d))}`}
+              tone={d != null ? ((item.deltaGood ?? d > 0) ? 'ok' : 'critical') : (item.tone ?? 'neutral')}
             />
           );
         })}

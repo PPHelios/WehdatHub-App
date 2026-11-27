@@ -69,3 +69,9 @@ test('dismiss is remembered per broker', async () => {
   const again = await renderHook(() => useStarterDismissed('b1'));
   await waitFor(() => expect(again.result.current[0]).toBe(true));
 });
+
+test('data_entry photos step ticks from hasPhotos', async () => {
+  asRole('data_entry');
+  await render(<StarterCard onboarding={{ hasUnit: false, hasSharedLink: false, telegramConnected: false, hasPhotos: true }} {...props()} />);
+  expect(screen.getAllByText('✓')).toHaveLength(1);
+});

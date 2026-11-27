@@ -4,6 +4,7 @@ import { AppText as Text } from './AppText';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { FONT_BOLD } from '../fonts';
 import { tick } from '../haptics';
+import { GlassSurface } from './GlassSurface';
 import { useKeyboardVisible } from './KeyboardLift';
 import { useSelectionHighlight } from './SelectionHighlight';
 import { greenGradient, typeScale, useTheme } from '../theme';
@@ -18,7 +19,7 @@ const INSET = 5;
  * direction in Arabic), and the active icon fills with the brand colour. Tabs are the screens of the navigator, in order.
  */
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
-  const { colors, elev } = useTheme();
+  const { colors } = useTheme();
   const keyboardVisible = useKeyboardVisible();
   const isFab = (key: string) => descriptors[key]?.options.tabBarButtonTestID === FAB_TEST_ID;
 
@@ -28,7 +29,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
 
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { backgroundColor: 'transparent' }]}>
-      <View testID="tab-bar" style={[styles.bar, { backgroundColor: colors.card, borderColor: colors.border }, elev('lg')]}>
+      <GlassSurface testID="tab-bar" elevation="lg" interactive style={styles.bar}>
         {highlight}
         {state.routes.map((route, i) => {
           const { options } = descriptors[route.key];
@@ -57,7 +58,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
             </Pressable>
           );
         })}
-      </View>
+      </GlassSurface>
     </View>
   );
 }

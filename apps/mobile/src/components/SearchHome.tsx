@@ -314,7 +314,7 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
           onboarding={onboarding}
           onAddUnit={() => nav.navigate('AddUnit')}
           onShareSample={() => nav.navigate('UnitsList', {})}
-          onConnectTelegram={() => nav.navigate('Usage')}
+          onConnectTelegram={() => nav.navigate('ConnectTelegram')}
           onAsk={() => (nav.navigate as (...a: unknown[]) => void)('Tabs', { screen: 'Search', params: { at: Date.now() } })}
           onAddPhotos={() => nav.navigate('UnitsList', { missingPhotos: true })}
           onDismiss={dismissStarter}

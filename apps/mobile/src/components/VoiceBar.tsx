@@ -24,6 +24,7 @@ import { t } from '../i18n';
 import { cancelRecording, EmptyRecordingError, ensureMic, startRecording, stopRecording } from '../voice';
 import { reportError } from '../errorReport';
 import * as haptics from '../haptics';
+import { GlassSurface } from './GlassSurface';
 import { Icon } from './Icon';
 import { binClack, CLOSE_AT, DISCARD_MS, DiscardBin, FLY_FROM, FLY_TO, seg } from './DiscardBin';
 import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
@@ -537,9 +538,9 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
       ) : null}
     </View>
   ) : (
-    <View style={[styles.pill, pillHeight, styles.input, { borderColor: colors.border, backgroundColor: colors.card, justifyContent: 'center' }]}>
+    <GlassSurface elevation={false} style={[styles.pill, pillHeight, styles.input, { justifyContent: 'center' }]}>
       <Text style={{ color: colors.muted, textAlign: lang === 'ar' ? 'right' : 'left' }}>{label}</Text>
-    </View>
+    </GlassSurface>
   );
 
   const showLeading = phase === 'idle' && (!hideLeadingWhenTyping || (!hasText && !busy));
