@@ -17,7 +17,7 @@ import { EmptyView, ErrorView, Loading } from './StateViews';
 import { errorText } from '../errors';
 import { t, type StringKey } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 
 const KIND_LABEL: Record<TodayTask['kind'], StringKey> = { late: 'late', viewing: 'viewing', hot: 'hot', call: 'callTask', matches: 'matches' };
 const KIND_ICON: Record<TodayTask['kind'], IconName> = { late: 'bell', viewing: 'calendar', hot: 'pulse', call: 'phone', matches: 'units' };
@@ -149,10 +149,10 @@ const styles = StyleSheet.create({
   content: { gap: spacing.md },
   stats: { flexDirection: 'row', gap: spacing.sm },
   stat: { flex: 1, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, alignItems: 'center' },
-  statN: { fontSize: 24, fontWeight: '800' },
+  statN: { fontSize: typeScale.title.fontSize, fontWeight: '800' },
   empty: { minHeight: 120 },
   cardAlert: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderStartWidth: 4 },
   taskInfo: { flex: 1, gap: 2 },
-  name: { fontSize: 16, fontWeight: '700' },
+  name: { fontSize: typeScale.body.fontSize, fontWeight: '700' },
   more: { textAlign: 'center' },
 });

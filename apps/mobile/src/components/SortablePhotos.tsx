@@ -10,7 +10,7 @@ import type { UploadFile } from '@wehdathub/shared';
 import { currentLang } from '../auth';
 import { t } from '../i18n';
 import { moveKept } from '../photos';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { SmartImage } from './SmartImage';
 
 const ROW = 76;
@@ -167,8 +167,8 @@ function DragRow({ index, dy, from, shift, testID, style, onBegin, onMove, onEnd
 const styles = StyleSheet.create({
   row: { height: ROW - 8, marginVertical: 4, borderWidth: 1, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', paddingEnd: spacing.md, gap: spacing.md },
   handle: { width: 52, height: '100%', alignItems: 'center', justifyContent: 'center' },
-  grip: { fontSize: 24, fontWeight: '800' },
+  grip: { fontSize: typeScale.title.fontSize, fontWeight: '800' },
   thumb: { width: 56, height: 56, borderRadius: radius.sm },
-  pos: { flex: 1, fontSize: 16, fontWeight: '700' },
+  pos: { flex: 1, fontSize: typeScale.body.fontSize, fontWeight: '700' },
   remove: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
 });

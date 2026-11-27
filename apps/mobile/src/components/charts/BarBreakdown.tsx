@@ -2,7 +2,7 @@ import React from 'react';
 import { I18nManager, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import type { AssistantCard } from '@wehdathub/shared';
-import { radius, spacing, useTheme } from '../../theme';
+import { radius, spacing, typeScale, useTheme } from '../../theme';
 import { AppText as Text } from '../AppText';
 import { Avatar } from '../Avatar';
 import { ChartFrame } from './ChartFrame';
@@ -37,8 +37,8 @@ export function BarBreakdown({ card, num, onNavigate }: { card: Card; num: (n: n
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs },
-  label: { width: 84, fontSize: 13 },
+  label: { width: 84, fontSize: typeScale.bodySm.fontSize },
   track: { flex: 1, height: 8, borderRadius: radius.sm / 2, overflow: 'hidden' },
   fill: { height: 8, borderRadius: radius.sm / 2 },
-  value: { fontWeight: '700', fontSize: 13, fontVariant: ['tabular-nums'], minWidth: 28, textAlign: 'right' },
+  value: { fontWeight: '700', fontSize: typeScale.bodySm.fontSize, fontVariant: ['tabular-nums'], minWidth: 28, textAlign: 'right' },
 });

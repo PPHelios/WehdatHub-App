@@ -10,7 +10,7 @@ import { currentLang } from '../auth';
 import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { toast } from './Toast';
 import type { IconName } from './Icon';
 import { HomeRow } from './HomeRow';
@@ -36,7 +36,7 @@ export function OldUnitActions({ code }: { code: string }) {
   return <View style={styles.actions}>
     {([['active', 'stActive', colors.primaryInk], ['sold', 'stSold', colors.primaryInk], ['archived', 'stArchived', colors.muted]] as const).map(([status, key, tone]) => (
       <Pressable key={status} testID={`old-${status}-${code}`} accessibilityRole="button" disabled={busy} onPress={() => quick(status)} style={[styles.action, { borderColor: colors.border, backgroundColor: colors.cardSubtle }]}>
-        <Text style={{ color: tone, fontSize: 12, fontWeight: '700' }}>{t(lang, key)}</Text>
+        <Text style={{ color: tone, fontSize: typeScale.caption.fontSize, fontWeight: '700' }}>{t(lang, key)}</Text>
       </Pressable>
     ))}
   </View>;

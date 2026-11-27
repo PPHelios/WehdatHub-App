@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedProps, useAnimatedStyle } from 'react-native-reanimated';
 import Svg, { Circle, Path } from 'react-native-svg';
 import type { AssistantCard } from '@wehdathub/shared';
-import { spacing, useTheme } from '../../theme';
+import { spacing, typeScale, useTheme } from '../../theme';
 import { AppText as Text } from '../AppText';
 import { UrgencyBadge } from '../SectionCard';
 import { ChartFrame } from './ChartFrame';
@@ -46,8 +46,8 @@ export function Trend({ card, onNavigate }: { card: Card; onNavigate?: (s: strin
         </Svg>
       </View>
       <View style={styles.axis}>
-        <Text style={{ color: colors.muted, fontSize: 11 }}>{card.points[0]?.label}</Text>
-        <Text style={{ color: colors.muted, fontSize: 11 }}>{card.points[last]?.label}</Text>
+        <Text style={{ color: colors.muted, fontSize: typeScale.micro.fontSize }}>{card.points[0]?.label}</Text>
+        <Text style={{ color: colors.muted, fontSize: typeScale.micro.fontSize }}>{card.points[last]?.label}</Text>
       </View>
     </ChartFrame>
   );

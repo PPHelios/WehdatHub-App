@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { Lang } from '@wehdathub/shared';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 
 const dateOptions = { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Cairo' } as const;
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   after: { top: MARK, bottom: 0 },
   dot: { marginTop: MARK - 5, width: 10, height: 10, borderRadius: 5, borderWidth: 2 },
   event: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm, gap: spacing.xs },
-  meta: { fontSize: 11 },
-  title: { fontSize: 14, fontWeight: '700' },
-  detail: { fontSize: 13 },
+  meta: { fontSize: typeScale.micro.fontSize },
+  title: { fontSize: typeScale.bodySm.fontSize, fontWeight: '700' },
+  detail: { fontSize: typeScale.bodySm.fontSize },
 });

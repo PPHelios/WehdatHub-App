@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppState, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from '../components/AppText';
 import { ApiClientError, codeSchema, phoneSchema, signupSchema } from '@wehdathub/shared';
 import { api } from '../api';
@@ -10,7 +10,8 @@ import { Button } from '../components/Button';
 import { Logo } from '../components/Logo';
 import { errorText } from '../errors';
 import { t } from '../i18n';
-import { radius, spacing, useTheme } from '../theme';
+import { ChoiceSheet, type ChoiceAsk } from '../components/Sheet';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 
 /** Before sign-in there is no saved language: follow the phone (English phones get English, everything else Arabic). */
 export function deviceLang(): Lang {
@@ -35,6 +36,7 @@ export function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [tgMissing, setTgMissing] = useState(false);
   const [returned, setReturned] = useState(false);
+  const [ask, setAsk] = useState<ChoiceAsk | null>(null);
   const codeRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   const [message, setMessage] = useState<{ text: string; bad: boolean } | null>(null);
 
@@ -91,10 +93,11 @@ export function LoginScreen() {
   };
 
   const confirmWhatsAppFallback = () => {
-    Alert.alert(t(LANG, 'waWarnTitle'), t(LANG, 'waWarnBody'), [
-      { text: t(LANG, 'cancel'), style: 'cancel' },
-      { text: t(LANG, 'waWarnContinue'), onPress: () => { void startSignup('whatsapp'); } },
-    ]);
+    setAsk({
+      title: t(LANG, 'waWarnTitle'),
+      body: t(LANG, 'waWarnBody'),
+      actions: [{ label: t(LANG, 'waWarnContinue'), variant: 'primary', onPress: () => { void startSignup('whatsapp'); } }],
+    });
   };
 
   const requestCode = async () => {
@@ -136,7 +139,7 @@ export function LoginScreen() {
     <KeyboardAvoidingView style={[styles.flex, { backgroundColor: colors.bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Logo />
-        <Text style={[styles.title, { color: colors.text }]}>{t(LANG, mode === 'signup' ? 'signupTitle' : 'signIn')}</Text>
+        <Text variant="title" style={[styles.title, { color: colors.text }]}>{t(LANG, mode === 'signup' ? 'signupTitle' : 'signIn')}</Text>
         {mode === 'signup' ? (
           <View testID="signup-progress" style={styles.steps}>
             {(['stepDetails', 'stepTelegram', 'stepCode'] as const).map((k, i) => {
@@ -144,7 +147,7 @@ export function LoginScreen() {
               return (
                 <View key={k} style={styles.stepCell}>
                   <View style={[styles.stepBar, { backgroundColor: i <= at ? colors.primary : colors.border }]} />
-                  <Text style={{ color: i === at ? colors.text : colors.muted, fontSize: 12, fontWeight: i === at ? '700' : '400' }}>{t(LANG, k)}</Text>
+                  <Text variant="caption" weight={i === at ? 'bold' : 'regular'} style={{ color: i === at ? colors.text : colors.muted }}>{t(LANG, k)}</Text>
                 </View>
               );
             })}
@@ -168,7 +171,7 @@ export function LoginScreen() {
                   return (
                     <Pressable key={k} testID={`tier-${k}`} onPress={() => setTier(k)} style={[styles.tierCard, { borderColor: active ? colors.primary : colors.border, backgroundColor: colors.card }]}>
                       <Text style={{ color: colors.text, fontWeight: '700', textAlign: 'right' }}>{t(LANG, k === 'solo' ? 'tierSolo' : 'tierTeam')}</Text>
-                      <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'right' }}>{t(LANG, 'tierLine').replace('{d}', String(opt.days)).replace('{u}', String(opt.units)).replace('{c}', String(opt.credits))}</Text>
+                      <Text variant="caption" style={{ color: colors.muted, textAlign: 'right' }}>{t(LANG, 'tierLine').replace('{d}', String(opt.days)).replace('{u}', String(opt.units)).replace('{c}', String(opt.credits))}</Text>
                     </Pressable>
                   );
                 })}
@@ -211,6 +214,7 @@ export function LoginScreen() {
         )}
         {message ? <Text testID="login-message" accessibilityLiveRegion="polite" style={[styles.message, { color: message.bad ? colors.danger : colors.muted }]}>{message.text}</Text> : null}
       </ScrollView>
+      <ChoiceSheet ask={ask} onClose={() => setAsk(null)} cancelLabel={t(LANG, 'cancel')} testID="wa-warn-sheet" />
     </KeyboardAvoidingView>
   );
 }
@@ -218,12 +222,12 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   body: { flexGrow: 1, justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  title: { fontSize: 22, fontWeight: '700', textAlign: 'center', marginBottom: spacing.md },
+  title: { textAlign: 'center', marginBottom: spacing.md },
   form: { gap: spacing.md },
-  label: { fontSize: 14, textAlign: 'right', writingDirection: 'rtl' },
-  hint: { fontSize: 13, textAlign: 'right', writingDirection: 'rtl' },
-  input: { minHeight: 52, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 18, writingDirection: 'ltr', textAlign: 'left' },
-  message: { fontSize: 15, textAlign: 'center' },
+  label: { fontSize: typeScale.bodySm.fontSize, textAlign: 'right', writingDirection: 'rtl' },
+  hint: { fontSize: typeScale.bodySm.fontSize, textAlign: 'right', writingDirection: 'rtl' },
+  input: { minHeight: 52, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: typeScale.heading.fontSize, writingDirection: 'ltr', textAlign: 'left' },
+  message: { fontSize: typeScale.body.fontSize, textAlign: 'center' },
   tierRow: { flexDirection: 'row', gap: spacing.sm },
   tierCard: { flex: 1, borderWidth: 1.5, borderRadius: radius.md, padding: spacing.md, gap: 4 },
   steps: { flexDirection: 'row', gap: spacing.sm },

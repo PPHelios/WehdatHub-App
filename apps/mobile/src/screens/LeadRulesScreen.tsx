@@ -66,9 +66,9 @@ export function LeadRulesScreen() {
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'rrTitle')}</Text>
+      <Text variant="heading" weight="bold" style={[styles.h, { color: colors.text }]}>{t(lang, 'rrTitle')}</Text>
       <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'rrOn')}</Text><BusySwitch testID="rr-switch" value={rr} onValueChange={setRr} /></View>
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'ruleTitle')}</Text>
+      <Text variant="heading" weight="bold" style={[styles.h, { color: colors.text }]}>{t(lang, 'ruleTitle')}</Text>
       <View style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{t(lang, 'ruleOn')}</Text><BusySwitch testID="rule-switch" value={on} onValueChange={setOn} /></View>
       <Field label={t(lang, 'ruleWait')} value={wait} onChangeText={setWait} keyboardType="number-pad" testID="rule-wait" />
       <View style={styles.row}>
@@ -77,7 +77,7 @@ export function LeadRulesScreen() {
       </View>
       {msg ? <Text testID="rules-message" style={{ color: colors.accentInk }}>{msg}</Text> : null}
       <Button testID="rules-save" label={t(lang, 'save')} onPress={save} />
-      <Text style={[styles.h, { color: colors.text }]}>{t(lang, 'awayTitle')}</Text>
+      <Text variant="heading" weight="bold" style={[styles.h, { color: colors.text }]}>{t(lang, 'awayTitle')}</Text>
       {d.brokers.length ? null : <EmptyView title={t(lang, 'noTeam')} icon="team" actionLabel={t(lang, 'invite')} onAction={() => nav.navigate('Invite')} />}
       {d.brokers.map((b) => (
         <View key={b.id} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -95,7 +95,7 @@ export function LeadRulesScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.md },
-  h: { fontSize: 18, fontWeight: '700', marginTop: spacing.md },
+  h: { marginTop: spacing.md },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   flex: { flex: 1 },
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.card, borderWidth: 1 },

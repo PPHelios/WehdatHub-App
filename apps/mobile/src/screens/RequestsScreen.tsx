@@ -50,7 +50,7 @@ export function RequestsScreen() {
           ListEmptyComponent={<EmptyView title={ot(lang, 'noRequests')} icon="lock" actionLabel={t(lang, 'openUnits')} onAction={() => nav.navigate('UnitsList')} />}
           renderItem={({ item }) => (
             <View testID={`request-${item.id}`} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Pressable accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: item.code })}><Text style={[styles.name, { color: colors.primaryInk }]}>{item.code}</Text></Pressable>
+              <Pressable accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: item.code })}><Text variant="body" weight="bold" style={{ color: colors.primaryInk }}>{item.code}</Text></Pressable>
               <Text style={{ color: colors.text }}>{item.broker_name} · {ot(lang, item.status)}{item.decided_by_name ? ` (${item.decided_by_name})` : ''}</Text>
               {item.status === 'pending' ? (
                 <View style={styles.row}>
@@ -118,5 +118,4 @@ const styles = StyleSheet.create({
   pad: { padding: spacing.lg },
   row: { flexDirection: 'row', gap: spacing.md },
   card: { marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
-  name: { fontSize: 16, fontWeight: '700' },
 });

@@ -6,6 +6,7 @@ import { LeadsScreen } from '../src/screens/LeadsScreen';
 import { NewLeadScreen } from '../src/screens/NewLeadScreen';
 import { api } from '../src/api';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({ api: { leads: jest.fn(), leadCounts: jest.fn(), team: jest.fn(), assignLead: jest.fn(), extractLead: jest.fn(), createLead: jest.fn() } }));
 jest.mock('../src/rights', () => ({ useRights: () => ({ manager: true }) }));
 jest.mock('../src/layout', () => ({ useWide: () => false, useColumns: () => 1, Split: () => null }));

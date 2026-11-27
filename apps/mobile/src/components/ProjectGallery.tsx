@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { ApiClientError } from '@wehdathub/shared';
 import type { Lang, ProjectImage, ProjectImageRole, UploadFile } from '@wehdathub/shared';
@@ -11,6 +11,7 @@ import { fill, pt } from '../projectText';
 import { pickPhotos } from '../photos';
 import { radius, spacing, useTheme } from '../theme';
 import { Button } from './Button';
+import { Sheet } from './Sheet';
 import { SmartImage } from './SmartImage';
 import { toastError } from './Toast';
 
@@ -41,14 +42,13 @@ export function ProjectGallery({ projectId, images, lang, onChanged }: { project
   const pick = async (): Promise<UploadFile[]> => compressPhotos(await pickPhotos(MAX_PROJECT_PHOTOS));
   const add = () => run(async () => { const f = await pick(); if (f.length) await api.projectPhotos(projectId, f); });
   // Spends pages of the month's allowance: ask first, with the cost.
-  const sort = () => Alert.alert(T.galleryConfirm, T.gallerySortCost, [
-    { text: T.cancel, style: 'cancel' },
-    { text: T.gallerySort, onPress: () => { void run(async () => { const f = await pick(); if (f.length) await api.projectGallery(projectId, f, { sort: true }); }); } },
-  ]);
+  const [asking, setAsking] = useState(false);
+  const sort = () => setAsking(true);
+  const doSort = () => { setAsking(false); void run(async () => { const f = await pick(); if (f.length) await api.projectGallery(projectId, f, { sort: true }); }); };
   const roleText = (r: ProjectImageRole) => (r === 'shared' ? T.roleShared : r === 'layout' ? T.roleLayout : T.roleHidden);
   return (
     <View testID="project-gallery" style={[styles.box, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.h, { color: colors.text }]}>{T.gallery}</Text>
+      <Text variant="heading" style={{ color: colors.text }}>{T.gallery}</Text>
       {images.map((i) => (
         <View key={i.id} style={styles.row}>
           <SmartImage uri={i.url} style={styles.thumb} />
@@ -56,7 +56,7 @@ export function ProjectGallery({ projectId, images, lang, onChanged }: { project
             <View style={styles.roles}>
               {ROLES.map((r) => (
                 <Pressable key={r} testID={`role-${i.id}-${r}`} accessibilityRole="button" accessibilityState={{ selected: i.role === r }} disabled={busy || i.role === r} onPress={() => run(() => api.projectImageRole(projectId, i.id, r))} style={[styles.role, { borderColor: i.role === r ? colors.primary : colors.border }, i.role === r && { backgroundColor: colors.primarySoft }]}>
-                  <Text style={{ color: i.role === r ? colors.primaryInk : colors.text, fontSize: 13 }}>{roleText(r)}</Text>
+                  <Text variant="bodySm" style={{ color: i.role === r ? colors.primaryInk : colors.text }}>{roleText(r)}</Text>
                 </Pressable>
               ))}
             </View>
@@ -70,15 +70,19 @@ export function ProjectGallery({ projectId, images, lang, onChanged }: { project
         <View style={styles.flex}><Button testID="gallery-add" label={T.galleryAdd} variant="secondary" disabled={busy} onPress={add} /></View>
         <View style={styles.flex}><Button testID="gallery-sort" label={T.gallerySort} variant="secondary" disabled={busy} onPress={sort} /></View>
       </View>
-      <Text style={{ color: colors.muted, fontSize: 13 }}>{T.gallerySortCost}</Text>
+      <Text variant="bodySm" style={{ color: colors.muted }}>{T.gallerySortCost}</Text>
       {msg ? <Text testID="gallery-msg" style={{ color: colors.accent }}>{msg}</Text> : null}
+      <Sheet visible={asking} onClose={() => setAsking(false)} title={T.galleryConfirm} testID="gallery-sort-sheet">
+        <Text variant="bodySm" style={{ color: colors.muted }}>{T.gallerySortCost}</Text>
+        <Button testID="gallery-sort-go" label={T.gallerySort} onPress={doSort} />
+        <Button testID="gallery-sort-cancel" label={T.cancel} variant="secondary" onPress={() => setAsking(false)} />
+      </Sheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   box: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
-  h: { fontSize: 17, fontWeight: '800' },
   row: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   flex: { flex: 1 },
   thumb: { width: 64, height: 64, borderRadius: radius.sm, overflow: 'hidden' },

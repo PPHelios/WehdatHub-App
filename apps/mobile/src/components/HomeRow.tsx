@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { currentLang } from '../auth';
-import { greenGradient, radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 import { Chevron, Icon, type IconName } from './Icon';
 
@@ -11,9 +11,9 @@ export function HomeRow({ title, detail, value, icon, featured, urgent, onPress,
 }) {
   const { colors } = useTheme();
   const ink = featured ? colors.onPrimary : colors.text;
-  const detailInk = featured ? '#DDEFE9' : colors.muted;
+  const detailInk = featured ? colors.primarySoft : colors.muted;
   const content = <>
-    {icon ? <View style={[styles.icon, { backgroundColor: featured ? '#FFFFFF20' : colors.primarySoft }]}>
+    {icon ? <View style={[styles.icon, { backgroundColor: featured ? 'rgba(255,255,255,0.125)' : colors.primarySoft }]}>
       <Icon name={icon} size={18} color={featured ? colors.onPrimary : colors.primaryInk} />
     </View> : null}
     <View style={styles.copy}>
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.75 },
   icon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, gap: 2 },
-  title: { fontSize: 15, fontWeight: '700' },
-  value: { fontSize: 17, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  title: { fontSize: typeScale.body.fontSize, fontWeight: '700' },
+  value: { fontSize: typeScale.heading.fontSize, fontWeight: '800', fontVariant: ['tabular-nums'] },
   actions: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
 });

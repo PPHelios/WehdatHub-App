@@ -3,7 +3,7 @@ import { FlatList, I18nManager, Image, Modal, Pressable, ScrollView, StyleSheet,
 import type { NativeScrollEvent } from 'react-native';
 import { AppText as Text } from './AppText';
 import { MAX_WIDTH } from '../layout';
-import { spacing } from '../theme';
+import { spacing, useTheme } from '../theme';
 
 interface Photo { id: string; url: string }
 
@@ -70,6 +70,7 @@ function PhotoPager({ photos, index, onChange, renderPhoto, testID, maxWidth }: 
 export function PhotoGallery({ photos, closeLabel, hero = false }: { photos: Photo[]; closeLabel: string; hero?: boolean }) {
   const [index, setIndex] = useState(0);
   const [full, setFull] = useState<number | null>(null);
+  const { colors } = useTheme();
   if (!photos.length) return null;
   return (
     <View>
@@ -85,10 +86,10 @@ export function PhotoGallery({ photos, closeLabel, hero = false }: { photos: Pho
           </Pressable>
         )}
       />
-      <Text style={[styles.count, hero && styles.heroCount]}>{index + 1} / {photos.length}</Text>
+      <Text variant="bodySm" weight="bold" style={[styles.count, { color: colors.onMedia }, hero && styles.heroCount]}>{index + 1} / {photos.length}</Text>
       {photos.length > 1 ? (
         <View style={[styles.dots, hero && styles.heroDots]}>
-          {photos.slice(0, 12).map((p, i) => <View key={p.id} style={[styles.dot, i === Math.min(index, 11) && styles.dotOn]} />)}
+          {photos.slice(0, 12).map((p, i) => <View key={p.id} style={[styles.dot, i === Math.min(index, 11) && [styles.dotOn, { backgroundColor: colors.onMedia }]]} />)}
         </View>
       ) : null}
       <Modal visible={full !== null} animationType="fade" onRequestClose={() => setFull(null)} statusBarTranslucent>
@@ -101,8 +102,9 @@ export function PhotoGallery({ photos, closeLabel, hero = false }: { photos: Pho
 function FullScreen({ photos, start, onClose, closeLabel }: { photos: Photo[]; start: number; onClose: () => void; closeLabel: string }) {
   const { height } = useWindowDimensions();
   const [at, setAt] = useState(start);
+  const { colors } = useTheme();
   return (
-    <View style={styles.full}>
+    <View style={[styles.full, { backgroundColor: colors.mediaBlack }]}>
       <PhotoPager
         photos={photos}
         index={at}
@@ -110,9 +112,9 @@ function FullScreen({ photos, start, onClose, closeLabel }: { photos: Photo[]; s
         testID="gallery-full"
         renderPhoto={(photo, width) => <ZoomPhoto url={photo.url} width={width} height={height} />}
       />
-      <Text style={styles.fullCount}>{at + 1} / {photos.length}</Text>
+      <Text variant="body" weight="bold" style={[styles.fullCount, { color: colors.onMedia }]}>{at + 1} / {photos.length}</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={closeLabel} testID="photo-close" onPress={onClose} style={styles.close}>
-        <Text style={styles.closeX}>✕</Text>
+        <Text variant="heading" style={{ color: colors.onMedia }}>✕</Text>
       </Pressable>
     </View>
   );
@@ -152,14 +154,12 @@ function ZoomPhoto({ url, width, height }: { url: string; width: number; height:
 
 const styles = StyleSheet.create({
   pager: { width: '100%' },
-  count: { position: 'absolute', top: spacing.md, end: spacing.md, color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 999, overflow: 'hidden', fontWeight: '700', fontSize: 13 },
+  count: { position: 'absolute', top: spacing.md, end: spacing.md, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
   heroCount: { top: undefined, bottom: 34 },
   heroDots: { bottom: 34 },
   dots: { position: 'absolute', bottom: spacing.sm, start: 0, end: 0, flexDirection: 'row', justifyContent: 'center', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.55)' },
-  dotOn: { backgroundColor: '#FFFFFF', width: 9, height: 9, borderRadius: 5 },
-  full: { flex: 1, backgroundColor: '#000000' },
-  fullCount: { position: 'absolute', bottom: spacing.xl, alignSelf: 'center', color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
-  close: { position: 'absolute', top: spacing.xl + 8, end: spacing.lg, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },
-  closeX: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
-});
+  dotOn: { width: 9, height: 9, borderRadius: 5 },
+  full: { flex: 1 },
+  fullCount: { position: 'absolute', bottom: spacing.xl, alignSelf: 'center' },
+  close: { position: 'absolute', top: spacing.xl + 8, end: spacing.lg, width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center' },});

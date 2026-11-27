@@ -6,7 +6,7 @@ import { FONT_BOLD } from '../fonts';
 import { tick } from '../haptics';
 import { useKeyboardVisible } from './KeyboardLift';
 import { useSelectionHighlight } from './SelectionHighlight';
-import { greenGradient, useTheme } from '../theme';
+import { greenGradient, typeScale, useTheme } from '../theme';
 
 /** The tab option that marks the centre shortcut. */
 export const FAB_TEST_ID = 'tab-fab';
@@ -34,7 +34,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
           const { options } = descriptors[route.key];
           const focused = state.index === i;
           const featured = isFab(route.key);
-          const color = focused ? '#FFFFFF' : colors.muted;
+          const color = focused ? colors.onPrimary : colors.muted;
           const label = typeof options.title === 'string' ? options.title : route.name;
           const press = () => {
             const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -64,9 +64,9 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
 
 const styles = StyleSheet.create({
   wrap: { paddingHorizontal: 16, paddingBottom: 10 },
-  bar: { height: BAR, borderRadius: BAR / 2, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', padding: INSET, shadowColor: '#000000', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  bar: { height: BAR, borderRadius: BAR / 2, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', padding: INSET, shadowColor: 'black', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
   activeCapsule: { position: 'absolute', top: 3, bottom: 3, left: 4, right: 4, borderRadius: (BAR - INSET * 2) / 2 },
   item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, position: 'relative' },
   iconWrap: { alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 11 },
+  label: { fontSize: typeScale.micro.fontSize },
 });

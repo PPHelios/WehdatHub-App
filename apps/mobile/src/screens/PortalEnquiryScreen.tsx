@@ -73,7 +73,7 @@ export function PortalEnquiryScreen() {
       {!enquiry && !error ? <><ActivityIndicator color={colors.spinner} /><Text style={{ color: colors.muted }}>{t(lang, 'peReading')}</Text></> : null}
       {enquiry ? (
         <>
-          <Text testID="pe-portal" style={[styles.h, { color: colors.text }]}>{t(lang, 'pePortal')}: {enquiry.portal}</Text>
+          <Text testID="pe-portal" variant="heading" style={{ color: colors.text }}>{t(lang, 'pePortal')}: {enquiry.portal}</Text>
           <Text testID="pe-name" style={{ color: colors.text }}>{t(lang, 'peName')}: {enquiry.name || '—'}</Text>
           <Text testID="pe-link" style={{ color: colors.muted }} numberOfLines={2}>{t(lang, 'peLink')}: {enquiry.link}</Text>
           <Text testID="pe-listing" style={{ color: colors.muted }}>{t(lang, 'peListing')}: {enquiry.listingNo || '—'}</Text>
@@ -89,4 +89,4 @@ export function PortalEnquiryScreen() {
   );
 }
 
-const styles = StyleSheet.create({ content: { padding: spacing.lg, gap: spacing.md }, h: { fontSize: 18, fontWeight: '700' } });
+const styles = StyleSheet.create({ content: { padding: spacing.lg, gap: spacing.md } });

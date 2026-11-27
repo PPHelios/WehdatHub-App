@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import type { ApiLead, Lang } from '@wehdathub/shared';
 import { rowDate } from '../dates';
 import { stageLabel, t } from '../i18n';
-import { greenGradient, radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 import { Chevron, Icon } from './Icon';
 import { looksLikePhone, PhoneText } from './PhoneText';
@@ -55,9 +55,9 @@ export const LeadCard = memo(function LeadCard({ lead, lang, phoneVisibility = '
 const styles = StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderWidth: 1, borderRadius: radius.card },
   content: { flex: 1, minWidth: 0, gap: spacing.xs },
-  name: { fontSize: 16, fontWeight: '800' },
+  name: { fontSize: typeScale.body.fontSize, fontWeight: '800' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  caption: { fontSize: 12 },
+  caption: { fontSize: typeScale.caption.fontSize },
   due: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   dueText: { flex: 1, fontWeight: '600' },
   check: { width: 22, height: 22, borderWidth: 1, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },

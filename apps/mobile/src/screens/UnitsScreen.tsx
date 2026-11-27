@@ -24,7 +24,7 @@ import { openAssistant } from '../searchLink';
 import type { RootStackParams } from '../navigation';
 import { Split, useColumns, useWide } from '../layout';
 import { UnitScreen } from './UnitScreen';
-import { greenGradient, radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 import { useRights } from '../rights';
 
@@ -202,13 +202,13 @@ const styles = StyleSheet.create({
   oldStrip: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   flex: { flex: 1 },
   searching: { position: 'absolute', top: spacing.lg + 14, end: spacing.lg + 14 },
-  search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   panelBox: { maxHeight: 420, flexGrow: 0 },
   panel: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.md },
   chipsRow: { flexDirection: 'row', gap: spacing.sm },
-  search2: { minHeight: 44, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  search2: { minHeight: 44, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   suggest: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md },
   footer: { padding: spacing.lg },
   add: { padding: spacing.lg },

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { currentLang } from '../auth';
 import { bannerText, usePlanState } from '../planState';
 import { planT } from '../planText';
-import { spacing, useTheme } from '../theme';
+import { spacing, typeScale, useTheme } from '../theme';
 
 /**
  * The line on the main screens once the plan period ended: grace (everything works), read-only, blocked, with the days left.
@@ -32,6 +32,6 @@ export function PlanBanner({ onOpenPlan, topInset = false }: { onOpenPlan?: () =
 
 const styles = StyleSheet.create({
   bar: { paddingHorizontal: spacing.md, paddingBottom: spacing.xs, gap: 2 },
-  text: { fontSize: 13, fontWeight: '700' },
-  cta: { fontSize: 13, fontWeight: '800', textDecorationLine: 'underline' },
+  text: { fontSize: typeScale.bodySm.fontSize, fontWeight: '700' },
+  cta: { fontSize: typeScale.bodySm.fontSize, fontWeight: '800', textDecorationLine: 'underline' },
 });

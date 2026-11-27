@@ -10,7 +10,7 @@ import { errorText } from '../errors';
 import { tick } from '../haptics';
 import { t } from '../i18n';
 import { leadLang } from '../prefs';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
 import { Chips } from './Chips';
 import { Field } from './Field';
@@ -72,7 +72,7 @@ export function ViewingForm({ lead, unitCode = '' }: { lead: ApiLead; unitCode?:
           <View style={styles.row}>
             <Text style={[styles.flex, { color: colors.accent }]}>{t(lang, 'viewingSaved')}</Text>
             <Pressable testID="viewing-info" accessibilityRole="button" accessibilityLabel={t(lang, 'clientMessage')} hitSlop={12} onPress={() => setShowMessage((s) => !s)}>
-              <Text style={{ color: colors.primaryInk, fontSize: 18, fontWeight: '800' }}>ⓘ</Text>
+              <Text style={{ color: colors.primaryInk, fontSize: typeScale.heading.fontSize, fontWeight: '800' }}>ⓘ</Text>
             </Pressable>
           </View>
           {showMessage ? <Text testID="viewing-message" style={{ color: colors.text }}>{done.message}</Text> : null}

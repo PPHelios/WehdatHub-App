@@ -10,7 +10,7 @@ import { currentLang } from '../auth';
 import { numberOf } from '../projectRules';
 import { fill, pt } from '../projectText';
 import { plain, withCommas } from '../readback';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 import { Button } from './Button';
 import { Chips } from './Chips';
@@ -127,8 +127,8 @@ export function AskResults({ q, onOpenProject, showStatus = false, initial, hide
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
-  title: { fontSize: 16, fontWeight: '800' },
-  label: { fontSize: 13, fontWeight: '600' },
+  title: { fontSize: typeScale.body.fontSize, fontWeight: '800' },
+  label: { fontSize: typeScale.bodySm.fontSize, fontWeight: '600' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, minHeight: 44, justifyContent: 'center' },
   filters: { gap: spacing.sm },

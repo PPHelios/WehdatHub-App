@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -26,7 +26,8 @@ import type { RootStackParams } from '../navigation';
 import { Split, useColumns, useWide } from '../layout';
 import { LeadScreen } from './LeadScreen';
 import { useSelectionHighlight } from '../components/SelectionHighlight';
-import { greenGradient, radius, spacing, useTheme } from '../theme';
+import { ChoiceSheet, type ChoiceAsk } from '../components/Sheet';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 import { toast } from '../components/Toast';
 
@@ -54,6 +55,7 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   const [text, setText] = useState('');
   const manager = useRights().manager;
   const [unassigned, setUnassigned] = useState(false);
+  const [quickAsk, setQuickAsk] = useState<ChoiceAsk | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [sel, setSel] = useState<Record<string, ApiLead>>({});
   const [assigning, setAssigning] = useState(false);
@@ -85,12 +87,13 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
   }, [queries, lang]);
   const quick = useCallback((l: ApiLead) => {
     tick();
-    const buttons = [
-      ...(l.phones[0] ? [{ text: t(lang, 'quickCall'), onPress: () => { Linking.openURL(`tel:${l.phones[0]}`).catch(() => undefined); } }] : []),
-      { text: t(lang, 'markCalled'), onPress: () => { api.leadCalled(l.ref, l.version).then(() => { tick(); return queries.invalidateQueries({ queryKey: ['leads'] }); }).catch((e) => toast(errorText(e, lang), true)); } },
-      { text: t(lang, 'cancel'), style: 'cancel' as const },
-    ];
-    Alert.alert(l.name || l.ref, undefined, buttons);
+    setQuickAsk({
+      title: l.name || l.ref,
+      actions: [
+        ...(l.phones[0] ? [{ label: t(lang, 'quickCall'), onPress: () => { Linking.openURL(`tel:${l.phones[0]}`).catch(() => undefined); } }] : []),
+        { label: t(lang, 'markCalled'), onPress: () => { api.leadCalled(l.ref, l.version).then(() => { tick(); return queries.invalidateQueries({ queryKey: ['leads'] }); }).catch((e) => toast(errorText(e, lang), true)); } },
+      ],
+    });
   }, [queries, lang]);
   const press = useCallback((l: ApiLead) => {
     if (!selecting) { onOpen(l.ref); return; }
@@ -122,14 +125,14 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           {manager ? (
             <Pressable testID="chip-unassigned" accessibilityRole="button" accessibilityState={{ selected: unassigned }} onPress={() => setUnassigned((u) => !u)} style={[styles.chip, { borderColor: unassigned ? colors.primaryLine : colors.border, backgroundColor: unassigned ? colors.primarySoft : 'transparent' }]}>
-              <Text style={[styles.chipText, { color: unassigned ? colors.primaryInk : colors.text }]}>{t(lang, 'unassigned')}</Text>
+              <Text variant="caption" weight="bold" style={{ color: unassigned ? colors.primaryInk : colors.text }}>{t(lang, 'unassigned')}</Text>
             </Pressable>
           ) : null}
           {selection.highlight}
           {TABS.map(([v, k]) => (
             <Pressable key={v} testID={`lead-filter-${v}`} onLayout={selection.measure(v)} accessibilityRole="button" accessibilityState={{ selected: v === tab }} onPress={() => setTab(v)} style={[styles.chip, styles.countedChip, { borderColor: v === tab ? colors.primary : colors.border }, v === tab && !selection.highlight && greenGradient]}>
-              <Text style={[styles.chipText, { color: v === tab ? colors.onPrimary : colors.muted }]}>{k.startsWith('st_') ? stageLabel(lang, k.slice(3)) : t(lang, k)}</Text>
-              <Text testID={`lead-filter-count-${v}`} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[styles.chipText, styles.chipCount, { color: v === tab ? colors.onPrimary : colors.muted }]}>
+              <Text variant="caption" weight="bold" style={{ color: v === tab ? colors.onPrimary : colors.muted }}>{k.startsWith('st_') ? stageLabel(lang, k.slice(3)) : t(lang, k)}</Text>
+              <Text testID={`lead-filter-count-${v}`} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} variant="caption" weight="bold" style={[styles.chipCount, { color: v === tab ? colors.onPrimary : colors.muted }]}>
                 {tabCounts?.[v] === undefined ? '' : `(${tabCounts[v]})`}
               </Text>
             </Pressable>
@@ -171,6 +174,7 @@ function LeadsList({ onOpen, single = false }: { onOpen: (ref: string) => void; 
           </>
         )}
       </View>
+      <ChoiceSheet ask={quickAsk} onClose={() => setQuickAsk(null)} cancelLabel={t(lang, 'cancel')} testID="lead-quick-sheet" />
       {assigning ? <BulkAssign leads={Object.values(sel)} onCancel={() => setAssigning(false)} onDone={() => { setAssigning(false); setSelecting(false); setSel({}); tick(); queries.invalidateQueries({ queryKey: ['leads'] }); }} /> : null}
     </View>
   );
@@ -192,12 +196,11 @@ const LeadItem = memo(function LeadItem({ coach, lead, lang, picked, onPress, on
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   search: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginHorizontal: spacing.lg, marginTop: spacing.md, marginBottom: spacing.sm, minHeight: 46, borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md },
-  searchInput: { flex: 1, minHeight: 44, paddingVertical: spacing.xs, fontSize: 14 },
+  searchInput: { flex: 1, minHeight: 44, paddingVertical: spacing.xs, fontSize: typeScale.bodySm.fontSize },
   chipsBox: { height: 48 },
   chips: { gap: spacing.xs, paddingHorizontal: spacing.lg },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, height: 40, justifyContent: 'center' },
   countedChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  chipText: { fontSize: 12, fontWeight: '700' },
   // Counts can change digit width as a search updates without moving the filter pills.
   chipCount: { width: 32, textAlign: 'center', fontVariant: ['tabular-nums'] },
   cardSlot: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, borderRadius: radius.card, overflow: 'hidden' },

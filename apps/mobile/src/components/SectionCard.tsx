@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { currentLang } from '../auth';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 import { Chevron } from './Icon';
 
@@ -93,13 +93,13 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   headCopy: { flex: 1, gap: 2 },
-  title: { fontSize: 17, fontWeight: '700' },
-  subtitle: { fontSize: 12 },
+  title: { fontSize: typeScale.heading.fontSize, fontWeight: '700' },
+  subtitle: { fontSize: typeScale.caption.fontSize },
   badge: { borderRadius: 999, paddingHorizontal: spacing.sm, paddingVertical: 3, alignSelf: 'flex-start' },
-  badgeText: { fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  badgeText: { fontSize: typeScale.caption.fontSize, fontWeight: '700', fontVariant: ['tabular-nums'] },
   kpi: { flex: 1, minWidth: '45%', borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: 4 },
   kpiTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.xs },
-  kpiLabel: { fontSize: 12, fontWeight: '600', flex: 1 },
-  kpiValue: { fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] },
-  kpiHint: { fontSize: 12 },
+  kpiLabel: { fontSize: typeScale.caption.fontSize, fontWeight: '600', flex: 1 },
+  kpiValue: { fontSize: typeScale.title.fontSize, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  kpiHint: { fontSize: typeScale.caption.fontSize },
 });

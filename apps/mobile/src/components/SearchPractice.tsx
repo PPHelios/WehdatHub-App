@@ -6,9 +6,11 @@ import { useAuth } from '../auth';
 import { Button } from './Button';
 import { AppText as Text } from './AppText';
 import { VoiceBar } from './VoiceBar';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 
-const appear = FadeInDown.duration(220).reduceMotion(ReduceMotion.System);
+const LOCALE_AR = 'ar-EG';
+const LOCALE_EN = 'en-GB';
+const appear =FadeInDown.duration(220).reduceMotion(ReduceMotion.System);
 const reveal = StretchInY.duration(260).reduceMotion(ReduceMotion.System);
 const disappear = FadeOut.duration(120).reduceMotion(ReduceMotion.System);
 const reorder = LinearTransition.duration(240).reduceMotion(ReduceMotion.System);
@@ -19,7 +21,7 @@ export function SearchPractice({ onClose }: { onClose: () => void }) {
   const broker = useAuth((s) => s.broker);
   const ar = broker?.lang !== 'en';
   const copy = (en: string, arabic: string) => ar ? arabic : en;
-  const number = (value: number) => value.toLocaleString(ar ? 'ar-EG' : 'en-GB');
+  const number = (value: number) => value.toLocaleString(ar ? LOCALE_AR : LOCALE_EN);
   const entry = broker?.role === 'data_entry';
   const team = broker?.role === 'team_lead';
   const owner = broker?.role === 'owner';
@@ -131,7 +133,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 27, fontWeight: '800' },
+  title: { fontSize: typeScale.display.fontSize, fontWeight: '800' },
   panel: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.card, padding: spacing.lg, gap: spacing.sm },
   row: { minHeight: 44, justifyContent: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
   tap: { minHeight: 44, justifyContent: 'center' },

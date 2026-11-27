@@ -3,12 +3,15 @@ import { StyleSheet } from 'react-native';
 import Animated, { Easing, useAnimatedProps, useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useQuery } from '@tanstack/react-query';
-import type { SearchCredits } from '@wehdathub/shared';
+import type { Lang, SearchCredits } from '@wehdathub/shared';
+import { t } from '../i18n';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { SPRING } from '../motion';
 import { useTheme } from '../theme';
 
+const LANG_AR: Lang = 'ar';
+const LANG_EN: Lang = 'en';
 const STROKE = 7;
 const GAP = 4;
 /** The ring sits outside the button: this far past each edge. */
@@ -72,13 +75,14 @@ export function SearchCreditRings({ data, loading = false, error = false, ar = f
     transform: [{ translateX: 10 * (1 - land.value) }, { translateY: -10 * (1 - land.value) }, { scale: 1 + 0.25 * (1 - land.value) }],
   }));
 
+  const lang: Lang = ar ? LANG_AR : LANG_EN;
   let accessibilityLabel: string;
   if (loading) {
-    accessibilityLabel = ar ? 'جاري تحميل رصيد البحث' : 'Loading search credits';
+    accessibilityLabel = t(lang, 'scLoading');
   } else if (error || !personalMeter) {
-    accessibilityLabel = ar ? 'تعذر تحميل رصيد البحث' : 'Search credits unavailable';
+    accessibilityLabel = t(lang, 'scUnavailable');
   } else if (personalMeter.limit === null) {
-    accessibilityLabel = ar ? 'رصيد البحث غير محدود' : 'Unlimited search credits';
+    accessibilityLabel = t(lang, 'scUnlimited');
   } else {
     const pText = ar
       ? `رصيد البحث ${personalMeter.remaining ?? 0} من ${personalMeter.limit}`

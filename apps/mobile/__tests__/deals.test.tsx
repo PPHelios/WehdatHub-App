@@ -1,5 +1,4 @@
 import React from 'react';
-import { Alert } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CommissionsScreen, DealsScreen, SourcesScreen } from '../src/screens/DealsScreens';
@@ -194,7 +193,6 @@ test('deals applies drill-through route filters, renders summary banner, and let
 });
 
 test('sources protects unsaved spend on month switch, navigation exit, hub-tab switch, disables pending save, keeps failed draft, and scopes saved msg by month', async () => {
-  const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
   let resolveSave!: () => void;
   let rejectSave!: (err: Error) => void;
   m.sources.mockResolvedValue({
@@ -239,9 +237,14 @@ test('sources protects unsaved spend on month switch, navigation exit, hub-tab s
   expect(await screen.findByTestId('sources-msg')).toBeTruthy();
   expect(screen.getByTestId('sources-msg').props.children).toContain('2026-11');
   view1.unmount();
+});
 
-  // 5. Hub-tab switch in ReportsHubScreen warns on dirty Sources tab
-  alertSpy.mockClear();
+test('the reports hub warns before leaving the Sources tab with unsaved spend', async () => {
+  m.sources.mockResolvedValue({
+    month: '2026-11',
+    rows: [{ source: 'facebook', leads: 4, deals: 1, commission: 1000, spend: null, perLead: null, perDeal: null }],
+    totals: {},
+  });
   mockRouteParams = { initialTab: 'sources' };
   const client2 = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client2.setQueryData(['me'], {
@@ -252,6 +255,6 @@ test('sources protects unsaved spend on month switch, navigation exit, hub-tab s
   await render(<QueryClientProvider client={client2}><ReportsHubScreen /></QueryClientProvider>);
   const hubInput = await screen.findByDisplayValue('');
   await fireEvent.changeText(hubInput, '900');
-  await fireEvent.press(screen.getByTestId('hub-tab-dashboard'));
-  expect(alertSpy).toHaveBeenCalledTimes(1);
+  await act(async () => { fireEvent.press(screen.getByTestId('hub-tab-dashboard')); });
+  expect(await screen.findByTestId('reports-discard-sheet-action-0')).toBeTruthy();
 });

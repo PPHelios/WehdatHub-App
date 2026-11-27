@@ -4,6 +4,7 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import Animated, { runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText as Text } from './AppText';
+import { Button } from './Button';
 import { DURATION, SPRING } from '../motion';
 import { elevation, radius, spacing, useTheme } from '../theme';
 
@@ -61,6 +62,25 @@ export function Sheet({ visible, onClose, title, children, testID }: { visible: 
         </View>
       </GestureHandlerRootView>
     </Modal>
+  );
+}
+
+/** What a ChoiceSheet shows: a title, an optional line, and the buttons (a cancel button is added). */
+export type ChoiceAsk = { title: string; body?: string; actions: { label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'danger'; testID?: string }[] };
+
+/** Confirm sheet that replaces Alert.alert: each action closes the sheet, then runs. */
+export function ChoiceSheet({ ask, onClose, cancelLabel, testID = 'choice-sheet' }: { ask: ChoiceAsk | null; onClose: () => void; cancelLabel: string; testID?: string }) {
+  const { colors } = useTheme();
+  const last = React.useRef(ask);
+  if (ask) last.current = ask;
+  const shown = ask ?? last.current;  return (
+    <Sheet visible={Boolean(ask)} onClose={onClose} title={shown?.title} testID={testID}>
+      {shown?.body ? <Text variant="bodySm" style={{ color: colors.muted }}>{shown.body}</Text> : null}
+      {shown?.actions.map((a, i) => (
+        <Button key={a.testID ?? i} testID={a.testID ?? `${testID}-action-${i}`} variant={a.variant ?? 'secondary'} label={a.label} onPress={() => { onClose(); a.onPress(); }} />
+      ))}
+      <Button testID={`${testID}-cancel`} variant="quiet" label={cancelLabel} onPress={onClose} />
+    </Sheet>
   );
 }
 

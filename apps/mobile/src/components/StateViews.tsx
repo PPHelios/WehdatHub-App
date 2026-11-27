@@ -4,7 +4,7 @@ import Animated from 'react-native-reanimated';
 import { useBusy } from '../busy';
 import { enter } from '../motion';
 import { AppText as Text } from './AppText';
-import { spacing, useTheme } from '../theme';
+import { spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
 import { SkeletonCard, SkeletonRow } from './Skeleton';
 import { Icon } from './Icon';
@@ -63,8 +63,8 @@ export function EmptyView({ title, hint, actionLabel, onAction, actionVariant = 
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  title: { fontSize: 18, fontWeight: '700', textAlign: 'center' },
-  text: { fontSize: 15, textAlign: 'center' },
+  title: { fontSize: typeScale.heading.fontSize, fontWeight: '700', textAlign: 'center' },
+  text: { fontSize: typeScale.body.fontSize, textAlign: 'center' },
   iconCircle: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   blocks: { alignSelf: 'stretch', gap: spacing.md },
   actions: { alignSelf: 'stretch', gap: spacing.sm, marginTop: spacing.sm },

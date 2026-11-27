@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { PressableScale } from './PressableScale';
 import { useBusy } from '../busy';
-import { buttonHeight, buttonRadius, greenGradient, spacing, useTheme } from '../theme';
+import { buttonHeight, buttonRadius, greenGradient, spacing, typeScale, useTheme } from '../theme';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger' | 'whatsapp';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -38,7 +38,7 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
   const filled = variant === 'primary' || variant === 'danger';
   const wa = variant === 'whatsapp';
   const fill = variant === 'danger' ? colors.danger : colors.primary;
-  const ink = wa ? '#06260F' : filled ? (variant === 'danger' ? colors.onDanger : colors.onPrimary) : variant === 'quiet' ? colors.primaryInk : colors.text;
+  const ink = wa ? colors.onWhatsapp : filled ? (variant === 'danger' ? colors.onDanger : colors.onPrimary) : variant === 'quiet' ? colors.primaryInk : colors.text;
   const handle = async () => {
     if (blocked || busy.current) return;
     busy.current = true;
@@ -63,7 +63,7 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
       style={[
         styles.base,
         variant === 'primary' || variant === 'secondary' || wa ? elev('sm') : null,
-        { minHeight: buttonHeight[size], backgroundColor: wa ? '#25D366' : filled ? fill : variant === 'secondary' ? colors.card : 'transparent', borderColor: wa ? '#25D366' : variant === 'primary' ? colors.primaryHi : variant === 'danger' ? fill : variant === 'quiet' ? 'transparent' : colors.lineStrong, opacity: blocked ? 0.6 : 1 },
+        { minHeight: buttonHeight[size], backgroundColor: wa ? colors.whatsapp : filled ? fill : variant === 'secondary' ? colors.card : 'transparent', borderColor: wa ? colors.whatsapp : variant === 'primary' ? colors.primaryHi : variant === 'danger' ? fill : variant === 'quiet' ? 'transparent' : colors.lineStrong, opacity: blocked ? 0.6 : 1 },
         variant === 'primary' && greenGradient,
       ]}
     >
@@ -76,6 +76,6 @@ export function Button({ label, onPress, loading = false, disabled = false, vari
 
 const styles = StyleSheet.create({
   base: { overflow: 'hidden', borderRadius: buttonRadius, borderWidth: 1, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  label: { fontSize: 16, fontWeight: '700' },
+  label: { fontSize: typeScale.body.fontSize, fontWeight: '700' },
   fill: { position: 'absolute', start: 0, top: 0, bottom: 0, opacity: 0.22 },
 });

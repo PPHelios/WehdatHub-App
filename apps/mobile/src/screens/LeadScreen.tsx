@@ -106,7 +106,7 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={q.isRefetching} onRefresh={async () => { await q.refetch(); }} />}>
       {canCollaborate ? (
         <View testID="lead-stage-panel" style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text accessibilityRole="header" style={[styles.h, { color: colors.text }]}>{t(lang, 'stage')}</Text>
+          <Text accessibilityRole="header" variant="bodySm" weight="bold" style={{ color: colors.text }}>{t(lang, 'stage')}</Text>
           <Chips<LeadStage> options={stageOptions} value={lead.stage} onChange={(s) => (s === 'lost' ? setAskLost(true) : run((l) => api.leadStage(l.ref, l.version, s)))} />
           {askLost ? (
             <View style={styles.box}>
@@ -121,13 +121,13 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
           <InitialAvatar name={lead.name} />
           <View style={styles.flex}>
             {looksLikePhone(lead.name)
-              ? <PhoneText accessibilityRole="header" value={lead.name!} style={[styles.title, { color: colors.text }]} />
-              : <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{lead.name || lead.ref}</Text>}
+              ? <PhoneText accessibilityRole="header" value={lead.name!} variant="title" style={{ color: colors.text }} />
+              : <Text accessibilityRole="header" variant="title" style={{ color: colors.text }}>{lead.name || lead.ref}</Text>}
             <View style={styles.chips}>
               <Pill tone="primary" label={stageLabel(lang, lead.stage)} testID="lead-profile-stage" />
               {lead.name && lead.name !== lead.ref ? <Pill label={lead.ref} /> : null}
             </View>
-            {lead.source || lead.assignee ? <Text style={[styles.caption, { color: colors.muted }]}>{[lead.source, lead.assignee].filter(Boolean).join(' · ')}</Text> : null}
+            {lead.source || lead.assignee ? <Text variant="caption" style={[styles.caption, { color: colors.muted }]}>{[lead.source, lead.assignee].filter(Boolean).join(' · ')}</Text> : null}
           </View>
         </View>
         {lead.phones.map((phone) => <ContactRow key={phone} phone={phone} kind="lead" lang={lang} />)}
@@ -179,11 +179,9 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
 const styles = StyleSheet.create({
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xs, gap: spacing.xs },
-  caption: { fontSize: 12, marginTop: spacing.xs },
+  caption: { marginTop: spacing.xs },
   content: { padding: spacing.lg, gap: spacing.md },
   panel: { padding: spacing.md, gap: spacing.sm, borderWidth: 1, borderRadius: radius.card },
-  title: { fontSize: 22, fontWeight: '800' },
-  h: { fontSize: 15, fontWeight: '800' },
   flex: { flex: 1 },
   box: { gap: spacing.sm },
 });

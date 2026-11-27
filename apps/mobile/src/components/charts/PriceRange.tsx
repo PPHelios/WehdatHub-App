@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import Svg, { Line, Rect } from 'react-native-svg';
 import type { AssistantCard } from '@wehdathub/shared';
-import { spacing, useTheme } from '../../theme';
+import { spacing, typeScale, useTheme } from '../../theme';
 import { AppText as Text } from '../AppText';
 import { ChartFrame } from './ChartFrame';
 import { useGrow } from './motion';
@@ -28,7 +28,7 @@ export function PriceRange({ card, onNavigate }: { card: Card; onNavigate?: (s: 
       <View onLayout={(e) => setW(Math.max(120, Math.round(e.nativeEvent.layout.width)))}>
         {card.budget ? (
           <View testID="price-range-budget" style={[styles.pill, { backgroundColor: colors.warnSoft, marginStart: Math.min(Math.max(0, (bx ?? 0) - 60), Math.max(0, w - 150)) }]}>
-            <Text style={{ color: colors.warnInk, fontSize: 12, fontWeight: '700' }}>{card.budget.label}</Text>
+            <Text style={{ color: colors.warnInk, fontSize: typeScale.caption.fontSize, fontWeight: '700' }}>{card.budget.label}</Text>
           </View>
         ) : null}
         <Animated.View style={style}>
@@ -42,8 +42,8 @@ export function PriceRange({ card, onNavigate }: { card: Card; onNavigate?: (s: 
         </Animated.View>
       </View>
       <View style={styles.axis}>
-        <Text style={{ color: colors.muted, fontSize: 11 }}>{million(card.min)}</Text>
-        <Text style={{ color: colors.muted, fontSize: 11 }}>{million(card.max)}</Text>
+        <Text style={{ color: colors.muted, fontSize: typeScale.micro.fontSize }}>{million(card.min)}</Text>
+        <Text style={{ color: colors.muted, fontSize: typeScale.micro.fontSize }}>{million(card.max)}</Text>
       </View>
     </ChartFrame>
   );

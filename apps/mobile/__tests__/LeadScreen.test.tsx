@@ -7,6 +7,7 @@ import { LeadScreen } from '../src/screens/LeadScreen';
 import { api } from '../src/api';
 import { useAuth } from '../src/auth';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({ api: { lead: jest.fn(), leadCalled: jest.fn(), leadStage: jest.fn(), leadFollowUp: jest.fn(), leadNote: jest.fn() } }));
 jest.mock('@react-navigation/native', () => ({ useRoute: () => ({ params: { ref: 'L-0001' } }), useNavigation: () => ({ goBack: jest.fn() }) }));
 const m = api as unknown as Record<string, jest.Mock>;

@@ -8,6 +8,7 @@ import { MoreScreen } from '../src/screens/MoreScreen';
 import { api } from '../src/api';
 import { useAuth } from '../src/auth';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({ api: { me: jest.fn(), owners: jest.fn(), ownerRenames: jest.fn(), owner: jest.fn(), ownerPrivate: jest.fn(), accessRequests: jest.fn(), activityLog: jest.fn(), answerAccess: jest.fn(), testRole: jest.fn(), logout: jest.fn() } }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }), useRoute: () => ({ params: { id: 'o1', name: 'Hassan' } }) }));
 const m = api as unknown as Record<string, jest.Mock>;

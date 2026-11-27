@@ -11,6 +11,7 @@ import { usePrefs } from '../src/prefs';
 
 jest.mock('../src/api', () => ({ api: { extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), placeBox: jest.fn(), placeBoxResolve: jest.fn(), placeSuggest: jest.fn() } }));
 const mockReplace = jest.fn();
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ replace: mockReplace }), useRoute: () => ({ params: undefined }) }));
 jest.mock('../src/voice', () => ({ ensureMic: jest.fn().mockResolvedValue(true), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
 const m = api as unknown as { extractUnit: jest.Mock; reviewUnit: jest.Mock; createUnit: jest.Mock; placeBox: jest.Mock };

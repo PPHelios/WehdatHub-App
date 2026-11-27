@@ -16,7 +16,7 @@ module.exports = {
       excludedFiles: ['**/*.test.{ts,tsx}', '**/__tests__/**'],
       rules: {
         'no-restricted-syntax': [
-          'warn',
+          'error',
           { selector: "Property[key.name='fontSize'][value.type='Literal']", message: 'Use AppText variant / typeScale from theme.ts instead of a literal fontSize.' },
           { selector: 'Literal[value=/^#[0-9a-fA-F]{3,8}$/]', message: 'Use colors from useTheme() instead of hex literals.' },
           { selector: "CallExpression[callee.object.name='Alert'][callee.property.name='alert']", message: 'Use a Sheet confirm or toast() instead of Alert.alert.' },

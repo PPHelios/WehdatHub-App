@@ -54,7 +54,7 @@ export function CalendarScreen() {
       renderItem={({ item }) => (
         <Pressable testID={`viewing-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('Lead', { ref: item.leadRef })} style={[styles.card, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.row}>
-            <Text style={[styles.time, { color: colors.primaryInk }]}>{time(item.startsAt)}</Text>
+            <Text variant="body" weight="bold" style={{ color: colors.primaryInk }}>{time(item.startsAt)}</Text>
             <Text style={[styles.flex, { color: colors.text, fontWeight: '700' }]}>{item.leadName || item.leadRef}</Text>
             <Text style={{ color: colors.muted }}>{labelOf(VIEWING_STATUS, item.status, lang)}</Text>
           </View>
@@ -69,6 +69,5 @@ const styles = StyleSheet.create({
   day: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm, fontWeight: '700' },
   card: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  time: { fontSize: 16, fontWeight: '800' },
   flex: { flex: 1 },
 });

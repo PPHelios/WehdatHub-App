@@ -4,7 +4,7 @@ import { AppText as Text } from './AppText';
 import type { AppConfig } from '@wehdathub/shared';
 import { currentLang } from '../auth';
 import { t } from '../i18n';
-import { spacing, useTheme } from '../theme';
+import { spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
 
 /** Shown instead of the app when the server no longer supports this version. */
@@ -23,6 +23,6 @@ export function UpdateScreen({ config }: { config: AppConfig }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg, padding: spacing.xl },
-  title: { fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  title: { fontSize: typeScale.title.fontSize, fontWeight: '800', textAlign: 'center' },
   btn: { alignSelf: 'stretch' },
 });

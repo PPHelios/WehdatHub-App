@@ -2,7 +2,7 @@ import React from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import type { Lang } from '@wehdathub/shared';
 import { t } from '../i18n';
-import { greenGradient, radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { usage } from '../usage';
 import { Icon } from './Icon';
 import { PhoneText } from './PhoneText';
@@ -48,6 +48,6 @@ export function ContactRow({ phone, lang, kind, index = 0 }: { phone: string; la
 
 const styles = StyleSheet.create({
   row: { direction: 'ltr', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.xs, paddingStart: spacing.md, borderWidth: 1, borderRadius: radius.md },
-  phone: { flex: 1, minWidth: 0, fontSize: 14, fontVariant: ['tabular-nums'], writingDirection: 'ltr' },
+  phone: { flex: 1, minWidth: 0, fontSize: typeScale.bodySm.fontSize, fontVariant: ['tabular-nums'], writingDirection: 'ltr' },
   action: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
 });

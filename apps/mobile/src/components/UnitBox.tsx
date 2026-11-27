@@ -7,7 +7,7 @@ import { featureChip } from '../featureLabels';
 import { syncPlaces, usePlaces } from '../placeList';
 import { fill, uf } from '../unitFormText';
 import { useBoxItems } from '../useBoxItems';
-import { greenGradient, radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { Chip } from './Chip';
 import { Field } from './Field';
 import { NO_PLACE, chipLabel, featureKeys, nameOf, otherFeatures, phasesOf, placePatch, resolvePatch, str } from '../unitBoxRules';
@@ -143,14 +143,14 @@ export function UnitBox({ fields, patch, lang, testID = 'unit-box', invalid = fa
           {places.length ? <Text style={[styles.group, { color: colors.muted }]}>{L.boxPlaces}</Text> : null}
           {places.map((it) => (
             <Pressable key={`${it.kind}-${it.id}`} testID={`ubox-opt-${it.id}`} onPress={() => choose(it)} accessibilityRole="button" style={styles.opt}>
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>{nameOf(it)}</Text>
-              {pathOf(it) ? <Text style={{ color: colors.muted, fontSize: 13 }}>{pathOf(it)}</Text> : null}
+              <Text variant="body" weight="bold" style={{ color: colors.text }}>{nameOf(it)}</Text>
+              {pathOf(it) ? <Text variant="bodySm" style={{ color: colors.muted }}>{pathOf(it)}</Text> : null}
             </Pressable>
           ))}
           {features.length ? <Text style={[styles.group, { color: colors.muted }]}>{L.boxFeatures}</Text> : null}
           {features.map((it) => (
             <Pressable key={it.key} testID={`ubox-opt-${it.key}`} onPress={() => choose(it)} accessibilityRole="button" style={styles.opt}>
-              <Text style={{ color: colors.text, fontSize: 16 }}>{it.label}</Text>
+              <Text variant="body" style={{ color: colors.text }}>{it.label}</Text>
             </Pressable>
           ))}
           <Pressable testID="ubox-request" onPress={() => { setInput(''); setRequesting(true); patch({ compound: typed, compound_new: '1', area_id: '', subzone_id: '', place_label: typed, place_path: '', place_zones: '', phase_label: '', place_phases: '' }); }} accessibilityRole="button" style={styles.opt}>
@@ -207,7 +207,7 @@ function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: 
           <TextInput testID="ubox-new-parent-input" value={parentQ} onChangeText={setParentQ} placeholder={L.newAreaSearch} placeholderTextColor={colors.muted} autoCorrect={false} style={[styles.input, { color: colors.text, borderColor: invalid ? colors.danger : colors.primaryInk, backgroundColor: invalid ? colors.field : colors.requiredField }]} />
           {areaHits.map((a) => (
             <Pressable key={a.id} testID={`ubox-new-area-${a.id}`} onPress={() => { setParent({ id: a.id, label: nameOf(a) }); setParentQ(''); }} accessibilityRole="button" style={styles.opt}>
-              <Text style={{ color: colors.text, fontSize: 16 }}>{nameOf(a)}{a.path ? <Text style={{ color: colors.muted, fontSize: 14 }}>{` — ${a.path}`}</Text> : null}</Text>
+              <Text variant="body" style={{ color: colors.text }}>{nameOf(a)}{a.path ? <Text variant="bodySm" style={{ color: colors.muted }}>{` — ${a.path}`}</Text> : null}</Text>
             </Pressable>
           ))}
           {!areaHits.length && pq.length >= 2 ? <Text style={{ color: colors.muted }}>{L.newAreaPick}</Text> : null}
@@ -219,7 +219,7 @@ function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: 
           <Text style={[styles.label, { color: colors.text }]}>{L.newSub}</Text>
           {subs.map((a) => (
             <Pressable key={a.id} testID={`ubox-new-sub-${a.id}`} onPress={() => setSub(sub === a.id ? '' : a.id)} accessibilityRole="button" accessibilityState={{ selected: sub === a.id }} style={styles.opt}>
-              <Text style={{ color: sub === a.id ? colors.primaryInk : colors.text, fontSize: 16, fontWeight: sub === a.id ? '700' : '400' }}>{(lang === 'en' ? a.name_en || a.name_ar : a.name_ar || a.name_en) ?? ''}</Text>
+              <Text variant="body" weight={sub === a.id ? 'bold' : 'regular'} style={{ color: sub === a.id ? colors.primaryInk : colors.text }}>{(lang === 'en' ? a.name_en || a.name_ar : a.name_ar || a.name_en) ?? ''}</Text>
             </Pressable>
           ))}
         </View>
@@ -238,15 +238,15 @@ function NewPlace({ fields, patch, lang, invalid, onCancel, onDone }: { fields: 
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
-  label: { fontSize: 15, fontWeight: '700' },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  label: { fontSize: typeScale.body.fontSize, fontWeight: '700' },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { paddingHorizontal: spacing.md, minHeight: 36 },
   parentChip: { paddingHorizontal: spacing.md, minHeight: 36, alignSelf: 'flex-start' },
-  context: { fontSize: 13 },
+  context: { fontSize: typeScale.bodySm.fontSize },
   list: { borderWidth: 1, borderRadius: radius.card, overflow: 'hidden' },
-  group: { fontSize: 12, fontWeight: '700', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  groupTitle: { fontSize: 16, fontWeight: '700' },
+  group: { fontSize: typeScale.caption.fontSize, fontWeight: '700', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  groupTitle: { fontSize: typeScale.body.fontSize, fontWeight: '700' },
   opt: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   newBox: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },

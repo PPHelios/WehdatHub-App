@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { Chevron } from './Icon';
 import { currentLang } from '../auth';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 
 /** A collapsible part of a long page: the title is always visible, the body opens on tap. */
 export function Section({ title, testID, startOpen = false, children }: { title: string; testID?: string; startOpen?: boolean; children: React.ReactNode }) {
@@ -23,6 +23,6 @@ export function Section({ title, testID, startOpen = false, children }: { title:
 const styles = StyleSheet.create({
   box: { borderWidth: 1, borderRadius: radius.card, overflow: 'hidden' },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, minHeight: 48 },
-  title: { flexShrink: 1, fontSize: 16, fontWeight: '700' },
+  title: { flexShrink: 1, fontSize: typeScale.body.fontSize, fontWeight: '700' },
   body: { padding: spacing.md, gap: spacing.md },
 });

@@ -26,7 +26,7 @@ import { reportError } from '../errorReport';
 import * as haptics from '../haptics';
 import { Icon } from './Icon';
 import { binClack, CLOSE_AT, DISCARD_MS, DiscardBin, FLY_FROM, FLY_TO, seg } from './DiscardBin';
-import { greenGradient, radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 
 const CANCEL_PX = 80;
 const LOCK_PX = 70;
@@ -509,7 +509,7 @@ export function VoiceBar({ id, label, onFile, onError, disabled = false, busy = 
           styles.pill,
           multiline ? { minHeight: compact ? 44 : BTN, maxHeight: maxInputHeight, paddingVertical: 10 } : pillHeight,
           styles.input,
-          compact && (multiline ? { fontSize: 14 } : styles.compactInput),
+          compact && (multiline ? { fontSize: typeScale.bodySm.fontSize } : styles.compactInput),
           { color: colors.text, borderColor: 'transparent', backgroundColor: 'transparent', textAlign: lang === 'ar' ? 'right' : 'left', writingDirection: lang === 'ar' ? 'rtl' : 'ltr' },
         ]}
         value={value}
@@ -601,13 +601,13 @@ const styles = StyleSheet.create({
   clearBtn: { justifyContent: 'center', paddingHorizontal: 10 },
   clearCircle: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   pill: { borderWidth: 1, borderRadius: radius.lg * 2, flex: 1 },
-  input: { margin: 0, paddingHorizontal: spacing.lg, fontSize: 16 },
+  input: { margin: 0, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   rail: { alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md },
-  compactInput: { height: 44, paddingVertical: 0, fontSize: 14 },
+  compactInput: { height: 44, paddingVertical: 0, fontSize: typeScale.bodySm.fontSize },
   btn: { alignItems: 'center', justifyContent: 'center' },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: BTN / 2 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  timer: { fontSize: 16, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  timer: { fontSize: typeScale.body.fontSize, fontWeight: '600', fontVariant: ['tabular-nums'] },
   hint: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.xs },
   up: { transform: [{ rotate: '-90deg' }] },
   arrow: { transform: [{ rotate: '180deg' }] },

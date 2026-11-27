@@ -6,6 +6,7 @@ import { api } from '../src/api';
 import * as draft from '../src/draft';
 
 jest.mock('../src/api', () => ({ api: { extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), placeBox: jest.fn(), placeBoxResolve: jest.fn(), placeSuggest: jest.fn() } }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ replace: jest.fn() }),
   useRoute: () => ({ params: { text: 'Code HP-9 villa 354m 3 bedrooms', fresh: true, noAi: true, importId: '4', code: 'HP-9', fields: { listing_type: 'sale', property_type: 'villa', area_value: '354', bedrooms: '3', price_value: '9000000' } } }),

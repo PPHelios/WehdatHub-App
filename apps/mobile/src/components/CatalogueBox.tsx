@@ -10,7 +10,7 @@ import type { CatalogueSearch } from '../projectRules';
 import { fill, pt } from '../projectText';
 import { useBoxItems } from '../useBoxItems';
 import { useDebounced } from '../useDebounced';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 
 /**
  * The catalogue's one search box, like the unit box: type a place (an area or a sub-area), a feature, a developer or a project; the pick becomes a
@@ -41,8 +41,8 @@ export function CatalogueBox({ search, onChange, lang, onOpenProject }: {
   );
   const row = (key: string, label: string, sub: string | undefined, onPress: () => void) => (
     <Pressable key={key} testID={`cbox-opt-${key}`} accessibilityRole="button" onPress={onPress} style={styles.opt}>
-      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>{label}</Text>
-      {sub ? <Text style={{ color: colors.muted, fontSize: 13 }}>{sub}</Text> : null}
+      <Text variant="body" weight="bold" style={{ color: colors.text }}>{label}</Text>
+      {sub ? <Text variant="bodySm" style={{ color: colors.muted }}>{sub}</Text> : null}
     </Pressable>
   );
   const title = (s: string) => <Text style={[styles.group, { color: colors.muted }]}>{s}</Text>;
@@ -87,10 +87,10 @@ export function CatalogueBox({ search, onChange, lang, onOpenProject }: {
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, minHeight: 36, justifyContent: 'center' },
   list: { borderWidth: 1, borderRadius: radius.card, overflow: 'hidden' },
-  group: { fontSize: 12, fontWeight: '700', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  group: { fontSize: typeScale.caption.fontSize, fontWeight: '700', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   opt: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
 });

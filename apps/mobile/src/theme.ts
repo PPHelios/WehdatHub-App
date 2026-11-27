@@ -96,6 +96,7 @@ export function useTheme() {
       soft: c.soft,
       field: c.field,
       lineStrong: c['line-strong'],
+      shadow: '#000000',
       inverse: c.inverse,
       onInverse: c['on-inverse'],
       ok: c.ok,
@@ -110,6 +111,12 @@ export function useTheme() {
       badInk: c['bad-ink'],
       danger: c.bad,
       onDanger: c['on-bad'],
+      // Over photos (counters, close button, full-screen backdrop): same in light and dark.
+      onMedia: '#FFFFFF',
+      mediaBlack: '#000000',
+      whatsapp: '#25D366',
+      whatsappPressed: '#1EBE5A',
+      onWhatsapp: '#06260F',
     },
   };
 }

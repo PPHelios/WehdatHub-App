@@ -41,7 +41,6 @@ export function SettingsHubScreen() {
   const { colors, elev } = useTheme();
   const { broker, signOut } = useAuth();
   const lang = broker?.lang ?? 'ar';
-  const ar = lang === 'ar';
   const route = useRoute<RouteProp<RootStackParams, 'SettingsHub'>>();
   const [tab, setTab] = useState<SettingsHubTab>(route.params?.initialTab ?? 'app');
 
@@ -101,10 +100,10 @@ export function SettingsHubScreen() {
 
   const showPlanTab = nav ? (hasNavApp(nav, 'Plan') || hasNavApp(nav, 'Usage')) : (rights.manager || rights.agencyOwner);
   const tabs: readonly HubTabItem<SettingsHubTab>[] = [
-    { id: 'app', label: ar ? 'إعدادات التطبيق' : 'App Settings', testID: 'hub-tab-app' },
-    { id: 'notifications', label: ar ? 'إعدادات التنبيهات' : 'Notifications', testID: 'hub-tab-notifications' },
-    ...(showPlanTab ? [{ id: 'plan' as const, label: ar ? 'الباقة والاستهلاك' : 'Plan & Usage', testID: 'hub-tab-plan' }] : []),
-    { id: 'support', label: ar ? 'الدعم والتطبيق' : 'Support & About', testID: 'hub-tab-support' },
+    { id: 'app', label: t(lang, 'hb_appSettings'), testID: 'hub-tab-app' },
+    { id: 'notifications', label: t(lang, 'hb_notif'), testID: 'hub-tab-notifications' },
+    ...(showPlanTab ? [{ id: 'plan' as const, label: t(lang, 'hb_plan'), testID: 'hub-tab-plan' }] : []),
+    { id: 'support', label: t(lang, 'hb_support'), testID: 'hub-tab-support' },
   ];
   const activeTab: SettingsHubTab = tabs.some((x) => x.id === tab) ? tab : 'app';
 
@@ -161,7 +160,7 @@ export function SettingsHubScreen() {
                     thumbColor={enabled ? colors.onPrimary : colors.muted}
                   />
                 </View>
-                {lockMsg ? <Text style={{ color: colors.danger, textAlign: ar ? 'right' : 'left' }}>{lockMsg}</Text> : null}
+                {lockMsg ? <Text style={{ color: colors.danger, textAlign: lang === 'ar' ? 'right' : 'left' }}>{lockMsg}</Text> : null}
               </View>
             ) : null}
 
@@ -187,7 +186,7 @@ export function SettingsHubScreen() {
             <ReportScreen />
             {ts ? (
               <View style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card, marginTop: spacing.md }]} testID="test-switch">
-                <Text style={[styles.cardTitle, { color: colors.text }]}>{ar ? 'تبديل الاختبار' : 'Test switch'}</Text>
+                <Text variant="bodySm" weight="bold" style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'hb_testSwitch')}</Text>
                 <Chips
                   testID="test-role"
                   value={ts.role}
@@ -199,15 +198,15 @@ export function SettingsHubScreen() {
                     testID="test-view"
                     value={ts.viewing ? 'other' : 'home'}
                     options={[
-                      { value: 'home' as const, label: ar ? 'شركة التجربة' : 'Test agency' },
-                      { value: 'other' as const, label: ar ? 'NCH (للقراءة فقط)' : 'NCH (read only)' },
+                      { value: 'home' as const, label: t(lang, 'hb_testAgency') },
+                      { value: 'other' as const, label: t(lang, 'hb_nchRead') },
                     ]}
                     onChange={(v) => { void switchView(v); }}
                   />
                 ) : null}
               </View>
             ) : null}
-            <Text testID="app-version" style={[styles.version, { color: colors.muted }]}>
+            <Text testID="app-version" variant="caption" style={[styles.version, { color: colors.muted }]}>
               {t(lang, 'appVersionLabel')}: {APP_VERSION} ({APP_BUILD})
             </Text>
           </ScrollView>
@@ -221,7 +220,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   pad: { padding: spacing.lg, gap: spacing.md },
   card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
-  cardTitle: { fontSize: 14, fontWeight: '700', marginTop: spacing.xs },
+  cardTitle: { marginTop: spacing.xs },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.xs },
-  version: { textAlign: 'center', fontSize: 12, marginTop: spacing.lg },
+  version: { textAlign: 'center', marginTop: spacing.lg },
 });

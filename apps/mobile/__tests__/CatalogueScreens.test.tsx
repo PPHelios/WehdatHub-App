@@ -10,6 +10,7 @@ import { galleryError } from '../src/components/ProjectGallery';
 
 jest.mock('../src/api', () => ({ api: { projectGallery: jest.fn(), projectImageRole: jest.fn(), deleteProjectImage: jest.fn(), projectPhotos: jest.fn(), catalogue: jest.fn(), catalogueSearch: jest.fn(), project: jest.fn(), archiveProject: jest.fn(), placeBox: jest.fn(), placeList: jest.fn().mockRejectedValue(new Error('offline')) } }));
 const mockNav = { navigate: jest.fn(), goBack: jest.fn() };
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => mockNav, useRoute: () => ({ params: { id: 'p1', name: 'Mivida' } }) }));
 const m = api as unknown as Record<string, jest.Mock>;
 const wrap = (ui: React.ReactElement) => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);

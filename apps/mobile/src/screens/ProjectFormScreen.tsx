@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import type { ScrollViewInstance } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import type { UploadFile } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { Sheet } from '../components/Sheet';
 import { Chips } from '../components/Chips';
 import { DeveloperBox } from '../components/DeveloperBox';
 import { Field } from '../components/Field';
@@ -27,7 +28,7 @@ import type { ProjectFields } from '../projectRules';
 import { fill, pt } from '../projectText';
 import { pickPhotos, takePhoto } from '../photos';
 import { plain, withCommas } from '../readback';
-import { greenGradient, radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 import { ALL_TYPES, labelOf } from '../unitOptions';
 import { toast, toastError } from '../components/Toast';
 
@@ -75,6 +76,7 @@ export function ProjectFormScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [leaveAsk, setLeaveAsk] = useState<(() => void) | null>(null);
   const dirty = useRef(false);
   const saved = useRef(false);
   const scroll = useRef<ScrollViewInstance>(null);
@@ -92,7 +94,7 @@ export function ProjectFormScreen() {
   useEffect(() => nav.addListener?.('beforeRemove', (e) => {
     if (!editing || !dirty.current || saving || saved.current) return;
     e.preventDefault();
-    Alert.alert(T.leaveTitle, T.leaveBody, [{ text: t(lang, 'stay'), style: 'cancel' }, { text: t(lang, 'leave'), style: 'destructive', onPress: () => nav.dispatch(e.data.action) }]);
+    setLeaveAsk(() => () => nav.dispatch(e.data.action));
   }), [nav, editing, saving, lang, T]);
 
   // Reads the pasted message (free, no AI): fills what is still empty and says what it found.
@@ -275,6 +277,11 @@ export function ProjectFormScreen() {
             : <Button testID="pf-save" label={saving ? T.saving : editing ? T.save : T.add} loading={saving} onPress={save} />}
         </View>
       </View>
+      <Sheet visible={Boolean(leaveAsk)} onClose={() => setLeaveAsk(null)} title={T.leaveTitle} testID="leave-sheet">
+        <Text style={{ color: colors.muted }}>{T.leaveBody}</Text>
+        <Button testID="leave-stay" variant="secondary" label={t(lang, 'stay')} onPress={() => setLeaveAsk(null)} />
+        <Button testID="leave-go" variant="danger" label={t(lang, 'leave')} onPress={() => { const go = leaveAsk; setLeaveAsk(null); go?.(); }} />
+      </Sheet>
     </View>
   );
 }
@@ -283,7 +290,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 120 },
   stack: { gap: spacing.md },
-  h: { fontSize: 15, fontWeight: '700', marginTop: spacing.sm },
+  h: { fontSize: typeScale.body.fontSize, fontWeight: '700', marginTop: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   locked: { opacity: 0.6 },

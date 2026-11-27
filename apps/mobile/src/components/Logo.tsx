@@ -3,7 +3,9 @@ import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import Svg, { Polygon } from 'react-native-svg';
 import { brand, COLORS } from '@wehdathub/shared';
+import type { Lang } from '@wehdathub/shared';
 import { currentLang } from '../auth';
+import { t } from '../i18n';
 import { useTheme } from '../theme';
 
 /** The five-bar mark: dark-green wings in both themes, on a soft-mint tile so it stays visible on dark. */
@@ -24,13 +26,13 @@ function Mark({ height }: { height: number }) {
 }
 
 /** The name in one language: "Wehdat" + a green "Hub" pill, or "وحدات" + "هب". */
-function Word({ ar, fontSize }: { ar: boolean; fontSize: number }) {
+function Word({ lang, fontSize }: { lang: Lang; fontSize: number }) {
   const { colors, scheme } = useTheme();
   const s = fontSize / 34;
   const text = [styles.word, { fontSize }];
   return (
     <View style={styles.wordRow}>
-      <Text style={[...text, { color: colors.text }]} numberOfLines={1}>{ar ? 'وحدات' : 'Wehdat'}</Text>
+      <Text style={[...text, { color: colors.text }]} numberOfLines={1}>{t(lang, 'brandWord')}</Text>
       <View
         style={[
           styles.pill,
@@ -38,7 +40,7 @@ function Word({ ar, fontSize }: { ar: boolean; fontSize: number }) {
           scheme === 'dark' && styles.pillDark,
         ]}
       >
-        <Text style={[...text, { color: colors.onPrimary }]} numberOfLines={1}>{ar ? 'هب' : 'Hub'}</Text>
+        <Text style={[...text, { color: colors.onPrimary }]} numberOfLines={1}>{t(lang, 'brandPill')}</Text>
       </View>
     </View>
   );
@@ -55,13 +57,13 @@ export const BAR_WIDTH = 64;
  *  - bilingual: for the splash screen. The mark with the name in English and in Arabic, whatever the app language.
  */
 export function Logo({ size = 1, compact = false, bar = false, bilingual = false }: { size?: number; compact?: boolean; bar?: boolean; bilingual?: boolean }) {
-  const ar = currentLang() === 'ar';
+  const lang = currentLang();
   const fontSize = 34 * size;
   if (bar) {
     return (
       <View style={styles.bar} accessibilityRole="image" accessibilityLabel="WehdatHub" testID="logo">
         <Mark height={22 * size} />
-        <Word ar={ar} fontSize={10} />
+        <Word lang={lang} fontSize={10} />
       </View>
     );
   }
@@ -70,8 +72,8 @@ export function Logo({ size = 1, compact = false, bar = false, bilingual = false
       <View style={[styles.wrap, styles.stacked]} accessibilityRole="image" accessibilityLabel="WehdatHub وحدات هب" testID="logo">
         <Mark height={72 * size} />
         <View style={styles.names}>
-          <Word ar={false} fontSize={fontSize} />
-          <Word ar fontSize={fontSize * 0.9} />
+          <Word lang="en" fontSize={fontSize} />
+          <Word lang="ar" fontSize={fontSize * 0.9} />
         </View>
       </View>
     );
@@ -79,7 +81,7 @@ export function Logo({ size = 1, compact = false, bar = false, bilingual = false
   return (
     <View style={[styles.wrap, compact ? styles.compact : styles.stacked]} accessibilityRole="image" accessibilityLabel="WehdatHub" testID="logo">
       <Mark height={72 * size} />
-      <Word ar={ar} fontSize={fontSize} />
+      <Word lang={lang} fontSize={fontSize} />
     </View>
   );
 }

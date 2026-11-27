@@ -5,6 +5,7 @@ import { TeamScreen } from '../src/screens/TeamScreen';
 import { AddUnitScreen, EXISTING, photoChanges } from '../src/screens/AddUnitScreen';
 import { api } from '../src/api';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({ api: { team: jest.fn(), unit: jest.fn(), unitEditFields: jest.fn(), reviewUnit: jest.fn().mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null }), saveUnitEdit: jest.fn(), unitPhotos: jest.fn(), extractUnit: jest.fn(), voiceToText: jest.fn() } }));
 const mockGoBack = jest.fn();
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: mockGoBack, navigate: jest.fn(), replace: jest.fn() }), useRoute: () => ({ params: { edit: 'A-1' } }) }));

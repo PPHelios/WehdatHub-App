@@ -1,5 +1,5 @@
-import React, { memo, useCallback, useEffect, useMemo } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
@@ -7,6 +7,7 @@ import type { InboxItem, Lang } from '@wehdathub/shared';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { Button } from '../components/Button';
+import { ChoiceSheet, type ChoiceAsk } from '../components/Sheet';
 import { ErrorView, Loading } from '../components/StateViews';
 import { rowDate } from '../dates';
 import { errorText } from '../errors';
@@ -47,15 +48,17 @@ export function InboxScreen() {
   useEffect(() => { if (unread === 0) void clearTray(); }, [unread]);
   const read = useCallback(async (id: string) => { await api.notificationRead(id); await refresh(); }, [refresh]);
   const remove = useCallback(async (id: string) => { await api.notificationDelete(id); await refresh(); }, [refresh]);
+  const [ask, setAsk] = useState<ChoiceAsk | null>(null);
   const askDeleteAll = () =>
-    Alert.alert(t(lang, 'deleteAll'), undefined, [
-      { text: t(lang, 'cancel'), style: 'cancel' },
-      { text: t(lang, 'deleteAll'), style: 'destructive', onPress: () => { void api.notificationsDeleteAll().then(refresh).catch(() => undefined); } },
-    ]);
+    setAsk({
+      title: t(lang, 'deleteAll'),
+      actions: [{ label: t(lang, 'deleteAll'), variant: 'danger', onPress: () => { void api.notificationsDeleteAll().then(refresh).catch(() => undefined); } }],
+    });
   const renderItem = useCallback(({ item }: { item: InboxItem }) => <InboxCard n={item} lang={lang} onRead={read} onDelete={remove} />, [lang, read, remove]);
   if (list.isPending) return <View style={[styles.pad, { backgroundColor: colors.bg }]}><Loading label={t(lang, 'loading')} /></View>;
   if (list.isError) return <View style={[styles.pad, { backgroundColor: colors.bg }]}><ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} /></View>;
   return (
+    <>
     <FlashList
       style={{ backgroundColor: colors.bg }}
       contentContainerStyle={styles.pad}
@@ -72,6 +75,8 @@ export function InboxScreen() {
       ) : <Text testID="inbox-empty" style={{ color: colors.muted }}>{t(lang, 'inboxEmpty')}</Text>}
       ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator style={styles.footer} color={colors.primaryInk} /> : null}
     />
+    <ChoiceSheet ask={ask} onClose={() => setAsk(null)} cancelLabel={t(lang, 'cancel')} testID="inbox-delete-sheet" />
+    </>
   );
 }
 

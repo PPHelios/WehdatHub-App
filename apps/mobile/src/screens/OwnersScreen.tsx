@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { looksLikePhone, ltr, type Lang } from '@wehdathub/shared';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -27,7 +27,8 @@ import { t } from '../i18n';
 import { openAssistant } from '../searchLink';
 import { UNIT_STATUS, labelOf } from '../unitOptions';
 import { useDebounced } from '../useDebounced';
-import { radius, spacing, useTheme } from '../theme';
+import { ChoiceSheet, type ChoiceAsk } from '../components/Sheet';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { toast, toastError } from '../components/Toast';
 
 /** Unit owners: the same list and rules as the website (the server decides who sees which owner and phone). */
@@ -63,7 +64,7 @@ export function OwnersScreen() {
               <View style={styles.identity}>
                 <InitialAvatar name={item.name} />
                 <View style={styles.person}>
-                  <Text style={[styles.name, { color: colors.text }]} numberOfLines={2}>{item.name || ot(lang, 'noName')}</Text>
+                  <Text variant="body" weight="bold" style={{ color: colors.text }} numberOfLines={2}>{item.name || ot(lang, 'noName')}</Text>
                   <View style={styles.chips}>
                     {item.code ? <Pill tone="primary" label={item.code} /> : null}
                     {item.is_private ? <Pill tone="accent" label={ot(lang, 'vip')} /> : null}
@@ -92,7 +93,7 @@ function RenameRequests({ items }: { items: { id: number; code: string; old_valu
   };
   return (
     <View testID="rename-requests" style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.name, { color: colors.text }]}>📝 {ot(lang, 'renames')} ({items.length})</Text>
+      <Text variant="body" weight="bold" style={{ color: colors.text }}>📝 {ot(lang, 'renames')} ({items.length})</Text>
       {items.map((r) => (
         <View key={r.id} style={styles.gap}>
           <Text style={{ color: colors.text }}>{r.code} · {r.old_value || '—'} {lang === 'ar' ? '←' : '→'} {r.new_value}</Text>
@@ -132,6 +133,7 @@ export function OwnerScreen() {
   const id = useRoute<RouteProp<RootStackParams, 'Owner'>>().params.id;
   const q = useQuery({ queryKey: ['owner', id], queryFn: () => api.owner(id) });
   const [editing, setEditing] = useState(false);
+  const [ask, setAsk] = useState<ChoiceAsk | null>(null);
   const [form, setForm] = useState({ name: '', phone: '', flag: '', notes: '' });
   const [msg, setMsg] = useState<string | null>(null);
   if (q.isPending) return <Loading label={t(lang, 'loading')} />;
@@ -162,7 +164,7 @@ export function OwnerScreen() {
         <View style={styles.identity}>
           <InitialAvatar name={owner.name} />
           <View style={styles.person}>
-            <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{owner.name || ot(lang, 'noName')}</Text>
+            <Text accessibilityRole="header" variant="heading" style={{ color: colors.text }}>{owner.name || ot(lang, 'noName')}</Text>
             <View style={styles.chips}>
               {owner.code ? <Pill tone="primary" label={owner.code} /> : null}
               {owner.is_private ? <Pill tone="accent" label={ot(lang, 'vip')} /> : null}
@@ -183,14 +185,14 @@ export function OwnerScreen() {
       </View>
       {msg ? <Text testID="owner-msg" style={{ color: colors.muted }}>{msg}</Text> : null}
       <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text accessibilityRole="header" style={[styles.name, { color: colors.text }]}>{ot(lang, 'units')}</Text>
+        <Text accessibilityRole="header" variant="body" weight="bold" style={{ color: colors.text }}>{ot(lang, 'units')}</Text>
         {owner.units.map((u) => {
           const status = labelOf(UNIT_STATUS, u.status, lang);
           return (
             <Pressable key={u.code} accessibilityRole="button" onPress={() => nav.navigate('Unit', { code: u.code })}
               style={[styles.unitRow, { backgroundColor: colors.cardSubtle, borderColor: colors.border }]}>
               <View style={styles.person}>
-                {u.compound ? <Text style={[styles.name, { color: colors.text }]}>{u.compound}</Text> : null}
+                {u.compound ? <Text variant="body" weight="bold" style={{ color: colors.text }}>{u.compound}</Text> : null}
                 <View style={styles.chips}>
                   <Pill tone="primary" label={u.code} />
                   {status ? <Pill label={status} /> : null}
@@ -223,8 +225,9 @@ export function OwnerScreen() {
         </View>
       ) : null}
       {owner.canEdit && rights.manager ? (
-        <Button testID="owner-delete" variant="danger" label={ot(lang, 'del')} onPress={() => Alert.alert(ot(lang, 'delAsk'), undefined, [{ text: ot(lang, 'del'), style: 'destructive', onPress: () => { run(async () => { await api.deleteOwner(id); nav.goBack(); }).catch(() => {}); } }, { text: 'OK', style: 'cancel' }])} />
+        <Button testID="owner-delete" variant="danger" label={ot(lang, 'del')} onPress={() => setAsk({ title: ot(lang, 'delAsk'), actions: [{ label: ot(lang, 'del'), variant: 'danger', onPress: () => { run(async () => { await api.deleteOwner(id); nav.goBack(); }).catch(() => {}); } }] })} />
       ) : null}
+      <ChoiceSheet ask={ask} onClose={() => setAsk(null)} cancelLabel="OK" testID="owner-delete-sheet" />
     </ScrollView>
   );
 }
@@ -239,9 +242,7 @@ const styles = StyleSheet.create({
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   person: { flex: 1, minWidth: 0, gap: spacing.xs },
   chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.xs },
-  caption: { fontSize: 12 },
+  caption: { fontSize: typeScale.caption.fontSize },
   link: { flexDirection: 'row', alignItems: 'center', minHeight: 44, gap: spacing.xs },
   unitRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm },
-  name: { fontSize: 16, fontWeight: '800' },
-  title: { fontSize: 20, fontWeight: '800' },
 });

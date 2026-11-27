@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { useSelectionHighlight } from './SelectionHighlight';
-import { greenGradient, spacing, useTheme } from '../theme';
+import { greenGradient, spacing, typeScale, useTheme } from '../theme';
 import { currentLang } from '../auth';
 import { t } from '../i18n';
 import { CoachMark } from './CoachMark';
@@ -92,11 +92,11 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   label: {
-    fontSize: 13,
+    fontSize: typeScale.bodySm.fontSize,
     fontWeight: '700',
   },
   count: {
-    fontSize: 12,
+    fontSize: typeScale.caption.fontSize,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },

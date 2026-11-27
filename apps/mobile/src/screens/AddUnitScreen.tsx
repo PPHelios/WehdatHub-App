@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import type { ScrollViewInstance } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -14,6 +14,7 @@ import { api } from '../api';
 import { currentLang } from '../auth';
 import { KeyboardLift } from '../components/KeyboardLift';
 import { Button } from '../components/Button';
+import { Sheet } from '../components/Sheet';
 import { useRights } from '../rights';
 import { Chips } from '../components/Chips';
 import { Field } from '../components/Field';
@@ -31,7 +32,7 @@ import { compressPhotos } from '../compress';
 import { usePhotoUploads } from '../usePhotoUploads';
 import { SaveNotConfirmed, newSaveKey, withSaveCheck } from '../saveKey';
 import { ALL_TYPES, FINISHING, FURNISHING, PROPERTY_TYPES, labelOf, options } from '../unitOptions';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { tick } from '../haptics';
 import { track } from '../analytics';
 import { VoiceBar } from '../components/VoiceBar';
@@ -108,6 +109,7 @@ export function AddUnitScreen() {
   const importId = route.params?.importId;
   const fresh = Boolean(route.params?.fresh);
   const [version, setVersion] = useState(0);
+  const [leaveAsk, setLeaveAsk] = useState<(() => void) | null>(null);
   const savedDetails = useRef<string | null>(null);
   const originalIds = useRef<string[]>([]);
   // Section positions let us scroll to a blocker returned during save.
@@ -251,10 +253,7 @@ export function AddUnitScreen() {
   useEffect(() => nav.addListener?.('beforeRemove', (e) => {
     if (!editCode || !dirty.current || saving || saved.current) return;
     e.preventDefault();
-    Alert.alert(t(lang, 'leaveTitle'), t(lang, 'leaveBody'), [
-      { text: t(lang, 'stay'), style: 'cancel' },
-      { text: t(lang, 'leave'), style: 'destructive', onPress: () => nav.dispatch(e.data.action) },
-    ]);
+    setLeaveAsk(() => () => nav.dispatch(e.data.action));
   }), [nav, editCode, saving, lang]);
 
   const onVoice = async (file: VoiceFile) => {
@@ -540,6 +539,11 @@ export function AddUnitScreen() {
       <View style={[styles.bar, { backgroundColor: colors.card, borderColor: colors.border }]} testID="unit-bar">
         <Button testID="save-unit" label={saving ? `${t(lang, 'saving')} ${Math.round(progress * 100)}%` : t(lang, 'saveUnit')} progress={saving ? progress : undefined} onPress={() => save(false)} loading={saving} disabled={saveDisabled} />
       </View>
+      <Sheet visible={Boolean(leaveAsk)} onClose={() => setLeaveAsk(null)} title={t(lang, 'leaveTitle')} testID="leave-sheet">
+        <Text style={{ color: colors.muted }}>{t(lang, 'leaveBody')}</Text>
+        <Button testID="leave-stay" variant="secondary" label={t(lang, 'stay')} onPress={() => setLeaveAsk(null)} />
+        <Button testID="leave-go" variant="danger" label={t(lang, 'leave')} onPress={() => { const go = leaveAsk; setLeaveAsk(null); go?.(); }} />
+      </Sheet>
     </KeyboardLift>
   );
 }
@@ -549,7 +553,7 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.md },
   panel: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.md },
   stack: { gap: spacing.md },
-  h: { fontSize: 16, fontWeight: '700', marginTop: spacing.sm },
+  h: { fontSize: typeScale.body.fontSize, fontWeight: '700', marginTop: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   locked: { opacity: 0.6 },

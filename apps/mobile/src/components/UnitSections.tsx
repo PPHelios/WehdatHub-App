@@ -10,7 +10,7 @@ import { phoneHelp, readArea, readPhone, readPrice, readSum, plain, withCommas }
 import { FINISHING, FURNISHING, PROPERTY_TYPES, options } from '../unitOptions';
 import { sizeShows } from '../unitRules';
 import { api } from '../api';
-import { greenGradient, spacing, useTheme } from '../theme';
+import { greenGradient, spacing, typeScale, useTheme } from '../theme';
 import { Chips } from './Chips';
 
 // The four sections of the add/edit unit form (docs/plans/unified-unit-box.md, section 5). The place box is in the first one.
@@ -224,8 +224,8 @@ const styles = StyleSheet.create({
   head: { gap: spacing.xs, marginTop: spacing.md },
   headRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   num: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 18, fontWeight: '700' },
-  label: { fontSize: 15, fontWeight: '700' },
+  title: { fontSize: typeScale.heading.fontSize, fontWeight: '700' },
+  label: { fontSize: typeScale.body.fontSize, fontWeight: '700' },
   row: { flexDirection: 'row', gap: spacing.sm },
   flex: { flex: 1 },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },

@@ -7,7 +7,7 @@ import { toast } from './Toast';
 import { track } from '../analytics';
 import { useAuth } from '../auth';
 import { t, type StringKey } from '../i18n';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 
 export type OnboardingStatus = {
   hasUnit: boolean;
@@ -118,10 +118,10 @@ export function StarterCard({ onboarding, onAddUnit, onShareSample, onConnectTel
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 15, fontWeight: '700' },
-  dismiss: { fontSize: 13 },
+  title: { fontSize: typeScale.body.fontSize, fontWeight: '700' },
+  dismiss: { fontSize: typeScale.bodySm.fontSize },
   list: { gap: spacing.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs, borderTopWidth: StyleSheet.hairlineWidth },
-  check: { fontSize: 16, fontWeight: '700', width: 20, textAlign: 'center' },
-  stepText: { flex: 1, fontSize: 14 },
+  check: { fontSize: typeScale.body.fontSize, fontWeight: '700', width: 20, textAlign: 'center' },
+  stepText: { flex: 1, fontSize: typeScale.bodySm.fontSize },
 });

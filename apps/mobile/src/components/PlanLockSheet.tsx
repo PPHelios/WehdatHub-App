@@ -6,7 +6,7 @@ import { currentLang, useAuth } from '../auth';
 import { usePlanLock } from '../planLock';
 import { planT } from '../planText';
 import { useRights } from '../rights';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
 
 /**
@@ -48,5 +48,5 @@ export function PlanLockSheet({ onOpenPlan }: { onOpenPlan: () => void }) {
 const styles = StyleSheet.create({
   scrim: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: { padding: spacing.lg, gap: spacing.md, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
-  title: { fontSize: 18, fontWeight: '800' },
+  title: { fontSize: typeScale.heading.fontSize, fontWeight: '800' },
 });

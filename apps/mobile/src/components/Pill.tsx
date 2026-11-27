@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { Chip } from './Chip';
-import { spacing, useTheme } from '../theme';
+import { spacing, typeScale, useTheme } from '../theme';
 
 type Tone = 'primary' | 'accent' | 'neutral';
 
@@ -23,5 +23,5 @@ export function Pill({ label, tone = 'neutral', solid = false, testID }: { label
 
 const styles = StyleSheet.create({
   pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: 3, alignSelf: 'flex-start' },
-  text: { fontSize: 13, fontWeight: '700' },
+  text: { fontSize: typeScale.bodySm.fontSize, fontWeight: '700' },
 });

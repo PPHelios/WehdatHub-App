@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
 import { AppText as Text } from './AppText';
 import { useNavigation } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -10,6 +9,7 @@ import { t } from '../i18n';
 import { useTheme } from '../theme';
 import { Button } from './Button';
 import { Chips } from './Chips';
+import { Sheet } from './Sheet';
 import { toastError } from './Toast';
 
 type Status = 'active' | 'sold' | 'archived';
@@ -36,11 +36,12 @@ export function UnitLifecycle({ code, status, canDelete = true, canChangeStatus 
       setBusy(false);
     }
   };
-  const remove = () =>
-    Alert.alert(t(lang, 'unitDelete'), t(lang, 'unitDeleteAsk'), [
-      { text: t(lang, 'cancel'), style: 'cancel' },
-      { text: t(lang, 'unitDelete'), style: 'destructive', onPress: async () => { try { await api.unitDelete(code); await after(); nav.goBack(); } catch (e) { setMsg(toastError(errorText(e, lang))); } } },
-    ]);
+  const [asking, setAsking] = useState(false);
+  const remove = () => setAsking(true);
+  const doRemove = async () => {
+    setAsking(false);
+    try { await api.unitDelete(code); await after(); nav.goBack(); } catch (e) { setMsg(toastError(errorText(e, lang))); }
+  };
   return (
     <>
       {canChangeStatus ? <>
@@ -50,6 +51,11 @@ export function UnitLifecycle({ code, status, canDelete = true, canChangeStatus 
       {msg ? <Text testID="unit-lifecycle-message" style={{ color: colors.danger }}>{msg}</Text> : null}
       {children}
       {canDelete ? <Button testID="unit-delete" variant="danger" label={`🗑 ${t(lang, 'unitDelete')}`} loading={busy} onPress={remove} /> : null}
+      <Sheet visible={asking} onClose={() => setAsking(false)} title={t(lang, 'unitDelete')} testID="unit-delete-sheet">
+        <Text style={{ color: colors.muted }}>{t(lang, 'unitDeleteAsk')}</Text>
+        <Button testID="unit-delete-confirm" variant="danger" label={t(lang, 'unitDelete')} onPress={() => { void doRemove(); }} />
+        <Button testID="unit-delete-cancel" variant="secondary" label={t(lang, 'cancel')} onPress={() => setAsking(false)} />
+      </Sheet>
     </>
   );
 }

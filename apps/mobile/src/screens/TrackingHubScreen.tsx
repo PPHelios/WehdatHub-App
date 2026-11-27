@@ -4,6 +4,7 @@ import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { currentLang } from '../auth';
 import { HubTabs, type HubTabItem } from '../components/HubTabs';
+import { t } from '../i18n';
 import { SentLinksScreen } from './SentLinksScreen';
 import { LeasesScreen } from './LeasesScreen';
 import { SavedSearchesScreen } from './SavedSearchesScreen';
@@ -15,14 +16,13 @@ export type TrackingHubTab = 'links' | 'leases' | 'searches';
 export function TrackingHubScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
-  const ar = lang === 'ar';
   const route = useRoute<RouteProp<RootStackParams, 'TrackingHub'>>();
   const [tab, setTab] = useState<TrackingHubTab>(route.params?.initialTab ?? 'links');
 
   const tabs: readonly HubTabItem<TrackingHubTab>[] = [
-    { id: 'links', label: ar ? 'الروابط المفتوحة' : 'Opened Links', testID: 'hub-tab-links' },
-    { id: 'leases', label: ar ? 'عقود الإيجار' : 'Rental Leases', testID: 'hub-tab-leases' },
-    { id: 'searches', label: ar ? 'البحث المحفوظ' : 'Saved Searches', testID: 'hub-tab-searches' },
+    { id: 'links', label: t(lang, 'hb_links'), testID: 'hub-tab-links' },
+    { id: 'leases', label: t(lang, 'hb_leases'), testID: 'hub-tab-leases' },
+    { id: 'searches', label: t(lang, 'hb_searches'), testID: 'hub-tab-searches' },
   ];
 
   return (

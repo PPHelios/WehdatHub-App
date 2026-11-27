@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { greenGradient, useTheme } from '../theme';
+import { greenGradient, typeScale, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 import { Icon } from './Icon';
 
@@ -16,5 +16,5 @@ export function InitialAvatar({ name, size = 44 }: { name: string | null; size?:
 
 const styles = StyleSheet.create({
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  initials: { fontSize: 14, fontWeight: '800' },
+  initials: { fontSize: typeScale.bodySm.fontSize, fontWeight: '800' },
 });

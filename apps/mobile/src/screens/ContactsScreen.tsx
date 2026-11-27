@@ -11,7 +11,7 @@ import { EmptyView, Loading } from '../components/StateViews';
 import { filterContacts, loadContacts, type PhoneContact } from '../contacts';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 
 /** Pick a person from the phone's contacts to start a new lead. Only the name and number are used. */
 export function ContactsScreen() {
@@ -28,7 +28,7 @@ export function ContactsScreen() {
   if (list === null) {
     return (
       <View style={[styles.center, { backgroundColor: colors.bg }]}>
-        <Text style={[styles.msg, { color: colors.text }]}>{t(lang, 'contactsDenied')}</Text>
+        <Text variant="body" style={[styles.msg,{ color: colors.text }]}>{t(lang, 'contactsDenied')}</Text>
         <Button label={t(lang, 'openSettings')} onPress={() => { Linking.openSettings().catch(() => undefined); }} />
       </View>
     );
@@ -43,7 +43,7 @@ export function ContactsScreen() {
         keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => (
           <Pressable accessibilityRole="button" testID={`contact-${item.id}`} onPress={() => nav.navigate('NewLead', { name: item.name, phone: item.phone })} style={[styles.row, { borderColor: colors.border }]}>
-            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>{item.name || ltr(item.phone)}</Text>
+            <Text variant="body" weight="bold" style={{ color: colors.text }} numberOfLines={1}>{item.name || ltr(item.phone)}</Text>
             <Text style={{ color: colors.muted }}>{ltr(item.phone)}</Text>
           </Pressable>
         )}
@@ -56,8 +56,7 @@ export function ContactsScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.lg },
-  msg: { fontSize: 16, textAlign: 'center' },
-  search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  msg: { textAlign: 'center' },
+  search: { margin: spacing.lg, minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   row: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, gap: 2 },
-  name: { fontSize: 16, fontWeight: '600' },
 });

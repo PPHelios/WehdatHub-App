@@ -8,7 +8,7 @@ import { api } from '../api';
 import { currentLang } from '../auth';
 import { errorText } from '../errors';
 import { t } from '../i18n';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 import { LeadPicker } from './LeadPicker';
 import { Button } from './Button';
@@ -51,7 +51,6 @@ export function readLeadCommand(text: string): Parsed {
 
 export function SearchLeadAction({ command, onClose }: { command: Parsed; onClose: () => void }) {
   const lang = currentLang();
-  const ar = lang === 'ar';
   const { colors } = useTheme();
   const qc = useQueryClient();
   const change = command && command !== 'incomplete' ? command : null;
@@ -69,8 +68,8 @@ export function SearchLeadAction({ command, onClose }: { command: Parsed; onClos
   const lead = detail.data?.lead;
   const allowed = Boolean(detail.data?.canWork || detail.data?.canCollaborate);
   return <ScrollView contentContainerStyle={styles.content}>
-    <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{ar ? 'راجع تعديل العميل' : 'Review lead update'}</Text>
-    {!change ? <Text style={{ color: colors.text }}>{ar ? 'اكتب اسم العميل أو رقمه أو كوده والمرحلة. مثال: انقل L-0002 إلى معاينة؛ ملاحظ[ةه]: اتفقنا على السبت' : 'Include a lead name, phone, or code and the stage or note. Example: Move L-0002 to viewing; note: Saturday agreed'}</Text> : null}
+    <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{t(lang, 'slaTitle')}</Text>
+    {!change ? <Text style={{ color: colors.text }}>{t(lang, 'slaHelp')}</Text> : null}
     {change?.target && !ref ? <LeadPicker initial={change.target} onPick={(lead) => setPickedRef(lead.ref)} /> : null}
     {ref && detail.isPending ? <Loading label={t(lang, 'loading')} /> : null}
     {detail.isError ? <ErrorView message={errorText(detail.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => detail.refetch()} /> : null}
@@ -80,17 +79,17 @@ export function SearchLeadAction({ command, onClose }: { command: Parsed; onClos
       {change.stage ? <Text style={{ color: colors.text }}>{t(lang, 'stage')} · {t(lang, `st_${lead.stage}`)} → {t(lang, `st_${change.stage}`)}</Text> : null}
       {change.note ? <Text style={{ color: colors.text }}>{t(lang, 'addNote')} · {change.note}</Text> : null}
       {change.lostReason ? <Text style={{ color: colors.text }}>{t(lang, 'lostReason')} · {change.lostReason}</Text> : null}
-      {!allowed ? <Text style={{ color: colors.danger }}>{ar ? 'معندكش صلاحية تعدّل العميل ده' : 'You can’t update this lead'}</Text> : null}
+      {!allowed ? <Text style={{ color: colors.danger }}>{t(lang, 'slaNoPerm')}</Text> : null}
       {submit.isError ? <Text style={{ color: colors.danger }}>{submit.error instanceof ApiClientError && submit.error.status === 409 ? t(lang, 'leadChanged') : errorText(submit.error, lang)}</Text> : null}
-      {allowed ? <Button label={ar ? 'أكّد التعديل' : 'Confirm update'} loading={submit.isPending} disabled={detail.isFetching} onPress={() => submit.mutate()} /> : null}
+      {allowed ? <Button label={t(lang, 'slaConfirm')} loading={submit.isPending} disabled={detail.isFetching} onPress={() => submit.mutate()} /> : null}
     </View> : null}
-    {change?.target && ref ? <Button variant="secondary" label={ar ? 'اختار عميل تاني' : 'Choose another lead'} disabled={submit.isPending} onPress={() => { submit.reset(); setPickedRef(undefined); }} /> : null}
+    {change?.target && ref ? <Button variant="secondary" label={t(lang, 'slaChoose')} disabled={submit.isPending} onPress={() => { submit.reset(); setPickedRef(undefined); }} /> : null}
     <Button variant="secondary" label={t(lang, 'cancel')} disabled={submit.isPending} onPress={onClose} />
   </ScrollView>;
 }
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: 90, gap: spacing.md },
-  title: { fontSize: 20, fontWeight: '700' },
+  title: { fontSize: typeScale.title.fontSize, fontWeight: '700' },
   card: { padding: spacing.lg, gap: spacing.md, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.card },
 });

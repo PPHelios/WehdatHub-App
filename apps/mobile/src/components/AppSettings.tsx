@@ -10,7 +10,7 @@ import { compressPhoto } from '../compress';
 import { pickPhotos } from '../photos';
 import { useRights } from '../rights';
 import { t } from '../i18n';
-import { spacing, useTheme } from '../theme';
+import { spacing, typeScale, useTheme } from '../theme';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { Field } from './Field';
@@ -131,7 +131,7 @@ export function AppSettings() {
 
 const styles = StyleSheet.create({
   box: { gap: spacing.md, marginTop: spacing.md },
-  h: { fontSize: 18, fontWeight: '700' },
+  h: { fontSize: typeScale.heading.fontSize, fontWeight: '700' },
   avatarBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
   camera: { position: 'absolute', right: 0, bottom: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

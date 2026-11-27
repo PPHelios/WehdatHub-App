@@ -4,7 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { AppText as Text } from './AppText';
-import { spacing, useTheme } from '../theme';
+import { spacing, typeScale, useTheme } from '../theme';
 
 const TRIGGER = 90;
 /** In right-to-left the labels swap sides (the first one sits on the right), so the swipe direction flips with them. */
@@ -51,5 +51,5 @@ export function SwipeRow({ children, rightLabel, leftLabel, onSwipeRight, onSwip
 
 const styles = StyleSheet.create({
   under: { position: 'absolute', top: 0, bottom: 0, start: 0, end: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl },
-  label: { fontWeight: '800', fontSize: 15 },
+  label: { fontWeight: '800', fontSize: typeScale.body.fontSize },
 });

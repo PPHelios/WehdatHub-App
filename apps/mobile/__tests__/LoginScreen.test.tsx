@@ -1,9 +1,10 @@
 import React from 'react';
-import { Alert, Linking } from 'react-native';
+import { Linking } from 'react-native';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { LoginScreen } from '../src/screens/LoginScreen';
 import { api } from '../src/api';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({
   api: {
     trialOptions: jest.fn(),
@@ -37,7 +38,6 @@ test('switches to Start Free Trial, shows dynamic tiers & Telegram pitch, and wa
     codeMinutes: 10,
   });
   const openSpy = jest.spyOn(Linking, 'openURL').mockResolvedValue(true as never);
-  const alertSpy = jest.spyOn(Alert, 'alert');
 
   await render(<LoginScreen />);
   const startBtn = await screen.findByTestId('mode-signup');
@@ -51,10 +51,7 @@ test('switches to Start Free Trial, shows dynamic tiers & Telegram pitch, and wa
   await fireEvent.changeText(screen.getByTestId('phone-input'), '01012345678');
   await fireEvent.press(screen.getByTestId('signup-whatsapp'));
 
-  expect(alertSpy).toHaveBeenCalled();
-  const buttons = alertSpy.mock.calls[0][2] as Array<{ text?: string; onPress?: () => void }>;
-  const proceed = buttons[buttons.length - 1];
-  await proceed.onPress?.();
+  await fireEvent.press(await screen.findByTestId('wa-warn-sheet-action-0'));
 
   await waitFor(() => expect(mockedApi.signup).toHaveBeenCalledWith({
     name: 'Kareem',

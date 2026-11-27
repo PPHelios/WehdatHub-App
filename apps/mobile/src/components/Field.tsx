@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { AppText as Text, AppTextInput as TextInput } from './AppText';
 import type { TextInputProps } from 'react-native';
 import { useBusyDisabled } from '../busy';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 
 /** Text that starts with Arabic sits at the right edge and Latin text at the left, whatever the screen's direction. */
 function alignOf(v: unknown, isPhoneField = false) {
@@ -39,7 +39,7 @@ export function Field({ label, required, invalid, hint, ...props }: { label: str
 const styles = StyleSheet.create({
   ring: { margin: -3, padding: 3, borderRadius: radius.md + 3 },
   wrap: { gap: spacing.xs },
-  label: { fontSize: 13, fontWeight: '600' },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  label: { fontSize: typeScale.bodySm.fontSize, fontWeight: '600' },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   multi: { minHeight: 96, paddingTop: spacing.md, textAlignVertical: 'top' },
 });

@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../api';
 import { currentLang } from '../auth';
 import { t } from '../i18n';
-import { useTheme } from '../theme';
+import { typeScale, useTheme } from '../theme';
 import { Icon } from './Icon';
 
 /** The unread count. The tabs screen adds the one-minute refetch; the bell only reads it. The key sits under ['inbox'], so refreshing the inbox refreshes the badge. */
@@ -31,5 +31,5 @@ export function NotificationBell({ onPress }: { onPress: () => void }) {
 const styles = StyleSheet.create({
   btn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 },
   badge: { position: 'absolute', top: 3, end: 2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
-  count: { fontSize: 11, fontWeight: '800' },
+  count: { fontSize: typeScale.micro.fontSize, fontWeight: '800' },
 });

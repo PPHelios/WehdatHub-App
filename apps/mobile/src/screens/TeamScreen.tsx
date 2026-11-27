@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import { FlashList } from '@shopify/flash-list';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -27,6 +27,7 @@ import { t } from '../i18n';
 import { openAssistant } from '../searchLink';
 import { planT } from '../planText';
 import type { RootStackParams } from '../navigation';
+import { ChoiceSheet, type ChoiceAsk } from '../components/Sheet';
 import { radius, spacing, useTheme } from '../theme';
 import { toast } from '../components/Toast';
 
@@ -105,7 +106,7 @@ export function TeamScreen() {
           <View style={styles.identity}>
             <Avatar name={item.name} uri={item.avatarUrl} />
             <View style={styles.person}>
-              <Text style={[styles.name, { color: colors.text }]} numberOfLines={2}>{item.name}</Text>
+              <Text variant="body" weight="bold" style={{ color: colors.text }} numberOfLines={2}>{item.name}</Text>
               <View style={styles.chips}>
                 {item.role ? <Pill tone="primary" label={memberRoleLabel(lang, item.role)} /> : null}
                 {item.away ? <Pill tone="accent" label={t(lang, 'away')} /> : null}
@@ -114,9 +115,9 @@ export function TeamScreen() {
             <Chevron rtl={lang === 'ar'} color={colors.muted} />
           </View>
           <View style={[styles.metrics, { backgroundColor: colors.cardSubtle, borderColor: colors.border }]}>
-            <Text style={[styles.metric, { color: colors.primaryInk }]}>{item.open} ${t(lang, 'openLeads')}</Text>
-            <Text style={[styles.metric, { color: item.overdue ? colors.danger : colors.muted }]}>{item.overdue} ${t(lang, 'overdue')}</Text>
-            <Text style={[styles.metric, { color: colors.muted }]}>{item.soon} ${t(lang, 'dueSoon')}</Text>
+            <Text variant="caption" weight="bold" style={[styles.metric, { color: colors.primaryInk }]}>{item.open} ${t(lang, 'openLeads')}</Text>
+            <Text variant="caption" weight="bold" style={[styles.metric, { color: item.overdue ? colors.danger : colors.muted }]}>{item.overdue} ${t(lang, 'overdue')}</Text>
+            <Text variant="caption" weight="bold" style={[styles.metric, { color: colors.muted }]}>{item.soon} ${t(lang, 'dueSoon')}</Text>
           </View>
         </Pressable>
       )}
@@ -141,6 +142,7 @@ function FormerList({ header }: { header: React.ReactNode }) {
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
   const qc = useQueryClient();
+  const [ask, setAsk] = React.useState<ChoiceAsk | null>(null);
   const q = useQuery({ queryKey: ['teamFormer'], queryFn: () => api.formerTeam() });
   const done = () => Promise.all([qc.invalidateQueries({ queryKey: ['teamFormer'] }), qc.invalidateQueries({ queryKey: ['team'] })]).catch(() => {});
   const act = async (fn: () => Promise<unknown>) => {
@@ -154,6 +156,7 @@ function FormerList({ header }: { header: React.ReactNode }) {
     </>
   );
   return (
+    <>
     <FlashList
       data={q.data.items}
       keyExtractor={(m) => m.id}
@@ -166,18 +169,20 @@ function FormerList({ header }: { header: React.ReactNode }) {
           <View style={styles.identity}>
             <InitialAvatar name={item.name} />
             <View style={styles.person}>
-              <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
+              <Text variant="body" weight="bold" style={{ color: colors.text }}>{item.name}</Text>
               {item.role ? <Pill tone="primary" label={memberRoleLabel(lang, item.role)} /> : null}
               {item.deactivatedAt ? <Text style={{ color: colors.muted }}>{rowDate(lang, item.deactivatedAt)}</Text> : null}
             </View>
           </View>
           <View style={styles.controls}>
             <Button size="sm" testID={`reactivate-${item.id}`} variant="secondary" label={lang === 'ar' ? 'رجّعه' : 'Reactivate'} onPress={() => { act(() => api.reactivate(item.id)); }} />
-            <Button testID={`delete-${item.id}`} size="sm" variant="danger" label={lang === 'ar' ? 'مسح نهائي' : 'Delete for good'} onPress={() => Alert.alert(lang === 'ar' ? 'مسح نهائي ومينفعش يتراجع. متأكد؟' : 'Delete for good? This cannot be undone.', item.name, [{ text: lang === 'ar' ? 'مسح نهائي' : 'Delete', style: 'destructive', onPress: () => { act(() => api.deleteMember(item.id)); } }, { text: lang === 'ar' ? 'إلغاء' : 'Cancel', style: 'cancel' }])} />
+            <Button testID={`delete-${item.id}`} size="sm" variant="danger" label={t(lang, 'tm_delGood')} onPress={() => setAsk({ title: t(lang, 'tm_delAsk'), body: item.name, actions: [{ label: t(lang, 'tm_delGood'), variant: 'danger', onPress: () => { act(() => api.deleteMember(item.id)); } }] })} />
           </View>
         </View>
       )}
     />
+    <ChoiceSheet ask={ask} onClose={() => setAsk(null)} cancelLabel={t(lang, 'cancel')} testID="member-delete-sheet" />
+    </>
   );
 }
 
@@ -191,6 +196,7 @@ type MemberRoleName = 'broker' | 'team_lead' | 'manager' | 'data_entry';
 export function MemberRole({ id, role, teamLeadId, run }: { id: string; role: string; teamLeadId: string | null; run: (fn: () => Promise<unknown>) => Promise<void> }) {
   const lang = currentLang();
   const { colors } = useTheme();
+  const [ask, setAsk] = React.useState<ChoiceAsk | null>(null);
   const { rights, workspace, inviteRoles } = useRightsState();
   const team = useQuery(teamOptions());
   const owner = rights.agencyOwner;
@@ -223,7 +229,8 @@ export function MemberRole({ id, role, teamLeadId, run }: { id: string; role: st
   return (
     <View style={{ gap: spacing.sm }}>
       <Text style={{ color: colors.text, fontWeight: '700' }}>{ot(lang, 'role')}</Text>
-      <Chips<MemberRoleName> testID="member-role" options={choices} value={cur} onChange={(v) => Alert.alert(ot(lang, 'roleAsk'), undefined, [{ text: ot(lang, 'save'), onPress: () => change(v) }, { text: lang === 'ar' ? 'إلغاء' : 'Cancel', style: 'cancel' }])} />
+      <Chips<MemberRoleName> testID="member-role" options={choices} value={cur} onChange={(v) => setAsk({ title: ot(lang, 'roleAsk'), actions: [{ label: ot(lang, 'save'), variant: 'primary', onPress: () => change(v) }] })} />
+      <ChoiceSheet ask={ask} onClose={() => setAsk(null)} cancelLabel={t(lang, 'cancel')} testID="member-role-sheet" />
       {manager && cur === 'broker' && leads.length ? (
         <>
           <Text style={{ color: colors.text, fontWeight: '700' }}>{ot(lang, 'team')}</Text>
@@ -242,6 +249,7 @@ export function TeamMemberScreen() {
   const { id, name, role = '', me = false, teamLeadId = null } = useRoute<RouteProp<RootStackParams, 'TeamMember'>>().params;
   const rights = useRights();
   const qc = useQueryClient();
+  const [ask, setAsk] = React.useState<ChoiceAsk | null>(null);
   const admin = async (fn: () => Promise<unknown>) => {
     try { await fn(); } catch (e) { toast(memberError(e, lang), true); return; }
     // The change is saved; a failed refresh of the list must not read as a failed change.
@@ -259,6 +267,7 @@ export function TeamMemberScreen() {
   if (list.isError) return <ErrorView message={errorText(list.error, lang)} retryLabel={t(lang, 'retry')} onRetry={async () => { await list.refetch(); }} />;
   const items: ApiLead[] = list.data.pages.flatMap((p) => p.items);
   return (
+    <>
     <FlashList
       data={items}
       keyExtractor={(l) => l.ref}
@@ -271,14 +280,14 @@ export function TeamMemberScreen() {
           <View style={styles.identity}>
             <InitialAvatar name={name ?? null} />
             <View style={styles.person}>
-              <Text accessibilityRole="header" style={[styles.name, { color: colors.text }]}>{name}</Text>
+              <Text accessibilityRole="header" variant="body" weight="bold" style={{ color: colors.text }}>{name}</Text>
               {role ? <Pill tone="primary" label={memberRoleLabel(lang, role)} /> : null}
             </View>
           </View>
           {(rights.manager || rights.agencyOwner) && !me ? (
             <>
               <MemberRole id={id} role={role} teamLeadId={teamLeadId} run={admin} />
-              <Button testID="member-deactivate" size="sm" variant="danger" label={ot(lang, 'deactivate')} onPress={() => Alert.alert(ot(lang, 'deactivateAsk'), undefined, [{ text: ot(lang, 'deactivate'), style: 'destructive', onPress: () => { admin(() => api.deactivate(id)).catch(() => {}); } }, { text: t(lang, 'cancel'), style: 'cancel' }])} />
+              <Button testID="member-deactivate" size="sm" variant="danger" label={ot(lang, 'deactivate')} onPress={() => setAsk({ title: ot(lang, 'deactivateAsk'), actions: [{ label: ot(lang, 'deactivate'), variant: 'danger', onPress: () => { admin(() => api.deactivate(id)).catch(() => {}); } }] })} />
             </>
           ) : null}
         </View>
@@ -288,6 +297,8 @@ export function TeamMemberScreen() {
         <View style={styles.listSlot}><LeadCard lead={item} lang={lang} phoneVisibility="hidden" onPress={() => nav.navigate('Lead', { ref: item.ref })} /></View>
       )}
     />
+    <ChoiceSheet ask={ask} onClose={() => setAsk(null)} cancelLabel={t(lang, 'cancel')} testID="member-deactivate-sheet" />
+    </>
   );
 }
 
@@ -296,10 +307,9 @@ const styles = StyleSheet.create({
   card: { marginHorizontal: spacing.lg, marginTop: spacing.sm, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   person: { flex: 1, minWidth: 0, gap: spacing.xs },
-  name: { fontSize: 16, fontWeight: '800' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm },
-  metric: { fontSize: 12, fontWeight: '700', flexGrow: 1 },
+  metric: { flexGrow: 1 },
   controls: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   listSlot: { marginHorizontal: spacing.lg, marginTop: spacing.sm },
 });

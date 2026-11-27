@@ -32,8 +32,8 @@ export function PipelineScreen() {
   const open = (tab: LeadTab) => nav.navigate('LeadsList', { tab, broker: broker || undefined });
   const row = (tab: LeadTab, label: string, warn = false) => (
     <Pressable key={tab} testID={`pipe-${tab}`} accessibilityRole="button" onPress={() => open(tab)} style={[styles.row, elev('md'), { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={{ color: colors.text, fontSize: 16 }}>{label}</Text>
-      <Text style={{ color: warn && (n[tab] ?? 0) > 0 ? colors.danger : colors.accentInk, fontSize: 20, fontWeight: '700' }}>{n[tab] ?? 0}</Text>
+      <Text variant="body" style={{ color: colors.text }}>{label}</Text>
+      <Text variant="heading" weight="bold" style={{ color: warn && (n[tab] ?? 0) > 0 ? colors.danger : colors.accentInk }}>{n[tab] ?? 0}</Text>
     </Pressable>
   );
   return (

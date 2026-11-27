@@ -311,32 +311,32 @@ export function SearchScreen({ initialMode, modeStamp }: { initialMode?: Assista
         {voiceConfirmOrigin !== null ? (
           <View testID="voice-confirm-bar" style={[styles.modeChipRow, { alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }]}>
             <Text variant="caption" style={{ color: colors.muted }}>
-              {ar ? 'راجع الصوت قبل التنفيذ:' : 'Confirm voice query:'}
+              {t(lang, 'sr_voiceConfirm')}
             </Text>
             <Button
               testID="voice-confirm-send"
               size="sm"
-              label={ar ? 'بحث' : 'Run'}
+              label={t(lang, 'sr_run')}
               onPress={() => {
                 usage('voice_edited', true, undefined, { edited: text.trim() !== voiceConfirmOrigin, mode });
                 setVoiceConfirmOrigin(null);
                 submit(text, 'voice');
               }}
             />
-            <Button testID="voice-confirm-dismiss" size="sm" variant="quiet" label={ar ? 'إلغاء' : 'Cancel'} onPress={() => setVoiceConfirmOrigin(null)} />
+            <Button testID="voice-confirm-dismiss" size="sm" variant="quiet" label={t(lang, 'cancel')} onPress={() => setVoiceConfirmOrigin(null)} />
           </View>
         ) : null}
         {mode !== 'auto' ? (
           <View testID="mode-lock-chip" style={styles.modeChipRow}>
             <Chip
               selected
-              label={`${mode === 'resale' ? (ar ? 'ريسيل' : 'Resale') : mode === 'primary' ? (ar ? 'برايمري' : 'Primary') : (ar ? 'تقارير' : 'Reports')} ×`}
+              label={`${t(lang, mode === 'resale' ? 'sr_resale' : mode === 'primary' ? 'sr_primary' : 'sr_reports')} ×`}
               testID="mode-lock-clear"
               onPress={() => setMode('auto')}
             />
           </View>
         ) : null}
-        <View testID="search-composer" style={[styles.barBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View testID="search-composer" style={[styles.barBox, { backgroundColor: colors.card, borderColor: colors.border, shadowColor: colors.shadow }]}>
           <VoiceBar
             compact
             micRef={micRef}
@@ -347,7 +347,7 @@ export function SearchScreen({ initialMode, modeStamp }: { initialMode?: Assista
               <Pressable
                 testID="search-mode-trigger"
                 accessibilityRole="button"
-                accessibilityLabel={ar ? 'أدوات المساعد والوضع' : 'Assistant modes and shortcuts'}
+                accessibilityLabel={t(lang, 'sr_modesLabel')}
                 accessibilityState={{ expanded: popoverOpen }}
                 onPress={() => setPopoverOpen((v) => !v)}
                 style={styles.modeButton}
@@ -355,16 +355,13 @@ export function SearchScreen({ initialMode, modeStamp }: { initialMode?: Assista
                 <Text variant="body">✨</Text>
               </Pressable>
             }
-            accessory={<Pressable testID="search-clear-chat" accessibilityRole="button" accessibilityLabel={ar ? 'امسح المحادثة' : 'Clear chat'}
+            accessory={<Pressable testID="search-clear-chat" accessibilityRole="button" accessibilityLabel={t(lang, 'sr_clearChat')}
               accessibilityState={{ disabled: clearDisabled }} disabled={clearDisabled} onPress={clearChat} style={styles.clearButton}>
               <Icon name="trash" size={20} color={clearDisabled ? colors.border : colors.muted} />
             </Pressable>}
             id="search" label={t(lang, 'mic')} value={text} onChangeText={(v) => { setText(v); if (popoverOpen && v.trim()) setPopoverOpen(false); }}
             placeholder={
-              mode === 'resale' ? (ar ? 'دور في وحدات الريسيل...' : 'Search Resale inventory...')
-              : mode === 'primary' ? (ar ? 'اسأل عن مشاريع المطورين...' : 'Ask about Primary projects...')
-              : mode === 'reports' ? (ar ? 'اسأل عن العملاء أو الفريق أو العمولات...' : 'Ask about leads, team, commissions...')
-              : (ar ? 'ابحث أو اسأل' : 'Search or ask')
+              t(lang, mode === 'resale' ? 'sr_phResale' : mode === 'primary' ? 'sr_phPrimary' : mode === 'reports' ? 'sr_phReports' : 'sr_phAuto')
             }
             onSubmit={() => { submit(text, voiceConfirmOrigin !== null ? 'voice' : 'text'); }} onFile={onVoice} onError={thread.setVoiceError} disabled={transcribing} busy={busy || transcribing} />
         </View>
@@ -412,7 +409,7 @@ const styles = StyleSheet.create({
   composerFrame: { overflow: 'hidden' },
   composerStack: { position: 'absolute', start: 22, end: 22, bottom: 12 },
   modeChipRow: { flexDirection: 'row', marginBottom: spacing.xs },
-  barBox: { padding: 4, borderRadius: 26, borderWidth: 1, shadowColor: '#000000', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  barBox: { padding: 4, borderRadius: 26, borderWidth: 1, shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
   err: { padding: spacing.lg, textAlign: 'center' },
   modeButton: { minWidth: 36, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   clearButton: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },

@@ -24,7 +24,7 @@ import { EMPTY_SEARCH, STATUS_TEXT, deliveryOf, isFiltered, moneyShort, numberOf
 import type { CatalogueSearch } from '../projectRules';
 import { pt } from '../projectText';
 import { plain, withCommas } from '../readback';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 import { toast } from '../components/Toast';
 
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   gap: { gap: spacing.md },
   filters: { gap: spacing.sm },
   card: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
-  h: { fontSize: 17, fontWeight: '800' },
+  h: { fontSize: typeScale.heading.fontSize, fontWeight: '800' },
   fact: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, minHeight: 28, alignItems: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.md, paddingVertical: 6 },

@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { AssistantCard } from '@wehdathub/shared';
-import { spacing, useTheme } from '../../theme';
+import { spacing, typeScale, useTheme } from '../../theme';
 import { AppText as Text } from '../AppText';
 import { ChartFrame } from './ChartFrame';
 
@@ -18,7 +18,7 @@ export function Compare({ card, onNavigate }: { card: Card; onNavigate?: (s: str
       </View>
       {card.rows.map((r) => (
         <View key={r.key} style={[styles.row, { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-          <Text style={[styles.labelCol, { color: colors.muted, fontSize: 12 }]}>{r.label}</Text>
+          <Text style={[styles.labelCol, { color: colors.muted, fontSize: typeScale.caption.fontSize }]}>{r.label}</Text>
           {r.values.map((v, i) => (
             <Text key={i} testID={r.best === i ? `compare-best-${r.key}` : undefined} style={[styles.cell, { color: r.best === i ? colors.okInk : colors.text, fontWeight: r.best === i ? '700' : '400' }]}>{v ?? '—'}</Text>
           ))}
@@ -31,6 +31,6 @@ export function Compare({ card, onNavigate }: { card: Card; onNavigate?: (s: str
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs, gap: spacing.xs },
   labelCol: { width: 76 },
-  cell: { flex: 1, fontSize: 13, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  cell: { flex: 1, fontSize: typeScale.bodySm.fontSize, textAlign: 'center', fontVariant: ['tabular-nums'] },
   head: { fontWeight: '700' },
 });

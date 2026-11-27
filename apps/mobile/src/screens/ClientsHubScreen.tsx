@@ -4,6 +4,7 @@ import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { currentLang } from '../auth';
 import { HubTabs, type HubTabItem } from '../components/HubTabs';
+import { t } from '../i18n';
 import { hasNavApp, useRightsState } from '../rights';
 import { CalendarScreen } from './CalendarScreen';
 import { PipelineScreen } from './PipelineScreen';
@@ -17,17 +18,16 @@ export type ClientsHubTab = 'calendar' | 'pipeline' | 'requests' | 'compare';
 export function ClientsHubScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
-  const ar = lang === 'ar';
   const { nav, workspace } = useRightsState();
   const isSolo = Boolean(workspace?.solo || workspace?.mode === 'solo');
   const route = useRoute<RouteProp<RootStackParams, 'ClientsHub'>>();
   const [tab, setTab] = useState<ClientsHubTab>(route.params?.initialTab ?? 'calendar');
 
   const tabs: readonly HubTabItem<ClientsHubTab>[] = [
-    { id: 'calendar', label: ar ? 'التقويم والمعاينات' : 'Calendar & Viewings', testID: 'hub-tab-calendar' },
-    ...((nav ? hasNavApp(nav, 'Pipeline') : !isSolo) ? [{ id: 'pipeline' as const, label: ar ? 'مراحل العملاء' : 'Client Pipeline', testID: 'hub-tab-pipeline' }] : []),
-    { id: 'requests', label: ar ? 'طلبات العملاء' : 'Client Requests', testID: 'hub-tab-requests' },
-    { id: 'compare', label: ar ? 'مقارنة الوحدات' : 'Compare Units', testID: 'hub-tab-compare' },
+    { id: 'calendar', label: t(lang, 'hb_calendar'), testID: 'hub-tab-calendar' },
+    ...((nav ? hasNavApp(nav, 'Pipeline') : !isSolo) ? [{ id: 'pipeline' as const, label: t(lang, 'hb_pipeline'), testID: 'hub-tab-pipeline' }] : []),
+    { id: 'requests', label: t(lang, 'hb_clientReq'), testID: 'hub-tab-requests' },
+    { id: 'compare', label: t(lang, 'hb_compare'), testID: 'hub-tab-compare' },
   ];
   const activeTab: ClientsHubTab = tabs.some((x) => x.id === tab) ? tab : (tabs[0]?.id ?? 'calendar');
 

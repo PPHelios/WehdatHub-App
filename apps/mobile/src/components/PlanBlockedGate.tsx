@@ -5,7 +5,7 @@ import { currentLang, useAuth } from '../auth';
 import { usePlanState } from '../planState';
 import { planT } from '../planText';
 import { PlanScreen } from '../screens/MoreScreens';
-import { spacing, useTheme } from '../theme';
+import { spacing, typeScale, useTheme } from '../theme';
 import { Button } from './Button';
 import { usePlanLock } from '../planLock';
 
@@ -38,7 +38,7 @@ export function PlanBlockedGate() {
 
 const styles = StyleSheet.create({
   root: { position: 'absolute', top: 0, bottom: 0, start: 0, end: 0, zIndex: 900, paddingTop: 64, gap: spacing.sm },
-  title: { fontSize: 22, fontWeight: '800', paddingHorizontal: spacing.lg },
+  title: { fontSize: typeScale.title.fontSize, fontWeight: '800', paddingHorizontal: spacing.lg },
   plan: { flex: 1 },
   ask: { padding: spacing.lg, gap: spacing.lg },
 });

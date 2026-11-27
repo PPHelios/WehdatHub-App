@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
 import { AppText as Text } from './AppText';
 import { useNavigation } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -12,6 +11,8 @@ import { useTheme } from '../theme';
 import { Button } from './Button';
 import { Field } from './Field';
 import { Section } from './Section';
+import { ChoiceSheet } from './Sheet';
+import type { ChoiceAsk } from './Sheet';
 import { toast, toastError } from './Toast';
 
 /** Merge a duplicate or erase the client. The server decides who may. */
@@ -25,6 +26,7 @@ export function LeadActions({ lead }: { lead: ApiLead }) {
   const [digits, setDigits] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [ask, setAsk] = useState<ChoiceAsk | null>(null);
 
   const guard = async (fn: () => Promise<void>, fail: string) => {
     setBusy(true);
@@ -39,14 +41,14 @@ export function LeadActions({ lead }: { lead: ApiLead }) {
   };
   const merge = () => guard(async () => { await api.leadMerge(lead.ref, other.trim(), mergeConfirm.trim()); setOther(''); setMergeConfirm(''); await qc.invalidateQueries({ queryKey: ['lead', lead.ref] }); }, t(lang, 'mergeFail'));
   const erase = () =>
-    Alert.alert(t(lang, 'eraseLead'), undefined, [
-      { text: t(lang, 'cancel'), style: 'cancel' },
-      {
-        text: t(lang, 'eraseLead'),
-        style: 'destructive',
+    setAsk({
+      title: t(lang, 'eraseLead'),
+      actions: [{
+        label: t(lang, 'eraseLead'),
+        variant: 'danger',
         onPress: () => void guard(async () => { await api.leadErase(lead.ref, digits.trim()); toast(t(lang, 'erased')); await qc.invalidateQueries({ queryKey: ['leads'] }); nav.goBack(); }, t(lang, 'eraseFail')),
-      },
-    ]);
+      }],
+    });
 
   return (
     <>
@@ -60,6 +62,7 @@ export function LeadActions({ lead }: { lead: ApiLead }) {
         <Button testID="lead-erase" label={t(lang, 'eraseLead')} variant="danger" disabled={digits.trim().length < 4} onPress={erase} />
       </Section>
       {msg ? <Text testID="lead-actions-message" style={{ color: colors.danger }}>{msg}</Text> : null}
+      <ChoiceSheet ask={ask} onClose={() => setAsk(null)} cancelLabel={t(lang, 'cancel')} testID="lead-erase-sheet" />
     </>
   );
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Chip } from './Chip';
 import { useSelectionHighlight } from './SelectionHighlight';
-import { greenGradient, radius, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, typeScale, useTheme } from '../theme';
 
 /** Required groups use a green outline and switch to red for validation errors. */
 interface Props<T extends string> { options: { value: T; label: string }[]; value: T | ''; onChange: (v: T) => void; testID?: string; disabled?: boolean; required?: boolean; invalid?: boolean; soft?: boolean; animateFilter?: boolean }
@@ -28,5 +28,5 @@ export function Chips<T extends string>({ options, value, onChange, testID, disa
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   softChip: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 10, paddingVertical: spacing.xs },
-  softText: { fontSize: 12 },
+  softText: { fontSize: typeScale.caption.fontSize },
 });

@@ -2,7 +2,7 @@ import React from 'react';
 import { I18nManager, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import type { AssistantCard } from '@wehdathub/shared';
-import { radius, spacing, useTheme } from '../../theme';
+import { radius, spacing, typeScale, useTheme } from '../../theme';
 import { AppText as Text } from '../AppText';
 import { ChartFrame } from './ChartFrame';
 import { useGrow } from './motion';
@@ -24,7 +24,7 @@ export function Share({ card, num, onNavigate }: { card: Card; num: (n: number) 
         {card.parts.map((p, i) => (
           <View key={p.key} style={styles.item}>
             <View style={[styles.dot, { backgroundColor: palette[i % palette.length] }]} />
-            <Text style={{ color: colors.text, fontSize: 13 }}>{p.label} · {num(p.pct)}%</Text>
+            <Text style={{ color: colors.text, fontSize: typeScale.bodySm.fontSize }}>{p.label} · {num(p.pct)}%</Text>
           </View>
         ))}
       </View>

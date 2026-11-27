@@ -7,7 +7,7 @@ import { api } from '../api';
 import { developerPatch } from '../projectRules';
 import type { ProjectFields } from '../projectRules';
 import { fill, pt } from '../projectText';
-import { radius, spacing, useTheme } from '../theme';
+import { radius, spacing, typeScale, useTheme } from '../theme';
 import { useDebounced } from '../useDebounced';
 
 const str = (v: ProjectFields[string]): string => (typeof v === 'string' ? v : '');
@@ -70,13 +70,13 @@ export function DeveloperBox({ fields, patch, lang }: { fields: ProjectFields; p
         accessibilityLabel={T.devLabel}
         style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
       />
-      {state ? <Text testID="dev-state" style={{ color: colors.accent, fontSize: 13 }}>{state}</Text> : null}
+      {state ? <Text testID="dev-state" variant="bodySm" style={{ color: colors.accent }}>{state}</Text> : null}
       {open ? (
         <View testID="dev-list" style={[styles.list, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
           {items.map((d) => (
             <Pressable key={'id' in d ? d.id : d.global_id} testID={`dev-opt-${'id' in d ? d.id : d.global_id}`} accessibilityRole="button" onPress={() => pick(d)} style={styles.opt}>
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>{d.name}</Text>
-              {d.name_en && d.name_en !== d.name ? <Text style={{ color: colors.muted, fontSize: 13 }}>{d.name_en}</Text> : null}
+              <Text variant="body" weight="bold" style={{ color: colors.text }}>{d.name}</Text>
+              {d.name_en && d.name_en !== d.name ? <Text variant="bodySm" style={{ color: colors.muted }}>{d.name_en}</Text> : null}
             </Pressable>
           ))}
           {typed && !exact ? (
@@ -92,8 +92,8 @@ export function DeveloperBox({ fields, patch, lang }: { fields: ProjectFields; p
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.xs },
-  label: { fontSize: 13, fontWeight: '600' },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: 16 },
+  label: { fontSize: typeScale.bodySm.fontSize, fontWeight: '600' },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.lg, fontSize: typeScale.body.fontSize },
   list: { borderWidth: 1, borderRadius: radius.card, overflow: 'hidden' },
   opt: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
 });
