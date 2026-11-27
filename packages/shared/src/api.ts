@@ -22,7 +22,7 @@ export interface AiUsage {
   mine: { allowance: number | null; used: number; remaining: number | null };
   people?: { id: string; name: string; role: string; override: number | null; allowance: number | null; used: number }[];
 }
-export interface ApiBroker { id: string; name: string; role: string; lang: Lang }
+export interface ApiBroker { id: string; name: string; role: string; lang: Lang; avatarUrl?: string | null }
 export interface ApiAgency { id: string; name: string; slug: string; logoUrl: string | null }
 /** Present only for the test number: its roles, its own role, and whether it may view NCH (read only). */
 /** The kind of workspace (GET /me): tier by seats, mode for this person, team style. Menus and pages use it to hide what does not apply. */
@@ -93,8 +93,11 @@ export type SearchHomePriorityAction =
   | { kind: 'lead'; ref: string }
   | { kind: 'units_missing_photos' }
   | { kind: 'units_old' };
+/** Known ids: unassigned, waiting-over-1h, uncontacted-old, overdue, intake, approvals, owner-names, commissions, next-viewing, calls, new-leads, leases-soon, tomorrow-viewings, overdue-units, missing-photos, stale-units, stuck-leads. An app must hide ids it does not know. */
 export interface SearchHomePriority {
   id: string;
+  /** One short reason line in the person's language, built from counts. */
+  why?: string;
   urgency: SearchHomePriorityUrgency;
   count: number;
   action: SearchHomePriorityAction;
@@ -117,6 +120,8 @@ export interface SearchHomeData {
   commissions?: { overdue: number; registrations: number } | null;
   leasesSoon?: number;
   priorities?: SearchHomePriority[];
+  /** How many items need a decision (high and medium), for the greeting. */
+  summary?: { decisions: number };
 }
 export interface TodayData { counts: { followUpsToday: number; viewings: number; newLeads: number }; tasks: TodayTask[]; moreTasks: number; leases?: { code: string; tenant: string | null; end: string; daysLeft: number }[]; cards?: TodayCards }
 export type LeadStage = 'new' | 'contacted' | 'interested' | 'viewing' | 'negotiation' | 'won' | 'lost';
@@ -150,7 +155,7 @@ export interface TeamRules { rules: { enabled: boolean; wait_minutes: number; st
 export interface FormerMember { id: string; name: string; role: string; deactivatedAt: string | null }
 /** What a portal enquiry message (Bayut, Dubizzle, Nawy) states. */
 export interface PortalEnquiryRead { portal: string; name: string | null; link: string; listingNo: string | null }
-export interface TeamMember { id: string; name: string; role: string; teamLeadId?: string | null; me: boolean; away: boolean; open: number; overdue: number; soon: number }
+export interface TeamMember { id: string; name: string; role: string; teamLeadId?: string | null; avatarUrl?: string | null; me: boolean; away: boolean; open: number; overdue: number; soon: number }
 /** One matching offer of a project (Ask): a unit type with its numbers. */
 export interface AskOffer { type?: string | null; area: number | null; floor: string | number | null; bedrooms?: number | null; price: number | null; down: number | null; monthly: number | null; years?: number | null; discount_pct?: number | null }
 /**
@@ -255,6 +260,7 @@ export type BrokerDiscipline = 'consistent' | 'lagging' | 'silent';
 export interface DashboardBoardRow {
   id: string;
   name: string;
+  avatarUrl?: string | null;
   active?: boolean;
   role?: string;
   telegramLinked?: boolean;
@@ -320,10 +326,10 @@ export type AssistantCard =
       title?: string;
       queue: string;
       total: number;
-      recommendedBrokers: { id: string; name: string; open: number }[];
+      recommendedBrokers: { id: string; name: string; open: number; avatarUrl?: string | null }[];
       canAssign: boolean;
       canNudge: boolean;
-      items: { ref: string; name: string | null; stage: string; version?: number; assignee: string | null; assigneeId: string | null; createdAt: string | null }[];
+      items: { ref: string; name: string | null; stage: string; version?: number; assignee: string | null; assigneeId: string | null; avatarUrl?: string | null; createdAt: string | null }[];
     }
   | { kind: 'broker_scorecard'; broker: DashboardBoardRow }
   | { kind: 'broker_discipline'; summary: DashboardDisciplineSummary; rows: DashboardBoardRow[] }
@@ -974,6 +980,13 @@ export function createApiClient(opts: ApiClientOptions) {
       form.append('logo', file as unknown as Blob);
       return request<{ ok: true; url: string }>('POST', '/settings/logo', form);
     },
+    /** The signed-in broker's own profile photo (multipart field "photo", jpeg/png/webp up to 2 MB). */
+    uploadAvatar: (file: UploadFile) => {
+      const form = new FormData();
+      form.append('photo', file as unknown as Blob);
+      return request<{ avatarUrl: string }>('PUT', '/me/avatar', form);
+    },
+    deleteAvatar: () => request<{ avatarUrl: null }>('DELETE', '/me/avatar'),
     removeLogo: () => request<{ ok: true }>('POST', '/settings/logo/remove', {}),
     leases: (soon = false) => request<{ items: LeaseRow[] }>('GET', `/leases${soon ? '?soon=1' : ''}`),
     unitLeaseDone: (code: string, kind: 'renewed' | 'leaving' | 'relist') => request<{ ok: true }>('POST', `/units/${encodeURIComponent(code)}/lease/done`, { kind }),

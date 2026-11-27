@@ -6,6 +6,7 @@ import { hasNavApp, useRightsState } from '../rights';
 import { radius, spacing, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 import { Chip } from './Chip';
+import { priorityPrompt, priorityTitle } from '../assistant/priorityCopy';
 import { Icon, type IconName } from './Icon';
 
 interface Shortcut {
@@ -60,6 +61,7 @@ export function ComposerPopover({
     ...(canReports ? [{ id: 'reports' as const, label: isSolo ? (ar ? 'إحصائياتي' : 'My stats') : (ar ? 'تقارير' : 'Reports') }] : []),
   ];
 
+  const lang = ar ? 'ar' : 'en';
   const shortcuts: Shortcut[] = isDataEntry
     ? [
         { id: 'search', icon: 'search', label: ar ? 'شقق التجمع' : 'New Cairo apartments', onPress: () => onRunQuery(ar ? 'شقة في التجمع' : 'apartment in New Cairo') },
@@ -68,13 +70,13 @@ export function ComposerPopover({
       ? [
           { id: 'today', icon: 'today', label: ar ? 'متابعات النهارده' : 'Follow-ups today', onPress: () => onRunQuery(ar ? 'متابعات النهارده' : 'follow-ups today') },
           { id: 'uncontacted', icon: 'leads', label: ar ? 'عملاء ماتكلموش' : 'Uncontacted leads', onPress: () => onRunQuery(ar ? 'عملاء محدش كلمهم' : 'uncontacted leads') },
-          { id: 'overdue', icon: 'bell', label: ar ? 'متابعات متأخرة' : 'Overdue follow-ups', onPress: () => onRunQuery(ar ? 'متابعات متأخرة' : 'overdue follow-ups') },
+          { id: 'overdue', icon: 'bell', label: priorityTitle('overdue', lang), onPress: () => onRunQuery(priorityPrompt('overdue', lang) ?? '') },
         ]
       : canReports
         ? [
-            { id: 'waiting', icon: 'bell', label: ar ? 'انتظار > ساعة' : 'Waiting > 1h', onPress: () => onRunQuery(ar ? 'عملاء مستنين أكتر من ساعة' : 'waiting over 1h') },
+            { id: 'waiting', icon: 'bell', label: ar ? 'انتظار > ساعة' : 'Waiting > 1h', onPress: () => onRunQuery(priorityPrompt('waiting-over-1h', lang) ?? '') },
             { id: 'discipline', icon: 'team', label: ar ? 'مين مبيحدّثش؟' : 'Who is not updating?', onPress: () => onRunQuery(ar ? 'مين مبيحدثش العملاء؟' : 'who is not updating leads?') },
-            { id: 'overdue', icon: 'today', label: ar ? 'متابعات متأخرة' : 'Overdue follow-ups', onPress: () => onRunQuery(ar ? 'متابعات متأخرة' : 'overdue follow-ups') },
+            { id: 'overdue', icon: 'today', label: priorityTitle('overdue', lang), onPress: () => onRunQuery(priorityPrompt('overdue', lang) ?? '') },
             ...(canSources ? [{ id: 'sources', icon: 'funnel' as const, label: ar ? 'مصادر العملاء' : 'Lead sources', onPress: () => onNavigateSources?.() }] : []),
           ]
         : [

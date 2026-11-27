@@ -14,6 +14,7 @@ import { currentLang } from '../auth';
 import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { Chevron } from '../components/Icon';
+import { Avatar } from '../components/Avatar';
 import { InitialAvatar } from '../components/InitialAvatar';
 import { LeadCard } from '../components/LeadCard';
 import { Pill } from '../components/Pill';
@@ -101,7 +102,7 @@ export function TeamScreen() {
         <Pressable testID={`member-${item.id}`} accessibilityRole="button" onPress={() => nav.navigate('TeamMember', { id: item.id, name: item.name, role: item.role, me: item.me, teamLeadId: item.teamLeadId ?? null })}
           style={({ pressed }) => [styles.card, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.84 : 1 }]}>
           <View style={styles.identity}>
-            <InitialAvatar name={item.name} />
+            <Avatar name={item.name} uri={item.avatarUrl} />
             <View style={styles.person}>
               <Text style={[styles.name, { color: colors.text }]} numberOfLines={2}>{item.name}</Text>
               <View style={styles.chips}>

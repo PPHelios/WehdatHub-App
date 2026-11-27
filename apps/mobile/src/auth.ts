@@ -17,6 +17,8 @@ interface AuthState {
   signOut: () => Promise<void>;
   /** The language button: the broker's language changes here at once (the server is told by the caller). */
   setLang: (lang: ApiBroker['lang']) => Promise<void>;
+  /** The profile photo changed (or was removed): keep it with the saved session. */
+  setAvatar: (avatarUrl: string | null) => Promise<void>;
 }
 
 /** The session token lives in the phone's secure storage (Keychain / Keystore), never in plain storage. */
@@ -50,6 +52,13 @@ export const useAuth = create<AuthState>((set, get) => ({
     const { token, broker, agencyName } = get();
     if (!token || !broker) return;
     const next = { ...broker, lang };
+    set({ broker: next });
+    await Keychain.setGenericPassword('session', JSON.stringify({ token, broker: next, agencyName }), { service: SERVICE, accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY }).catch(() => undefined);
+  },
+  async setAvatar(avatarUrl) {
+    const { token, broker, agencyName } = get();
+    if (!token || !broker) return;
+    const next = { ...broker, avatarUrl };
     set({ broker: next });
     await Keychain.setGenericPassword('session', JSON.stringify({ token, broker: next, agencyName }), { service: SERVICE, accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY }).catch(() => undefined);
   },

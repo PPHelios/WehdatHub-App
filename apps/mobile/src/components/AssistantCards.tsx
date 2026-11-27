@@ -6,6 +6,7 @@ import { errorText } from '../errors';
 import { t } from '../i18n';
 import { spacing, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
+import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { KpiTile, SectionCard, UrgencyBadge, type BadgeTone } from './SectionCard';
@@ -80,6 +81,7 @@ function CardBody({
         title={b.name}
         action={
           <View style={styles.badgeRow}>
+            <Avatar name={b.name} uri={b.avatarUrl} size={40} />
             {badge ? <UrgencyBadge tone={badge.tone} label={badge.label} /> : null}
             {b.telegramLinked === false ? <UrgencyBadge tone="warn" label={ar ? 'تليجرام مش مربوط' : 'Telegram off'} /> : null}
           </View>
@@ -143,7 +145,10 @@ function CardBody({
           return (
             <View key={item.ref} style={[styles.rowItem, idx < card.items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
               <Pressable accessibilityRole="button" onPress={() => onOpenLead(item.ref)} style={styles.rowTop}>
-                <Text style={[styles.rowName, { color: colors.text }]}>{item.ref}{item.name ? ` · ${looksLikePhone(item.name) ? ltr(item.name) : item.name}` : ''}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexShrink: 1 }}>
+                  {item.assigneeId ? <Avatar name={item.assignee} uri={item.avatarUrl} size={28} /> : null}
+                  <Text style={[styles.rowName, { color: colors.text }]}>{item.ref}{item.name ? ` · ${looksLikePhone(item.name) ? ltr(item.name) : item.name}` : ''}</Text>
+                </View>
                 <UrgencyBadge tone="warn" label={doneTo ? `→ ${doneTo}` : (item.assignee || (ar ? 'بدون وسيط' : 'Unassigned'))} />
               </Pressable>
               <Text style={{ color: colors.muted, fontSize: 13 }}>{item.stage}</Text>

@@ -469,6 +469,46 @@ test('owner Search home renders server priorities in order, deduplicates Today c
   }
 });
 
+test('Search home hides unknown priority ids and lets a nav priority ask the chat', async () => {
+  const previous = useAuth.getState().broker;
+  useAuth.setState({ broker: { id: 'owner-2', role: 'owner', name: 'Tarek', lang: 'en' } });
+  jest.mocked(api.searchHome).mockResolvedValueOnce({
+    hour: 10,
+    summary: { decisions: 2 },
+    priorities: [
+      { id: 'brand-new-thing', urgency: 'high', count: 9, action: { kind: 'units_old' } },
+      { id: 'stale-units', urgency: 'low', count: 4, why: '4 unit(s) not updated in over 30 days', action: { kind: 'units_old' } },
+      { id: 'overdue', urgency: 'high', count: 2, why: '2 follow-up(s) past due', action: { kind: 'leads_tab', tab: 'overdue' } },
+    ],
+  });
+  try {
+    const result = await wrap();
+    await screen.findByTestId('home-late');
+    expect(screen.queryByText(/brand-new-thing/)).toBeNull();
+    expect(screen.getByText('2 things need your decision')).toBeTruthy();
+    expect(screen.getByText('4 unit(s) not updated in over 30 days')).toBeTruthy();
+    await result.unmount();
+  } finally {
+    useAuth.setState({ broker: previous });
+  }
+});
+
+test('Search home all-clear shows a next best action for the role', async () => {
+  const previous = useAuth.getState().broker;
+  useAuth.setState({ broker: { id: 'brk-clear', role: 'broker', name: 'Mona', lang: 'en' } });
+  jest.mocked(api.searchHome).mockResolvedValueOnce({ hour: 10, priorities: [], summary: { decisions: 0 } });
+  try {
+    const result = await wrap();
+    await screen.findByTestId('home-all-clear');
+    expect(screen.getByText('All clear today')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('home-next-step'));
+    expect(mockNavigate).toHaveBeenCalledWith('UnitsList', {});
+    await result.unmount();
+  } finally {
+    useAuth.setState({ broker: previous });
+  }
+});
+
 test('progressive Try asking tips adapt by role, execute, and retire once tried or dismissed', async () => {
   const previous = useAuth.getState().broker;
   useAuth.setState({ broker: { id: 'tips-mgr', role: 'manager', name: 'Nour', lang: 'en' } });

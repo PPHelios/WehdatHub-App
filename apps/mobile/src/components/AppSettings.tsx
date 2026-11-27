@@ -1,22 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { BusySwitch } from './BusySwitch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AppSettingsSwitches } from '@wehdathub/shared';
 import { api } from '../api';
 import { useAuth } from '../auth';
+import { compressPhoto } from '../compress';
 import { pickPhotos } from '../photos';
 import { useRights } from '../rights';
 import { t } from '../i18n';
 import { spacing, useTheme } from '../theme';
+import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { Field } from './Field';
+import { Icon } from './Icon';
+import { toast } from './Toast';
 
 /** Draft style and quiet line for everyone, with owner switches selected by the server. */
 export function AppSettings() {
   const { colors } = useTheme();
   const lang = useAuth((s) => s.broker?.lang) ?? 'ar';
+  const me = useAuth((s) => s.broker);
+  const setAvatar = useAuth((s) => s.setAvatar);
   const rights = useRights();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['app-settings'], queryFn: () => api.appSettings() });
@@ -32,6 +38,26 @@ export function AppSettings() {
     setSw(q.data.switches);
   }, [q.data]);
   if (!q.data) return null;
+  const changeAvatar = async () => {
+    const [file] = await pickPhotos(1);
+    if (!file) return;
+    try {
+      const r = await api.uploadAvatar(await compressPhoto(file, 512));
+      await setAvatar(r.avatarUrl);
+      toast(t(lang, 'notifSaved'));
+    } catch {
+      toast(t(lang, 'notifSaveFail'), true);
+    }
+  };
+  const removeAvatar = async () => {
+    try {
+      await api.deleteAvatar();
+      await setAvatar(null);
+      toast(t(lang, 'notifSaved'));
+    } catch {
+      toast(t(lang, 'notifSaveFail'), true);
+    }
+  };
   const save = async () => {
     setBusy(true);
     try {
@@ -46,6 +72,15 @@ export function AppSettings() {
   };
   return (
     <View style={styles.box}>
+      <View style={styles.avatarBox}>
+        <View>
+          <Avatar name={me?.name ?? null} uri={me?.avatarUrl} size={96} />
+          <Pressable testID="avatar-pick" accessibilityRole="button" accessibilityLabel={t(lang, 'avatarChange')} onPress={changeAvatar} style={[styles.camera, { backgroundColor: colors.primary, borderColor: colors.bg }]}>
+            <Icon name="edit" color={colors.onPrimary} size={16} />
+          </Pressable>
+        </View>
+        {me?.avatarUrl ? <Button testID="avatar-remove" size="sm" variant="secondary" label={t(lang, 'avatarRemove')} onPress={removeAvatar} /> : null}
+      </View>
       <Text style={[styles.h, { color: colors.text }]}>⚙️ {t(lang, 'myDefaults')}</Text>
       <Field label={t(lang, 'draftStyleLabel')} value={style} onChangeText={setStyle} multiline />
       <View style={styles.row}>
@@ -97,6 +132,8 @@ export function AppSettings() {
 const styles = StyleSheet.create({
   box: { gap: spacing.md, marginTop: spacing.md },
   h: { fontSize: 18, fontWeight: '700' },
+  avatarBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg },
+  camera: { position: 'absolute', right: 0, bottom: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   flex: { flex: 1 },
 });

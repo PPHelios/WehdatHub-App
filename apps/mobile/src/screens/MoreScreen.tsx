@@ -9,7 +9,7 @@ import { Button } from '../components/Button';
 import { Chips } from '../components/Chips';
 import { AppSettings } from '../components/AppSettings';
 import { Chevron, Icon, type IconName } from '../components/Icon';
-import { InitialAvatar } from '../components/InitialAvatar';
+import { Avatar } from '../components/Avatar';
 import { listsStore } from '../lists';
 import { clearDraft } from '../draft';
 import { t } from '../i18n';
@@ -154,7 +154,7 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
             pressed && { opacity: 0.9 },
           ]}
         >
-          <InitialAvatar name={broker?.name ?? null} />
+          <Avatar name={broker?.name ?? null} uri={broker?.avatarUrl} />
           <View style={styles.profileCopy}>
             <Text style={[styles.profileName, { color: colors.text }]}>{broker?.name}</Text>
             <Text style={{ color: colors.muted }}>
