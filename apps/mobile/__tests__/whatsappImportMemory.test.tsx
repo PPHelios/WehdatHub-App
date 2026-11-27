@@ -7,6 +7,7 @@ import { openChat, readChat } from '../src/zipImport';
 import { applyMemory, diffDecisions, fingerprintOf, forgetAll, load, MAX_PER_REQUEST, postFingerprint, record, resetMemoryCache, restore } from '../src/whatsappImportMemory';
 import { buildImportPosts } from '../src/whatsappImport';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({ api: { chatPlan: jest.fn(), chatDecisions: jest.fn(), saveChatDecisions: jest.fn(), forgetChatDecisions: jest.fn(), codeCheck: jest.fn(), chatRead: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn(), unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn() } }));
 jest.mock('../src/zipImport', () => {
   class ZipImportError extends Error { reason: string; constructor(reason: string) { super(reason); this.reason = reason; } }
@@ -170,6 +171,7 @@ describe('the screen remembers decisions on the server', () => {
   test('saved posts are recorded; on re-import they are hidden with a line and a Show toggle, and one can be brought back', async () => {
     await open();
     await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
+    await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); });
     await waitFor(() => expect(screen.getByTestId('wa-result')).toBeTruthy());
     await settle(() => expect(sent().filter((x) => x.outcome === 'saved')).toHaveLength(2));
     await cleanup();
@@ -187,17 +189,16 @@ describe('the screen remembers decisions on the server', () => {
     m.chatDecisions.mockResolvedValue(remembered({ [fpOf(2)]: 'discarded' }));
     await open();
     await act(async () => { fireEvent.press(screen.getByTestId('wa-forget')); });
+    await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); });
     expect(screen.getByTestId('wa-forgot-note')).toBeTruthy();
     expect(m.forgetChatDecisions).toHaveBeenCalledWith('fpR');
   });
 
   test('forget asks first: Cancel clears nothing', async () => {
     m.chatDecisions.mockResolvedValue(remembered({ [fpOf(2)]: 'discarded' }));
-    const alert = require('react-native').Alert.alert as jest.Mock;
     await open();
-    alert.mockImplementationOnce(() => undefined); // the broker taps Cancel
     await act(async () => { fireEvent.press(screen.getByTestId('wa-forget')); });
-    expect(alert).toHaveBeenCalledTimes(1);
+    await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-cancel')); }); // the broker taps Cancel
     expect(screen.queryByTestId('wa-forgot-note')).toBeNull();
     expect(m.forgetChatDecisions).not.toHaveBeenCalled();
   });

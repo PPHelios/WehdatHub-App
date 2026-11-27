@@ -6,6 +6,7 @@ import { openChat, readChat } from '../src/zipImport';
 import { usage } from '../src/usage';
 import { resetMemoryCache } from '../src/whatsappImportMemory';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({ api: { chatPlan: jest.fn(), chatDecisions: jest.fn(), saveChatDecisions: jest.fn(), forgetChatDecisions: jest.fn(), codeCheck: jest.fn(), chatRead: jest.fn(), extractUnit: jest.fn(), reviewUnit: jest.fn(), createUnit: jest.fn(), photoUploadLinks: jest.fn(), unitSaveStatus: jest.fn(), unitEditFields: jest.fn(), saveUnitEdit: jest.fn(), unitPhotos: jest.fn() } }));
 jest.mock('../src/zipImport', () => {
   class ZipImportError extends Error { reason: string; constructor(reason: string) { super(reason); this.reason = reason; } }
@@ -125,6 +126,7 @@ test('adding the selected posts saves only the ones that can be added, with thei
   m.createUnit.mockResolvedValue({ code: 'HP-3', photos: 1, photosFailed: 0 });
   await open();
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); });
   await waitFor(() => expect(screen.queryByTestId('wa-post-3')).toBeNull());
   // HP-1 (an update), HP-2 (taken) and the incomplete post are not added in bulk; only HP-3 is, with the reader's fields.
   expect(m.createUnit).toHaveBeenCalledTimes(1);
@@ -137,6 +139,7 @@ test('the unit form check still decides: a post the form rules reject is left fo
   m.reviewUnit.mockResolvedValue({ ok: false, blockers: [{ field: 'area_value', label: 'Area' }], warnings: [], duplicate: null });
   await open();
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); });
   await waitFor(() => expect(screen.getAllByText(/Needs edit|محتاجة تعديل/).length).toBeGreaterThan(0));
   expect(m.extractUnit).not.toHaveBeenCalled();
   expect(m.createUnit).not.toHaveBeenCalled();
@@ -157,6 +160,7 @@ test('every step is logged: the read, the code check, and each added post with i
   expect(u).toHaveBeenCalledWith('wa_import_read', true, expect.any(Number), expect.objectContaining({ posts: 4, videos: 3 }));
   expect(u).toHaveBeenCalledWith('wa_import_codes', true, expect.any(Number), { count: 3 });
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); });
   await waitFor(() => expect(u.mock.calls.filter((c) => c[0] === 'wa_import_add')).toHaveLength(1));
   expect(u).toHaveBeenCalledWith('wa_import_reader', true, expect.any(Number), { posts: 4, incomplete: 1 });
   expect(u).toHaveBeenCalledWith('wa_import_add', true, expect.any(Number), expect.objectContaining({ outcome: 'saved', ai: false }));
@@ -207,6 +211,7 @@ test('an added post leaves the list: its card is gone, the header and bottom cou
   m.createUnit.mockResolvedValue({ code: 'HP-3', photos: 1, photosFailed: 0 });
   await open();
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); });
   await waitFor(() => expect(screen.queryByTestId('wa-post-3')).toBeNull());
   expect(screen.getByTestId('wa-post-1')).toBeTruthy();
   expect(screen.queryByTestId('wa-summary-3')).toBeNull();
@@ -301,6 +306,7 @@ test('an unchanged unit ticked by hand is still not saved: no write, no photos, 
   await act(async () => { fireEvent.press(screen.getByTestId('wa-pick-1')); });
   expect(ticked('1')).toBe(true);
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); });
   await waitFor(() => expect(screen.getByTestId('wa-result')).toBeTruthy());
   expect(m.saveUnitEdit).not.toHaveBeenCalled();
   expect(m.unitPhotos).not.toHaveBeenCalled();
@@ -327,6 +333,7 @@ test('a post that changes the price is ticked, saved as an edit of that unit wit
   expect(screen.getByTestId('wa-changes-1').props.children).toMatch(/9,500,000/);
   expect(ready()).toMatch(/Will save 2 \(1 new, 1 updated\)|هيتحفظ 2/);
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
+  await act(async () => { fireEvent.press(screen.getByTestId('wa-ask-go')); });
   await waitFor(() => expect(screen.getByTestId('wa-result')).toBeTruthy());
   expect(m.saveUnitEdit).toHaveBeenCalledTimes(1);
   expect(m.saveUnitEdit.mock.calls[0][0]).toBe('HP-1');
@@ -349,12 +356,10 @@ test('Discard then Restore: a restored valid unit is ticked again, a restored er
 });
 
 test('Save asks first (counts, overwrite) and saves nothing until confirmed; labels use the new wording', async () => {
-  const alert = jest.spyOn(require('react-native').Alert, 'alert').mockImplementation(() => undefined);
   await open();
   expect(screen.getAllByText(/Review and update|راجع وحدّث/).length).toBeGreaterThan(0);
   expect(screen.queryByText(/Open the unit|افتح الوحدة/)).toBeNull();
   await act(async () => { fireEvent.press(screen.getByTestId('wa-add')); });
-  expect(alert).toHaveBeenCalledTimes(1);
-  expect(String(alert.mock.calls[0][1])).toMatch(/overwritten|هتتغطى/);
+  expect(screen.getByText(/overwritten|هتتغطى/)).toBeTruthy();
   expect(m.createUnit).not.toHaveBeenCalled();
 });

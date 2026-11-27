@@ -10,6 +10,7 @@ import { SettingsHubScreen } from '../src/screens/SettingsHubScreen';
 import { api } from '../src/api';
 import { useAuth } from '../src/auth';
 
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../src/api', () => ({ api: { me: jest.fn(), catalogue: jest.fn(), compare: jest.fn(), platform: jest.fn(), platformSignup: jest.fn(), platformAgency: jest.fn(), dashboard: jest.fn().mockResolvedValue({ days: 30, weekly: [], sources: [], pipeline: {}, unassigned: 0, uncontacted: 0, overdue: 0, units: { active: 0, stale: 0 }, deals: { n: 0, commission: 0, value: 0 }, leads: 0, board: [] }), team: jest.fn().mockResolvedValue({ items: [] }), calendar: jest.fn().mockResolvedValue({ items: [] }), leads: jest.fn().mockResolvedValue({ items: [], more: false, total: 0, offset: 0, limit: 20 }), portalEnquiries: jest.fn().mockResolvedValue({ items: [] }) } }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }), useRoute: () => ({ params: { id: 'p1', name: 'P' } }) }));
 const m = api as unknown as Record<string, jest.Mock>;

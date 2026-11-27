@@ -10,6 +10,7 @@ const mockNavigate = jest.fn();
 const mockDispatch = jest.fn();
 let beforeRemoveCb: ((e: { preventDefault: () => void; data: { action: unknown } }) => void) | undefined;
 let mockRouteParams: Record<string, unknown> = {};
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
@@ -211,14 +212,14 @@ test('sources protects unsaved spend on month switch, navigation exit, hub-tab s
 
   // 1. Warn before losing edits on month switch
   await fireEvent.press(screen.getByTestId('sources-prev-month'));
-  expect(alertSpy).toHaveBeenCalledTimes(1);
+  expect(screen.getByTestId('sources-discard-sheet')).toBeTruthy();
   expect(m.sources).not.toHaveBeenCalledWith('2026-10', false);
 
   // 2. Warn on navigation beforeRemove
   const preventDefault = jest.fn();
   beforeRemoveCb?.({ preventDefault, data: { action: { type: 'GO_BACK' } } });
   expect(preventDefault).toHaveBeenCalled();
-  expect(alertSpy).toHaveBeenCalledTimes(2);
+  expect(await screen.findByTestId('sources-discard-sheet')).toBeTruthy();
 
   // 3. Failed save keeps draft input intact
   await fireEvent.press(screen.getByTestId('sources-save'));

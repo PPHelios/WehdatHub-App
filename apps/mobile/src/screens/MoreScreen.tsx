@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { AppText as Text } from '../components/AppText';
 import { BusySwitch } from '../components/BusySwitch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { useAuth } from '../auth';
 import { Button } from '../components/Button';
+import { Card } from '../components/Card';
 import { Chips } from '../components/Chips';
 import { AppSettings } from '../components/AppSettings';
 import { Chevron, Icon, type IconName } from '../components/Icon';
@@ -23,6 +25,7 @@ import { usePrefs } from '../prefs';
 import { APP_BUILD, APP_VERSION } from '../config';
 import { syncDirection } from '../direction';
 import { toast } from '../components/Toast';
+import { enter, layout } from '../motion';
 
 const ROLE_LABELS: Record<string, { ar: string; en: string }> = {
   owner: { ar: 'مالك', en: 'Owner' },
@@ -38,6 +41,7 @@ function HubCard({
   icon,
   rtl,
   testID,
+  index,
   onPress,
 }: {
   title: string;
@@ -45,37 +49,45 @@ function HubCard({
   icon: IconName;
   rtl: boolean;
   testID: string;
+  index: number;
   onPress: () => void;
 }) {
-  const { colors, elev } = useTheme();
+  const { colors } = useTheme();
+  return (
+    <Animated.View entering={enter(Math.min(index, 8))} layout={layout}>
+      <Card variant="elevated" testID={testID} onPress={onPress} style={styles.hubCard}>
+        <View style={[styles.iconCircle, { backgroundColor: colors.primarySoft }]}>
+          <Icon name={icon} color={colors.primaryInk} size={22} />
+        </View>
+        <View style={styles.hubCopy}>
+          <Text variant="body" weight="bold" style={{ color: colors.text }}>{title}</Text>
+          <Text variant="caption" numberOfLines={2} style={{ color: colors.muted }}>{subtitle}</Text>
+        </View>
+        <Chevron rtl={rtl} color={colors.muted} />
+      </Card>
+    </Animated.View>
+  );
+}
+
+/** One row of a grouped settings list: 52px min height, chevron flips in RTL, separator drawn by the group. */
+function SettingsRow({ label, testID, rtl, last, onPress }: { label: string; testID: string; rtl: boolean; last?: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.hubCard,
-        elev('sm'),
-        { borderColor: colors.border, backgroundColor: colors.card },
-        pressed && { backgroundColor: colors.primarySoft },
-      ]}
+      style={({ pressed }) => [styles.setRow, !last && styles.setRowSep, !last && { borderBottomColor: colors.border }, pressed && { backgroundColor: colors.primarySoft }]}
     >
-      <View style={[styles.iconCircle, { backgroundColor: colors.primarySoft }]}>
-        <Icon name={icon} color={colors.primaryInk} size={22} />
-      </View>
-      <View style={styles.hubCopy}>
-        <Text style={[styles.hubTitle, { color: colors.text }]}>{title}</Text>
-        <Text numberOfLines={2} style={[styles.hubSubtitle, { color: colors.muted }]}>
-          {subtitle}
-        </Text>
-      </View>
+      <Text variant="body" style={[styles.flex, { color: colors.text }]}>{label}</Text>
       <Chevron rtl={rtl} color={colors.muted} />
     </Pressable>
   );
 }
 
 export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreScreenName) => void; mode?: 'menu' | 'settings' } = {}) {
-  const { colors, elev } = useTheme();
+  const { colors } = useTheme();
   const { broker, agencyName, signOut } = useAuth();
   const queries = useQueryClient();
   const { appearance, clientLang, setAppearance, setClientLang } = usePrefs();
@@ -89,8 +101,7 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
 
   const [busy, setBusy] = useState(false);
   const lang = broker?.lang ?? 'ar';
-  const ar = lang === 'ar';
-  const rtl = ar;
+  const rtl = lang === 'ar';
   const { rights, nav, workspace } = useRightsState();
   const isSolo = Boolean(workspace?.solo || workspace?.mode === 'solo');
   const { enabled, enable, disable } = useLock();
@@ -140,6 +151,10 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
   );
 
   const isManagerOrOwner = Boolean(rights.manager || rights.agencyOwner);
+  let hubIndex = 0;
+  const hub = (testID: string, title: string, subtitle: string, icon: IconName, target: MoreScreenName) => (
+    <HubCard key={testID} testID={testID} title={title} subtitle={subtitle} icon={icon} rtl={rtl} index={hubIndex++} onPress={() => onOpen?.(target)} />
+  );
 
   return (
     <ScrollView style={{ backgroundColor: colors.bg }} contentContainerStyle={[styles.body, { backgroundColor: colors.bg }]}>
@@ -151,197 +166,115 @@ export function MoreScreen({ onOpen, mode = 'menu' }: { onOpen?: (screen: MoreSc
           style={({ pressed }) => [
             styles.profile,
             { backgroundColor: colors.primarySoft, borderColor: colors.primaryLine },
-            pressed && { opacity: 0.9 },
+            pressed && styles.pressed,
           ]}
         >
           <Avatar name={broker?.name ?? null} uri={broker?.avatarUrl} />
           <View style={styles.profileCopy}>
-            <Text style={[styles.profileName, { color: colors.text }]}>{broker?.name}</Text>
-            <Text style={{ color: colors.muted }}>
-              {agencyName ? `${agencyName} · ` : ''}
-              {ar ? 'الحساب والإعدادات ⚙️' : 'Account & Settings ⚙️'}
-            </Text>
+            <Text variant="body" weight="bold" style={{ color: colors.text }}>{broker?.name}</Text>
+            <View style={styles.inline}>
+              <Text style={{ color: colors.muted }}>{agencyName ? `${agencyName} · ` : ''}{t(lang, 'mrAccountSettings')}</Text>
+              <Icon name="settings" size={14} color={colors.muted} />
+            </View>
           </View>
           <Chevron rtl={rtl} color={colors.primaryInk} />
         </Pressable>
       ) : (
         <>
-          <Text style={[styles.name, { color: colors.text }]}>{broker?.name}</Text>
-          {agencyName ? <Text style={[styles.agency, { color: colors.muted }]}>{t(lang, 'agency')}: {agencyName}</Text> : null}
+          <Text variant="title" style={{ color: colors.text }}>{broker?.name}</Text>
+          {agencyName ? <Text variant="bodySm" style={{ color: colors.muted }}>{t(lang, 'agency')}: {agencyName}</Text> : null}
         </>
       )}
 
       {mode === 'menu' ? (
         <View style={styles.hubContainer}>
-          <HubCard
-            testID="hub-clients"
-            title={ar ? 'العملاء' : 'Clients'}
-            subtitle={ar ? 'التقويم والمعاينات · مراحل العملاء · طلبات العملاء · مقارنة الوحدات' : 'Calendar & Viewings · Client Pipeline · Client Requests · Compare Units'}
-            icon="leads"
-            rtl={rtl}
-            onPress={() => onOpen?.('ClientsHub')}
-          />
-          <HubCard
-            testID="hub-projects"
-            title={ar ? 'المشاريع' : 'Projects'}
-            subtitle={ar ? 'مشاريع الشركة · مكتبة المطورين · سعر المتر · اسأل المساعد' : 'Agency Projects · Developer Library · Price per m² · Ask Assistant'}
-            icon="catalogue"
-            rtl={rtl}
-            onPress={() => onOpen?.('ProjectsHub')}
-          />
-          <HubCard
-            testID="hub-tracking"
-            title={ar ? 'المتابعة' : 'Tracking'}
-            subtitle={ar ? 'الروابط المفتوحة · عقود الإيجار · البحث المحفوظ' : 'Opened Links · Rental Leases · Saved Searches'}
-            icon="link"
-            rtl={rtl}
-            onPress={() => onOpen?.('TrackingHub')}
-          />
-          <HubCard
-            testID="hub-deals"
-            title={ar ? 'الصفقات' : 'Deals'}
-            subtitle={ar ? 'صفقات البيع · العمولات' : 'Sales Deals · Commissions'}
-            icon="deal"
-            rtl={rtl}
-            onPress={() => onOpen?.('DealsHub')}
-          />
+          {hub('hub-clients', t(lang, 'mrHubClients'), t(lang, 'mrHubClientsSub'), 'leads', 'ClientsHub')}
+          {hub('hub-projects', t(lang, 'mrHubProjects'), t(lang, 'mrHubProjectsSub'), 'catalogue', 'ProjectsHub')}
+          {hub('hub-tracking', t(lang, 'mrHubTracking'), t(lang, 'mrHubTrackingSub'), 'link', 'TrackingHub')}
+          {hub('hub-deals', t(lang, 'mrHubDeals'), t(lang, 'mrHubDealsSub'), 'deal', 'DealsHub')}
 
           {isManagerOrOwner && isSolo ? (
             <>
-              <HubCard
-                testID="hub-mystats"
-                title={ar ? 'إحصائياتي' : 'My Stats'}
-                subtitle={ar ? 'ملخص العملاء والصفقات والمتابعات' : 'Your leads, deals and follow-ups summary'}
-                icon="chart"
-                rtl={rtl}
-                onPress={() => onOpen?.('Dashboard')}
-              />
-              {(!nav || hasNavApp(nav, 'Portal')) ? (
-                <HubCard
-                  testID="hub-portal"
-                  title={t(lang, 'portal')}
-                  subtitle={ar ? 'استفسارات البوابات العقارية' : 'Portal enquiries directory'}
-                  icon="building"
-                  rtl={rtl}
-                  onPress={() => onOpen?.('Portal')}
-                />
-              ) : null}
-              {(!nav || hasNavApp(nav, 'Plan')) ? (
-                <HubCard
-                  testID="hub-plan-teammate"
-                  title={ar ? 'أضف عضو فريق / الباقة' : 'Add teammate / Plan'}
-                  subtitle={ar ? 'ترقية الباقة وإضافة أعضاء للفريق' : 'Upgrade plan and invite teammates'}
-                  icon="plan"
-                  rtl={rtl}
-                  onPress={() => onOpen?.('Plan')}
-                />
-              ) : null}
+              {hub('hub-mystats', t(lang, 'mrHubStats'), t(lang, 'mrHubStatsSub'), 'chart', 'Dashboard')}
+              {(!nav || hasNavApp(nav, 'Portal')) ? hub('hub-portal', t(lang, 'portal'), t(lang, 'mrHubPortalSub'), 'building', 'Portal') : null}
+              {(!nav || hasNavApp(nav, 'Plan')) ? hub('hub-plan-teammate', t(lang, 'mrHubPlanTeam'), t(lang, 'mrHubPlanTeamSub'), 'plan', 'Plan') : null}
             </>
           ) : null}
 
           {isManagerOrOwner && !isSolo ? (
             <>
-              {(rights.team || !nav || hasNavApp(nav, 'Team') || hasNavApp(nav, 'LeadRules') || hasNavApp(nav, 'Requests') || hasNavApp(nav, 'Portal')) ? (
-                <HubCard
-                  testID="hub-admin"
-                  title={ar ? 'إدارة الشركة' : 'Agency Admin'}
-                  subtitle={ar ? 'فريق العمل · قواعد التوزيع · طلبات البيانات الخاصة · استفسارات البوابات' : 'Team Members · Lead Rules · Access Requests · Portal Inquiries'}
-                  icon="team"
-                  rtl={rtl}
-                  onPress={() => onOpen?.('AdminHub')}
-                />
-              ) : null}
-              {(!nav || hasNavApp(nav, 'Dashboard') || hasNavApp(nav, 'WinLoss') || hasNavApp(nav, 'Sources') || hasNavApp(nav, 'ActivityLog')) ? (
-                <HubCard
-                  testID="hub-reports"
-                  title={ar ? 'تقارير الشركة' : 'Agency Reports'}
-                  subtitle={ar ? 'لوحة الشركة · المكسب والخسارة · مصادر العملاء · سجل النشاط' : 'Agency Dashboard · Win & Loss · Lead Sources · Activity Log'}
-                  icon="chart"
-                  rtl={rtl}
-                  onPress={() => onOpen?.('ReportsHub')}
-                />
-              ) : null}
+              {(rights.team || !nav || hasNavApp(nav, 'Team') || hasNavApp(nav, 'LeadRules') || hasNavApp(nav, 'Requests') || hasNavApp(nav, 'Portal'))
+                ? hub('hub-admin', t(lang, 'mrHubAdmin'), t(lang, 'mrHubAdminSub'), 'team', 'AdminHub') : null}
+              {(!nav || hasNavApp(nav, 'Dashboard') || hasNavApp(nav, 'WinLoss') || hasNavApp(nav, 'Sources') || hasNavApp(nav, 'ActivityLog'))
+                ? hub('hub-reports', t(lang, 'mrHubReports'), t(lang, 'mrHubReportsSub'), 'chart', 'ReportsHub') : null}
             </>
           ) : null}
 
-          {rights.owners ? (
-            <Pressable
-              testID="open-owners"
-              accessibilityRole="button"
-              onPress={() => onOpen?.('Owners')}
-              style={({ pressed }) => [
-                styles.hubCard,
-                elev('sm'),
-                { borderColor: colors.border, backgroundColor: colors.card },
-                pressed && { backgroundColor: colors.primarySoft },
-              ]}
-            >
-              <View style={[styles.iconCircle, { backgroundColor: colors.primarySoft }]}>
-                <Icon name="owners" color={colors.primaryInk} size={22} />
-              </View>
-              <View style={styles.hubCopy}>
-                <Text style={[styles.hubTitle, { color: colors.text }]}>{t(lang, 'owners')}</Text>
-                <Text style={[styles.hubSubtitle, { color: colors.muted }]}>{ar ? 'بيانات المُلّاك ووحداتهم' : 'Property owners directory'}</Text>
-              </View>
-              <Chevron rtl={rtl} color={colors.muted} />
-            </Pressable>
-          ) : null}
+          {rights.owners ? hub('open-owners', t(lang, 'owners'), t(lang, 'mrHubOwnersSub'), 'owners', 'Owners') : null}
         </View>
       ) : null}
 
       {mode === 'settings' ? (
         <>
-          <Text testID="settings-me" style={[styles.section, { color: colors.text }]}>{ar ? 'أنا' : 'Me'}</Text>
+          <Text testID="settings-me" variant="heading" style={[styles.section, { color: colors.text }]}>{t(lang, 'mrMe')}</Text>
           <AppSettings />
-          <Button testID="settings-open-notifications" label={t(lang, 'notifications')} variant="secondary" onPress={() => onOpen?.('Notifications')} />
-          <View style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]} testID="app-settings">
-            <Text style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'appearance')}</Text>
+          <Card variant="elevated" style={styles.group}>
+            <SettingsRow testID="settings-open-notifications" label={t(lang, 'notifications')} rtl={rtl} last onPress={() => onOpen?.('Notifications')} />
+          </Card>
+          <Card variant="elevated" testID="app-settings" style={styles.groupPad}>
+            <Text variant="bodySm" weight="bold" style={{ color: colors.text }}>{t(lang, 'appearance')}</Text>
             <Chips testID="appearance" value={appearance} options={[{ value: 'system' as const, label: t(lang, 'appSystem') }, { value: 'light' as const, label: t(lang, 'appLight') }, { value: 'dark' as const, label: t(lang, 'appDark') }]} onChange={setAppearance} />
-            <Text style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'languageTitle')}</Text>
+            <Text variant="bodySm" weight="bold" style={{ color: colors.text }}>{t(lang, 'languageTitle')}</Text>
             <Chips testID="app-lang" value={lang} options={[{ value: 'ar' as const, label: 'العربية' }, { value: 'en' as const, label: 'English' }]} onChange={(l) => { void changeLang(l); }} />
-            <Text style={[styles.cardTitle, { color: colors.text }]}>{t(lang, 'clientLangTitle')}</Text>
+            <Text variant="bodySm" weight="bold" style={{ color: colors.text }}>{t(lang, 'clientLangTitle')}</Text>
             <Chips testID="client-lang" value={clientLang} options={[{ value: 'ar' as const, label: 'العربية' }, { value: 'en' as const, label: 'English' }]} onChange={setClientLang} />
-            <Text style={{ color: colors.muted }}>{t(lang, 'clientLangHint')}</Text>
-          </View>
+            <Text variant="caption" style={{ color: colors.muted }}>{t(lang, 'clientLangHint')}</Text>
+          </Card>
 
           {canLock || enabled ? (
-            <View style={styles.switchRow}>
-              <Text style={[styles.flex, { color: colors.text }]}>{t(lang, 'lockSetting')}</Text>
-              <BusySwitch testID="lock-switch" value={enabled} onValueChange={toggleLock} trackColor={{ true: colors.primary, false: colors.border }} thumbColor={enabled ? colors.onPrimary : colors.muted} />
-            </View>
+            <Card variant="elevated" style={styles.group}>
+              <View style={styles.switchRow}>
+                <Text variant="body" style={[styles.flex, { color: colors.text }]}>{t(lang, 'lockSetting')}</Text>
+                <BusySwitch testID="lock-switch" value={enabled} onValueChange={toggleLock} trackColor={{ true: colors.primary, false: colors.border }} thumbColor={enabled ? colors.onPrimary : colors.muted} />
+              </View>
+            </Card>
           ) : null}
-          {lockMsg ? <Text accessibilityLiveRegion="polite" style={{ color: colors.danger, textAlign: ar ? 'right' : 'left' }}>{lockMsg}</Text> : null}
+          {lockMsg ? <Text accessibilityLiveRegion="polite" style={[styles.start, { color: colors.danger, textAlign: rtl ? 'right' : 'left' }]}>{lockMsg}</Text> : null}
 
           {rights.manager || rights.agencyOwner ? (
-            <View testID="settings-agency" style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
-              <Text style={[styles.section, { color: colors.text }]}>{ar ? 'الشركة' : 'Agency'}</Text>
-              <Text style={{ color: colors.muted }}>{ar ? 'حروف الأكواد وأسعار العملات ومين يشوف البيانات الخاصة بتتغير من الموقع. اللوجو وتعديل البروكرز للوحدات فوق.' : 'Unit code letters, currency rates and who sees private details are changed on the website. The logo and brokers editing units are above.'}</Text>
-              <Button testID="settings-open-usage" label={ar ? 'استهلاك الذكاء الاصطناعي' : 'AI use per person'} variant="secondary" onPress={() => onOpen?.('Usage')} />
-              {rights.team ? <Button testID="settings-open-team" label={t(lang, 'team')} variant="secondary" onPress={() => onOpen?.('Team')} /> : null}
-            </View>
+            <Card variant="elevated" testID="settings-agency" style={styles.group}>
+              <View style={styles.groupHead}>
+                <Text variant="heading" style={{ color: colors.text }}>{t(lang, 'mrAgencySection')}</Text>
+                <Text variant="bodySm" style={{ color: colors.muted }}>{t(lang, 'mrAgencyHint')}</Text>
+              </View>
+              <SettingsRow testID="settings-open-usage" label={t(lang, 'mrAiPerPerson')} rtl={rtl} last={!rights.team} onPress={() => onOpen?.('Usage')} />
+              {rights.team ? <SettingsRow testID="settings-open-team" label={t(lang, 'team')} rtl={rtl} last onPress={() => onOpen?.('Team')} /> : null}
+            </Card>
           ) : null}
 
           {rights.agencyOwner ? (
-            <View testID="settings-plan" style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]}>
-              <Text style={[styles.section, { color: colors.text }]}>{ar ? 'الباقة والفواتير' : 'Plan and billing'}</Text>
-              <Button testID="settings-open-plan" label={t(lang, 'plan')} variant="secondary" onPress={() => onOpen?.('Plan')} />
-            </View>
+            <Card variant="elevated" testID="settings-plan" style={styles.group}>
+              <View style={styles.groupHead}>
+                <Text variant="heading" style={{ color: colors.text }}>{t(lang, 'mrPlanBilling')}</Text>
+              </View>
+              <SettingsRow testID="settings-open-plan" label={t(lang, 'plan')} rtl={rtl} last onPress={() => onOpen?.('Plan')} />
+            </Card>
           ) : null}
         </>
       ) : null}
 
       {ts && mode === 'settings' ? (
-        <View style={[styles.card, elev('md'), { borderColor: colors.border, backgroundColor: colors.card }]} testID="test-switch">
-          <Text style={[styles.cardTitle, { color: colors.text }]}>{ar ? 'تبديل الاختبار' : 'Test switch'}</Text>
+        <Card variant="elevated" testID="test-switch" style={styles.groupPad}>
+          <Text variant="bodySm" weight="bold" style={{ color: colors.text }}>{t(lang, 'mrTestSwitch')}</Text>
           <Chips testID="test-role" value={ts.role} options={ts.roles.map((r) => ({ value: r, label: ROLE_LABELS[r]?.[lang] ?? r }))} onChange={(r) => { void switchRole(r); }} />
           {ts.canView ? (
-            <Chips testID="test-view" value={ts.viewing ? 'other' : 'home'} options={[{ value: 'home' as const, label: ar ? 'شركة التجربة' : 'Test agency' }, { value: 'other' as const, label: ar ? 'NCH (للقراءة فقط)' : 'NCH (read only)' }]} onChange={(v) => { void switchView(v); }} />
+            <Chips testID="test-view" value={ts.viewing ? 'other' : 'home'} options={[{ value: 'home' as const, label: t(lang, 'mrTestAgency') }, { value: 'other' as const, label: t(lang, 'mrNchRead') }]} onChange={(v) => { void switchView(v); }} />
           ) : null}
-        </View>
+        </Card>
       ) : null}
 
       <View style={styles.footer}>
-        <Text testID="app-version" style={{ color: colors.muted, textAlign: 'center', fontSize: 12 }}>
+        <Text variant="caption" testID="app-version" style={[styles.center, { color: colors.muted }]}>
           {t(lang, 'appVersionLabel')}: {APP_VERSION} ({APP_BUILD})
         </Text>
         {mode === 'menu' ? signOutButton : null}
@@ -362,32 +295,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     borderWidth: 1,
   },
+  pressed: { opacity: 0.9 },
   profileCopy: { flex: 1 },
-  profileName: { fontSize: 16, fontWeight: '700' },
-  name: { fontSize: 20, fontWeight: '800' },
-  agency: { fontSize: 14 },
-  section: { fontSize: 18, fontWeight: '700', marginTop: spacing.sm },
-  card: { borderWidth: 1, borderRadius: radius.card, padding: spacing.md, gap: spacing.sm },
-  cardTitle: { fontSize: 14, fontWeight: '700', marginTop: spacing.xs },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.xs },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  section: { marginTop: spacing.sm },
+  group: { padding: 0, overflow: 'hidden' },
+  groupPad: { padding: spacing.md, gap: spacing.sm },
+  groupHead: { padding: spacing.md, gap: spacing.xs },
+  setRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.md },
+  setRowSep: { borderBottomWidth: StyleSheet.hairlineWidth },
+  switchRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md },
+  start: { paddingHorizontal: spacing.xs },
+  center: { textAlign: 'center' },
   hubContainer: { gap: spacing.sm },
-  hubCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    gap: spacing.md,
-  },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  hubCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.md },
+  iconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   hubCopy: { flex: 1, gap: 2 },
-  hubTitle: { fontSize: 16, fontWeight: '700' },
-  hubSubtitle: { fontSize: 12, lineHeight: 16 },
   footer: { marginTop: spacing.md, alignItems: 'center', gap: spacing.md },
 });

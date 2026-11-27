@@ -6,6 +6,7 @@ import { api } from '../src/api';
 
 const mockNavigate = jest.fn();
 jest.mock('../src/api', () => ({ api: { dashboard: jest.fn(), pricePerM2: jest.fn(), winLoss: jest.fn(), report: jest.fn() } }));
+jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: jest.fn(), navigate: mockNavigate }) }));
 const m = api as unknown as Record<string, jest.Mock>;
 const wrap = async (ui: React.ReactElement) => await render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>{ui}</QueryClientProvider>);
