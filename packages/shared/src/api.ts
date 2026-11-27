@@ -311,7 +311,9 @@ export interface AssistantLink { label: string; screen: string; params?: Record<
 export type AssistantAction =
   | { kind: 'open_queue'; label: string; queue: string }
   | { kind: 'pivot_mode'; mode: AssistantMode; label: string }
-  | { kind: 'view_all_markets'; label: string };
+  | { kind: 'view_all_markets'; label: string }
+  | { kind: 'change_search'; label: string; query?: string };
+export interface AssistantSuggestion { label: string; q: string }
 export type AssistantCard =
   | {
       kind: 'stuck_leads';
@@ -362,6 +364,10 @@ export interface AssistantQueryResponse {
   projects?: AskResults | null;
   suggestPrimary?: boolean;
   interpretation?: string;
+  /** Follow-up questions the server proposes; each is sent as a new turn. */
+  suggestions?: AssistantSuggestion[];
+  /** Active / sold / archived counts for a unit search. */
+  statusCounts?: StatusCounts;
 }
 export interface PriceRow { place: string; listing_type: 'sale' | 'rent'; units: number; median: number; low: number; high: number }
 export interface WinLossGroup { key: string; name?: string; won: number; lost: number; rate: number | null; top: string | null }

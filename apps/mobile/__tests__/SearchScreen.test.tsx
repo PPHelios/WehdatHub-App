@@ -20,7 +20,7 @@ const v = voice as unknown as { ensureMic: jest.Mock; startRecording: jest.Mock;
 const wrap = (client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })) =>
   render(<QueryClientProvider client={client}><SearchScreen /></QueryClientProvider>);
 
-beforeEach(() => { useAuth.setState({ broker: { id: 'search-test', lang: 'en' } as ApiBroker }); jest.restoreAllMocks(); jest.clearAllMocks(); mockNavigate.mockReset(); v.startRecording.mockReset(); });
+beforeEach(async () => { await AsyncStorage.clear(); useAuth.setState({ broker: { id: 'search-test', lang: 'en' } as ApiBroker }); jest.restoreAllMocks(); jest.clearAllMocks(); mockNavigate.mockReset(); v.startRecording.mockReset(); });
 
 test('typed search shows the no-results state with a way forward', async () => {
   mocked.search.mockResolvedValue({ status: 'none', source: 'parser', total: 0, items: [] });
@@ -249,8 +249,9 @@ test('Sold and Archived show their counts from the start and one tap searches th
   await wrap();
   await fireEvent.changeText(screen.getByTestId('search-input'), 'villa');
   await fireEvent.press(screen.getByTestId('search-go'));
-  await waitFor(() => expect(screen.getByText(/Sold \(2\)|مباعة \(2\)/)).toBeTruthy());
-  await fireEvent.press(screen.getByText(/Sold \(2\)|مباعة \(2\)/));
+  // The thread shows a muted "+ 2 sold" line; one tap opens the Sold list.
+  await waitFor(() => expect(screen.getByText(/\+ 2 sold|\+ 2 مباعة/)).toBeTruthy());
+  await fireEvent.press(screen.getByText(/\+ 2 sold|\+ 2 مباعة/));
   await waitFor(() => expect(mocked.search).toHaveBeenLastCalledWith('villa', { drop: false, status: 'sold' }));
 });
 
@@ -283,6 +284,8 @@ test('samples show when there are no recent searches, then the last searches rep
   await waitFor(() => expect(mocked.search).toHaveBeenCalled());
   await first.unmount();
   await wrap();
+  // The conversation comes back after a restart; a new one shows the home again.
+  await fireEvent.press(await screen.findByTestId('new-conversation'));
   await fireEvent.press(screen.getByTestId('search-tools'));
   await waitFor(() => expect(screen.getByTestId('searchRecent1')).toBeTruthy());
   expect(screen.getByText('villa')).toBeTruthy();
@@ -501,6 +504,7 @@ test('progressive Try asking tips adapt by role, execute, and retire once tried 
       rights: { addUnits: true, editUnits: true, leads: true, search: true, team: false, owners: false, manager: true, agencyOwner: false, dataEntry: false, teamLead: false },
       nav: { role: 'owner', tabs: [], groups: [] },
     });
+    await AsyncStorage.removeItem('wehdathub.thread.v1:tips-mgr'); // the earlier conversation would come back otherwise
     const gated = await wrap(gatedClient);
     await screen.findByTestId('try-asking-card');
     expect(screen.queryByTestId('try-tip-mgr-sources')).toBeNull();
@@ -728,6 +732,8 @@ test('assistant >20 resale matches hydrate native FlashList, SaveSearchButton, s
   await fireEvent.press(screen.getByTestId('search-go'));
 
   await waitFor(() => expect(screen.getByTestId('save-search')).toBeTruthy());
+  // The thread shows the top cards; "See all" opens the paged list with the status chips.
+  await fireEvent.press(screen.getByTestId('see-all'));
   expect(screen.getByText('Sold (2)')).toBeTruthy();
 
   await act(async () => {
@@ -853,10 +859,11 @@ test('assistant Change search restores original query for editing and View all m
   expect(await screen.findByTestId('assistant-understood')).toBeTruthy();
   await fireEvent.press(screen.getByTestId('assistant-change-search'));
   expect(screen.getByTestId('search-input').props.value).toBe('apartments in zayed');
-  expect(screen.queryByTestId('assistant-understood')).toBeNull();
 
   await fireEvent.press(screen.getByTestId('search-go'));
-  await fireEvent.press(await screen.findByTestId('assistant-view-all-markets'));
+  // The first answer stays in the thread; act on the newest one.
+  await waitFor(() => expect(screen.getAllByTestId('assistant-view-all-markets')).toHaveLength(2));
+  await fireEvent.press(screen.getAllByTestId('assistant-view-all-markets')[1]);
   await waitFor(() => expect(mocked.search).toHaveBeenCalledWith(
     'apartments in zayed',
     expect.objectContaining({ drop: false, status: 'active' }),
@@ -1061,7 +1068,8 @@ test('auto mode routes contextual follow-ups and Wave 2/3 queries to assistant, 
   await fireEvent.changeText(screen.getByTestId('search-input'), 'approaching sla');
   await fireEvent.press(screen.getByTestId('search-go'));
   await waitFor(() => expect(mocked.assistantQuery).toHaveBeenCalledTimes(4));
-  expect(screen.queryByTestId('assistant-row-error-L-0042')).toBeNull();
+  // The first answer stays in the thread with its own error; the new answer starts clean.
+  expect(screen.getAllByTestId('assistant-row-error-L-0042')).toHaveLength(1);
 
   // View all markets resets mode to auto and strips explicit resale keyword
   await fireEvent.press(screen.getByTestId('search-clear-chat'));

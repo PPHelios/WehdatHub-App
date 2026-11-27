@@ -1,76 +1,39 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { timed, usage } from '../usage';
+import { usage } from '../usage';
 import { track } from '../analytics';
-import { ActivityIndicator, BackHandler, Keyboard, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { BackHandler, Keyboard, Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '../components/AppText';
 import Animated, { FadeIn, FadeOut, ReduceMotion, useAnimatedScrollHandler, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
-import { FlashList } from '@shopify/flash-list';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ApiClientError, type ApiUnitListItem, type AssistantContext, type AssistantMode, type LeadQueue, type SearchResult, type UnitStatus, type VoiceFile } from '@wehdathub/shared';
-import { api } from '../api';
+import type { AssistantMode, LeadQueue } from '@wehdathub/shared';
 import { SearchCreditRings, useSearchCredits } from '../components/SearchCreditRings';
 import { currentLang, useAuth } from '../auth';
-import { AskResults } from '../components/AskResults';
-import { AssistantCards } from '../components/AssistantCards';
 import { Chip } from '../components/Chip';
 import { ComposerPopover } from '../components/ComposerPopover';
 import { Icon } from '../components/Icon';
 import { useKeyboardVisible } from '../components/KeyboardLift';
-import { useSelectionHighlight } from '../components/SelectionHighlight';
-import { pt } from '../projectText';
-import { readLeadCommand, SearchLeadAction } from '../components/SearchLeadAction';
-import { SearchLeads } from '../components/SearchLeads';
-import { DashboardScreen } from './InsightsScreens';
+import { readLeadCommand } from '../components/SearchLeadAction';
 import { useRightsState } from '../rights';
-import { parseSearchIntent } from '../searchCapabilities';
 import type { SearchIntent } from '../searchCapabilities';
 import { SearchPractice } from '../components/SearchPractice';
 import { SearchHome } from '../components/SearchHome';
 import { HomeRow } from '../components/HomeRow';
-import { SearchDeals } from '../components/SearchDeals';
 import { Button } from '../components/Button';
-import { EmptyView, ErrorView, Loading } from '../components/StateViews';
-import { SaveSearchButton } from '../components/SaveSearchButton';
-import { UnitCard } from '../components/UnitCard';
-import { errorText } from '../errors';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
-import { greenGradient, radius, spacing, useTheme } from '../theme';
+import { spacing, useTheme } from '../theme';
 import { VoiceBar } from '../components/VoiceBar';
-import { needsVoiceConfirm } from '../voiceConfirm';
+import { FullResults } from '../assistant/FullResults';
+import { ReportView, type LeadFilters, type ReportKind } from '../assistant/ReportView';
+import { ThreadView } from '../assistant/ThreadView';
+import type { TurnSource } from '../assistant/thread';
+import { useAssistantThread } from '../assistant/useAssistantThread';
 
-type SearchView = 'deals' | 'leads' | 'dashboard' | 'ranking' | 'lead-action' | 'clarify' | 'assistant';
+export { shouldUseAssistantEndpoint } from '../assistant/routing';
 
 const RECENT_KEY = 'wehdathub.recentSearches';
-const ASSISTANT_NAV_SCREENS = new Set(['LeadsList', 'Team', 'Dashboard', 'Deals', 'Sources', 'Commissions', 'Requests', 'Owners', 'Leases', 'UnitsList', 'WinLoss', 'Prices', 'Plan', 'Projects', 'Calendar']);
-
-function normalizeForRoute(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/[أإآٱ]/g, 'ا')
-    .replace(/ى/g, 'ي')
-    .replace(/ة/g, 'ه')
-    .replace(/[\u0640\u064b-\u065f]/g, '')
-    .replace(/\s+/g, ' ');
-}
-
-export function shouldUseAssistantEndpoint(clean: string, mode: AssistantMode, hasContext = false): boolean {
-  if (mode !== 'auto') return true;
-  const q = normalizeForRoute(clean);
-  if (
-    hasContext &&
-    /^(?:only\s+(?:by|for|closed\s+by)|just\s+(?:for|by)|بس\s+(?:بتوع|لـ|ل|قفلها)|increase\s+budget|raise\s+budget|bump\s+budget|under\s+[\d.,]+|(?:لو\s+)?(?:زودنا|ارفع|علي)\s+الميزاني|بحد\s+اقص[يى])\b/i.test(q)
-  ) {
-    return true;
-  }
-  return /(waiting\s*(?:over|>)\s*1|waiting\s+(?:for\s+)?(?:contact|to\s+be\s+called)|delayed\s+(?:first\s+contact|reply)|late\s+first\s+contact|no\s+first\s+contact|haven'?t\s+been\s+called|without\s+(?:a\s+)?(?:broker|agent|owner)|no\s+broker|not\s+assigned|unallocated|calls?\s+(?:due\s+)?today|approaching\s+sla|near\s+sla|sla\s+soon|about\s+to\s+breach|almost\s+overdue|opened.*(?:without|no)\s+follow|open(?:ed)?\s+(?:offer|link).*no\s+follow|no\s+next\s+step|missing\s+next\s+step|not\s+updating|silent\s+broker|quiet\s+broker|inactive\s+broker|who.*updat|scorecard|(?:how\s+is|performance\s+of|scorecard\s+for|status\s+of|summary\s+for|report\s+for)\s+\S+|what\s+(?:did|has)\s+.+\s+(?:do|done)|how\s+did\s+.+\s+do|\S+(?:'s|’s)\s+team\b|(?:the|my|our)\s+team\b|\bteam\s+(?:workload|activity|performance|calls|viewings|updates|deals|stats|summary)\b|(?:viewings?|showings?|calls?|updates?)\s+(?:by|for|of)\s+\S+|how\s+many\s+(?:viewings?|showings?|calls?|updates?|leads?|deals?|apartments?|villas?|units?|duplex(?:es)?|studios?|chalets?|penthouses?|offices?|shops?|townhouses?|twin\s*houses?)\s+(?:did|does|do)?|\b(?:viewings?|showings?)\s+(?:today|tomorrow|yesterday|this\s+week|last\s+week|next\s+week)\b|(?:upcoming|scheduled)\s+(?:viewings?|showings?)|who\s+has\s+(?:a\s+)?(?:showing|viewing)|(?:resale|primary)\s+deals?|deals?\s+(?:in|by|for|closed|involved|resale|primary)|(?:average|avg|median|first|reply)\s*response|response\s+time|how\s+fast.*(?:respond|reply)|speed\s+to\s+lead|fastest|slowest|stats\s+for\s+\S+|commission|payout|claimable|overdue|(?:missed|late|pending)\s+follow[ -]?ups?|unassigned|uncontacted|not\s+contacted|never\s+contacted|not\s+called|nobody\s+called|ad\s*spend|marketing\s*spend|\broi\b|\bcpl\b|\bcpd\b|facebook|\bfb\b|\bmeta\b|instagram|tiktok|google|olx|dubizzle|bayut|property\s*finder|nawy|lead\s+sources?|where\s+are\s+leads\s+coming\s+from|best\s+lead\s+source|leases?\s+ending|renewals?|win\s*\/?\s*loss|win\s*rate|conversion\s*rate|closing\s*rate|lost\s+reasons?|agency\s+brief|executive\s+brief|daily\s+brief|today'?s\s+summary|what\s+happened\s+today|how\s+are\s+we\s+doing|dashboard|overview|(?:من\s+غير|بدون)\s+(?:وسيط|بروكر|سيلز|حد)|مش\s+متوزع|لسه\s+متوزعوش|مش\s+متسلم|لسه\s+متسلموش|مفيش\s+حد\s+مسكهم|محدش\s+استلمهم|ملهمش\s+(?:وسيط|بروكر)|تاخر\s+اول\s+تواصل|تاخير\s+اول\s+تواصل|ات[اأ]خر(?:وا)?\s+في\s+اول\s+تواصل|محدش\s+كلم|لسه\s+متكلموش|محدش\s+اتصل|مكالمات\s+النهارده|متابعات\s+(?:متاخره|فايته|عدت)|مستنين.*(?:ساع|تواصل|رد)|انتظار.*ساع|بقالهم.*ساع|اكتر\s+من\s+ساع|عدي\s+ساعه|قربت.*ساع|قربوا\s+(?:يعدوا|يكسروا|يخلصوا|يتاخروا)|فتحوا.*(?:عرض|الرابط|اللينك).*(?:متابع|كلم)|شافوا\s+العرض|بدون\s+(?:خطوه|متابعه)\s*(?:جاي|تالي)|من\s+غير\s+خطوه|مبيحدث|مبيحدثش|مبيحدثوش|مش\s+بيحدث|مفيش\s+تحديث|بدون\s*تحديث|التزام.*(?:تحديث|فريق)|تحديثات\s+الوسطاء|(?:الوسطاء|البروكرز)?\s*اللي\s+مش\s+بيردوا|مش\s+بيردوا|مبيردوش|مش\s+بيتابعوا|مبيتابعوش|صامت|مين\s+(?:ساحب|نايم|مش\s+(?:شغال|بيرد|بيتابع))|(?:ايه\s+اخبار|اخبار|اداء|تقييم|شغل|ملخص|احصائيات|نتايج|ارقام)\s+\S+|\S+\s+(?:عمل|عملت|سجل|سجلت|كلم|كلمت|حدث|حدثت|قفل|قفلت|جاب|جابت)\s*(?:ايه|كام)?|(?:فريق|تيم)\s+\S+|\S+\s+(?:فريق|تيم)|(?:كام|كم)\s+(?:معاين|مكالم|تحديث|عميل|صفق|شقه|فيلا|وحده|دوبلكس|ستوديو|شاليه|بنتهاوس|مكتب|محل|تاون|توين)|معاينات\s+(?:النهارده|بكره|اليوم|امتي)|عندنا\s+(?:كام\s+)?معاين|جدول\s+المعاينات|صفقات\s+(?:ال)?(?:ريسيل|برايمر|في|قفلها|شارك)|وقت\s+الرد|متوسط\s+الرد|اول\s+رد|اسرع\s*(?:رد|واحد)|ابط[اأ]\s*(?:رد|واحد)|سرعه\s+الرد|بنرد\s+في\s+قد\s+ايه|فيسبوك|فيس\s*بوك|انستجرام|تيك\s*توك|جوجل|اوليكس|دوبيزل|بروبرتي|بيوت|نوي|عمولات|عموله|مستحقات\s+المطورين|صرف\s*تسويق|مصادر\s*(?:ال)?عملاء|احسن\s+مصدر|افضل\s+مصدر|العملاء\s+جايين\s+منين|عقود\s*(?:ال)?ايجار|ايجارات|تجديد\s+الايجار|خسار|ليه\s+بنخسر|الصفقات\s+اللي\s+ضاعت|معدل\s+القفل|نسبه\s+(?:القفل|النجاح)|(?:ملخص|لوحه|اداء|حاله|وضع|اخبار)\s+الشركه|تقرير\s+اليوم|الوضع\s+ايه)/i.test(q);
-}
-
-const AnimatedFlashList = Animated.createAnimatedComponent(FlashList<ApiUnitListItem>);
 
 export function SearchScreen() {
   const { colors } = useTheme();
@@ -79,7 +42,6 @@ export function SearchScreen() {
   const ar = lang === 'ar';
   const broker = useAuth((state) => state.broker);
   const recentKey = broker?.id ? `${RECENT_KEY}:${broker.id}` : null;
-  const generation = useRef(0);
   const previousIdentity = useRef(recentKey);
   const practiceKey = broker?.id ? `search-practice-v1:${broker.id}:${broker.role}` : null;
   const [invitation, setInvitation] = useState<string | null>(null);
@@ -102,31 +64,18 @@ export function SearchScreen() {
     setPracticing(true);
   };
 
-  const [source, setSource] = useState<'inventory' | 'primary'>('inventory');
   const [mode, setMode] = useState<AssistantMode>('auto');
   const [popoverOpen, setPopoverOpen] = useState(false);
   const credits = useSearchCredits();
   const [submitted, setSubmitted] = useState('');
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [report, setReport] = useState<SearchView | null>(null);
+  const [report, setReport] = useState<ReportKind | null>(null);
   const { rights, nav: appNav } = useRightsState();
-  const queries = useQueryClient();
-  const [leadFilters, setLeadFilters] = useState<Extract<SearchIntent, { kind: 'leads' }>['filters']>({});
+  const [leadFilters, setLeadFilters] = useState<LeadFilters>({});
   const [assignee, setAssignee] = useState<string>();
   const [dealLastMonth, setDealLastMonth] = useState(false);
   const [clarification, setClarification] = useState('');
-  const refreshCredits = () => queries.invalidateQueries({ queryKey: ['search-credits'] });
-  const answer = useMutation({ mutationFn: (q: string) => timed('ask', () => api.ask(q)), onSettled: () => { void refreshCredits(); } });
-  const [assistantContext, setAssistantContext] = useState<AssistantContext | null>(null);
-  const [assistantGen, setAssistantGen] = useState(0);
-  const assistant = useMutation({
-    mutationFn: ({ q, m, previousContext }: { q: string; m: AssistantMode; previousContext?: AssistantContext | null }) =>
-      api.assistantQuery({ q, mode: m, lang, ...(previousContext ? { previousContext } : {}) }),
-    onSettled: () => { void refreshCredits(); },
-  });
   const [text, setText] = useState('');
-  const [transcribing, setTranscribing] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [voiceConfirmOrigin, setVoiceConfirmOrigin] = useState<string | null>(null);
   // The search box and mic float at the bottom like a chat app: they slide away on scrolling down and come back on scrolling up.
   const slide = useSharedValue(0);
@@ -154,64 +103,9 @@ export function SearchScreen() {
     }
   });
   const barSlide = useAnimatedStyle(() => ({ transform: [{ translateY: slide.value }] }));
-  const search = useMutation<SearchResult, Error, { q: string; opts: Parameters<typeof api.search>[1] }>({
-    mutationFn: ({ q, opts }) => timed('search', () => api.search(q, opts)),
-    onSettled: () => { void refreshCredits(); },
-  });
-  const [assistantUnits, setAssistantUnits] = useState<SearchResult | null>(null);
-  const [assistantSuggestPrimary, setAssistantSuggestPrimary] = useState(false);
-  // Active units first; Sold and Archived are one tap away, with their counts from the start. More results load on demand.
-  const [statusCounts, setStatusCounts] = useState<SearchResult['counts']>();
-  const [last, setLast] = useState<{ q: string; drop: boolean; status: UnitStatus; f?: string | null; market?: 'resale' | 'primary' | null; sort?: string | null } | null>(null);
-  const [extra, setExtra] = useState<ApiUnitListItem[]>([]);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [done, setDone] = useState(false);
-  const resetSearch = search.reset;
-  const resetAnswer = answer.reset;
-  const resetAssistant = assistant.reset;
+
   const clearedRecents = useRef(false);
   const [recent, setRecent] = useState<string[]>([]);
-  useEffect(() => {
-    let active = true;
-    generation.current += 1;
-    clearedRecents.current = false;
-    setRecent([]);
-    if (previousIdentity.current !== recentKey) {
-      previousIdentity.current = recentKey;
-      resetSearch();
-      resetAnswer();
-      resetAssistant();
-      setAssistantUnits(null);
-      setAssistantSuggestPrimary(false);
-      setAssistantContext(null);
-      setExtra([]);
-      setLast(null);
-      setReport(null);
-      setSubmitted('');
-      setText('');
-      setTranscribing(false);
-      setVoiceConfirmOrigin(null);
-      setLoadingMore(false);
-    }
-    AsyncStorage.removeItem(RECENT_KEY).catch(() => undefined);
-    if (recentKey) AsyncStorage.getItem(recentKey).then((raw) => {
-      const values = raw ? JSON.parse(raw) : [];
-      if (active && !clearedRecents.current && Array.isArray(values)) setRecent(values.filter((value) => typeof value === 'string').slice(0, 3));
-    }).catch(() => undefined);
-    return () => { active = false; generation.current += 1; };
-  }, [recentKey, resetSearch, resetAnswer, resetAssistant]);
-
-  const supersedePendingSearch = () => {
-    generation.current += 1;
-    setTranscribing(false);
-    setLoadingMore(false);
-    setVoiceError(null);
-    setAssistantUnits(null);
-    setAssistantSuggestPrimary(false);
-    resetAssistant();
-    resetAnswer();
-  };
-
   const rememberRecent = (clean: string) => {
     setRecent((prev) => {
       const next = [clean, ...prev.filter((x) => x !== clean)].slice(0, 3);
@@ -220,42 +114,10 @@ export function SearchScreen() {
     });
   };
 
-  const run = async (
-    q: string,
-    drop = false,
-    status: UnitStatus = 'active',
-    carry?: { f?: string | null; market?: 'resale' | 'primary' | null; sort?: string | null } | null,
-  ) => {
-    const clean = q.trim();
-    if (!clean) return;
-    supersedePendingSearch();
-    setExtra([]);
-    setDone(false);
-    if (last?.q !== clean || last.drop !== drop) setStatusCounts(undefined);
-    const f = carry?.f ?? undefined;
-    const market = carry?.market ?? undefined;
-    const sort = carry?.sort ?? undefined;
-    setLast({ q: clean, drop, status, ...(f ? { f } : {}), ...(market ? { market } : {}), ...(sort ? { sort } : {}) });
-    rememberRecent(clean);
-    const opts: Parameters<typeof api.search>[1] = {
-      drop,
-      status,
-      ...(f ? { f } : {}),
-      ...(market ? { market } : {}),
-      ...(sort ? { sort } : {}),
-    };
-    const started = Date.now();
-    void track('search_started');
-    const result = await search.mutateAsync({ q: clean, opts }).catch(() => undefined);
-    void track('search_run', { outcome: result?.status ?? 'error', duration_ms: Date.now() - started });
-  };
-
-  const routeParsedIntent = (clean: string, forceSearch = false) => {
-    setAssistantContext(null);
-    const intent = forceSearch ? { kind: 'search' } as const :
-      parseSearchIntent(clean, report === 'leads' || report === 'deals' ? report : undefined);
+  /** Requests that are a report screen, not a chat answer. */
+  const showIntent = (intent: SearchIntent) => {
     const clarify = (message: string) => { setClarification(message); setReport('clarify'); };
-    const denied = () => clarify(ar ? 'الطلب ده مش متاح لصلاحياتك.' : 'This request is unavailable for your role.');
+    const denied = () => clarify(t(lang, 'roleDenied'));
     if (intent.kind === 'leads') {
       if (!rights.leads) return denied();
       setLeadFilters(intent.filters);
@@ -272,120 +134,16 @@ export function SearchScreen() {
       setDealLastMonth(intent.lastMonth);
       return setReport('deals');
     }
-    if (intent.kind === 'clarify') {
-      return clarify(ar
-        ? 'حدد تقصد أنهي نتيجة. لو بتدور في مشاريع المطورين، اكتب برايمري.'
-        : 'Choose a result or edit your question. For developer projects, include Primary.');
-    }
-    const next = intent.kind === 'source' ? intent.source : 'inventory';
-    setReport(null);
-    setSource(next);
-    if (next === 'primary') answer.mutate(clean);
-    else void run(clean);
+    return clarify(t(lang, 'clarifySearch'));
   };
+  const thread = useAssistantThread({ brokerId: broker?.id, lang, onIntent: showIntent, onRemember: rememberRecent });
+  const { turns, full, busy, transcribing } = thread;
 
-  const runAssistant = async (clean: string, activeMode: AssistantMode) => {
-    const reqGen = generation.current;
-    setReport('assistant');
-    setSource(activeMode === 'primary' ? 'primary' : 'inventory');
-    try {
-      const res = await assistant.mutateAsync({ q: clean, m: activeMode, ...(assistantContext ? { previousContext: assistantContext } : {}) });
-      if (reqGen !== generation.current) return;
-      usage('assistant_query_run', true, undefined, { mode: activeMode });
-      setAssistantGen((g) => g + 1);
-      if (res.intent !== 'disambiguate') setAssistantContext(res.nextContext ?? null);
-      if (res.intent === 'unit_search') {
-        rememberRecent(clean);
-        if (res.units && (res.units.items.length > 0 || res.units.status === 'ask')) {
-          resetSearch();
-          resetAssistant();
-          setAssistantUnits(res.units);
-          setAssistantSuggestPrimary(Boolean(res.suggestPrimary));
-          setStatusCounts(res.units.counts);
-          const effectiveMarket = res.units.marketLock ?? (activeMode === 'resale' ? 'resale' : undefined);
-          setLast({
-            q: clean,
-            drop: false,
-            status: res.units.unitStatus ?? 'active',
-            ...(res.units.f ? { f: res.units.f } : {}),
-            ...(effectiveMarket ? { market: effectiveMarket } : {}),
-            ...(res.units.sort ? { sort: res.units.sort } : {}),
-          });
-          setExtra([]);
-          setDone(res.units.items.length >= res.units.total);
-          setReport(null);
-        }
-      }
-    } catch (err) {
-      if (reqGen !== generation.current) return;
-      const legacyMissing = typeof api.assistantQuery !== 'function' || (err instanceof ApiClientError && (err.status === 404 || err.status === 501));
-      if (legacyMissing) {
-        setReport(null);
-        if (activeMode === 'primary') { setSource('primary'); answer.mutate(clean); }
-        else if (activeMode === 'resale') { setSource('inventory'); void run(clean); }
-        else { routeParsedIntent(clean, false); }
-      }
-    }
-  };
-  const loadMore = async () => {
-    const activeData = search.data ?? assistantUnits;
-    if (!last || !activeData || loadingMore || done) return;
-    const requestGeneration = generation.current;
-    setLoadingMore(true);
-    try {
-      const r = await api.search(last.q, {
-        drop: last.drop,
-        status: last.status,
-        offset: activeData.items.length + extra.length,
-        ...(last.f ? { f: last.f } : {}),
-        ...(last.market ? { market: last.market } : {}),
-        ...(last.sort ? { sort: last.sort } : {}),
-      });
-      if (requestGeneration !== generation.current) return;
-      if (!r.items.length) setDone(true);
-      setExtra((e) => [...e, ...r.items]);
-    } catch (e) {
-      if (requestGeneration !== generation.current) return;
-      setDone(true);
-      setVoiceError(errorText(e, lang));
-    } finally {
-      if (requestGeneration === generation.current) setLoadingMore(false);
-    }
-  };
-
-  const onVoice = async (file: VoiceFile) => {
-    const requestGeneration = generation.current;
-    setTranscribing(true);
-    setVoiceError(null);
-    try {
-      const { q } = await api.voiceToText(file);
-      if (requestGeneration !== generation.current) return;
-      const cleaned = (q ?? '').trim();
-      usage('voice_transcript_outcome', Boolean(cleaned), undefined, { outcome: cleaned ? 'sent_as_is' : 'empty', mode });
-      void refreshCredits();
-      setTranscribing(false);
-      if (cleaned && needsVoiceConfirm(cleaned).confirm) {
-        setText(cleaned);
-        setVoiceConfirmOrigin(cleaned);
-        return;
-      }
-      setVoiceConfirmOrigin(null);
-      setText(q);
-      submit(q);
-    } catch (e) {
-      usage('voice_transcript_outcome', false, undefined, { outcome: 'error', mode });
-      if (requestGeneration === generation.current) setVoiceError(errorText(e, lang));
-    } finally {
-      if (requestGeneration === generation.current) setTranscribing(false);
-    }
-  };
-
-  const submit = (q: string, fromClarification = false) => {
+  const submit = (q: string, source: TurnSource = 'text', fromClarification = false) => {
     const clean = q.trim();
     if (!clean) return;
     setPopoverOpen(false);
     Keyboard.dismiss();
-    supersedePendingSearch();
     setSubmitted(clean);
     hidden.value = false;
     slide.value = 0;
@@ -393,17 +151,25 @@ export function SearchScreen() {
       setReport('lead-action');
       return;
     }
-    if (!fromClarification && shouldUseAssistantEndpoint(clean, mode, Boolean(assistantContext))) {
-      void runAssistant(clean, mode);
-      return;
-    }
-    routeParsedIntent(clean, fromClarification);
+    setReport(null);
+    thread.send(clean, { source, mode, forceSearch: fromClarification, ...(report === 'leads' || report === 'deals' ? { report } : {}) });
   };
-  const primaryView = Boolean(submitted && source === 'primary');
-  const busy = search.isPending || answer.isPending || assistant.isPending;
-  const clearDisabled = busy || loadingMore || transcribing || !(submitted || text || report || recent.length || assistant.data);
+  const sendFrom = (q: string, source: TurnSource, m?: AssistantMode) => {
+    setText('');
+    setSubmitted(q);
+    setReport(null);
+    thread.send(q, { source, mode: m ?? mode });
+  };
+  const onVoice = async (file: Parameters<typeof thread.transcribe>[0]) => {
+    const heard = await thread.transcribe(file, mode);
+    if (!heard) return;
+    setText(heard.text);
+    if (heard.confirm) { setVoiceConfirmOrigin(heard.text); return; }
+    setVoiceConfirmOrigin(null);
+    submit(heard.text, 'voice');
+  };
+
   const resetToHome = useCallback(() => {
-    generation.current += 1;
     Keyboard.dismiss();
     setPracticing(false);
     setText('');
@@ -412,36 +178,41 @@ export function SearchScreen() {
     setToolsOpen(false);
     setPopoverOpen(false);
     setMode('auto');
-    setSource('inventory');
-    setLast(null);
-    setExtra([]);
-    setDone(false);
     setLeadFilters({});
     setAssignee(undefined);
     setDealLastMonth(false);
     setClarification('');
-    setVoiceError(null);
     hidden.value = false;
     lastY.value = 0;
     slide.value = 0;
-    setAssistantUnits(null);
-    setAssistantSuggestPrimary(false);
-    setAssistantContext(null);
     setVoiceConfirmOrigin(null);
-    resetSearch();
-    resetAnswer();
-    resetAssistant();
-  }, [hidden, lastY, resetAnswer, resetAssistant, resetSearch, slide]);
+    thread.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset is stable
+  }, [hidden, lastY, slide, thread.reset]);
   const clearChat = () => {
     resetToHome();
     clearedRecents.current = true;
     setRecent([]);
     if (recentKey) AsyncStorage.removeItem(recentKey).catch(() => undefined);
   };
-  const data = search.data ?? assistantUnits;
-  const counts = data?.counts ?? (search.isPending ? statusCounts : undefined);
-  const statusSelection = useSelectionHighlight(last?.status, greenGradient);
-  const atHome = !report && !submitted && !data && !search.isError && !busy && !assistant.data && !assistant.isError;
+  useEffect(() => {
+    let active = true;
+    clearedRecents.current = false;
+    setRecent([]);
+    if (previousIdentity.current !== recentKey) {
+      previousIdentity.current = recentKey;
+      resetToHome();
+    }
+    AsyncStorage.removeItem(RECENT_KEY).catch(() => undefined);
+    if (recentKey) AsyncStorage.getItem(recentKey).then((raw) => {
+      const values = raw ? JSON.parse(raw) : [];
+      if (active && !clearedRecents.current && Array.isArray(values)) setRecent(values.filter((value) => typeof value === 'string').slice(0, 3));
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [recentKey, resetToHome]);
+
+  const clearDisabled = busy || transcribing || !(submitted || text || report || recent.length || turns.length);
+  const atHome = !report && !turns.length && !full;
   const focused = useIsFocused();
   useEffect(() => {
     const addListener = (nav as unknown as { addListener?: (event: string, cb: () => void) => () => void }).addListener;
@@ -452,217 +223,63 @@ export function SearchScreen() {
     if (!focused || (!practicing && atHome)) return undefined;
     const sub = BackHandler?.addEventListener?.('hardwareBackPress', () => {
       if (practicing) { Keyboard.dismiss(); setPracticing(false); return true; }
+      if (full) { thread.closeFull(); return true; }
       if (!atHome) { resetToHome(); return true; }
       return false;
     });
     return () => sub?.remove();
-  }, [atHome, focused, practicing, resetToHome]);
+  }, [atHome, focused, full, practicing, resetToHome, thread]);
   const showInvitation = Boolean(invitation && invitation === practiceKey);
-  const openHomeReport = (value: SearchView, queue?: LeadQueue) => {
-    setAssistantContext(null);
+  const openHomeReport = (value: ReportKind, queue?: LeadQueue) => {
     setReport(value);
     setSubmitted('');
     setLeadFilters(queue ? { queue } : {});
     setAssignee(undefined);
     setDealLastMonth(false);
   };
-  const body = search.isPending ? (
-    <Loading label={t(lang, 'loading')} />
-  ) : search.isError ? (
-    <ErrorView message={errorText(search.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => last ? run(last.q, last.drop, last.status, last) : run(submitted || text)} />
-  ) : !data ? (
+
+  if (practicing) return <SearchPractice onClose={() => { Keyboard.dismiss(); setPracticing(false); }} />;
+
+  const home = (
     <SearchHome openQueue={(queue) => openHomeReport('leads', queue)} onTryPrompt={(prompt) => { setText(prompt); submit(prompt); }}
       invitation={showInvitation ? <View style={styles.invitation}>
-        <Button label={ar ? 'جرّب البحث' : 'Try Search'} onPress={startPractice} variant="secondary" size="sm" testID="practice-start" />
-        <Button label={ar ? 'تخطّي' : 'Skip'} onPress={dismissInvitation} variant="quiet" size="sm" testID="practice-skip" />
+        <Button label={t(lang, 'tryPractice')} onPress={startPractice} variant="secondary" size="sm" testID="practice-start" />
+        <Button label={t(lang, 'skipPractice')} onPress={dismissInvitation} variant="quiet" size="sm" testID="practice-skip" />
       </View> : null}>
-      <HomeRow testID="search-tools" title={ar ? 'اختصارات البحث' : 'Search shortcuts'} icon="search" expanded={toolsOpen}
-        onPress={() => setToolsOpen((value) => !value)} />
+      <HomeRow testID="search-tools" title={t(lang, 'searchShortcuts')} icon="search" expanded={toolsOpen} onPress={() => setToolsOpen((value) => !value)} />
       {toolsOpen ? <Animated.View entering={FadeIn.duration(180).reduceMotion(ReduceMotion.System)} exiting={FadeOut.duration(100).reduceMotion(ReduceMotion.System)} style={styles.tools}>
-        {!showInvitation ? <HomeRow title={ar ? 'جرّب البحث' : 'Try Search'} onPress={startPractice} icon="help" testID="practice-replay" /> : null}
-        <Text style={{ color: colors.muted, fontSize: 13 }}>{t(lang, recent.length ? 'searchRecent' : 'searchTry')}</Text>
+        {!showInvitation ? <HomeRow title={t(lang, 'tryPractice')} onPress={startPractice} icon="help" testID="practice-replay" /> : null}
+        <Text variant="bodySm" style={{ color: colors.muted }}>{t(lang, recent.length ? 'searchRecent' : 'searchTry')}</Text>
         {(recent.length ? recent : (['searchExample1', 'searchExample2', 'searchExample3'] as const).map((k) => t(lang, k))).map((q, i) => (
           <HomeRow key={q} title={q} testID={recent.length ? `searchRecent${i + 1}` : `searchExample${i + 1}`} onPress={() => { setText(q); submit(q); }} />
         ))}
-        {([{ value: 'deals', label: ar ? 'الصفقات' : 'Closed deals' },
+        {([{ value: 'deals', label: t(lang, 'closedDeals') },
           ...(rights.leads ? [{ value: 'leads', label: t(lang, 'leadsTab') }] : []),
-          ...(rights.manager ? [{ value: 'dashboard', label: t(lang, 'dashboard') }, { value: 'ranking', label: ar ? 'ترتيب الوسطاء' : 'Broker rankings' }] : []),
-        ] as { value: SearchView; label: string }[]).map(({ value, label }) => (
+          ...(rights.manager ? [{ value: 'dashboard', label: t(lang, 'dashboard') }, { value: 'ranking', label: t(lang, 'brokerRanking') }] : []),
+        ] as { value: ReportKind; label: string }[]).map(({ value, label }) => (
           <HomeRow key={value} title={label} onPress={() => openHomeReport(value)} />
         ))}
       </Animated.View> : null}
     </SearchHome>
-  ) : data.status === 'ask' ? (
-    <View style={styles.ask}>
-      <Text style={[styles.askTitle, { color: colors.text }]}>{t(lang, 'askTitle')}</Text>
-      <Text style={{ color: colors.accentInk, fontWeight: '700' }}>{[...(data.ask?.terms ?? []), ...(data.ask?.numbers ?? []).map(String)].join(' · ')}</Text>
-      <Button label={t(lang, 'askSearchAnyway')} onPress={() => run(last?.q ?? text, true, last?.status ?? 'active', last ?? undefined)} />
-      <Button label={t(lang, 'askEdit')} variant="secondary" onPress={() => { search.reset(); setAssistantUnits(null); }} />
-    </View>
-  ) : data.status === 'small_talk' || data.status === 'other' ? (
-    <EmptyView title={t(lang, 'smallTalk')} hint={t(lang, 'searchHint')} />
-  ) : data.status === 'listing' ? (
-    <EmptyView title={t(lang, 'listingHint')} />
-  ) : data.status === 'none' ? (
-    <EmptyView title={t(lang, 'noResults')} hint={t(lang, 'noResultsHint')} actionLabel={t(lang, 'clearSearch')} onAction={() => { setText(''); search.reset(); setAssistantUnits(null); }} />
-  ) : (
-    <AnimatedFlashList
-      testID="search-results-list"
-      data={[...data.items, ...extra]}
-      keyExtractor={(u) => u.id}
-      ListHeaderComponent={
-        <View>
-          {data.f && data.total > 0 ? <SaveSearchButton f={data.f} /> : null}
-          {data.reading ? <Text testID="reading-line" style={[styles.count, { color: colors.text }]}>{data.reading}</Text> : null}
-          <Text style={[styles.count, { color: colors.muted }]}>{data.total} {t(lang, 'results')}{data.relaxed ? ` · ${t(lang, 'relaxedNote')}` : ''}</Text>
-          {data.guesses?.length ? <Text testID="guess-note" style={[styles.count, { color: colors.accentInk }]}>{data.guesses.map((g) => t(lang, 'guessNote').replace('{typed}', g.typed).replace('{as}', g.as)).join(' ')}</Text> : null}
-          {data.unapplied?.length ? <Text testID="unapplied-note" style={[styles.count, { color: colors.accentInk }]}>{t(lang, 'unappliedNote')} {data.unapplied.join(' · ')}</Text> : null}
-          {data.ignoredTerms?.length ? <Text testID="ignored-note" style={[styles.count, { color: colors.accentInk }]}>{t(lang, 'ignoredNote')} {data.ignoredTerms.join(' · ')}</Text> : null}
-        </View>
-      }
-      renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => { void track('search_unit_opened'); nav.navigate('Unit', { code: item.code }); }} />}
-      onScroll={onScroll}
-      scrollEventThrottle={16}
-      contentContainerStyle={{ paddingBottom: 90 }}
-      onEndReached={() => { if (data.items.length + extra.length < data.total) loadMore(); }}
-      onEndReachedThreshold={0.6}
-      ListFooterComponent={
-        loadingMore ? <ActivityIndicator style={styles.count} color={colors.primaryInk} />
-        : assistantSuggestPrimary && last?.q ? (
-          <View style={styles.pivotFooter}>
-            <Button
-              testID="assistant-pivot-primary"
-              variant="secondary"
-              label={ar ? 'تشوف مشاريع برايمري كمان؟' : 'Check Primary projects too?'}
-              onPress={() => {
-                setAssistantUnits(null);
-                setAssistantSuggestPrimary(false);
-                setMode('primary');
-                void runAssistant(last.q, 'primary');
-              }}
-            />
-          </View>
-        ) : null
-      }
-    />
   );
-
-  if (practicing) return <SearchPractice onClose={() => { Keyboard.dismiss(); setPracticing(false); }} />;
 
   return (
     <View style={[styles.flex, styles.composerFrame, { backgroundColor: colors.bg }]}>
-      {voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{voiceError}</Text> : null}
-      {!report && !primaryView && counts && last ? (
-        <View style={styles.chips}>
-          {statusSelection.highlight}
-          {(['active', 'sold', 'archived'] as const).map((st) => (
-            <Pressable key={st} onLayout={statusSelection.measure(st)} accessibilityRole="button" accessibilityState={{ selected: st === last.status }} disabled={search.isPending} onPress={() => { setStatusCounts(counts); void run(last.q, last.drop, st, last); }} style={[styles.chip, { borderColor: st === last.status ? colors.primary : colors.border }, st === last.status && !statusSelection.highlight && greenGradient]}>
-              <Text style={{ color: st === last.status ? '#FFFFFF' : colors.text, fontWeight: '700' }}>{t(lang, st)} ({counts[st] ?? 0})</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-      {!report && !primaryView && data && data.source === 'fallback' && /QUOTA|AI_OFF/.test(data.aiError ?? '') ? (
-        <View testID="quick-reader-note" style={styles.quick}>
-          <Text style={{ color: colors.muted }}>⚡ {t(lang, 'quickReaderNote')}</Text>
-          <Pressable testID="quick-reader-units" accessibilityRole="button" onPress={() => nav.navigate('UnitsList')}><Text style={{ color: colors.primaryInk, fontWeight: '600' }}>{t(lang, 'useUnitFilters')}</Text></Pressable>
-        </View>
-      ) : null}
+      {thread.voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{thread.voiceError}</Text> : null}
       <Animated.View key={atHome ? 'brief' : 'results'} entering={FadeIn.duration(200).reduceMotion(ReduceMotion.System)} style={styles.flex}>
-        {report === 'clarify' ? <View style={styles.ask}>
-          <Text style={{ color: colors.text }}>{clarification}</Text>
-          {rights.leads ? <Button variant="secondary" label={t(lang, 'leadsTab')} onPress={() => { if (!rights.leads) return; setLeadFilters({}); setAssignee(undefined); setReport('leads'); }} /> : null}
-          <Button variant="secondary" label={t(lang, 'searchTab')} onPress={() => submit(submitted, true)} />
-        </View> : report === 'lead-action' ? <SearchLeadAction key={submitted} command={readLeadCommand(submitted)} onClose={() => { setReport('leads'); setSubmitted(''); setText(''); }} /> :
-          (report === 'dashboard' || report === 'ranking') ? <DashboardScreen embedded ranking={report === 'ranking'} key={report} /> :
-          report === 'assistant' ? (
-            assistant.isPending ? <Loading label={t(lang, 'loading')} />
-            : assistant.isError ? <ErrorView message={errorText(assistant.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => void runAssistant(submitted || text, mode)} />
-            : assistant.data ? (
-              <AssistantCards
-                key={String(assistantGen)}
-                response={assistant.data}
-                query={submitted || text}
-                ar={ar}
-                onAssignLead={async (ref, brokerId, version) => {
-                  const ver = version ?? (await api.lead(ref)).lead.version;
-                  await api.assignLead(ref, ver, brokerId);
-                  usage('lead_assign', true);
-                  usage('assistant_action_tapped', true, undefined, { action: 'reassign' });
-                  void queries.invalidateQueries({ queryKey: ['leads'] });
-                  void queries.invalidateQueries({ queryKey: ['lead', ref] });
-                  void queries.invalidateQueries({ queryKey: ['today'] });
-                  void queries.invalidateQueries({ queryKey: ['dashboard'] });
-                }}
-                onNudgeLead={async (ref) => {
-                  await api.nudgeLead(ref);
-                  usage('lead_nudge_sent', true);
-                  usage('assistant_action_tapped', true, undefined, { action: 'nudge' });
-                }}
-                onOpenLead={(ref) => nav.navigate('Lead', { ref })}
-                onOpenUnit={(code) => { void track('search_unit_opened'); nav.navigate('Unit', { code }); }}
-                onPivotPrimary={(qText) => {
-                  usage('assistant_action_tapped', true, undefined, { action: 'pivot_primary' });
-                  usage('route_override', true, undefined, { action: 'pivot_primary', mode, to_mode: 'primary' });
-                  setMode('primary');
-                  void runAssistant(qText, 'primary');
-                }}
-                onViewAllMarkets={(qText) => {
-                  usage('assistant_action_tapped', true, undefined, { action: 'view_all_markets' });
-                  usage('route_override', true, undefined, { action: 'view_all_markets', mode, to_mode: 'auto' });
-                  const broadened = qText
-                    .replace(/\b(?:resale|secondary)\b|ريسيل|اعاد[هة]\s*البيع/gi, ' ')
-                    .replace(/\s+/g, ' ')
-                    .trim() || qText;
-                  setMode('auto');
-                  setText(broadened);
-                  setAssistantContext(null);
-                  setReport(null);
-                  setSource('inventory');
-                  setAssistantUnits(null);
-                  assistant.reset();
-                  void run(broadened, false, 'active');
-                }}
-                onChangeSearch={(qText) => {
-                  usage('assistant_action_tapped', true, undefined, { action: 'change_search' });
-                  usage('search_corrected', true, undefined, { action: 'change_search', mode });
-                  setText(qText);
-                  setSubmitted('');
-                  setReport(null);
-                  setAssistantUnits(null);
-                  assistant.reset();
-                }}
-                onShareSummary={() => usage('assistant_action_tapped', true, undefined, { action: 'share_summary' })}
-                onNavigateLink={(target, params) => {
-                  if (ASSISTANT_NAV_SCREENS.has(target)) {
-                    nav.navigate(...(params ? [target, params] : [target]) as never);
-                  }
-                }}
-                onSelectOption={(optQuery) => {
-                  setText(optQuery);
-                  submit(optQuery);
-                }}
-                onOpenQueue={(queue) => openHomeReport('leads', queue)}
-                extraFooter={assistant.data.projects && assistant.data.projects.total_projects > 0
-                  ? <AskResults showStatus hideAnswerLine key={submitted} q={submitted} initial={assistant.data.projects} onOpenProject={(id, name) => nav.navigate('Project', { id, name })} />
-                  : undefined}
-              />
-            ) : <Loading label={t(lang, 'loading')} />
-          ) :
-          report === 'leads' ? <SearchLeads key={JSON.stringify([leadFilters, assignee])} assignedInitially={Boolean(leadFilters.assigned)} initialQueue={leadFilters.queue} initialTab={leadFilters.tab} lookup={leadFilters.lookup} requestedAssignee={assignee} /> :
-          report === 'deals' ? <SearchDeals initialPeriod={dealLastMonth ? 'last' : 'recent'} key={String(dealLastMonth)} /> : primaryView ? (
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.projectContent}>
-            {answer.isPending ? <Loading label={t(lang, 'loading')} /> : null}
-            {answer.isError ? <ErrorView message={errorText(answer.error, lang)} retryLabel={t(lang, 'retry')} onRetry={() => answer.mutate(submitted)} /> : null}
-            {answer.data ? <View style={[styles.answer, { backgroundColor: colors.card }]}>
-              <Text selectable style={{ color: colors.text, fontSize: 16 }}>{answer.data.answer}</Text>
-              {answer.data.source === 'local' ? <Text style={{ color: colors.muted }}>{pt(lang).localAnswer}</Text> : null}
-              {answer.data.dataDates ? <Text style={{ color: colors.muted }}>{answer.data.dataDates}</Text> : null}
-              <Button variant="secondary" label={t(lang, 'copyAnswer')} onPress={() => { if (answer.data) void Share.share({ message: answer.data.answer }).catch(() => undefined); }} />
-            </View> : null}
-            <AskResults showStatus={!answer.isPending} key={submitted} q={submitted} onOpenProject={(id, name) => nav.navigate('Project', { id, name })} />
-          </ScrollView>
-        ) : body}
+        {report ? (
+          <ReportView report={report} lang={lang} submitted={submitted} clarification={clarification} canSeeLeads={rights.leads} leadFilters={leadFilters} assignee={assignee} dealLastMonth={dealLastMonth}
+            onShowLeads={() => { setLeadFilters({}); setAssignee(undefined); setReport('leads'); }}
+            onSearchInstead={() => submit(submitted, 'text', true)}
+            onCloseAction={() => { setReport('leads'); setSubmitted(''); setText(''); }} />
+        ) : full ? (
+          <FullResults full={full} lang={lang} onStatus={thread.setFullStatus} onRetry={thread.rerunFull} onMore={() => thread.loadMore()} onScroll={onScroll}
+            onOpen={(code) => { track('search_unit_opened'); nav.navigate('Unit', { code }); }} />
+        ) : turns.length ? (
+          <ThreadView turns={turns} lang={lang} mode={mode} onScroll={onScroll} onSend={sendFrom} onRetry={(id) => thread.retry(id)} onSearchAnyway={(id) => thread.retry(id, { drop: true })}
+            onSeeAll={thread.openFull} onNewConversation={resetToHome} onChangeMode={setMode} onOpenQueue={(queue) => openHomeReport('leads', queue)}
+            onChangeSearch={(q) => setText(q)} />
+        ) : home}
       </Animated.View>
       <Animated.View style={[styles.composerStack, barSlide]}>
         <ComposerPopover
@@ -683,7 +300,7 @@ export function SearchScreen() {
         />
         {voiceConfirmOrigin !== null ? (
           <View testID="voice-confirm-bar" style={[styles.modeChipRow, { alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }]}>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>
+            <Text variant="caption" style={{ color: colors.muted }}>
               {ar ? 'راجع الصوت قبل التنفيذ:' : 'Confirm voice query:'}
             </Text>
             <Button
@@ -693,18 +310,10 @@ export function SearchScreen() {
               onPress={() => {
                 usage('voice_edited', true, undefined, { edited: text.trim() !== voiceConfirmOrigin, mode });
                 setVoiceConfirmOrigin(null);
-                submit(text);
+                submit(text, 'voice');
               }}
             />
-            <Button
-              testID="voice-confirm-dismiss"
-              size="sm"
-              variant="quiet"
-              label={ar ? 'إلغاء' : 'Cancel'}
-              onPress={() => {
-                setVoiceConfirmOrigin(null);
-              }}
-            />
+            <Button testID="voice-confirm-dismiss" size="sm" variant="quiet" label={ar ? 'إلغاء' : 'Cancel'} onPress={() => setVoiceConfirmOrigin(null)} />
           </View>
         ) : null}
         {mode !== 'auto' ? (
@@ -732,7 +341,7 @@ export function SearchScreen() {
                 onPress={() => setPopoverOpen((v) => !v)}
                 style={styles.modeButton}
               >
-                <Text style={{ fontSize: 16 }}>✨</Text>
+                <Text variant="body">✨</Text>
               </Pressable>
             }
             accessory={<Pressable testID="search-clear-chat" accessibilityRole="button" accessibilityLabel={ar ? 'امسح المحادثة' : 'Clear chat'}
@@ -746,7 +355,7 @@ export function SearchScreen() {
               : mode === 'reports' ? (ar ? 'اسأل عن العملاء أو الفريق أو العمولات...' : 'Ask about leads, team, commissions...')
               : (ar ? 'ابحث أو اسأل' : 'Search or ask')
             }
-            onSubmit={() => submit(text)} onFile={onVoice} onError={setVoiceError} disabled={transcribing} busy={busy || transcribing} />
+            onSubmit={() => { submit(text, voiceConfirmOrigin !== null ? 'voice' : 'text'); }} onFile={onVoice} onError={thread.setVoiceError} disabled={transcribing} busy={busy || transcribing} />
         </View>
       </Animated.View>
     </View>
@@ -755,8 +364,6 @@ export function SearchScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  projectContent: { padding: spacing.lg, paddingBottom: 90, gap: spacing.md },
-  answer: { borderRadius: radius.card, padding: spacing.lg, gap: spacing.sm },
   invitation: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tools: { gap: spacing.sm },
   composerFrame: { overflow: 'hidden' },
@@ -764,13 +371,6 @@ const styles = StyleSheet.create({
   modeChipRow: { flexDirection: 'row', marginBottom: spacing.xs },
   barBox: { padding: 4, borderRadius: 26, borderWidth: 1, shadowColor: '#000000', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
   err: { padding: spacing.lg, textAlign: 'center' },
-  ask: { padding: spacing.xl, gap: spacing.md },
-  askTitle: { fontSize: 18, fontWeight: '700' },
-  count: { paddingHorizontal: spacing.lg, paddingVertical: 4, fontSize: 13, fontWeight: '700' },
-  quick: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.xs },
   modeButton: { minWidth: 36, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   clearButton: { minWidth: 40, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
-  chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs },
-  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: spacing.lg, height: 38, justifyContent: 'center' },
-  pivotFooter: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
 });

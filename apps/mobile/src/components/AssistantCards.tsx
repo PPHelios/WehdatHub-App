@@ -245,6 +245,8 @@ export function AssistantCards({
   onChangeSearch,
   onSelectOption,
   extraFooter,
+  embedded,
+  leadLine,
 }: {
   response: AssistantQueryResponse;
   query: string;
@@ -261,6 +263,9 @@ export function AssistantCards({
   onChangeSearch?: (q: string) => void;
   onSelectOption?: (query: string) => void;
   extraFooter?: React.ReactNode;
+  /** Inside a chat turn: no own scroll view, and the turn supplies the opening line. */
+  embedded?: boolean;
+  leadLine?: string;
 }) {
   const { colors } = useTheme();
   const lang = ar ? 'ar' : 'en';
@@ -272,6 +277,7 @@ export function AssistantCards({
   const [actionError, setActionError] = useState<string | null>(null);
   const pivotAction = response.actions?.find((a) => a.kind === 'pivot_mode');
   const viewAllMarketsAction = response.actions?.find((a): a is Extract<typeof a, { kind: 'view_all_markets' }> => a.kind === 'view_all_markets');
+  const changeSearchAction = response.actions?.find((a): a is Extract<typeof a, { kind: 'change_search' }> => a.kind === 'change_search');
   const queueActions = (response.actions ?? []).filter((a): a is Extract<typeof a, { kind: 'open_queue' }> => a.kind === 'open_queue');
   const appliedFilters = response.understood?.appliedFilters ?? [];
   const showPivot = Boolean(response.suggestPrimary || pivotAction);
@@ -330,16 +336,19 @@ export function AssistantCards({
     }
   };
 
+  const Root: React.ElementType = embedded ? View : ScrollView;
+  const rootProps = embedded ? { style: styles.embedded } : { keyboardShouldPersistTaps: 'handled', contentContainerStyle: styles.container };
+
   return (
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.container}>
+    <Root {...rootProps}>
       <View style={styles.headerRow}>
         <View style={styles.headerCopy}>
-          <Text testID="assistant-headline" accessibilityRole="header" style={[styles.headline, { color: colors.text }]}>{response.headline}</Text>
+          <Text testID="assistant-headline" accessibilityRole="header" style={[styles.headline, { color: colors.text }]}>{leadLine ?? response.headline}</Text>
           {response.windowLabel ? <Text style={{ color: colors.muted, fontSize: 13 }}>{response.windowLabel}</Text> : null}
         </View>
         <Chip
           testID="assistant-share-summary"
-          label={ar ? 'مشاركة الملخص' : 'Share summary'}
+          label={t(lang, 'shareSummary')}
           onPress={() => {
             onShareSummary?.();
             void Share.share({ message: buildShareSummary(response, ar) }).catch(() => undefined);
@@ -399,12 +408,12 @@ export function AssistantCards({
         />
       ) : null}
 
-      {onChangeSearch && query.trim() ? (
+      {onChangeSearch && (changeSearchAction || query.trim()) ? (
         <Button
           testID="assistant-change-search"
           variant="quiet"
-          label={ar ? 'تعديل البحث' : 'Change search'}
-          onPress={() => onChangeSearch(query)}
+          label={changeSearchAction?.label || t(lang, 'changeSearch')}
+          onPress={() => onChangeSearch(changeSearchAction?.query ?? query)}
         />
       ) : null}
 
@@ -420,14 +429,15 @@ export function AssistantCards({
       ) : null}
 
       {extraFooter}
-      {response.intent !== 'clarify' && !response.cards.length && !response.units?.items?.length && !extraFooter && !viewAllMarketsAction && !showPivot ? (
+      {response.intent === 'unit_search' && !response.cards.length && !response.units?.items?.length && !extraFooter && !viewAllMarketsAction && !showPivot ? (
         <Text style={{ color: colors.muted }}>{t(lang, 'noResults')}</Text>
       ) : null}
-    </ScrollView>
+    </Root>
   );
 }
 
 const styles = StyleSheet.create({
+  embedded: { gap: spacing.md },
   container: { padding: spacing.lg, paddingBottom: 110, gap: spacing.md },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.sm },
   headerCopy: { flex: 1, gap: 2 },

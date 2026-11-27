@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 import { render, screen } from '@testing-library/react-native';
 import { COLORS } from '@wehdathub/shared';
 import type { ApiUnitListItem } from '@wehdathub/shared';
-import { UnitCard, UNIT_PHOTO_HEIGHT } from '../src/components/UnitCard';
+import { UnitCard, UNIT_PHOTO_WIDTH } from '../src/components/UnitCard';
 import { Pill } from '../src/components/Pill';
 import { usePrefs } from '../src/prefs';
 import { GREEN_PALETTE, radius } from '../src/theme';
@@ -44,10 +44,29 @@ test('a unit card with no property type leaves the chip out', async () => {
   expect(screen.queryByTestId('type-HP-301')).toBeNull();
 });
 
-test('with no photo the card keeps the photo area, so a list has even rows', async () => {
+test('with no photo the card keeps a full-height branded photo area with a note', async () => {
   await render(<UnitCard unit={unit({ photo: null })} lang="en" onPress={() => undefined} />);
   const box = screen.getByTestId('no-photo-HP-301');
-  expect(StyleSheet.flatten(box.props.style).height).toBe(UNIT_PHOTO_HEIGHT);
+  expect(StyleSheet.flatten(box.props.style).width).toBe(UNIT_PHOTO_WIDTH);
+  expect(screen.getByText('No photo yet')).toBeTruthy();
+});
+
+test('price shows the currency as its own label, Sale and Mine pills both show, title allows 2 lines', async () => {
+  await render(<UnitCard unit={unit({ mine: true, currency: 'USD', compound: 'Hyde Park Residences Phase One' })} lang="en" onPress={() => undefined} />);
+  expect(screen.getByText('USD')).toBeTruthy();
+  expect(screen.getByTestId('deal-HP-301')).toBeTruthy();
+  expect(screen.getByTestId('owner-HP-301')).toBeTruthy();
+  expect(screen.getByTestId('title-HP-301').props.numberOfLines).toBe(2);
+});
+
+test('last update label and reason chips (max 2) show; no timestamp shows nothing', async () => {
+  const updatedAt = new Date(Date.now() - 2 * 86_400_000).toISOString();
+  const { rerender } = await render(<UnitCard unit={unit({ updatedAt })} reasons={['✓ A', '✓ B', '✓ C']} lang="en" onPress={() => undefined} />);
+  expect(screen.getByText('2d ago')).toBeTruthy();
+  expect(screen.getByText('✓ B')).toBeTruthy();
+  expect(screen.queryByText('✓ C')).toBeNull();
+  await rerender(<UnitCard unit={unit({ updatedAt: null })} lang="en" onPress={() => undefined} />);
+  expect(screen.queryByTestId('updated-HP-301')).toBeNull();
 });
 
 test('a card with no place or finishing leaves those out', async () => {
