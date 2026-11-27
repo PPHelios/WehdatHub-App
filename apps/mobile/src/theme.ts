@@ -80,6 +80,8 @@ export function useTheme() {
       requiredField: c['required-field'],
       primaryLine: scheme === 'dark' ? GREEN_PALETTE.primaryLineDark : GREEN_PALETTE.primaryLine,
       primaryHi: GREEN_PALETTE.primaryLight,
+      // Search-credit ring, healthy: brand green on light, a muted mid green on dark.
+      creditOk: scheme === 'dark' ? '#3f8f74' : GREEN_PALETTE.primaryLight,
       primaryStrong: GREEN_PALETTE.primaryDark,
       onPrimary: c['on-brand'].toUpperCase(),
       chartBar: scheme === 'dark' ? GREEN_PALETTE.emerald : GREEN_PALETTE.primary,

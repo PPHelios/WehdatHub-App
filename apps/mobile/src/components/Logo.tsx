@@ -2,34 +2,45 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import Svg, { Polygon } from 'react-native-svg';
-import { brand } from '@wehdathub/shared';
+import { brand, COLORS } from '@wehdathub/shared';
 import { currentLang } from '../auth';
 import { useTheme } from '../theme';
 
-/** The existing five-bar mark with green wings and a gold center. */
+/** The five-bar mark: dark-green wings in both themes, on a soft-mint tile so it stays visible on dark. */
 function Mark({ height }: { height: number }) {
   const { colors, scheme } = useTheme();
-  const wings = scheme === 'dark' ? colors.primaryInk : colors.primary;
+  const tile = height / 0.64; // 18% padding each side
   return (
-    <Svg width={(height * 154) / 160} height={height} viewBox="0 0 154 160" testID="logo-mark">
-      <Polygon points="10,20 32,55 32,150 10,150" fill={wings} />
-      <Polygon points="38,95 60,70 60,150 38,150" fill={wings} />
-      <Polygon points="66,62 88,35 88,150 66,150" fill={brand[scheme].gold} />
-      <Polygon points="94,70 116,95 116,150 94,150" fill={wings} />
-      <Polygon points="122,55 144,20 144,150 122,150" fill={wings} />
-    </Svg>
+    <View style={[{ width: tile, height: tile, borderRadius: tile * 0.26, backgroundColor: COLORS.light['brand-soft'] }, styles.tile]}>
+      <Svg width={(height * 154) / 160} height={height} viewBox="0 0 154 160" testID="logo-mark">
+        <Polygon points="10,20 32,55 32,150 10,150" fill={colors.primary} />
+        <Polygon points="38,95 60,70 60,150 38,150" fill={colors.primary} />
+        <Polygon points="66,62 88,35 88,150 66,150" fill={brand[scheme].gold} />
+        <Polygon points="94,70 116,95 116,150 94,150" fill={colors.primary} />
+        <Polygon points="122,55 144,20 144,150 122,150" fill={colors.primary} />
+      </Svg>
+    </View>
   );
 }
 
-/** The name in one language: "WehdatHub", or "وحدات هب". */
+/** The name in one language: "Wehdat" + a green "Hub" pill, or "وحدات" + "هب". */
 function Word({ ar, fontSize }: { ar: boolean; fontSize: number }) {
-  const { colors } = useTheme();
-  return ar ? (
-    <Text style={[styles.word, { color: colors.text, fontSize }]} numberOfLines={1}>وحدات هب</Text>
-  ) : (
-    <Text style={[styles.word, { color: colors.text, fontSize }]} numberOfLines={1}>
-      Wehdat<Text style={{ color: colors.primaryInk }}>Hub</Text>
-    </Text>
+  const { colors, scheme } = useTheme();
+  const s = fontSize / 34;
+  const text = [styles.word, { fontSize }];
+  return (
+    <View style={styles.wordRow}>
+      <Text style={[...text, { color: colors.text }]} numberOfLines={1}>{ar ? 'وحدات' : 'Wehdat'}</Text>
+      <View
+        style={[
+          styles.pill,
+          { backgroundColor: COLORS.light.brand, borderRadius: 8 * s, paddingHorizontal: 6 * s },
+          scheme === 'dark' && styles.pillDark,
+        ]}
+      >
+        <Text style={[...text, { color: colors.onPrimary }]} numberOfLines={1}>{ar ? 'هب' : 'Hub'}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -77,6 +88,10 @@ const styles = StyleSheet.create({
   wrap: { alignItems: 'center' },
   stacked: { gap: 12 },
   compact: { flexDirection: 'row', gap: 8 },
+  tile: { alignItems: 'center', justifyContent: 'center' },
+  pill: { borderWidth: 0 },
+  pillDark: { borderWidth: 1, borderColor: COLORS.dark['brand-line'] },
+  wordRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   word: { fontWeight: '800', textAlign: 'center' },
   names: { alignItems: 'center', gap: 2 },
   bar: { alignItems: 'center', gap: 2, maxWidth: BAR_WIDTH },

@@ -2,7 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AskResults } from '../src/components/AskResults';
-import { SearchCreditRings } from '../src/components/SearchCreditRings';
+import { SearchCreditRings, creditRatioColor } from '../src/components/SearchCreditRings';
 import { api } from '../src/api';
 
 jest.mock('../src/api', () => ({ api: { askResults: jest.fn(), askAction: jest.fn().mockResolvedValue(undefined), askReport: jest.fn() } }));
@@ -136,4 +136,12 @@ test('SearchCreditRings shows neutral state when loading/error and balance acces
 
   await render(<SearchCreditRings data={{ personal: { limit: 10, remaining: 7, used: 3 } }} ar={false} />);
   expect(screen.getByTestId('search-credit-rings').props.accessibilityLabel).toMatch(/7.*10/);
+});
+
+test('creditRatioColor maps the quota ratio to the theme colours', () => {
+  const c = { creditOk: 'ok', warn: 'warn', danger: 'bad' };
+  expect(creditRatioColor(0.9, c)).toBe('ok');
+  expect(creditRatioColor(0.4, c)).toBe('warn');
+  expect(creditRatioColor(0.15, c)).toBe('bad');
+  expect(creditRatioColor(0, c)).toBe('bad');
 });
