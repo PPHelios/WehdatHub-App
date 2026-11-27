@@ -130,6 +130,17 @@ function Suggestions({ items, onSend, intent }: { items: AssistantSuggestion[]; 
   );
 }
 
+/** "Units or clients?": the two choices as two clear buttons, the first one primary. */
+function ClarifyChoice({ items, onSend }: { items: AssistantSuggestion[]; onSend: TurnHandlers['onSend'] }) {
+  return (
+    <View testID="clarify-choice" style={styles.block}>
+      {items.map((s, i) => (
+        <Button key={`${s.q}-${i}`} testID={`clarify-choice-${i}`} variant={i === 0 ? 'primary' : 'secondary'} label={s.label} onPress={() => { track('suggestion_tapped', { intent: 'clarify' }); onSend(s.q, 'chip'); }} />
+      ))}
+    </View>
+  );
+}
+
 /** A small thumbs-down at the end of an answer: pick why, and the answer is marked as rated. */
 function FeedbackButton({ turn, lang, onRate }: { turn: Turn; lang: Lang; onRate: TurnHandlers['onRate'] }) {
   const { colors } = useTheme();
@@ -185,7 +196,9 @@ function Answer({ turn, lang, h }: { turn: Turn; lang: Lang; h: TurnHandlers }) 
           extraFooter={primary || projects ? <AskResults showStatus hideAnswerLine={Boolean(projects)} q={turn.question} initial={projects} onOpenProject={(id, name) => h.onOpenProject(id, name)} /> : undefined}
         />
       )}
-      {r.suggestions?.length ? <Suggestions items={r.suggestions} onSend={h.onSend} intent={r.intent} /> : null}
+      {r.clarifyKind === 'units_or_clients' && r.suggestions?.length === 2
+        ? <ClarifyChoice items={r.suggestions} onSend={h.onSend} />
+        : r.suggestions?.length ? <Suggestions items={r.suggestions} onSend={h.onSend} intent={r.intent} /> : null}
       <FeedbackButton turn={turn} lang={lang} onRate={h.onRate} />
     </View>
   );

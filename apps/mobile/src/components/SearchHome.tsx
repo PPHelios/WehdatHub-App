@@ -23,6 +23,7 @@ import { SectionCard, UrgencyBadge } from './SectionCard';
 import { OldUnitActions } from './TodayCards';
 import { StarterCard, useStarterDismissed } from './StarterCard';
 import { DecisionCard } from './DecisionCard';
+import { HomeLeadActions } from './HomeLeadActions';
 import { allClearLine, decisionSummary, formatPriority, nextStepForRole, priorityPrompt, priorityTitle, type PriorityView } from '../assistant/priorityCopy';
 import { TodayCall, TodayDetails } from './TodayDetails';
 
@@ -238,7 +239,7 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
           icon={v.icon}
           primary={{ label: t(lang, 'pc_open'), onPress: () => openPriorityAction(p, v) }}
           secondary={!v.chatFirst && v.prompt && onTryPrompt ? { label: t(lang, 'pc_ask'), testID: `${v.testID}-ask`, onPress: () => askAbout(p, v) } : undefined}
-          extra={v.callPhone ? <TodayCall phone={v.callPhone} label={t(lang, 'call')} /> : null}
+          extra={v.callPhone ? <TodayCall phone={v.callPhone} label={t(lang, 'call')} /> : <HomeLeadActions p={p} lang={lang} />}
         />,
       );
     });

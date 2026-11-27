@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AssistantMode, Lang, LeadQueue, UnitStatus } from '@wehdathub/shared';
-import { api } from '../api';
+import { assignLead, nudgeBroker, nudgeLead } from '../leadActions';
 import { track } from '../analytics';
 import { AppText as Text } from '../components/AppText';
 import { Icon } from '../components/Icon';
@@ -51,18 +51,10 @@ export function ThreadView({ turns, lang, mode, onSend, onRetry, onSearchAnyway,
     onUseFilters: () => nav.navigate('UnitsList'),
     onOpenProject: (id, name) => nav.navigate('Project', { id, name }),
     cards: {
-      onAssignLead: async (ref, brokerId, version) => {
-        const ver = version ?? (await api.lead(ref)).lead.version;
-        await api.assignLead(ref, ver, brokerId);
-        usage('lead_assign', true);
-        usage('assistant_action_tapped', true, undefined, { action: 'reassign' });
-        for (const key of [['leads'], ['lead', ref], ['today'], ['dashboard']]) queries.invalidateQueries({ queryKey: key });
-      },
-      onNudgeLead: async (ref) => {
-        await api.nudgeLead(ref);
-        usage('lead_nudge_sent', true);
-        usage('assistant_action_tapped', true, undefined, { action: 'nudge' });
-      },
+      onAssignLead: (ref, brokerId, version) => assignLead(queries, ref, brokerId, version),
+      onNudgeLead: nudgeLead,
+      onNudgeBroker: nudgeBroker,
+      onBookViewing: (ref, at) => nav.navigate('Lead', { ref, viewingAt: at }),
       onOpenLead: (ref) => nav.navigate('Lead', { ref }),
       onOpenUnit: openUnit,
       onPivotPrimary: (q) => {

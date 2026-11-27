@@ -101,6 +101,10 @@ export interface SearchHomePriority {
   urgency: SearchHomePriorityUrgency;
   count: number;
   action: SearchHomePriorityAction;
+  /** Lead cards: the top lead, and what this person may do to it. */
+  lead?: { ref: string; version?: number; assigneeId?: string | null; lastAutoReminderAt?: string | null; recommendedBroker?: { id: string; name: string } | null };
+  canNudge?: boolean;
+  canAssign?: boolean;
   extra?: Record<string, string | number | boolean | null>;
 }
 export interface SearchHomeData {
@@ -128,7 +132,7 @@ export type LeadStage = 'new' | 'contacted' | 'interested' | 'viewing' | 'negoti
 export const LEAD_STAGES: LeadStage[] = ['new', 'contacted', 'interested', 'viewing', 'negotiation', 'won', 'lost'];
 export type LeadMatchField = 'price_min' | 'price_max' | 'area_min' | 'area_max' | 'bedrooms_min';
 export type LeadMatchAdjustments = { requestId: string } & Partial<Record<LeadMatchField, string>>;
-export type LeadQueue = 'unassigned' | 'uncontacted' | 'delayed-first-contact' | 'waiting-over-1h' | 'late-response' | 'overdue' | 'viewings-tomorrow';
+export type LeadQueue = 'unassigned' | 'uncontacted' | 'delayed-first-contact' | 'waiting-over-1h' | 'late-response' | 'overdue' | 'viewings-tomorrow' | 'viewings' | 'approaching-sla' | 'opened-no-followup';
 export type LeadTab = 'all' | LeadStage | 'due_today' | 'overdue' | 'no_next_step';
 export interface ApiLead {
   ref: string;
@@ -284,6 +288,9 @@ export interface DashboardBoardRow {
   missed?: number;
   onTimePct?: number | null;
   discipline?: BrokerDiscipline;
+  /** crm_discipline rows: whether this person may nudge that broker, and the broker's id. */
+  canNudgeBroker?: boolean;
+  brokerId?: string;
 }
 export interface DashboardDisciplineSummary {
   consistent: number;
@@ -324,17 +331,22 @@ export type AssistantFeedbackReason = 'wrong' | 'not_asked' | 'other';
 export interface AssistantFeedback { q: string; lang: Lang; intent: string; route?: string; verdict: 'down'; reason: AssistantFeedbackReason }
 export interface AssistantSuggestion { label: string; q: string }
 export interface AssistantCardLink { screen: string; params?: Record<string, unknown> }
+export type ViewingState = 'booked' | 'confirmed' | 'planned';
 export type AssistantCard =
   | {
       kind: 'stuck_leads';
       title?: string;
-      queue: string;
+      /** The Leads list queue that returns exactly these leads; null when no list matches. */
+      queue: string | null;
       total: number;
+      /** Viewings card only: how the total splits. */
+      split?: { booked: number; confirmed: number; planned: number };
       recommendedBrokers: { id: string; name: string; open: number; avatarUrl?: string | null }[];
       canAssign: boolean;
       canNudge: boolean;
-      items: { ref: string; name: string | null; stage: string; version?: number; assignee: string | null; assigneeId: string | null; avatarUrl?: string | null; createdAt: string | null }[];
+      items: { ref: string; name: string | null; stage: string; version?: number; assignee: string | null; assigneeId: string | null; avatarUrl?: string | null; createdAt: string | null; viewingState?: ViewingState; at?: string | null; action?: { kind: 'book_viewing'; ref: string; at: string }; lastAutoReminderAt?: string | null }[];
     }
+  | { kind: 'client_matches'; title?: string; total: number; queue: null; items: { ref: string; name: string | null; brokerName: string | null; brokerId?: string | null; avatarUrl?: string | null; wants: string; matchCount: number }[] }
   | { kind: 'broker_scorecard'; broker: DashboardBoardRow }
   | { kind: 'broker_discipline'; summary: DashboardDisciplineSummary; rows: DashboardBoardRow[] }
   | { kind: 'metric_row'; items: { label: string; value: number | string; tone?: 'neutral' | 'ok' | 'warn' | 'critical'; unit?: string; /** Change (now minus the previous equal-length period), when the server has it. */ delta?: number | null; /** Whether that change is good news (a lower response time is). */ deltaGood?: boolean }[]; summary?: string; link?: AssistantCardLink }
@@ -376,6 +388,9 @@ export interface AssistantContext {
 }
 export interface AssistantQueryResponse {
   intent: string;
+  route?: string;
+  /** With route 'clarify': 'units_or_clients' means the two suggestions are the two choices. */
+  clarifyKind?: string;
   headline: string;
   windowLabel?: string;
   modeUsed?: AssistantMode;
@@ -822,6 +837,7 @@ export function createApiClient(opts: ApiClientOptions) {
     notificationsDeleteAll: () => request<{ ok: boolean; unread: number }>('POST', '/notifications/delete-all', {}),
     leadLang: (ref: string, version: number, lang: 'ar' | 'en' | null) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/lang`, { lang, version }),
     leadCalled: (ref: string, version: number) => request<{ lead: ApiLead }>('POST', `/leads/${encodeURIComponent(ref)}/contacted`, { version }),
+    nudgeBroker: (id: string) => request<void>('POST', `/brokers/${encodeURIComponent(id)}/nudge`, {}),
     nudgeLead: (ref: string) => request<{ ok: true }>('POST', `/leads/${encodeURIComponent(ref)}/nudge`, {}),
     assistantQuery: (body: { q: string; mode?: AssistantMode; lang?: Lang; previousContext?: AssistantContext | null }) => request<AssistantQueryResponse>('POST', '/assistant/query', body),
     assistantFeedback: (body: AssistantFeedback) => request<void>('POST', '/assistant/feedback', body),

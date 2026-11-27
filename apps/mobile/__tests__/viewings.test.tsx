@@ -30,7 +30,7 @@ test('saving a viewing sends the lead version and shows the client message only 
   expect(screen.queryByTestId('viewing-message')).toBeNull();
   await fireEvent.press(screen.getByTestId('viewing-info'));
   expect(screen.getByTestId('viewing-message')).toBeTruthy();
-  expect(screen.queryByTestId('viewing-send')).toBeNull();
+  expect(screen.getByTestId('viewing-send')).toBeTruthy();
 });
 
 test('a past time shows the error and no result', async () => {

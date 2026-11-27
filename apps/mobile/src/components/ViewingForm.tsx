@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from './AppText';
 import { useQueryClient } from '@tanstack/react-query';
 import { ApiClientError } from '@wehdathub/shared';
@@ -28,12 +28,22 @@ export function viewingInstant(dayOffset: number, hour: number, now = new Date()
 }
 
 /** Schedules a viewing and shows its confirmation text on request. */
-export function ViewingForm({ lead, unitCode = '' }: { lead: ApiLead; unitCode?: string }) {
+/** Day offset (0-7) and hour (9-20) of a planned time, to prefill the form. */
+export function prefillSlot(at: string | undefined, now = new Date()): { day: number; hour: number } | null {
+  const d = at ? new Date(at) : null;
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const midnight = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const day = Math.round((midnight(d) - midnight(now)) / 86400000);
+  return { day: Math.min(7, Math.max(0, day)), hour: Math.min(20, Math.max(9, d.getHours())) };
+}
+
+export function ViewingForm({ lead, unitCode = '', initialAt }: { lead: ApiLead; unitCode?: string; initialAt?: string }) {
   const { colors } = useTheme();
   const lang = currentLang();
   const qc = useQueryClient();
-  const [day, setDay] = useState(1);
-  const [hour, setHour] = useState(11);
+  const slot = prefillSlot(initialAt);
+  const [day, setDay] = useState(slot?.day ?? 1);
+  const [hour, setHour] = useState(slot?.hour ?? 11);
   const [place, setPlace] = useState('');
   const [unit, setUnit] = useState(unitCode);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +87,8 @@ export function ViewingForm({ lead, unitCode = '' }: { lead: ApiLead; unitCode?:
             </Pressable>
           </View>
           {showMessage ? <Text testID="viewing-message" style={{ color: colors.text }}>{done.message}</Text> : null}
+          {done.wa ? <Button testID="viewing-send" variant="secondary" label={t(lang, 'sendToClient')} onPress={() => { Linking.openURL(done.wa!).catch(() => undefined); }} /> : null}
+          <Button testID="viewing-finish" variant="quiet" label={t(lang, 'vf_done')} onPress={() => setDone(null)} />
         </View>
       ) : null}
     </View>

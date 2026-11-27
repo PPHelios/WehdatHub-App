@@ -4,6 +4,8 @@ import { ApiClientError, ltr, type Lang, type AssistantCard, type AssistantQuery
 import { looksLikePhone } from './PhoneText';
 import { errorText } from '../errors';
 import { t } from '../i18n';
+import { sent, failed } from '../haptics';
+import { reminderLine } from '../reminderLine';
 import { spacing, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 import { Avatar } from './Avatar';
@@ -17,6 +19,7 @@ import { PriceRange } from './charts/PriceRange';
 import { Share as ShareChart } from './charts/Share';
 import { Trend } from './charts/Trend';
 import { UnitCard } from './UnitCard';
+import { toast } from './Toast';
 
 const langOf = (isAr: boolean): Lang => (isAr ? 'ar' : 'en');
 /** Fills `{key}` placeholders in a translated string. */
@@ -61,10 +64,15 @@ function CardBody({
   ar,
   reassigned,
   nudged,
+  nudgedBrokers,
   busyRefs,
   rowErrors,
   onAssign,
   onNudge,
+  onNudgeBroker,
+  onNudgeAll,
+  onBook,
+  onOpenQueue,
   onOpenLead,
   onSelectOption,
   onNavigate,
@@ -73,10 +81,15 @@ function CardBody({
   ar: boolean;
   reassigned: Record<string, string>;
   nudged: Record<string, boolean>;
+  nudgedBrokers: Record<string, boolean>;
   busyRefs: Record<string, boolean>;
   rowErrors: Record<string, string>;
   onAssign: (ref: string, brokerId: string, brokerName: string, version?: number) => void;
   onNudge: (ref: string) => void;
+  onNudgeBroker?: (id: string) => void;
+  onNudgeAll?: (ids: string[]) => void;
+  onBook?: (ref: string, at: string) => void;
+  onOpenQueue?: (queue: LeadQueue) => void;
   onOpenLead: (ref: string) => void;
   onSelectOption?: (query: string) => void;
   onNavigate?: (screen: string, params?: Record<string, unknown>) => void;
@@ -120,8 +133,13 @@ function CardBody({
           <KpiTile label={t(lang, 'ac_lagging')} value={num(s.lagging)} tone={s.lagging ? 'warn' : 'neutral'} />
           <KpiTile label={t(lang, 'ac_silent48')} value={num(s.silent)} tone={s.silent ? 'critical' : 'ok'} />
         </View>
+        {onNudgeBroker && onNudgeAll && card.rows.filter((b) => b.canNudgeBroker && !nudgedBrokers[b.brokerId ?? b.id]).length > 1 ? (
+          <Button testID="assistant-nudge-all" size="sm" variant="secondary" label={t(lang, 'ac_nudgeAll')} onPress={() => onNudgeAll(card.rows.filter((b) => b.canNudgeBroker && !nudgedBrokers[b.brokerId ?? b.id]).map((b) => b.brokerId ?? b.id))} />
+        ) : null}
         {card.rows.map((b, idx) => {
           const badge = disciplineMeta(b.discipline, lang);
+          const bid = b.brokerId ?? b.id;
+          const didNudge = Boolean(nudgedBrokers[bid]);
           return (
             <View key={b.id} style={[styles.rowItem, idx < card.rows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
               <View style={styles.rowTop}>
@@ -138,6 +156,11 @@ function CardBody({
                   b.missed ? `${num(b.missed)} ${t(lang, 'ac_missed')}` : null,
                 ].filter(Boolean).join(' · ')}
               </Text>
+              {b.canNudgeBroker && onNudgeBroker ? (
+                <View style={styles.actionsWrap}>
+                  <Chip testID={`assistant-nudge-broker-${bid}`} disabled={didNudge} selected={didNudge} label={t(lang, didNudge ? 'ac_nudged' : 'ac_nudge')} onPress={() => { if (!didNudge) onNudgeBroker(bid); }} />
+                </View>
+              ) : null}
             </View>
           );
         })}
@@ -148,6 +171,12 @@ function CardBody({
   if (card.kind === 'stuck_leads') {
     return (
       <SectionCard testID="card-stuck-leads" title={card.title || t(lang, 'ac_stuckTitle')} subtitle={`${num(card.total)}`}>
+        {card.split ? (
+          <Text testID="viewings-split" variant="bodySm" style={{ color: colors.muted }}>{fill(t(lang, 'ac_splitLine'), { b: num(card.split.booked), c: num(card.split.confirmed), p: num(card.split.planned) })}</Text>
+        ) : null}
+        {card.queue && onOpenQueue ? (
+          <Button testID="card-open-list" size="sm" variant="secondary" label={t(lang, 'ac_openList')} onPress={() => onOpenQueue(card.queue as LeadQueue)} />
+        ) : null}
         {card.items.length === 0 ? (
           <Text style={{ color: colors.muted }}>{t(lang, 'ac_noneStuck')}</Text>
         ) : card.items.map((item, idx) => {
@@ -156,6 +185,8 @@ function CardBody({
           const wasNudged = nudged[item.ref];
           const busy = Boolean(busyRefs[item.ref]);
           const rowError = rowErrors[item.ref];
+          const reminded = reminderLine(item.lastAutoReminderAt, lang);
+          const vState = item.viewingState;
           return (
             <View key={item.ref} style={[styles.rowItem, idx < card.items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
               <Pressable accessibilityRole="button" onPress={() => onOpenLead(item.ref)} style={styles.rowTop}>
@@ -165,7 +196,10 @@ function CardBody({
                 </View>
                 <UrgencyBadge tone="warn" label={doneTo ? `→ ${doneTo}` : (item.assignee || t(lang, 'ac_noBroker'))} />
               </Pressable>
-              <Text variant="bodySm" style={{ color: colors.muted }}>{item.stage}</Text>
+              <View style={styles.badgeRow}>
+                <Text variant="bodySm" style={{ color: colors.muted }}>{item.stage}</Text>
+                {vState ? <UrgencyBadge testID={`viewing-state-${item.ref}`} tone={vState === 'planned' ? 'neutral' : 'ok'} label={t(lang, vState === 'booked' ? 'vs_booked' : vState === 'confirmed' ? 'vs_confirmed' : 'vs_planned')} /> : null}
+              </View>
               {rowError ? <Text variant="bodySm" testID={`assistant-row-error-${item.ref}`} style={{ color: colors.danger }}>{rowError}</Text> : null}
               <View style={styles.actionsWrap}>
                 {card.canAssign && !doneTo && recs.map((b) => (
@@ -177,6 +211,9 @@ function CardBody({
                     onPress={() => { if (!busy) onAssign(item.ref, b.id, b.name, item.version); }}
                   />
                 ))}
+                {item.action?.kind === 'book_viewing' && onBook ? (
+                  <Button testID={`assistant-book-${item.ref}`} size="sm" label={t(lang, 'ac_bookIt')} onPress={() => onBook(item.ref, item.action!.at)} />
+                ) : null}
                 {card.canNudge && item.assigneeId ? (
                   <Chip
                     testID={`assistant-nudge-${item.ref}`}
@@ -186,10 +223,29 @@ function CardBody({
                     onPress={() => { if (!busy && !wasNudged) onNudge(item.ref); }}
                   />
                 ) : null}
+                {card.canNudge && item.assigneeId && reminded ? <Text testID={`auto-reminded-${item.ref}`} variant="caption" style={{ color: colors.muted }}>{reminded}</Text> : null}
               </View>
             </View>
           );
         })}
+      </SectionCard>
+    );
+  }
+
+  if (card.kind === 'client_matches') {
+    return (
+      <SectionCard testID="card-client-matches" title={card.title || undefined} subtitle={`${num(card.total)}`}>
+        {card.items.map((item, idx) => (
+          <Pressable key={item.ref} testID={`client-match-${item.ref}`} accessibilityRole="button" onPress={() => onOpenLead(item.ref)}
+            style={[styles.rowItem, idx < card.items.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+            <View style={styles.rowTop}>
+              <Text variant="bodySm" weight="bold" style={[styles.rowName, { color: colors.text }]}>{item.name ? (looksLikePhone(item.name) ? ltr(item.name) : item.name) : item.ref}</Text>
+              {item.brokerName ? <View style={styles.rowWho}><Avatar name={item.brokerName} uri={item.avatarUrl} size={28} /><Text variant="caption" style={{ color: colors.muted }}>{item.brokerName}</Text></View> : null}
+            </View>
+            <Text variant="bodySm" style={{ color: colors.text }}>{item.wants}</Text>
+            <Text variant="bodySm" weight="bold" style={{ color: colors.primaryInk }}>{fill(t(lang, 'ac_matchUnits'), { n: num(item.matchCount) })}</Text>
+          </Pressable>
+        ))}
       </SectionCard>
     );
   }
@@ -268,6 +324,8 @@ export function AssistantCards({
   ar,
   onAssignLead,
   onNudgeLead,
+  onNudgeBroker,
+  onBookViewing,
   onOpenLead,
   onOpenUnit,
   onPivotPrimary,
@@ -286,6 +344,8 @@ export function AssistantCards({
   ar: boolean;
   onAssignLead: (ref: string, brokerId: string, version?: number) => Promise<void>;
   onNudgeLead: (ref: string) => Promise<void>;
+  onNudgeBroker?: (id: string) => Promise<void>;
+  onBookViewing?: (ref: string, at: string) => void;
   onOpenLead: (ref: string) => void;
   onOpenUnit: (code: string) => void;
   onPivotPrimary: (q: string) => void;
@@ -304,6 +364,7 @@ export function AssistantCards({
   const lang = langOf(ar);
   const [reassigned, setReassigned] = useState<Record<string, string>>({});
   const [nudged, setNudged] = useState<Record<string, boolean>>({});
+  const [nudgedBrokers, setNudgedBrokers] = useState<Record<string, boolean>>({});
   const busyLockRef = useRef<Record<string, boolean>>({});
   const [busyRefs, setBusyRefs] = useState<Record<string, boolean>>({});
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
@@ -311,7 +372,8 @@ export function AssistantCards({
   const viewAllMarketsAction = response.actions?.find((a) => a.kind === 'view_all_markets');
   const pivotAction = response.actions?.find((a) => a.kind === 'pivot_mode');
   const showPivot = Boolean(response.suggestPrimary || pivotAction);
-  const queueActions = (response.actions ?? []).filter((a): a is Extract<typeof a, { kind: 'open_queue' }> => a.kind === 'open_queue');
+  const cardQueues = new Set((response.cards ?? []).flatMap((c) => (c.kind === 'stuck_leads' && c.queue ? [c.queue] : [])));
+  const queueActions = (response.actions ?? []).filter((a): a is Extract<typeof a, { kind: 'open_queue' }> => a.kind === 'open_queue' && !cardQueues.has(a.queue));
   const appliedFilters = response.understood?.appliedFilters ?? [];
 
   const formatActionError = (e: unknown): string => {
@@ -368,6 +430,38 @@ export function AssistantCards({
     }
   };
 
+  /** One broker nudge: 'sent', 'limited' (429, nudged a moment ago) or 'failed'. */
+  const nudgeOne = async (id: string): Promise<'sent' | 'limited' | 'failed'> => {
+    try {
+      await onNudgeBroker?.(id);
+      setNudgedBrokers((prev) => ({ ...prev, [id]: true }));
+      return 'sent';
+    } catch (e) {
+      if (e instanceof ApiClientError && e.status === 429) {
+        setNudgedBrokers((prev) => ({ ...prev, [id]: true }));
+        return 'limited';
+      }
+      setActionError(formatActionError(e));
+      return 'failed';
+    }
+  };
+  const handleNudgeBroker = async (id: string) => {
+    const r = await nudgeOne(id);
+    if (r === 'failed') { failed(); return; }
+    sent();
+    toast(t(lang, r === 'sent' ? 'ac_nudgeSent' : 'ac_alreadyNudged'));
+  };
+  const handleNudgeAll = async (ids: string[]) => {
+    let ok = 0;
+    let skipped = 0;
+    for (const id of ids) {
+      const r = await nudgeOne(id);
+      if (r === 'sent') ok += 1; else if (r === 'limited') skipped += 1;
+    }
+    sent();
+    toast(fill(t(lang, 'ac_nudgeAllDone'), { n: ok }) + (skipped ? fill(t(lang, 'ac_nudgeAllSkip'), { k: skipped }) : ''));
+  };
+
   const Root: React.ElementType = embedded ? View : ScrollView;
   const rootProps = embedded ? { style: styles.embedded } : { keyboardShouldPersistTaps: 'handled', contentContainerStyle: styles.container };
 
@@ -405,10 +499,15 @@ export function AssistantCards({
           ar={ar}
           reassigned={reassigned}
           nudged={nudged}
+          nudgedBrokers={nudgedBrokers}
           busyRefs={busyRefs}
           rowErrors={rowErrors}
           onAssign={(ref, id, name, version) => { handleAssign(ref, id, name, version); }}
           onNudge={(ref) => { handleNudge(ref); }}
+          onNudgeBroker={onNudgeBroker ? (id) => { handleNudgeBroker(id); } : undefined}
+          onNudgeAll={onNudgeBroker ? (ids) => { handleNudgeAll(ids); } : undefined}
+          onBook={onBookViewing}
+          onOpenQueue={onOpenQueue}
           onOpenLead={onOpenLead}
           onSelectOption={onSelectOption}
           onNavigate={onNavigateLink}

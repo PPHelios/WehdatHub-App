@@ -65,7 +65,9 @@ export function FollowUpPicker({ onSave, children }: { onSave: (f: FollowUp) => 
 export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
   const { colors } = useTheme();
   const lang = currentLang();
-  const routeRef = useRoute<RouteProp<RootStackParams, 'Lead'>>().params?.ref;
+  const routeParams = useRoute<RouteProp<RootStackParams, 'Lead'>>().params;
+  const routeRef = routeParams?.ref;
+  const viewingAt = routeParams?.viewingAt;
   const ref = leadRef ?? routeRef ?? '';
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['lead', ref], queryFn: () => api.lead(ref) });
@@ -150,8 +152,8 @@ export function LeadScreen({ leadRef }: { leadRef?: string } = {}) {
         </FollowUpPicker>
 
         {canWork ? (
-          <Section testID="sec-viewing" title={t(lang, 'addViewing')}>
-            <ViewingForm lead={lead} />
+          <Section testID="sec-viewing" title={t(lang, 'addViewing')} startOpen={Boolean(viewingAt)}>
+            <ViewingForm lead={lead} initialAt={viewingAt} />
           </Section>
         ) : null}
 
