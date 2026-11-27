@@ -217,7 +217,7 @@ export function RootNavigation() {
               </SafeAreaView>
             ) : <><PlanBanner topInset={options.headerShown === false} onOpenPlan={() => navigationRef.navigate('Plan')} />{children}</>}
           </BottomSafe>
-        )} screenOptions={{ headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerStyle: { backgroundColor: colors.bg }, headerShadowVisible: false, headerRight: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View> }}>
+        )} screenOptions={{ animation: 'slide_from_right', headerTitleStyle: { fontFamily: FONT_BOLD }, headerTintColor: colors.text, headerStyle: { backgroundColor: colors.bg }, headerShadowVisible: false, headerRight: () => <View style={{ paddingHorizontal: 8 }}><Logo bar /></View> }}>
           <Stack.Screen name="Tabs" component={TabsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Unit" getComponent={lazyScreens.Unit} options={{ headerShown: false }} />
           <Stack.Screen name="Lead" getComponent={lazyScreens.Lead} options={{ title: t(currentLang(), 'leadsTab') }} />
