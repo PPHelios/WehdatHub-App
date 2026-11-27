@@ -6,7 +6,8 @@ import { api } from '../api';
 import { errorText } from '../errors';
 import { parseSearchIntent, type SearchIntent } from '../searchCapabilities';
 import { timed, usage } from '../usage';
-import { track } from '../analytics';
+import { track, trackFirstQuestion } from '../analytics';
+import { useAuth } from '../auth';
 import { needsVoiceConfirm } from '../voiceConfirm';
 import { shouldUseAssistantEndpoint } from './routing';
 import { contextOf, persistableTurns, PERSISTED_TURNS, threadReducer, type Turn, type TurnSource } from './thread';
@@ -96,6 +97,7 @@ export function useAssistantThread({ brokerId, lang, onIntent, onRemember }: {
     const req = reqs.current.get(id);
     if (!req) return;
     const alive = () => reqs.current.get(id) === req;
+    void trackFirstQuestion(useAuth.getState().broker?.id);
     const fail = (e: unknown) => { if (alive()) dispatch({ type: 'fail', id, error: errorText(e, lang) }); };
     try {
       if (req.kind === 'primary') {

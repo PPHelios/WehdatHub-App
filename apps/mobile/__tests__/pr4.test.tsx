@@ -1,13 +1,11 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ApiClientError } from '@wehdathub/shared';
-import { AskScreen } from '../src/screens/AskScreen';
 import { TeamScreen } from '../src/screens/TeamScreen';
 import { AddUnitScreen, EXISTING, photoChanges } from '../src/screens/AddUnitScreen';
 import { api } from '../src/api';
 
-jest.mock('../src/api', () => ({ api: { ask: jest.fn(), team: jest.fn(), unit: jest.fn(), unitEditFields: jest.fn(), reviewUnit: jest.fn().mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null }), saveUnitEdit: jest.fn(), unitPhotos: jest.fn(), extractUnit: jest.fn(), voiceToText: jest.fn() } }));
+jest.mock('../src/api', () => ({ api: { team: jest.fn(), unit: jest.fn(), unitEditFields: jest.fn(), reviewUnit: jest.fn().mockResolvedValue({ ok: true, blockers: [], warnings: [], duplicate: null }), saveUnitEdit: jest.fn(), unitPhotos: jest.fn(), extractUnit: jest.fn(), voiceToText: jest.fn() } }));
 const mockGoBack = jest.fn();
 jest.mock('@react-navigation/native', () => ({ useNavigation: () => ({ goBack: mockGoBack, navigate: jest.fn(), replace: jest.fn() }), useRoute: () => ({ params: { edit: 'A-1' } }) }));
 jest.mock('../src/voice', () => ({ ensureMic: jest.fn().mockResolvedValue(true), startRecording: jest.fn(), stopRecording: jest.fn(), cancelRecording: jest.fn() }));
@@ -42,28 +40,6 @@ test('saving an edited unit sends the photo changes after the fields', async () 
   await fireEvent.press(screen.getByTestId('save-unit'));
   await waitFor(() => expect(m.saveUnitEdit).toHaveBeenCalled());
   await waitFor(() => expect(m.unitPhotos).toHaveBeenCalledWith('A-1', expect.objectContaining({ remove: ['b'], order: ['a'] })));
-});
-
-test('ask shows the answer and the data dates; a blocked AI shows the server message', async () => {
-  m.ask.mockResolvedValueOnce({ answer: 'Delivery is 2028.', found: true, lang: 'en', dataDates: 'Data: Badya prices 2026-10-01' });
-  await wrap(<AskScreen />);
-  await fireEvent.changeText(screen.getByTestId('ask-input'), 'when is delivery');
-  await fireEvent.press(screen.getByTestId('ask-go'));
-  await waitFor(() => expect(screen.getByTestId('ask-answer')).toBeTruthy());
-  expect(screen.getByText(/2028/)).toBeTruthy();
-  m.ask.mockRejectedValueOnce(new ApiClientError(402, 'ai_blocked', null, { message: 'Out of credits' }));
-  await fireEvent.press(screen.getByTestId('ask-go'));
-  await waitFor(() => expect(screen.getByText('Out of credits')).toBeTruthy());
-  expect(screen.queryByTestId('ask-answer')).toBeNull();
-});
-
-test('a local answer (AI off) is shown with a note, not as an error', async () => {
-  m.ask.mockResolvedValueOnce({ answer: '3 projects fit.', found: true, lang: 'en', dataDates: null, source: 'local', log_id: 'l1' });
-  await wrap(<AskScreen />);
-  await fireEvent.changeText(screen.getByTestId('ask-input'), 'cheap in obour');
-  await fireEvent.press(screen.getByTestId('ask-go'));
-  await waitFor(() => expect(screen.getByTestId('ask-local')).toBeTruthy());
-  expect(screen.queryByTestId('ask-error')).toBeNull();
 });
 
 test('the team lists each broker with the open and overdue counts', async () => {

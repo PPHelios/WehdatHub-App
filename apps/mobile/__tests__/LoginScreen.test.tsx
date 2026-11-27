@@ -17,6 +17,7 @@ const mockedApi = api as jest.Mocked<typeof api>;
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({ locale: 'ar-EG' } as never);
   mockedApi.trialOptions.mockResolvedValue({
     enabled: true,
     waAvailable: true,
@@ -65,4 +66,23 @@ test('switches to Start Free Trial, shows dynamic tiers & Telegram pitch, and wa
   }));
   await waitFor(() => expect(openSpy).toHaveBeenCalledWith('https://wa.me/201099990000?text=VERIFY%20su_abc'));
   expect(screen.getByTestId('code-input')).toBeTruthy();
+});
+
+test('signup copy follows the phone language, and an English phone sees the tier line in English', async () => {
+  jest.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({ locale: 'en-US' } as never);
+  await render(<LoginScreen />);
+  fireEvent.press(await screen.findByTestId('mode-signup'));
+  expect(await screen.findByText('14 days · 50 units · 80 credits')).toBeTruthy();
+  expect(screen.getByText('Your details')).toBeTruthy();
+});
+
+test('without Telegram installed it shows the install hint and does not call signup', async () => {
+  jest.spyOn(Linking, 'canOpenURL').mockResolvedValue(false);
+  await render(<LoginScreen />);
+  fireEvent.press(await screen.findByTestId('mode-signup'));
+  await fireEvent.changeText(await screen.findByTestId('signup-name'), 'Kareem');
+  await fireEvent.changeText(screen.getByTestId('phone-input'), '01012345678');
+  await fireEvent.press(screen.getByTestId('signup-telegram'));
+  expect(await screen.findByTestId('tg-install-hint')).toBeTruthy();
+  expect(mockedApi.signup).not.toHaveBeenCalled();
 });

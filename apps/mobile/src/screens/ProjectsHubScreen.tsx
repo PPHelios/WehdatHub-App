@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { currentLang } from '../auth';
 import { HubTabs, type HubTabItem } from '../components/HubTabs';
 import { ProjectsScreen } from './CatalogueScreens';
 import { LibraryScreen } from './MoreScreens';
 import { PricesScreen } from './InsightsScreens';
-import { AskScreen } from './AskScreen';
+import { openPrimarySearch } from '../searchLink';
 import type { RootStackParams } from '../navigation';
 import { useTheme } from '../theme';
 
@@ -17,6 +17,7 @@ export function ProjectsHubScreen() {
   const { colors } = useTheme();
   const lang = currentLang();
   const ar = lang === 'ar';
+  const nav = useNavigation();
   const route = useRoute<RouteProp<RootStackParams, 'ProjectsHub'>>();
   const [tab, setTab] = useState<ProjectsHubTab>(route.params?.initialTab ?? 'projects');
 
@@ -29,12 +30,11 @@ export function ProjectsHubScreen() {
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.bg }]}>
-      <HubTabs tabs={tabs} active={tab} onSelect={setTab} testID="projects-hub-tabs" />
+      <HubTabs tabs={tabs} active={tab} onSelect={(id) => (id === 'ask' ? openPrimarySearch(nav) : setTab(id))} testID="projects-hub-tabs" />
       <View style={styles.flex}>
         {tab === 'projects' ? <ProjectsScreen /> : null}
         {tab === 'library' ? <LibraryScreen /> : null}
         {tab === 'prices' ? <PricesScreen /> : null}
-        {tab === 'ask' ? <AskScreen /> : null}
       </View>
     </View>
   );

@@ -12,6 +12,7 @@ import { SaveSearchButton } from '../components/SaveSearchButton';
 import { SkeletonCard } from '../components/Skeleton';
 import { UnitHeroCard, HERO_CARD_WIDTH } from '../components/UnitHeroCard';
 import { matchReasons, type MatchFilters } from '../matchReasons';
+import { track } from '../analytics';
 import { enter } from '../motion';
 import { t } from '../i18n';
 import { radius, spacing, useTheme } from '../theme';
@@ -58,6 +59,12 @@ export function ThinkingBubble({ lang }: { lang: Lang }) {
   );
 }
 
+/** Renders nothing; counts one clarify prompt shown. */
+function ClarifyShown({ kind }: { kind: string }) {
+  useEffect(() => { void track('clarify_shown', { kind }); }, [kind]);
+  return null;
+}
+
 function UnitResults({ turn, lang, h }: { turn: Turn; lang: Lang; h: TurnHandlers }) {
   const { colors } = useTheme();
   const r = turn.response!;
@@ -71,6 +78,7 @@ function UnitResults({ turn, lang, h }: { turn: Turn; lang: Lang; h: TurnHandler
   if (units.status === 'ask') {
     return (
       <View style={styles.block}>
+        <ClarifyShown kind="ask" />
         <Text variant="heading" style={{ color: colors.text }}>{t(lang, 'askTitle')}</Text>
         <Text weight="bold" style={{ color: colors.accentInk }}>{[...(units.ask?.terms ?? []), ...(units.ask?.numbers ?? []).map(String)].join(' · ')}</Text>
         <Button label={t(lang, 'askSearchAnyway')} onPress={() => h.onSearchAnyway(turn.id)} />
@@ -107,10 +115,10 @@ function UnitResults({ turn, lang, h }: { turn: Turn; lang: Lang; h: TurnHandler
   );
 }
 
-function Suggestions({ items, onSend }: { items: AssistantSuggestion[]; onSend: TurnHandlers['onSend'] }) {
+function Suggestions({ items, onSend, intent }: { items: AssistantSuggestion[]; onSend: TurnHandlers['onSend']; intent: string }) {
   return (
     <View testID="suggestions" style={styles.chips}>
-      {items.map((s, i) => <Chip key={`${s.q}-${i}`} label={s.label} onPress={() => onSend(s.q, 'chip')} />)}
+      {items.map((s, i) => <Chip key={`${s.q}-${i}`} label={s.label} onPress={() => { void track('suggestion_tapped', { intent }); onSend(s.q, 'chip'); }} />)}
     </View>
   );
 }
@@ -147,7 +155,7 @@ function Answer({ turn, lang, h }: { turn: Turn; lang: Lang; h: TurnHandlers }) 
           extraFooter={primary || projects ? <AskResults showStatus hideAnswerLine={Boolean(projects)} q={turn.question} initial={projects} onOpenProject={(id, name) => h.onOpenProject(id, name)} /> : undefined}
         />
       )}
-      {r.suggestions?.length ? <Suggestions items={r.suggestions} onSend={h.onSend} /> : null}
+      {r.suggestions?.length ? <Suggestions items={r.suggestions} onSend={h.onSend} intent={r.intent} /> : null}
     </View>
   );
 }

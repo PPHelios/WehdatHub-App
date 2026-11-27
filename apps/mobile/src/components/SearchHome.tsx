@@ -12,6 +12,7 @@ import { t } from '../i18n';
 import { usage } from '../usage';
 import type { RootStackParams } from '../navigation';
 import { useRightsState } from '../rights';
+import { useColumns, useWide } from '../layout';
 import { radius, spacing, useTheme } from '../theme';
 import { AppText as Text } from './AppText';
 import { Icon, type IconName } from './Icon';
@@ -20,7 +21,7 @@ import { PressableScale } from './PressableScale';
 import { HomeRow } from './HomeRow';
 import { SectionCard, UrgencyBadge } from './SectionCard';
 import { OldUnitActions } from './TodayCards';
-import { StarterCard } from './StarterCard';
+import { StarterCard, useStarterDismissed } from './StarterCard';
 import { DecisionCard } from './DecisionCard';
 import { allClearLine, decisionSummary, formatPriority, nextStepForRole, priorityPrompt, priorityTitle, type PriorityView } from '../assistant/priorityCopy';
 import { TodayCall, TodayDetails } from './TodayDetails';
@@ -33,7 +34,6 @@ interface DiscoveryTip {
 }
 
 const TIPS_STORAGE_PREFIX = 'wehdathub.learnedTips';
-const STARTER_DISMISSED_KEY = 'wehdathub.starterDismissed';
 
 function tipsForRole(
   role: string | undefined,
@@ -86,6 +86,8 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
   const n = (value: number) => value.toLocaleString(locale);
   const [all, setAll] = useState(false);
   const queries = useQueryClient();
+  const grid = useColumns() >= 2;
+  const wide = useWide();
 
   const tipsKey = broker?.id ? `${TIPS_STORAGE_PREFIX}:${broker.id}:${broker.role}` : null;
   const [learnedTips, setLearnedTips] = useState<string[] | null>(null);
@@ -262,6 +264,7 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
     { key: 'calls', label: t(lang, 'followUps'), value: data.calls ?? 0 },
     { key: 'new', label: t(lang, 'newLeads'), value: data.newLeads ?? 0 },
     { key: 'late', label: t(lang, 'late'), value: data.ops?.overdue ?? data.overdue ?? 0 },
+    ...(wide ? [{ key: 'urgent', label: t(lang, 'urgentTile'), value: urgentCount }] : []),
   ];
   const nextStep = nextStepForRole(broker?.role, lang);
   const runNextStep = () => {
@@ -286,10 +289,7 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
   const loading = all ? overdue.isPending : home.isPending && Boolean(broker?.id);
   const failed = refresh.isError && !refresh.data;
 
-  const [starterDismissed, setStarterDismissed] = useState(true);
-  useEffect(() => {
-    AsyncStorage.getItem(STARTER_DISMISSED_KEY).then((v) => setStarterDismissed(v === '1')).catch(() => setStarterDismissed(false));
-  }, []);
+  const [starterDismissed, dismissStarter] = useStarterDismissed(broker?.id);
   const meQ = useQuery({ queryKey: ['me'], queryFn: ({ signal }) => api.me(signal), staleTime: 60_000 });
   const planQ = useQuery({ queryKey: ['plan'], queryFn: () => api.plan(), enabled: rights.manager || rights.agencyOwner, staleTime: 60_000 });
   const onboarding = meQ.data?.onboarding;
@@ -319,10 +319,9 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
           onAddUnit={() => nav.navigate('AddUnit')}
           onShareSample={() => nav.navigate('UnitsList', {})}
           onConnectTelegram={() => nav.navigate('Usage')}
-          onDismiss={() => {
-            setStarterDismissed(true);
-            void AsyncStorage.setItem(STARTER_DISMISSED_KEY, '1').catch(() => undefined);
-          }}
+          onAsk={() => (nav.navigate as (...a: unknown[]) => void)('Tabs', { screen: 'Search', params: { at: Date.now() } })}
+          onAddPhotos={() => nav.navigate('UnitsList', { missingPhotos: true })}
+          onDismiss={dismissStarter}
         />
       ) : null}
       {!all ? invitation : null}
@@ -353,7 +352,7 @@ export function SearchHome({ openQueue, onTryPrompt, invitation, children }: {
         ) : null}
         {loading ? <View style={[styles.loading, { backgroundColor: colors.card, borderColor: colors.border }]}><ActivityIndicator accessibilityLabel={t(lang, 'loading')} color={colors.spinner} /></View> :
           failed ? row('home-retry', ar ? 'حاول تاني' : 'Retry brief', () => void refresh.refetch()) :
-          rows.length ? rows :
+          rows.length ? (grid && !entry ? <View style={styles.grid}>{rows.map((r, i) => <View key={(r as React.ReactElement).key ?? i} style={styles.cell}>{r}</View>)}</View> : rows) :
             <Card testID="home-all-clear" style={styles.clear}>
               <Icon name="check" size={20} color={colors.primaryInk} />
               <Text variant="body" weight="bold" style={{ color: colors.text }}>{entry ? (ar ? 'كل الوحدات محدّثة' : 'All units are up to date') : allClearLine(lang)}</Text>
@@ -437,6 +436,8 @@ const styles = StyleSheet.create({
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   sectionTitle: { fontSize: 16, fontWeight: '800', paddingVertical: spacing.xs },
   loading: { minHeight: 52, justifyContent: 'center', borderWidth: 1, borderRadius: radius.card },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  cell: { flexBasis: '48%', flexGrow: 1 },
   metrics: { flexDirection: 'row', gap: spacing.sm },
   metric: { flex: 1, padding: spacing.md, gap: 2 },
   clear: { gap: spacing.sm, alignItems: 'flex-start' },

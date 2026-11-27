@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { BackHandler, Keyboard, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, StretchInY, FadeOut, LinearTransition, ReduceMotion } from 'react-native-reanimated';
+import { track } from '../analytics';
 import { useAuth } from '../auth';
 import { Button } from './Button';
 import { AppText as Text } from './AppText';
@@ -32,13 +33,16 @@ export function SearchPractice({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('');
   const [picked, setPicked] = useState<string>();
   const [hint, setHint] = useState(false);
+  useEffect(() => { void track('practice_started'); }, []);
+  useEffect(() => { if (step === 2) void track('practice_completed'); }, [step]);
+  const leave = useCallback(() => { if (step !== 2) void track('practice_skipped'); onClose(); }, [step, onClose]);
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      onClose();
+      leave();
       return true;
     });
     return () => subscription.remove();
-  }, [onClose]);
+  }, [leave]);
 
   const submit = () => {
     if (step !== 0) return;
@@ -69,7 +73,7 @@ export function SearchPractice({ onClose }: { onClose: () => void }) {
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={{ color: colors.muted }}>{copy('Practice with demo data', 'تجربة ببيانات تجريبية')}</Text>
-          <Button label={copy('Exit', 'خروج')} onPress={onClose} variant="quiet" size="sm" testID="practice-exit" />
+          <Button label={copy('Exit', 'خروج')} onPress={leave} variant="quiet" size="sm" testID="practice-exit" />
         </View>
         <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{copy('Try Search', 'جرّب البحث')}</Text>
         <Text accessibilityLiveRegion="polite" style={{ color: colors.text }}>{instruction}</Text>

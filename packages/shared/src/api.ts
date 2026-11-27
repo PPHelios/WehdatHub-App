@@ -763,7 +763,7 @@ export function createApiClient(opts: ApiClientOptions) {
     requestCode: (phone: string) => request<{ ok: true; codeMinutes: number }>('POST', '/auth/code/request', { phone }),
     verifyCode: (phone: string, code: string) => request<LoginResult>('POST', '/auth/code/verify', { phone, code }),
     logout: () => request<{ ok: true }>('POST', '/auth/logout', {}),
-    me: (signal?: AbortSignal) => request<{ broker: ApiBroker; workspace?: ApiWorkspace | null; inviteRoles?: string[]; onboarding?: { hasUnit: boolean; hasSharedLink: boolean; telegramConnected: boolean }; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me', undefined, undefined, signal),
+    me: (signal?: AbortSignal) => request<{ broker: ApiBroker; workspace?: ApiWorkspace | null; inviteRoles?: string[]; onboarding?: { hasUnit: boolean; hasSharedLink: boolean; telegramConnected: boolean; hasAsked?: boolean }; agency: ApiAgency; rights: Rights; nav?: Nav; expiresAt: string; testSwitch: ApiTestSwitch | null; platformOwner?: boolean }>('GET', '/me', undefined, undefined, signal),
     testRole: (role: string) => request<{ ok: true; role: string }>('POST', '/test-role', { role }),
     testView: (view: 'home' | 'other') => request<{ ok: true; viewing: boolean }>('POST', '/test-view', { view }),
     units: (q: UnitsQuery = {}) => request<UnitsPage>('GET', '/units', undefined, { ...q }),

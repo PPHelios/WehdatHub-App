@@ -9,7 +9,7 @@ import { UnitCard } from '../components/UnitCard';
 import { ErrorView, Loading } from '../components/StateViews';
 import { useSelectionHighlight } from '../components/SelectionHighlight';
 import { t } from '../i18n';
-import { greenGradient, spacing, useTheme } from '../theme';
+import { greenGradient, radius, spacing, useTheme } from '../theme';
 import type { FullList } from './useAssistantThread';
 
 const AnimatedFlashList = Animated.createAnimatedComponent(FlashList<ApiUnitListItem>);
@@ -29,13 +29,15 @@ export function UnitNotes({ data, lang }: { data: SearchResult; lang: Lang }) {
 }
 
 /** The whole result list for one search: Active / Sold / Archived with counts, paged on scroll. */
-export function FullResults({ full, lang, onStatus, onRetry, onMore, onOpen, onScroll }: {
+export function FullResults({ full, lang, onStatus, onRetry, onMore, onOpen, onScroll, selectedCode }: {
   full: FullList;
   lang: Lang;
   onStatus: (status: UnitStatus) => void;
   onRetry: () => void;
   onMore: () => void;
   onOpen: (code: string) => void;
+  /** The unit open beside the list on tablets: drawn with a 2px brand outline. */
+  selectedCode?: string;
   onScroll?: React.ComponentProps<typeof AnimatedFlashList>['onScroll'];
 }) {
   const { colors } = useTheme();
@@ -62,7 +64,10 @@ export function FullResults({ full, lang, onStatus, onRetry, onMore, onOpen, onS
           data={[...data.items, ...full.extra]}
           keyExtractor={(u) => u.id}
           ListHeaderComponent={<View>{data.f && data.total > 0 ? <SaveSearchButton f={data.f} /> : null}<UnitNotes data={data} lang={lang} /></View>}
-          renderItem={({ item }) => <UnitCard unit={item} lang={lang} onPress={() => onOpen(item.code)} />}
+          renderItem={({ item }) => {
+            const card = <UnitCard unit={item} lang={lang} onPress={() => onOpen(item.code)} />;
+            return selectedCode === item.code ? <View testID={`selected-${item.code}`} style={[styles.selected, { borderColor: colors.primary }]}>{card}</View> : card;
+          }}
           onScroll={onScroll}
           scrollEventThrottle={16}
           contentContainerStyle={styles.list}
@@ -77,6 +82,7 @@ export function FullResults({ full, lang, onStatus, onRetry, onMore, onOpen, onS
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  selected: { borderWidth: 2, borderRadius: radius.card },
   list: { paddingBottom: 90 },
   note: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xs },
   chips: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs },

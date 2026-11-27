@@ -23,6 +23,7 @@ import { HomeRow } from '../components/HomeRow';
 import { Button } from '../components/Button';
 import { t } from '../i18n';
 import type { RootStackParams } from '../navigation';
+import { Split, useWide } from '../layout';
 import { spacing, useTheme } from '../theme';
 import { VoiceBar } from '../components/VoiceBar';
 import { FullResults } from '../assistant/FullResults';
@@ -35,7 +36,7 @@ export { shouldUseAssistantEndpoint } from '../assistant/routing';
 
 const RECENT_KEY = 'wehdathub.recentSearches';
 
-export function SearchScreen() {
+export function SearchScreen({ initialMode, modeStamp }: { initialMode?: AssistantMode; modeStamp?: number } = {}) {
   const { colors } = useTheme();
   const lang = currentLang();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
@@ -64,7 +65,9 @@ export function SearchScreen() {
     setPracticing(true);
   };
 
-  const [mode, setMode] = useState<AssistantMode>('auto');
+  const [mode, setMode] = useState<AssistantMode>(initialMode ?? 'auto');
+  // A link such as the old Ask screen's opens this tab already in that mode.
+  useEffect(() => { if (initialMode) setMode(initialMode); }, [initialMode, modeStamp]);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const credits = useSearchCredits();
   const [submitted, setSubmitted] = useState('');
@@ -138,6 +141,8 @@ export function SearchScreen() {
   };
   const thread = useAssistantThread({ brokerId: broker?.id, lang, onIntent: showIntent, onRemember: rememberRecent });
   const { turns, full, busy, transcribing } = thread;
+  const wide = useWide();
+  const [selectedUnit, setSelectedUnit] = useState<string>();
 
   const submit = (q: string, source: TurnSource = 'text', fromClarification = false) => {
     const clean = q.trim();
@@ -263,9 +268,13 @@ export function SearchScreen() {
     </SearchHome>
   );
 
-  return (
-    <View style={[styles.flex, styles.composerFrame, { backgroundColor: colors.bg }]}>
-      {thread.voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{thread.voiceError}</Text> : null}
+  const voiceErr = thread.voiceError ? <Text testID="voice-error" style={[styles.err, { color: colors.danger }]}>{thread.voiceError}</Text> : null;
+  const threadEl = (
+    <ThreadView turns={turns} lang={lang} mode={mode} onScroll={onScroll} onSend={sendFrom} onRetry={(id) => thread.retry(id)} onSearchAnyway={(id) => thread.retry(id, { drop: true })}
+      onSeeAll={thread.openFull} onNewConversation={resetToHome} onChangeMode={setMode} onOpenQueue={(queue) => openHomeReport('leads', queue)}
+      onChangeSearch={(q) => setText(q)} />
+  );
+  const mainEl = (
       <Animated.View key={atHome ? 'brief' : 'results'} entering={FadeIn.duration(200).reduceMotion(ReduceMotion.System)} style={styles.flex}>
         {report ? (
           <ReportView report={report} lang={lang} submitted={submitted} clarification={clarification} canSeeLeads={rights.leads} leadFilters={leadFilters} assignee={assignee} dealLastMonth={dealLastMonth}
@@ -274,13 +283,12 @@ export function SearchScreen() {
             onCloseAction={() => { setReport('leads'); setSubmitted(''); setText(''); }} />
         ) : full ? (
           <FullResults full={full} lang={lang} onStatus={thread.setFullStatus} onRetry={thread.rerunFull} onMore={() => thread.loadMore()} onScroll={onScroll}
-            onOpen={(code) => { track('search_unit_opened'); nav.navigate('Unit', { code }); }} />
-        ) : turns.length ? (
-          <ThreadView turns={turns} lang={lang} mode={mode} onScroll={onScroll} onSend={sendFrom} onRetry={(id) => thread.retry(id)} onSearchAnyway={(id) => thread.retry(id, { drop: true })}
-            onSeeAll={thread.openFull} onNewConversation={resetToHome} onChangeMode={setMode} onOpenQueue={(queue) => openHomeReport('leads', queue)}
-            onChangeSearch={(q) => setText(q)} />
-        ) : home}
+            selectedCode={wide ? selectedUnit : undefined}
+            onOpen={(code) => { track('search_unit_opened'); setSelectedUnit(code); nav.navigate('Unit', { code }); }} />
+        ) : turns.length && !wide ? threadEl : home}
       </Animated.View>
+  );
+  const composer = (
       <Animated.View style={[styles.composerStack, barSlide]}>
         <ComposerPopover
           visible={popoverOpen}
@@ -358,12 +366,43 @@ export function SearchScreen() {
             onSubmit={() => { submit(text, voiceConfirmOrigin !== null ? 'voice' : 'text'); }} onFile={onVoice} onError={thread.setVoiceError} disabled={transcribing} busy={busy || transcribing} />
         </View>
       </Animated.View>
+  );
+  if (wide) {
+    // Tablets: the chat (thread or suggestions, and the composer) is a panel on the end side; Home or the full results fill the rest.
+    const results = Boolean(report || full);
+    const chips = (['searchExample1', 'searchExample2', 'searchExample3'] as const).map((k) => t(lang, k));
+    const panel = (
+      <View testID="chat-panel" style={[styles.panel, !results && styles.panelFixed, { backgroundColor: colors.bg, borderStartColor: colors.border }]}>
+        {voiceErr}
+        {turns.length ? threadEl : (
+          <View testID="chat-empty" style={styles.chatEmpty}>
+            {chips.map((q, i) => <Chip key={q} testID={`chat-chip-${i + 1}`} label={q} onPress={() => { setText(q); submit(q); }} />)}
+          </View>
+        )}
+        {composer}
+      </View>
+    );
+    return (
+      <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+        {results ? <Split list={panel} detail={mainEl} /> : <View style={styles.wideRow}><View style={styles.flex}>{mainEl}</View>{panel}</View>}
+      </View>
+    );
+  }
+  return (
+    <View style={[styles.flex, styles.composerFrame, { backgroundColor: colors.bg }]}>
+      {voiceErr}
+      {mainEl}
+      {composer}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  wideRow: { flex: 1, flexDirection: 'row' },
+  panel: { flex: 1, overflow: 'hidden', borderStartWidth: StyleSheet.hairlineWidth },
+  panelFixed: { flex: 0, width: 380 },
+  chatEmpty: { flex: 1, justifyContent: 'center', alignItems: 'flex-start', padding: spacing.lg, gap: spacing.sm },
   invitation: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tools: { gap: spacing.sm },
   composerFrame: { overflow: 'hidden' },

@@ -2,9 +2,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useCallback, useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import type { LeadQueue, LeadTab, PortalEnquiryRead, UnitFields, UploadFile } from '@wehdathub/shared';
+import type { AssistantMode, LeadQueue, LeadTab, PortalEnquiryRead, UnitFields, UploadFile } from '@wehdathub/shared';
 import { trackScreen } from './analytics';
-import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef, useNavigation, useRoute } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabBarProps, BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -14,6 +14,7 @@ import { BottomSafe } from './components/BottomSafe';
 import { PlanBanner } from './components/PlanBanner';
 import { Icon } from './components/Icon';
 import { FAB_TEST_ID, FloatingTabBar } from './components/FloatingTabBar';
+import { SideNav } from './components/SideNav';
 import { MenuButton } from './components/MenuButton';
 import { NotificationBell, inboxUnreadOptions } from './components/NotificationBell';
 import type { IconName } from './components/Icon';
@@ -30,21 +31,27 @@ import { pt } from './projectText';
 import { DashboardScreen } from './screens/InsightsScreens';
 import { SearchScreen } from './screens/SearchScreen';
 import { UnitsScreen } from './screens/UnitsScreen';
-import { narrow } from './layout';
+import { narrow, useWide } from './layout';
 import { useRightsState } from './rights';
+import { openPrimarySearch } from './searchLink';
 import { TAB_TITLE } from './roleNav';
 import { tabPlan } from './navFromServer';
 import type { TabKey } from './roleNav';
 
-const SearchNarrow = narrow(SearchScreen);
+function SearchTab() {
+  const p = useRoute().params as { mode?: AssistantMode; at?: number } | undefined;
+  return <SearchScreen initialMode={p?.mode} modeStamp={p?.at} />;
+}
+const SearchNarrow = narrow(SearchTab);
+const openMore = (nav: NativeStackNavigationProp<RootStackParams>, s: string) => (s === 'Ask' ? openPrimarySearch(nav) : nav.navigate(s as never));
 function MoreTab() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  return <MoreScreen onOpen={(s) => nav.navigate(s as never)} />;
+  return <MoreScreen onOpen={(s) => openMore(nav, s)} />;
 }
 const MoreNarrow = narrow(MoreTab);
 function SettingsTab() {
   const nav = useNavigation<NativeStackNavigationProp<RootStackParams>>();
-  return <MoreScreen mode="settings" onOpen={(s) => nav.navigate(s as never)} />;
+  return <MoreScreen mode="settings" onOpen={(s) => openMore(nav, s)} />;
 }
 const SettingsNarrow = narrow(SettingsTab);
 const TeamNarrow = narrow(TeamScreen);
@@ -93,7 +100,6 @@ const lazyScreens = {
   Compare: lazy(() => require('./screens/MoreScreens').CompareScreen),
   Usage: lazy(() => require('./screens/MoreScreens').UsageScreen),
   Platform: lazy(() => require('./screens/MoreScreens').PlatformScreen),
-  Ask: lazy(() => require('./screens/AskScreen').AskScreen, true),
   AddUnit: lazy(() => require('./screens/AddUnitScreen').AddUnitScreen, true),
   WhatsAppImport: lazy(() => require('./screens/WhatsAppImportScreen').WhatsAppImportScreen, true),
   ClientsHub: lazy(() => require('./screens/ClientsHubScreen').ClientsHubScreen),
@@ -116,7 +122,7 @@ export type AddUnitParams = {
   /** The post as the import read it (the server's rules reader): the form opens with these fields filled. */ fields?: UnitFields;
   /** The code the post writes: filled even when the reader could not be reached. */ code?: string;
 };
-export type RootStackParams = { Tabs: undefined; MoreMenu: undefined; Settings: undefined; ClientsHub: { initialTab?: 'calendar' | 'pipeline' | 'requests' | 'compare' } | undefined; ProjectsHub: { initialTab?: 'projects' | 'library' | 'prices' | 'ask' } | undefined; TrackingHub: { initialTab?: 'links' | 'leases' | 'searches' } | undefined; DealsHub: { initialTab?: 'deals' | 'commissions' } | undefined; AdminHub: { initialTab?: 'team' | 'rules' | 'requests' | 'portals' } | undefined; ReportsHub: { initialTab?: 'dashboard' | 'winloss' | 'sources' | 'activity' } | undefined; SettingsHub: { initialTab?: 'app' | 'notifications' | 'plan' | 'support' } | undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string; paste?: string } | undefined; Contacts: undefined; Calendar: { tomorrow?: boolean } | undefined; SentLinks: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: { order?: 'overdue' | 'available' } | undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: { from?: string; to?: string; brokerId?: string; brokerRole?: 'closer' | 'participant'; market?: 'resale' | 'primary' | 'unknown'; area?: string } | undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: { kind?: 'resale' | 'developers'; developerId?: string; developerName?: string; overdue?: boolean } | undefined; Sources: { signedOnly?: boolean } | undefined; Portal: undefined; PortalEnquiry: { message: string; enquiry?: PortalEnquiryRead }; Links: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean; missingPhotos?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string; team?: string; queue?: LeadQueue } | undefined; Pipeline: undefined; MapList: undefined; TeamMember: { id: string; name: string; role?: string; me?: boolean; teamLeadId?: string | null }; Ask: undefined; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
+export type RootStackParams = { Tabs: undefined; MoreMenu: undefined; Settings: undefined; ClientsHub: { initialTab?: 'calendar' | 'pipeline' | 'requests' | 'compare' } | undefined; ProjectsHub: { initialTab?: 'projects' | 'library' | 'prices' } | undefined; TrackingHub: { initialTab?: 'links' | 'leases' | 'searches' } | undefined; DealsHub: { initialTab?: 'deals' | 'commissions' } | undefined; AdminHub: { initialTab?: 'team' | 'rules' | 'requests' | 'portals' } | undefined; ReportsHub: { initialTab?: 'dashboard' | 'winloss' | 'sources' | 'activity' } | undefined; SettingsHub: { initialTab?: 'app' | 'notifications' | 'plan' | 'support' } | undefined; Unit: { code: string; lease?: { tenantName: string; startDate: string; rent: string } }; Leases: undefined; SavedSearches: undefined; Lead: { ref: string }; NewLead: { name?: string; phone?: string; paste?: string } | undefined; Contacts: undefined; Calendar: { tomorrow?: boolean } | undefined; SentLinks: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Notifications: undefined; Inbox: undefined; ClientRequests: undefined; Team: { order?: 'overdue' | 'available' } | undefined; Owners: undefined; Owner: { id: string; name: string }; Requests: undefined; ActivityLog: undefined; Invite: undefined; LeadRules: undefined; Dashboard: undefined; Deals: { from?: string; to?: string; brokerId?: string; brokerRole?: 'closer' | 'participant'; market?: 'resale' | 'primary' | 'unknown'; area?: string } | undefined; Projects: undefined; Project: { id: string; name: string }; ProjectForm: { id?: string } | undefined; Library: undefined; Compare: undefined; Plan: undefined; Usage: undefined; Platform: undefined; Commissions: { kind?: 'resale' | 'developers'; developerId?: string; developerName?: string; overdue?: boolean } | undefined; Sources: { signedOnly?: boolean } | undefined; Portal: undefined; PortalEnquiry: { message: string; enquiry?: PortalEnquiryRead }; Links: { search?: string; opened?: boolean; days?: number; leadRef?: string; leadLabel?: string } | undefined; Prices: undefined; WinLoss: undefined; Report: undefined; UnitsList: { old?: boolean; missingPhotos?: boolean } | undefined; LeadsList: { tab?: LeadTab; broker?: string; team?: string; queue?: LeadQueue } | undefined; Pipeline: undefined; MapList: undefined; TeamMember: { id: string; name: string; role?: string; me?: boolean; teamLeadId?: string | null }; AddUnit: AddUnitParams | undefined; WhatsAppImport: { zip?: UploadFile; saved?: { id: string; code: string } } | undefined };
 export const navigationRef = createNavigationContainerRef<RootStackParams>();
 type TabParams = Record<TabKey | 'AddUnitTab', undefined>;
 
@@ -132,6 +138,7 @@ const NothingHere = () => null;
 /** Every tab's screen. Module level: the map never changes. */
 const TAB_SCREENS: Record<TabKey, React.ComponentType> = { Search: SearchNarrow, Leads: LeadsScreen, Map: MapScreen, Units: UnitsScreen, More: MoreNarrow, Team: TeamNarrow, Dashboard: DashboardScreen, Owners: OwnersScreen, AddUnit: NothingHere, Plan: PlanScreen, Settings: SettingsNarrow };
 const renderTabBar = (props: BottomTabBarProps) => <FloatingTabBar {...props} />;
+const renderSideNav = (props: BottomTabBarProps) => <SideNav {...props} />;
 const openInbox = () => navigationRef.navigate('Inbox');
 const openMoreMenu = () => navigationRef.navigate('MoreMenu');
 const addUnitListeners = { tabPress: (e: { preventDefault: () => void }) => { e.preventDefault(); navigationRef.navigate('AddUnit'); } };
@@ -141,6 +148,7 @@ function TabsScreen() {
   const { rights, ready, nav } = useRightsState();
   const { colors } = useTheme();
   const { bg, border, text } = colors;
+  const wide = useWide();
   // The only poll of the unread count (once a minute, paused in the background); the bell reads the same query.
   useQuery({ ...inboxUnreadOptions, refetchInterval: 60_000, enabled: ready });
   const plan = useMemo(() => (ready ? tabPlan(nav, rights) : null), [ready, nav, rights]);
@@ -158,7 +166,8 @@ function TabsScreen() {
     headerTitleStyle: { color: text, fontFamily: FONT_BOLD },
     headerShadowVisible: false,
     headerRight,
-  }), [bg, border, text, headerRight]);
+    ...(wide ? { tabBarPosition: 'left' as const } : {}),
+  }), [bg, border, text, headerRight, wide]);
   const tabOptions = useMemo(() => (plan?.tabs ?? []).map((spec) => ({ title: spec.label ? spec.label[lang] : t(lang, TAB_TITLE[spec.key]), tabBarIcon: tabIcon(spec.icon), tabBarButtonTestID: spec.fab ? FAB_TEST_ID : undefined })), [plan, lang]);
   if (!plan) {
     return (
@@ -168,7 +177,7 @@ function TabsScreen() {
     );
   }
   return (
-    <Tabs.Navigator tabBar={renderTabBar} initialRouteName={plan.initial} screenOptions={screenOptions}>
+    <Tabs.Navigator tabBar={wide ? renderSideNav : renderTabBar} initialRouteName={plan.initial} screenOptions={screenOptions}>
       {plan.tabs.map((spec, i) => {
         const k = spec.key;
         return (
@@ -262,7 +271,6 @@ export function RootNavigation() {
           <Stack.Screen name="UnitsList" component={UnitsScreen} options={{ title: t(currentLang(), 'units') }} />
           <Stack.Screen name="LeadsList" component={LeadsScreen} options={{ title: t(currentLang(), 'leadsTab') }} />
           <Stack.Screen name="MapList" component={MapScreen} options={{ title: t(currentLang(), 'mapTab') }} />
-          <Stack.Screen name="Ask" getComponent={lazyScreens.Ask} options={{ title: t(currentLang(), 'ask') }} />
           <Stack.Screen name="AddUnit" getComponent={lazyScreens.AddUnit} options={{ title: t(currentLang(), 'addUnit') }} />
           <Stack.Screen name="WhatsAppImport" getComponent={lazyScreens.WhatsAppImport} options={{ title: t(currentLang(), 'whatsappImport') }} />
           <Stack.Screen name="ClientsHub" getComponent={lazyScreens.ClientsHub} options={{ title: currentLang() === 'ar' ? 'العملاء' : 'Clients' }} />
